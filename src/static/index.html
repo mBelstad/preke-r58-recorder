@@ -991,16 +991,21 @@
                 video.onloadedmetadata = () => {
                     console.log(`✅ Video metadata loaded for ${camId}, dimensions: ${video.videoWidth}x${video.videoHeight}`);
                     
-                    // Check if video has actual dimensions (not 0x0)
-                    if (video.videoWidth === 0 || video.videoHeight === 0) {
-                        console.warn(`⚠️ Video has zero dimensions for ${camId}, track might not be active`);
+                    // Check if video has actual dimensions (not 0x0 or placeholder 2x2)
+                    if (video.videoWidth === 0 || video.videoHeight === 0 || 
+                        (video.videoWidth === 2 && video.videoHeight === 2)) {
+                        console.warn(`⚠️ Video has invalid dimensions (${video.videoWidth}x${video.videoHeight}) for ${camId}, track might not be active`);
                         // Wait a bit more and check again
                         setTimeout(() => {
-                            if (video.videoWidth > 0 && video.videoHeight > 0) {
+                            if (video.videoWidth > 2 && video.videoHeight > 2) {
                                 console.log(`✅ Video dimensions now: ${video.videoWidth}x${video.videoHeight}`);
                                 tryPlayVideo();
                             } else {
-                                console.error(`❌ Video still has zero dimensions after wait`);
+                                console.error(`❌ Video still has invalid dimensions after wait`);
+                                // Try to reconnect
+                                setTimeout(() => {
+                                    startCameraPreview(camId);
+                                }, 2000);
                             }
                         }, 500);
                     } else {
@@ -1083,8 +1088,9 @@
                     updatePlaceholderStatus(camId, 'disconnected');
                     updateStats();
                     placeholder.style.display = 'flex';
+                    // Restart preview with correct path (will check recording status)
                     setTimeout(() => {
-                        startWebRTCPreview(video, webrtcUrl, camId, placeholder);
+                        startCameraPreview(camId);
                     }, 2000);
                 };
                 
@@ -1165,7 +1171,8 @@
                 let dimensionCheckCount = 0;
                 const checkDimensions = setInterval(() => {
                     dimensionCheckCount++;
-                    if (video.videoWidth > 0 && video.videoHeight > 0) {
+                    // Check for valid dimensions (not 0x0 or placeholder 2x2)
+                    if (video.videoWidth > 2 && video.videoHeight > 2) {
                         console.log(`✅ Video dimensions detected: ${video.videoWidth}x${video.videoHeight}`);
                         cameraStreamStates[camId] = 'ready';
                         updatePlaceholderStatus(camId, 'ready');
@@ -1176,9 +1183,13 @@
                     } else if (dimensionCheckCount > 20) {
                         // Stop checking after 2 seconds
                         clearInterval(checkDimensions);
-                        console.warn(`⚠️ Video dimensions still 0x0 after 2 seconds for ${camId}`);
+                        console.warn(`⚠️ Video dimensions still invalid (${video.videoWidth}x${video.videoHeight}) after 2 seconds for ${camId}`);
                         cameraStreamStates[camId] = 'disconnected';
                         updatePlaceholderStatus(camId, 'disconnected');
+                        // Try to reconnect
+                        setTimeout(() => {
+                            startCameraPreview(camId);
+                        }, 2000);
                     }
                 }, 100);
             };
@@ -1276,10 +1287,10 @@
         }
 
         function startHLSWithUrl(video, camId, placeholder, hlsUrl) {
-            
             // Clean up existing HLS player
             if (hlsPlayers[camId]) {
                 hlsPlayers[camId].destroy();
+                delete hlsPlayers[camId];
             }
             
             if (window.Hls && window.Hls.isSupported()) {
@@ -1336,12 +1347,24 @@
                     updateStats();
                 };
                 
+                // Track retry count to avoid infinite retries
+                if (!hls.retryCount) hls.retryCount = 0;
+                
                 hls.on(window.Hls.Events.ERROR, (event, data) => {
                     console.error(`HLS error for ${camId}:`, data);
                     if (data.fatal) {
                         if (data.type === window.Hls.ErrorTypes.NETWORK_ERROR) {
+                            // Limit retries to avoid infinite loops
+                            if (hls.retryCount >= 3) {
+                                console.warn(`HLS network error for ${camId} - max retries reached, giving up`);
+                                cameraStreamStates[camId] = 'disconnected';
+                                updatePlaceholderStatus(camId, 'disconnected');
+                                updateStats();
+                                return;
+                            }
+                            hls.retryCount++;
                             // Retry on network error - check if stream is available first
-                            console.log(`HLS network error for ${camId}, retrying in 2 seconds...`);
+                            console.log(`HLS network error for ${camId}, retrying in 2 seconds... (attempt ${hls.retryCount}/3)`);
                             setTimeout(() => {
                                 // Check if recording status changed and use correct path
                                 fetch(`${API_BASE}/status`)
@@ -1366,11 +1389,14 @@
                             cameraStreamStates[camId] = 'disconnected';
                             updatePlaceholderStatus(camId, 'disconnected');
                             updateStats();
-                            // Retry with correct path after fatal error
-                            setTimeout(() => {
-                                console.log(`Retrying HLS preview for ${camId} after fatal error...`);
-                                startHLSPreview(video, camId, placeholder);
-                            }, 3000);
+                            // Only retry once for fatal errors
+                            if (hls.retryCount < 1) {
+                                hls.retryCount++;
+                                setTimeout(() => {
+                                    console.log(`Retrying HLS preview for ${camId} after fatal error...`);
+                                    startHLSPreview(video, camId, placeholder);
+                                }, 3000);
+                            }
                         }
                     }
                 });

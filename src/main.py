@@ -131,13 +131,24 @@ async def get_preview_status() -> Dict[str, Dict[str, Any]]:
 @app.get("/status")
 async def get_status() -> Dict[str, Dict[str, Any]]:
     """Get status of all cameras."""
-    statuses = recorder.get_status()
-    return {
-        "cameras": {
-            cam_id: {"status": status, "config": cam_id in config.cameras}
-            for cam_id, status in statuses.items()
-        }
-    }
+    recording_statuses = recorder.get_status()
+    preview_statuses = preview_manager.get_preview_status()
+    
+    # Combine recording and preview statuses
+    combined_statuses = {}
+    for cam_id in config.cameras.keys():
+        recording_status = recording_statuses.get(cam_id, "idle")
+        preview_status = preview_statuses.get(cam_id, "idle")
+        
+        # Prioritize recording over preview
+        if recording_status == "recording":
+            combined_statuses[cam_id] = {"status": "recording", "config": True}
+        elif preview_status == "preview":
+            combined_statuses[cam_id] = {"status": "preview", "config": True}
+        else:
+            combined_statuses[cam_id] = {"status": recording_status, "config": True}
+    
+    return {"cameras": combined_statuses}
 
 
 @app.get("/status/{cam_id}")

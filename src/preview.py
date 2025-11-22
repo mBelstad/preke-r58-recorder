@@ -48,6 +48,9 @@ class PreviewManager:
         if hasattr(recorder, 'states') and recorder.states.get(cam_id) == "recording":
             logger.info(f"Stopping recording for {cam_id} before starting preview")
             recorder.stop_recording(cam_id)
+            # Give device time to release before starting preview
+            import time
+            time.sleep(0.5)
 
         cam_config: CameraConfig = self.config.cameras[cam_id]
 
