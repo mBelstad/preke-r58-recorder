@@ -115,18 +115,25 @@ class Recorder:
 
         pipeline = self.pipelines[cam_id]
         try:
-            # Send EOS
+            # Send EOS to flush the pipeline
             pipeline.send_event(Gst.Event.new_eos())
 
-            # Wait for EOS or timeout
+            # Wait for EOS or timeout (10 seconds max)
             bus = pipeline.get_bus()
             msg = bus.timed_pop_filtered(
-                Gst.CLOCK_TIME_NONE,
+                10 * Gst.SECOND,  # 10 second timeout
                 Gst.MessageType.EOS | Gst.MessageType.ERROR,
             )
 
-            # Stop pipeline
+            if msg and msg.type == Gst.MessageType.ERROR:
+                err, debug = msg.parse_error()
+                logger.error(f"Pipeline error during stop for {cam_id}: {err.message}")
+
+            # Set to NULL state to finalize the file
             pipeline.set_state(Gst.State.NULL)
+            
+            # Wait a bit for state change
+            pipeline.get_state(Gst.CLOCK_TIME_NONE)
 
             # Clean up
             del self.pipelines[cam_id]
@@ -137,6 +144,12 @@ class Recorder:
 
         except Exception as e:
             logger.error(f"Error stopping pipeline for {cam_id}: {e}")
+            # Force stop even if there was an error
+            try:
+                pipeline.set_state(Gst.State.NULL)
+                del self.pipelines[cam_id]
+            except:
+                pass
             self.states[cam_id] = "error"
             return False
 
@@ -148,13 +161,16 @@ class Recorder:
             self.states[cam_id] = "error"
         elif message.type == Gst.MessageType.EOS:
             logger.info(f"End of stream for {cam_id}")
-            self.states[cam_id] = "idle"
+            # Don't change state to idle here - let stop_pipeline handle it
         elif message.type == Gst.MessageType.STATE_CHANGED:
             if message.src == self.pipelines.get(cam_id):
                 old_state, new_state, pending_state = message.parse_state_changed()
-                logger.debug(
+                logger.info(
                     f"State changed for {cam_id}: {old_state.value_nick} -> {new_state.value_nick}"
                 )
+        elif message.type == Gst.MessageType.WARNING:
+            warn, debug = message.parse_warning()
+            logger.warning(f"Pipeline warning for {cam_id}: {warn.message} - {debug}")
 
     def get_status(self) -> Dict[str, str]:
         """Get status of all cameras."""
