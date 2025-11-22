@@ -476,7 +476,8 @@
             
             if (!streamActive) {
                 const hostname = window.location.hostname;
-                const hlsUrl = `http://${hostname}:8888/cam0/hls.m3u8`;
+                // Try both HLS path formats
+                const hlsUrl = `http://${hostname}:8888/cam0/index.m3u8`;
                 
                 // Check for native HLS support (Safari, some browsers)
                 if (video.canPlayType('application/vnd.apple.mpegurl') || 
