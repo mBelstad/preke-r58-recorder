@@ -191,15 +191,13 @@ def build_r58_preview_pipeline(
         source_str = f"v4l2src device={device} ! videoconvert ! videoscale ! video/x-raw,width={width},height={height},framerate=30/1"
 
     # Encoder - ALWAYS use H.264 for preview (flvmux doesn't support H.265)
-    # Balanced settings: good quality with low latency
-    # Use 80% of recording bitrate for preview (better quality)
-    preview_bitrate = max(4000, int(bitrate * 0.8))  # 80% of recording bitrate
-    # key-int-max=60 = keyframe every 2s at 30fps (good quality, acceptable latency)
-    # speed-preset=veryfast = best balance of quality and latency
-    # threads=2 = slight threading for better quality without much latency
-    # sync-lookahead=1 = minimal lookahead for better quality
-    # dct8x8=true = better quality for 1080p
-    encoder_str = f"x264enc tune=zerolatency bitrate={preview_bitrate} speed-preset=veryfast key-int-max=60 threads=2 sync-lookahead=1 dct8x8=true"
+    # Simple, stable settings: lower bitrate, faster encoding for lower latency
+    # Use half of recording bitrate for preview (reduces encoding load)
+    preview_bitrate = max(2000, bitrate // 2)  # Half bitrate for preview
+    # speed-preset=ultrafast = fastest encoding (lowest latency)
+    # key-int-max=30 = keyframe every 1s at 30fps (good balance)
+    # Keep it simple - no explicit threads/lookahead to avoid issues
+    encoder_str = f"x264enc tune=zerolatency bitrate={preview_bitrate} speed-preset=ultrafast key-int-max=30"
     caps_str = "video/x-h264"
 
     # Preview pipeline: stream to MediaMTX only (no recording)
