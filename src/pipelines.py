@@ -92,7 +92,7 @@ def build_r58_pipeline(
         encoder_str = f"mpph264enc bps={bps} bps-max={bps * 2}"
         caps_str = "video/x-h264,profile=high"
         parse_str = "h264parse"
-        mux_str = "mp4mux fragment-duration=1"
+        mux_str = "mp4mux"
 
     # Build pipeline
     if mediamtx_path:
