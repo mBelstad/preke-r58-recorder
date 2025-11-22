@@ -64,14 +64,14 @@ def build_r58_pipeline(
 
     # Video source for HDMI (rk_hdmirx) - must use io-mode=mmap and handle NV24 format
     # HDMI device is /dev/video60 with NV24 format (YUV 4:4:4)
-    # Must convert NV24 before encoding
+    # Must convert NV24 before encoding - always use videoconvert
     if "video60" in device or "hdmirx" in device.lower():
-        # Use simpler pipeline - let v4l2src negotiate format, then convert
+        # HDMI input: use NV24 format explicitly with framerate, then convert to NV12
         source_str = (
             f"v4l2src device={device} io-mode=mmap ! "
-            f"video/x-raw,format=NV24,width={width},height={height} ! "
+            f"video/x-raw,format=NV24,width={width},height={height},framerate=60/1 ! "
             f"videoconvert ! "
-            f"video/x-raw,format=NV12,width={width},height={height}"
+            f"video/x-raw,format=NV12"
         )
     else:
         # For other video devices (MIPI cameras, etc.)
@@ -86,11 +86,10 @@ def build_r58_pipeline(
         parse_str = "h265parse"
         mux_str = "matroskamux"
     else:  # h264
-        # Use mpph264enc (v4l2h264enc may not be available on all R58 systems)
-        # bps is in bits per second (bitrate is in kbps, so multiply by 1000)
-        bps = bitrate * 1000
-        encoder_str = f"mpph264enc bps={bps} bps-max={bps * 2}"
-        caps_str = "video/x-h264,profile=high"
+        # Use x264enc (software encoder) - more reliable than mpph264enc for HDMI
+        # bitrate is in kbps for x264enc
+        encoder_str = f"x264enc tune=zerolatency bitrate={bitrate} speed-preset=superfast"
+        caps_str = "video/x-h264"
         parse_str = "h264parse"
         mux_str = "mp4mux"
 
