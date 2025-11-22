@@ -530,12 +530,18 @@
             });
 
             pc.ontrack = (event) => {
-                console.log(`✅ WebRTC track received for ${camId} (real-time <100ms latency)`);
-                if (!event.streams || event.streams.length === 0) {
-                    console.error(`No streams in WebRTC track for ${camId}`);
+                console.log(`✅ WebRTC track received for ${camId} (real-time <100ms latency)`, event);
+                // event.streams might be empty, but event.track is always available
+                if (event.streams && event.streams.length > 0) {
+                    video.srcObject = event.streams[0];
+                } else if (event.track) {
+                    // Create a new stream from the track if streams array is empty
+                    const stream = new MediaStream([event.track]);
+                    video.srcObject = stream;
+                } else {
+                    console.error(`No track or streams in WebRTC event for ${camId}`);
                     return;
                 }
-                video.srcObject = event.streams[0];
                 
                 // Force video to be visible
                 video.style.display = 'block';
