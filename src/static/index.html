@@ -644,7 +644,11 @@
                             pendingVideos.delete(video);
                         }).catch(e => {
                             if (userInteracted) {
-                                setTimeout(() => video.play().catch(() => {}), 100);
+                                setTimeout(() => {
+                                    video.play().catch(() => {
+                                        // Silent fail on retry
+                                    });
+                                }, 100);
                             } else {
                                 pendingVideos.add(video);
                                 placeholder.querySelector('.text').innerHTML = 'HLS Ready!<br><small style="color: #10b981;">Click "Start Streams" button above</small>';
