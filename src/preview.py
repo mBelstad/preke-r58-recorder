@@ -24,6 +24,9 @@ class PreviewManager:
         # Initialize GStreamer
         Gst.init(None)
 
+        # Clean up any stuck GStreamer processes that might be holding video devices
+        self._cleanup_stuck_pipelines()
+
         # Initialize states
         for cam_id in config.cameras.keys():
             self.preview_states[cam_id] = "idle"
@@ -66,8 +69,16 @@ class PreviewManager:
             bus.add_signal_watch()
             bus.connect("message", self._on_bus_message, cam_id)
 
-            # Start pipeline
-            pipeline.set_state(Gst.State.PLAYING)
+            # Start pipeline and verify it actually started
+            ret = pipeline.set_state(Gst.State.PLAYING)
+            if ret == Gst.StateChangeReturn.FAILURE:
+                logger.error(f"Failed to start preview pipeline for {cam_id}")
+                self.preview_states[cam_id] = "error"
+                return False
+            
+            # Wait a moment and check if pipeline is actually playing
+            pipeline.get_state(Gst.CLOCK_TIME_NONE)
+            
             self.preview_pipelines[cam_id] = pipeline
             self.preview_states[cam_id] = "preview"
 
@@ -132,12 +143,37 @@ class PreviewManager:
             err, debug = message.parse_error()
             logger.error(f"Preview pipeline error for {cam_id}: {err.message} - {debug}")
             self.preview_states[cam_id] = "error"
+            # Clean up the failed pipeline
+            if cam_id in self.preview_pipelines:
+                try:
+                    pipeline = self.preview_pipelines[cam_id]
+                    pipeline.set_state(Gst.State.NULL)
+                    del self.preview_pipelines[cam_id]
+                except:
+                    pass
+        elif message.type == Gst.MessageType.EOS:
+            logger.warning(f"Preview pipeline EOS for {cam_id} - pipeline ended unexpectedly")
+            self.preview_states[cam_id] = "error"
+            # Clean up
+            if cam_id in self.preview_pipelines:
+                try:
+                    pipeline = self.preview_pipelines[cam_id]
+                    pipeline.set_state(Gst.State.NULL)
+                    del self.preview_pipelines[cam_id]
+                except:
+                    pass
         elif message.type == Gst.MessageType.STATE_CHANGED:
             if message.src == self.preview_pipelines.get(cam_id):
                 old_state, new_state, pending_state = message.parse_state_changed()
-                logger.debug(
+                logger.info(
                     f"Preview state changed for {cam_id}: {old_state.value_nick} -> {new_state.value_nick}"
                 )
+                # If pipeline goes to NULL unexpectedly, mark as error
+                if new_state == Gst.State.NULL and old_state != Gst.State.NULL:
+                    logger.warning(f"Preview pipeline for {cam_id} went to NULL state unexpectedly")
+                    if cam_id in self.preview_pipelines:
+                        del self.preview_pipelines[cam_id]
+                    self.preview_states[cam_id] = "error"
 
     def get_preview_status(self) -> Dict[str, str]:
         """Get preview status for all cameras."""
@@ -146,4 +182,26 @@ class PreviewManager:
     def get_camera_preview_status(self, cam_id: str) -> Optional[str]:
         """Get preview status for a specific camera."""
         return self.preview_states.get(cam_id)
+
+    def _cleanup_stuck_pipelines(self) -> None:
+        """Kill any stuck GStreamer processes that might be holding video devices."""
+        import subprocess
+        try:
+            # Find and kill stuck gst-launch processes
+            result = subprocess.run(
+                ["pgrep", "-f", "gst-launch.*video60"],
+                capture_output=True,
+                text=True,
+            )
+            if result.returncode == 0:
+                pids = result.stdout.strip().split("\n")
+                for pid in pids:
+                    if pid:
+                        try:
+                            subprocess.run(["kill", "-9", pid], check=False)
+                            logger.info(f"Killed stuck GStreamer process: {pid}")
+                        except Exception:
+                            pass
+        except Exception as e:
+            logger.warning(f"Could not cleanup stuck pipelines: {e}")
 
