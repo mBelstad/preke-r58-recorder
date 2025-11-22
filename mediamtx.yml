@@ -11,7 +11,7 @@ rtmpAddress: :1935
 # HLS settings (separate port for HLS)
 hlsAddress: :8888
 hlsAlwaysRemux: yes
-hlsSegmentCount: 3
+hlsSegmentCount: 7
 hlsSegmentDuration: 1s
 hlsAllowOrigin: "*"
 
