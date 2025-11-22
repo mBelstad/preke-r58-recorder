@@ -248,6 +248,12 @@
             justify-content: center;
             color: #6b7280;
             background: #111;
+            z-index: 10;
+            pointer-events: none; /* Allow clicks to pass through when hidden */
+        }
+        
+        .camera-placeholder[style*="display: none"] {
+            display: none !important;
         }
 
         .camera-placeholder .icon {
@@ -634,9 +640,19 @@
                 
                 // Function to actually play the video
                 const tryPlayVideo = () => {
+                    // Force placeholder to be hidden when video is ready
+                    if (video.videoWidth > 0 && video.videoHeight > 0) {
+                        placeholder.style.display = 'none';
+                        placeholder.style.visibility = 'hidden';
+                        placeholder.style.opacity = '0';
+                        console.log(`✅ Video has dimensions ${video.videoWidth}x${video.videoHeight}, hiding placeholder`);
+                    }
+                    
                     if (video.paused) {
                         video.play().then(() => {
                             placeholder.style.display = 'none';
+                            placeholder.style.visibility = 'hidden';
+                            placeholder.style.opacity = '0';
                             console.log(`✅ WebRTC playing for ${camId} - real-time latency!`);
                         }).catch(e => {
                             if (e.name !== 'AbortError' && e.name !== 'NotAllowedError') {
@@ -644,12 +660,17 @@
                             }
                             // Show placeholder with click instruction
                             if (placeholder && placeholder.querySelector('.text')) {
+                                placeholder.style.display = 'flex';
+                                placeholder.style.visibility = 'visible';
+                                placeholder.style.opacity = '1';
                                 placeholder.querySelector('.text').innerHTML = 'WebRTC Ready!<br><small style="color: #10b981;">Click anywhere to start</small>';
                                 placeholder.style.cursor = 'pointer';
                             }
                         });
                     } else {
                         placeholder.style.display = 'none';
+                        placeholder.style.visibility = 'hidden';
+                        placeholder.style.opacity = '0';
                         console.log(`Video already playing for ${camId}`);
                     }
                 };
@@ -659,6 +680,23 @@
                     console.log(`Video readyState is ${video.readyState}, trying to play immediately`);
                     tryPlayVideo();
                 }
+                
+                // Also check periodically if video dimensions become available
+                let dimensionCheckCount = 0;
+                const checkDimensions = setInterval(() => {
+                    dimensionCheckCount++;
+                    if (video.videoWidth > 0 && video.videoHeight > 0) {
+                        console.log(`✅ Video dimensions detected: ${video.videoWidth}x${video.videoHeight}`);
+                        placeholder.style.display = 'none';
+                        placeholder.style.visibility = 'hidden';
+                        placeholder.style.opacity = '0';
+                        clearInterval(checkDimensions);
+                    } else if (dimensionCheckCount > 20) {
+                        // Stop checking after 2 seconds
+                        clearInterval(checkDimensions);
+                        console.warn(`⚠️ Video dimensions still 0x0 after 2 seconds for ${camId}`);
+                    }
+                }, 100);
             };
 
             pc.oniceconnectionstatechange = () => {
