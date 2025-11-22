@@ -1,9 +1,11 @@
 """FastAPI application for R58 recorder."""
 import logging
+import os
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, List
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 
 from .config import AppConfig
 from .recorder import Recorder
@@ -32,6 +34,20 @@ app = FastAPI(
     description="Recording API for Mekotronics R58 4x4 3S",
     version="1.0.0",
 )
+
+# Mount static files for frontend
+static_path = Path(__file__).parent / "static"
+if static_path.exists():
+    app.mount("/static", StaticFiles(directory=str(static_path)), name="static")
+
+
+@app.get("/", response_class=HTMLResponse)
+async def root():
+    """Serve the frontend."""
+    index_path = Path(__file__).parent / "static" / "index.html"
+    if index_path.exists():
+        return index_path.read_text()
+    return "<h1>R58 Recorder API</h1><p>Frontend not found. API is available at /docs</p>"
 
 
 @app.get("/health")
@@ -93,6 +109,48 @@ async def get_camera_status(cam_id: str) -> Dict[str, str]:
         raise HTTPException(status_code=404, detail=f"Camera {cam_id} not found")
 
     return {"camera": cam_id, "status": status}
+
+
+@app.get("/recordings/{cam_id}")
+async def list_recordings(cam_id: str) -> Dict[str, Any]:
+    """List recordings for a camera."""
+    if cam_id not in config.cameras:
+        raise HTTPException(status_code=404, detail=f"Camera {cam_id} not found")
+
+    cam_config = config.cameras[cam_id]
+    recordings_dir = Path(cam_config.output_path).parent
+
+    recordings = []
+    if recordings_dir.exists():
+        for file_path in sorted(recordings_dir.glob("*.mp4"), key=os.path.getmtime, reverse=True):
+            recordings.append({
+                "filename": file_path.name,
+                "size": file_path.stat().st_size,
+                "modified": int(file_path.stat().st_mtime),
+                "path": str(file_path),
+            })
+
+    return {"cam_id": cam_id, "recordings": recordings}
+
+
+@app.get("/recordings/{cam_id}/{filename}")
+async def get_recording(cam_id: str, filename: str) -> FileResponse:
+    """Download or view a recording."""
+    if cam_id not in config.cameras:
+        raise HTTPException(status_code=404, detail=f"Camera {cam_id} not found")
+
+    cam_config = config.cameras[cam_id]
+    recordings_dir = Path(cam_config.output_path).parent
+    file_path = recordings_dir / filename
+
+    if not file_path.exists() or not file_path.is_file():
+        raise HTTPException(status_code=404, detail="Recording not found")
+
+    return FileResponse(
+        path=str(file_path),
+        filename=filename,
+        media_type="video/mp4",
+    )
 
 
 if __name__ == "__main__":
