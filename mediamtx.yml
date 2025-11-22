@@ -9,9 +9,10 @@ rtspAddress: :8554
 rtmpAddress: :1935
 
 # HLS settings (separate port for HLS) - optimized for low latency
+# Low-Latency HLS requires at least 7 segments
 hlsAddress: :8888
 hlsAlwaysRemux: yes
-hlsSegmentCount: 3
+hlsSegmentCount: 7
 hlsSegmentDuration: 500ms
 hlsPartDuration: 200ms
 hlsAllowOrigin: "*"
