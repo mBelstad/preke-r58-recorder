@@ -1,5 +1,6 @@
 """Pipeline manager for camera recording."""
 import logging
+import subprocess
 from datetime import datetime
 from typing import Dict, Optional
 from pathlib import Path
@@ -26,6 +27,9 @@ class Recorder:
 
         # Initialize GStreamer
         Gst.init(None)
+
+        # Clean up any stuck GStreamer processes that might be holding video devices
+        self._cleanup_stuck_pipelines()
 
         # Initialize states
         for cam_id in config.cameras.keys():
@@ -179,4 +183,26 @@ class Recorder:
     def get_camera_status(self, cam_id: str) -> Optional[str]:
         """Get status of a specific camera."""
         return self.states.get(cam_id)
+
+    def _cleanup_stuck_pipelines(self) -> None:
+        """Kill any stuck GStreamer processes that might be holding video devices."""
+        import subprocess
+        try:
+            # Find and kill stuck gst-launch processes
+            result = subprocess.run(
+                ["pgrep", "-f", "gst-launch.*video60"],
+                capture_output=True,
+                text=True,
+            )
+            if result.returncode == 0:
+                pids = result.stdout.strip().split("\n")
+                for pid in pids:
+                    if pid:
+                        try:
+                            subprocess.run(["kill", "-9", pid], check=False)
+                            logger.info(f"Killed stuck GStreamer process: {pid}")
+                        except Exception:
+                            pass
+        except Exception as e:
+            logger.warning(f"Could not cleanup stuck pipelines: {e}")
 

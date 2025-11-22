@@ -62,10 +62,18 @@ def build_r58_pipeline(
     """Build a real hardware-accelerated pipeline for R58."""
     width, height = resolution.split("x")
 
-    # Video source - let v4l2src auto-negotiate format and resolution
-    # For HDMI inputs, query the device for actual resolution
-    # Use videoscale to ensure we get the requested resolution
-    source_str = f"v4l2src device={device} ! videoconvert ! videoscale ! video/x-raw,width={width},height={height}"
+    # Video source for HDMI (rk_hdmirx) - must use io-mode=mmap and handle NV24 format
+    # HDMI device is /dev/video60 with NV24 format (YUV 4:4:4)
+    # Must convert NV24 before encoding
+    if "video60" in device or "hdmirx" in device.lower():
+        source_str = (
+            f"v4l2src device={device} io-mode=mmap ! "
+            f"video/x-raw,format=NV24,width={width},height={height} ! "
+            f"videoconvert ! videoscale ! video/x-raw,width={width},height={height}"
+        )
+    else:
+        # For other video devices (MIPI cameras, etc.)
+        source_str = f"v4l2src device={device} ! videoconvert ! videoscale ! video/x-raw,width={width},height={height}"
 
     # Hardware encoder selection
     if codec == "h265":
@@ -103,6 +111,7 @@ def build_r58_pipeline(
         )
     else:
         # File only - ensure proper format conversion for MPP encoder
+        # videoconvert already handles format conversion, but we ensure NV12 for MPP
         pipeline_str = (
             f"{source_str} ! "
             f"timeoverlay ! "
