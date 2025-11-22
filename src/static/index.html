@@ -125,7 +125,8 @@
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 8px;
-            margin-bottom: 10px;
+            margin: 20px 0;
+            min-height: 400px; /* Ensure minimum height so it's visible */
         }
 
         .multiview.fullscreen {
@@ -382,7 +383,14 @@
                 const response = await fetch(`${API_BASE}/status`);
                 const data = await response.json();
                 const multiview = document.getElementById('multiview');
+                
+                if (!multiview) {
+                    console.error('Multiview element not found!');
+                    return;
+                }
+                
                 multiview.innerHTML = '';
+                console.log(`Initializing multiview with ${Object.keys(data.cameras).length} cameras`);
 
                 for (const [camId, camData] of Object.entries(data.cameras)) {
                     const view = document.createElement('div');
@@ -399,7 +407,10 @@
                         </div>
                     `;
                     multiview.appendChild(view);
+                    console.log(`Added camera view for ${camId}`);
                 }
+                
+                console.log(`Multiview initialized with ${multiview.children.length} camera views`);
             } catch (error) {
                 console.error('Failed to initialize multiview:', error);
             }
