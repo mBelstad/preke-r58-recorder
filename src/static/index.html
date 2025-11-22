@@ -1525,21 +1525,34 @@
             camerasEl.textContent = `${activeCameras} / ${Object.keys(data.cameras).length}`;
             camerasEl.className = recordingState ? 'stat-value recording' : 'stat-value idle';
 
-            // Update camera list - only show cameras that are actually recording
+            // Update camera list - show all cameras, but only show "RECORDING" if actually recording
             const cameraList = document.getElementById('cameraList');
             cameraList.innerHTML = '';
             for (const [camId, camData] of Object.entries(data.cameras)) {
-                // Only show cameras that are actively recording
-                if (camData.status !== 'recording') {
-                    continue;
-                }
-                
                 const stat = document.createElement('div');
                 stat.className = 'camera-stat';
                 
-                // For recording cameras, always show RECORDING status
-                const statusClass = 'recording';
-                const statusText = 'RECORDING';
+                // Determine status: only show "RECORDING" if actually recording
+                let statusClass, statusText;
+                const streamState = cameraStreamStates[camId];
+                
+                if (camData.status === 'recording') {
+                    // Only show RECORDING if actually recording
+                    statusClass = 'recording';
+                    statusText = 'RECORDING';
+                } else if (streamState === 'ready') {
+                    statusClass = 'ready';
+                    statusText = 'READY';
+                } else if (streamState === 'disconnected') {
+                    statusClass = 'disconnected';
+                    statusText = 'DISCONNECTED';
+                } else if (camData.status === 'preview') {
+                    statusClass = 'preview';
+                    statusText = 'PREVIEW';
+                } else {
+                    statusClass = 'idle';
+                    statusText = 'IDLE';
+                }
                 
                 // Convert cam0 -> CAM 1, cam1 -> CAM 2, etc.
                 const camNumber = parseInt(camId.replace('cam', '')) + 1;
