@@ -333,7 +333,7 @@
                     view.innerHTML = `
                         <div class="camera-label">${camId.toUpperCase()}</div>
                         <div class="camera-close" onclick="event.stopPropagation(); closeFullscreen()">✕ Close</div>
-                        <video id="video-${camId}" autoplay muted playsinline onclick="if(this.paused) this.play()"></video>
+                        <video id="video-${camId}" autoplay muted playsinline></video>
                         <div class="camera-placeholder" id="placeholder-${camId}">
                             <div class="icon">📹</div>
                             <div class="text">Loading preview...</div>
@@ -429,10 +429,12 @@
             
             if (!video || !placeholder) return;
 
-            // Try WebRTC first for ultra-low latency
+            // Try WebRTC first for ultra-low latency (<100ms)
+            // MediaMTX WebRTC uses /path/whep endpoint
             const webrtcUrl = `http://${HOSTNAME}:8889/${camId}_preview/whep`;
             
             if (window.RTCPeerConnection) {
+                // Try WebRTC first, fallback to HLS if it fails
                 startWebRTCPreview(video, webrtcUrl, camId, placeholder);
             } else {
                 // Fallback to HLS
@@ -457,29 +459,11 @@
             pc.ontrack = (event) => {
                 console.log(`WebRTC track received for ${camId}`);
                 video.srcObject = event.streams[0];
-                // Try to play immediately - if it fails, user interaction is needed
                 video.play().catch(e => {
-                    console.warn(`WebRTC autoplay blocked for ${camId}, user interaction required:`, e);
-                    // Don't fallback to HLS immediately - WebRTC is working, just needs user interaction
-                    placeholder.querySelector('.text').textContent = 'Click anywhere to play (WebRTC ready - <100ms latency)';
-                    placeholder.style.cursor = 'pointer';
-                    const playHandler = () => {
-                        video.play().then(() => {
-                            placeholder.style.display = 'none';
-                            document.removeEventListener('click', playHandler);
-                        }).catch(err => {
-                            console.error(`WebRTC play failed:`, err);
-                            startHLSPreview(video, camId, placeholder);
-                        });
-                    };
-                    placeholder.onclick = playHandler;
-                    // Also allow clicking anywhere on the page to start
-                    document.addEventListener('click', playHandler, { once: true });
+                    console.error(`WebRTC play failed for ${camId}:`, e);
+                    startHLSPreview(video, camId, placeholder);
                 });
-                // If play succeeds, hide placeholder
-                if (!video.paused) {
-                    placeholder.style.display = 'none';
-                }
+                placeholder.style.display = 'none';
             };
 
             pc.oniceconnectionstatechange = () => {
@@ -494,24 +478,12 @@
 
             let resourceUrl = null;
 
-            // Collect ICE candidates before sending offer
-            const iceCandidates = [];
-            pc.onicecandidate = (event) => {
-                if (event.candidate) {
-                    iceCandidates.push(event.candidate);
-                }
-            };
-
             pc.createOffer({
                 offerToReceiveVideo: true,
                 offerToReceiveAudio: true
             }).then(offer => {
                 return pc.setLocalDescription(offer);
             }).then(() => {
-                // Wait a moment for ICE candidates to be generated
-                return new Promise(resolve => setTimeout(resolve, 100));
-            }).then(() => {
-                // Send offer with initial ICE candidates in SDP
                 return fetch(webrtcUrl, {
                     method: 'POST',
                     headers: { 
@@ -522,28 +494,24 @@
                 });
             }).then(response => {
                 if (!response.ok) {
-                    return response.text().then(text => {
-                        throw new Error(`WHEP error: ${response.status} - ${text}`);
-                    });
+                    throw new Error(`WHEP error: ${response.status}`);
                 }
                 resourceUrl = response.headers.get('Location') || webrtcUrl;
                 return response.text();
             }).then(answerSdp => {
                 return pc.setRemoteDescription({ type: 'answer', sdp: answerSdp });
             }).then(() => {
-                // Send remaining ICE candidates via PATCH
                 pc.onicecandidate = (event) => {
                     if (event.candidate && resourceUrl) {
-                        const candidateLine = 'a=' + event.candidate.candidate;
                         fetch(resourceUrl, {
                             method: 'PATCH',
                             headers: { 'Content-Type': 'application/trickle-ice-sdpfrag' },
-                            body: candidateLine
+                            body: 'a=' + event.candidate.candidate
                         }).catch(err => console.warn('ICE candidate send failed:', err));
                     }
                 };
                 webrtcConnections[camId] = pc;
-                console.log(`WebRTC preview started for ${camId} (ultra-low latency <200ms)`);
+                console.log(`WebRTC preview started for ${camId} (ultra-low latency)`);
             }).catch(error => {
                 console.error(`WebRTC setup failed for ${camId}:`, error);
                 startHLSPreview(video, camId, placeholder);

@@ -9,22 +9,24 @@ rtspAddress: :8554
 rtmpAddress: :1935
 
 # HLS settings (separate port for HLS) - optimized for minimum latency
-# MediaMTX requires 7 segments for LL-HLS, use minimum duration
+# MediaMTX requires 7 segments for LL-HLS, so use 7 segments @ 100ms = 700ms buffer
 hlsAddress: :8888
 hlsAlwaysRemux: yes
 hlsSegmentCount: 7
-hlsSegmentDuration: 200ms
-hlsPartDuration: 100ms
+hlsSegmentDuration: 100ms
+hlsPartDuration: 50ms
 hlsAllowOrigin: "*"
-# Force segment duration (MediaMTX may override, but this sets the target)
 
 # SRT settings
 srtAddress: :8890
 
-# WebRTC settings (low latency for live view)
+# WebRTC settings (ultra-low latency for live view - <100ms)
 webrtcAddress: :8889
 webrtcAllowOrigin: "*"
 webrtcEncryption: no
+webrtcICEServers:
+  - stun:stun.l.google.com:19302
+  - stun:stun1.l.google.com:19302
 
 # Paths configuration
 paths:

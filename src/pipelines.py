@@ -178,21 +178,27 @@ def build_r58_preview_pipeline(
     """Build preview-only pipeline for R58 (streaming to MediaMTX, no recording)."""
     width, height = resolution.split("x")
 
-    # Video source
+    # Video source - use 30fps for preview to reduce encoding latency
     if "video60" in device or "hdmirx" in device.lower():
         source_str = (
             f"v4l2src device={device} io-mode=mmap ! "
             f"video/x-raw,format=NV24,width={width},height={height},framerate=60/1 ! "
+            f"videorate ! video/x-raw,framerate=30/1 ! "
             f"videoconvert ! "
             f"video/x-raw,format=NV12"
         )
     else:
-        source_str = f"v4l2src device={device} ! videoconvert ! videoscale ! video/x-raw,width={width},height={height}"
+        source_str = f"v4l2src device={device} ! videoconvert ! videoscale ! video/x-raw,width={width},height={height},framerate=30/1"
 
     # Encoder - ALWAYS use H.264 for preview (flvmux doesn't support H.265)
-    # Lower bitrate for preview, faster encoding for lower latency
-    preview_bitrate = max(2000, bitrate // 2)  # Half bitrate for preview
-    encoder_str = f"x264enc tune=zerolatency bitrate={preview_bitrate} speed-preset=ultrafast key-int-max=30"
+    # Balanced settings: higher bitrate for quality, veryfast preset, optimized keyframes
+    # Use 80% of recording bitrate for preview (better quality)
+    preview_bitrate = max(4000, int(bitrate * 0.8))  # 80% of recording bitrate
+    # key-int-max=30 = keyframe every 1s at 30fps (good quality, acceptable latency)
+    # speed-preset=veryfast = better quality than ultrafast, still low latency
+    # threads=2 = slight threading for better quality without much latency
+    # sync-lookahead=2 = minimal lookahead for better quality
+    encoder_str = f"x264enc tune=zerolatency bitrate={preview_bitrate} speed-preset=veryfast key-int-max=30 threads=2 sync-lookahead=2"
     caps_str = "video/x-h264"
 
     # Preview pipeline: stream to MediaMTX only (no recording)
@@ -202,12 +208,15 @@ def build_r58_preview_pipeline(
     else:
         rtmp_url = f"rtmp://127.0.0.1:1935/{cam_id}_preview"
 
+    # Add queue with minimal buffering for lower latency
     pipeline_str = (
         f"{source_str} ! "
+        f"queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream ! "
         f"{encoder_str} ! "
         f"{caps_str} ! "
+        f"queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream ! "
         f"flvmux streamable=true ! "
-        f"rtmpsink location={rtmp_url}"
+        f"rtmpsink location={rtmp_url} sync=false"
     )
 
     logger.info(f"Building preview pipeline for {cam_id}: {pipeline_str}")
