@@ -400,7 +400,7 @@
                     view.innerHTML = `
                         <div class="camera-label">${camId.toUpperCase()}</div>
                         <div class="camera-close" onclick="event.stopPropagation(); closeFullscreen()">✕ Close</div>
-                        <video id="video-${camId}" autoplay muted playsinline></video>
+                        <video id="video-${camId}" autoplay muted playsinline style="display: block; width: 100%; height: 100%; object-fit: cover; background: #000;"></video>
                         <div class="camera-placeholder" id="placeholder-${camId}">
                             <div class="icon">📹</div>
                             <div class="text">Loading preview...</div>
@@ -550,7 +550,7 @@
             });
 
             pc.ontrack = (event) => {
-                console.log(`✅ WebRTC track received for ${camId} (real-time <100ms latency)`, event);
+                console.log(`✅ WebRTC track received for ${camId}`, event);
                 
                 // Check if we have a valid track
                 if (!event.track) {
@@ -558,69 +558,107 @@
                     return;
                 }
                 
-                // Create stream from track (more reliable than using event.streams)
-                const stream = new MediaStream([event.track]);
+                // Check track type and state (Vdo.Ninja approach)
+                if (event.track.kind !== 'video') {
+                    console.log(`Track is ${event.track.kind}, not video - skipping`);
+                    return;
+                }
+                
+                console.log(`Track state: enabled=${event.track.enabled}, readyState=${event.track.readyState}, muted=${event.track.muted}`);
+                
+                // Use event.streams if available, otherwise create from track
+                let stream;
+                if (event.streams && event.streams.length > 0) {
+                    stream = event.streams[0];
+                    console.log(`Using stream from event.streams (${stream.getTracks().length} tracks)`);
+                } else {
+                    stream = new MediaStream([event.track]);
+                    console.log(`Created new stream from track`);
+                }
+                
+                // Ensure stream has video tracks
+                const videoTracks = stream.getVideoTracks();
+                if (videoTracks.length === 0) {
+                    console.error(`❌ Stream has no video tracks for ${camId}`);
+                    return;
+                }
+                
+                console.log(`Stream has ${videoTracks.length} video track(s):`, videoTracks.map(t => ({
+                    id: t.id,
+                    enabled: t.enabled,
+                    readyState: t.readyState,
+                    muted: t.muted,
+                    settings: t.getSettings()
+                })));
+                
+                // Set stream on video element (Vdo.Ninja approach: set immediately)
                 video.srcObject = stream;
                 
-                // Force video to be visible
-                video.style.display = 'block';
-                video.style.width = '100%';
-                video.style.height = '100%';
-                video.style.objectFit = 'cover';
-                video.style.backgroundColor = '#000';
+                // Wait for video metadata to load before playing (critical for WebRTC)
+                video.onloadedmetadata = () => {
+                    console.log(`✅ Video metadata loaded for ${camId}, dimensions: ${video.videoWidth}x${video.videoHeight}`);
+                    
+                    // Check if video has actual dimensions (not 0x0)
+                    if (video.videoWidth === 0 || video.videoHeight === 0) {
+                        console.warn(`⚠️ Video has zero dimensions for ${camId}, track might not be active`);
+                        // Wait a bit more and check again
+                        setTimeout(() => {
+                            if (video.videoWidth > 0 && video.videoHeight > 0) {
+                                console.log(`✅ Video dimensions now: ${video.videoWidth}x${video.videoHeight}`);
+                                tryPlayVideo();
+                            } else {
+                                console.error(`❌ Video still has zero dimensions after wait`);
+                            }
+                        }, 500);
+                    } else {
+                        tryPlayVideo();
+                    }
+                };
                 
-                // Monitor track state
+                // Also try playing when track becomes active
+                event.track.onunmute = () => {
+                    console.log(`✅ Track unmuted for ${camId}`);
+                    if (video.srcObject) {
+                        tryPlayVideo();
+                    }
+                };
+                
                 event.track.onended = () => {
-                    console.warn(`⚠️ WebRTC track ended for ${camId}`);
-                    // Try to reconnect
+                    console.warn(`⚠️ Track ended for ${camId}`);
+                    placeholder.style.display = 'flex';
+                    placeholder.querySelector('.text').textContent = 'Stream ended - reconnecting...';
                     setTimeout(() => {
                         startWebRTCPreview(video, webrtcUrl, camId, placeholder);
                     }, 2000);
                 };
                 
-                event.track.onmute = () => {
-                    console.warn(`⚠️ WebRTC track muted for ${camId}`);
-                };
-                
-                event.track.onunmute = () => {
-                    console.log(`✅ WebRTC track unmuted for ${camId}`);
-                };
-                
-                // Wait a moment for the stream to stabilize before playing
-                const tryPlay = () => {
-                    // Check if video already has a source and is playing
-                    if (video.srcObject && !video.paused) {
-                        console.log(`Video already playing for ${camId}`);
-                        placeholder.style.display = 'none';
-                        return;
-                    }
-                    
-                    // Small delay to prevent interruption
-                    setTimeout(() => {
+                // Function to actually play the video
+                const tryPlayVideo = () => {
+                    if (video.paused) {
                         video.play().then(() => {
                             placeholder.style.display = 'none';
                             console.log(`✅ WebRTC playing for ${camId} - real-time latency!`);
                         }).catch(e => {
                             if (e.name !== 'AbortError' && e.name !== 'NotAllowedError') {
-                                console.log(`⚠️ WebRTC autoplay blocked for ${camId} - click anywhere to enable:`, e.message);
+                                console.log(`⚠️ Play failed for ${camId}:`, e.message);
                             }
-                            // Update placeholder to show user needs to click
+                            // Show placeholder with click instruction
                             if (placeholder && placeholder.querySelector('.text')) {
                                 placeholder.querySelector('.text').innerHTML = 'WebRTC Ready!<br><small style="color: #10b981;">Click anywhere to start</small>';
                                 placeholder.style.cursor = 'pointer';
                             }
-                            // Also set up click handler on the video itself
-                            video.onclick = () => {
-                                video.play().then(() => {
-                                    placeholder.style.display = 'none';
-                                    console.log(`✅ Video playing after click on ${camId}`);
-                                }).catch(err => console.error('Play failed:', err));
-                            };
                         });
-                    }, 100);
+                    } else {
+                        placeholder.style.display = 'none';
+                        console.log(`Video already playing for ${camId}`);
+                    }
                 };
                 
-                tryPlay();
+                // If metadata is already loaded, try playing immediately
+                if (video.readyState >= 1) {
+                    console.log(`Video readyState is ${video.readyState}, trying to play immediately`);
+                    tryPlayVideo();
+                }
             };
 
             pc.oniceconnectionstatechange = () => {
@@ -667,8 +705,10 @@
                 resourceUrl = response.headers.get('Location') || webrtcUrl;
                 return response.text();
             }).then(answerSdp => {
+                console.log(`Received SDP answer for ${camId}, setting remote description...`);
                 return pc.setRemoteDescription({ type: 'answer', sdp: answerSdp });
             }).then(() => {
+                console.log(`Remote description set for ${camId}`);
                 pc.onicecandidate = (event) => {
                     if (event.candidate && resourceUrl) {
                         fetch(resourceUrl, {
