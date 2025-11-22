@@ -542,23 +542,40 @@
 
             pc.ontrack = (event) => {
                 console.log(`✅ WebRTC track received for ${camId} (real-time <100ms latency)`, event);
-                // event.streams might be empty, but event.track is always available
-                if (event.streams && event.streams.length > 0) {
-                    video.srcObject = event.streams[0];
-                } else if (event.track) {
-                    // Create a new stream from the track if streams array is empty
-                    const stream = new MediaStream([event.track]);
-                    video.srcObject = stream;
-                } else {
-                    console.error(`No track or streams in WebRTC event for ${camId}`);
+                
+                // Check if we have a valid track
+                if (!event.track) {
+                    console.error(`❌ No track in WebRTC event for ${camId}`);
                     return;
                 }
+                
+                // Create stream from track (more reliable than using event.streams)
+                const stream = new MediaStream([event.track]);
+                video.srcObject = stream;
                 
                 // Force video to be visible
                 video.style.display = 'block';
                 video.style.width = '100%';
                 video.style.height = '100%';
                 video.style.objectFit = 'cover';
+                video.style.backgroundColor = '#000';
+                
+                // Monitor track state
+                event.track.onended = () => {
+                    console.warn(`⚠️ WebRTC track ended for ${camId}`);
+                    // Try to reconnect
+                    setTimeout(() => {
+                        startWebRTCPreview(video, webrtcUrl, camId, placeholder);
+                    }, 2000);
+                };
+                
+                event.track.onmute = () => {
+                    console.warn(`⚠️ WebRTC track muted for ${camId}`);
+                };
+                
+                event.track.onunmute = () => {
+                    console.log(`✅ WebRTC track unmuted for ${camId}`);
+                };
                 
                 // Try to play immediately (muted videos can autoplay)
                 const tryPlay = () => {
@@ -566,7 +583,7 @@
                         placeholder.style.display = 'none';
                         console.log(`✅ WebRTC playing for ${camId} - real-time latency!`);
                     }).catch(e => {
-                        console.log(`⚠️ WebRTC autoplay blocked for ${camId} - click anywhere to enable`);
+                        console.log(`⚠️ WebRTC autoplay blocked for ${camId} - click anywhere to enable:`, e.message);
                         // Update placeholder to show user needs to click
                         if (placeholder && placeholder.querySelector('.text')) {
                             placeholder.querySelector('.text').innerHTML = 'WebRTC Ready!<br><small style="color: #10b981;">Click anywhere to start</small>';
@@ -588,8 +605,19 @@
             };
 
             pc.oniceconnectionstatechange = () => {
+                console.log(`WebRTC ICE state for ${camId}: ${pc.iceConnectionState}`);
                 if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
                     console.log(`WebRTC failed for ${camId}, falling back to HLS`);
+                    startHLSPreview(video, camId, placeholder);
+                } else if (pc.iceConnectionState === 'connected') {
+                    console.log(`✅ WebRTC connected for ${camId}`);
+                }
+            };
+            
+            pc.onconnectionstatechange = () => {
+                console.log(`WebRTC connection state for ${camId}: ${pc.connectionState}`);
+                if (pc.connectionState === 'failed') {
+                    console.log(`WebRTC connection failed for ${camId}, falling back to HLS`);
                     startHLSPreview(video, camId, placeholder);
                 }
             };
