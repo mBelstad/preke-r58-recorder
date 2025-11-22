@@ -66,10 +66,12 @@ def build_r58_pipeline(
     # HDMI device is /dev/video60 with NV24 format (YUV 4:4:4)
     # Must convert NV24 before encoding
     if "video60" in device or "hdmirx" in device.lower():
+        # Use simpler pipeline - let v4l2src negotiate format, then convert
         source_str = (
             f"v4l2src device={device} io-mode=mmap ! "
             f"video/x-raw,format=NV24,width={width},height={height} ! "
-            f"videoconvert ! videoscale ! video/x-raw,width={width},height={height}"
+            f"videoconvert ! "
+            f"video/x-raw,format=NV12,width={width},height={height}"
         )
     else:
         # For other video devices (MIPI cameras, etc.)
@@ -110,8 +112,7 @@ def build_r58_pipeline(
             f"rtspclientsink location={mediamtx_path}"
         )
     else:
-        # File only - ensure proper format conversion for MPP encoder
-        # Remove redundant format specification - videoconvert handles it
+        # File only - MPP encoder expects NV12 format (already converted in source_str)
         pipeline_str = (
             f"{source_str} ! "
             f"timeoverlay ! "
