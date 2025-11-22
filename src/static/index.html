@@ -333,7 +333,7 @@
                     view.innerHTML = `
                         <div class="camera-label">${camId.toUpperCase()}</div>
                         <div class="camera-close" onclick="event.stopPropagation(); closeFullscreen()">✕ Close</div>
-                        <video id="video-${camId}" autoplay muted playsinline></video>
+                        <video id="video-${camId}" autoplay muted playsinline onclick="if(this.paused) this.play()"></video>
                         <div class="camera-placeholder" id="placeholder-${camId}">
                             <div class="icon">📹</div>
                             <div class="text">Loading preview...</div>
@@ -461,15 +461,20 @@
                 video.play().catch(e => {
                     console.warn(`WebRTC autoplay blocked for ${camId}, user interaction required:`, e);
                     // Don't fallback to HLS immediately - WebRTC is working, just needs user interaction
-                    placeholder.querySelector('.text').textContent = 'Click to play (WebRTC ready)';
-                    placeholder.onclick = () => {
+                    placeholder.querySelector('.text').textContent = 'Click anywhere to play (WebRTC ready - <100ms latency)';
+                    placeholder.style.cursor = 'pointer';
+                    const playHandler = () => {
                         video.play().then(() => {
                             placeholder.style.display = 'none';
+                            document.removeEventListener('click', playHandler);
                         }).catch(err => {
                             console.error(`WebRTC play failed:`, err);
                             startHLSPreview(video, camId, placeholder);
                         });
                     };
+                    placeholder.onclick = playHandler;
+                    // Also allow clicking anywhere on the page to start
+                    document.addEventListener('click', playHandler, { once: true });
                 });
                 // If play succeeds, hide placeholder
                 if (!video.paused) {
