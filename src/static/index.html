@@ -529,8 +529,17 @@
         function startWebRTCPreview(video, webrtcUrl, camId, placeholder) {
             // Close existing connection if any
             if (webrtcConnections[camId]) {
+                console.log(`Closing existing WebRTC connection for ${camId}`);
                 webrtcConnections[camId].close();
+                webrtcConnections[camId] = null;
             }
+            
+            // Prevent multiple simultaneous connections
+            if (video.dataset.connecting === 'true') {
+                console.log(`WebRTC connection already in progress for ${camId}, skipping`);
+                return;
+            }
+            video.dataset.connecting = 'true';
 
             const pc = new RTCPeerConnection({
                 iceServers: [
@@ -577,31 +586,41 @@
                     console.log(`✅ WebRTC track unmuted for ${camId}`);
                 };
                 
-                // Try to play immediately (muted videos can autoplay)
+                // Wait a moment for the stream to stabilize before playing
                 const tryPlay = () => {
-                    video.play().then(() => {
+                    // Check if video already has a source and is playing
+                    if (video.srcObject && !video.paused) {
+                        console.log(`Video already playing for ${camId}`);
                         placeholder.style.display = 'none';
-                        console.log(`✅ WebRTC playing for ${camId} - real-time latency!`);
-                    }).catch(e => {
-                        console.log(`⚠️ WebRTC autoplay blocked for ${camId} - click anywhere to enable:`, e.message);
-                        // Update placeholder to show user needs to click
-                        if (placeholder && placeholder.querySelector('.text')) {
-                            placeholder.querySelector('.text').innerHTML = 'WebRTC Ready!<br><small style="color: #10b981;">Click anywhere to start</small>';
-                            placeholder.style.cursor = 'pointer';
-                        }
-                        // Also set up click handler on the video itself
-                        video.onclick = () => {
-                            video.play().then(() => {
-                                placeholder.style.display = 'none';
-                                console.log(`✅ Video playing after click on ${camId}`);
-                            }).catch(err => console.error('Play failed:', err));
-                        };
-                    });
+                        return;
+                    }
+                    
+                    // Small delay to prevent interruption
+                    setTimeout(() => {
+                        video.play().then(() => {
+                            placeholder.style.display = 'none';
+                            console.log(`✅ WebRTC playing for ${camId} - real-time latency!`);
+                        }).catch(e => {
+                            if (e.name !== 'AbortError' && e.name !== 'NotAllowedError') {
+                                console.log(`⚠️ WebRTC autoplay blocked for ${camId} - click anywhere to enable:`, e.message);
+                            }
+                            // Update placeholder to show user needs to click
+                            if (placeholder && placeholder.querySelector('.text')) {
+                                placeholder.querySelector('.text').innerHTML = 'WebRTC Ready!<br><small style="color: #10b981;">Click anywhere to start</small>';
+                                placeholder.style.cursor = 'pointer';
+                            }
+                            // Also set up click handler on the video itself
+                            video.onclick = () => {
+                                video.play().then(() => {
+                                    placeholder.style.display = 'none';
+                                    console.log(`✅ Video playing after click on ${camId}`);
+                                }).catch(err => console.error('Play failed:', err));
+                            };
+                        });
+                    }, 100);
                 };
                 
                 tryPlay();
-                // Also try on next frame (sometimes helps)
-                requestAnimationFrame(() => tryPlay());
             };
 
             pc.oniceconnectionstatechange = () => {
@@ -660,8 +679,10 @@
                     }
                 };
                 webrtcConnections[camId] = pc;
+                video.dataset.connecting = 'false';
                 console.log(`WebRTC preview started for ${camId} (ultra-low latency)`);
             }).catch(error => {
+                video.dataset.connecting = 'false';
                 console.error(`WebRTC setup failed for ${camId}:`, error);
                 startHLSPreview(video, camId, placeholder);
             });
