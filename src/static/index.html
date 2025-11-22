@@ -52,28 +52,52 @@
         }
 
         .header {
-            background: linear-gradient(135deg, #1a1a1a 0%, #252525 100%);
-            border-radius: 12px;
-            padding: 16px 20px;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 50%, #1a1a1a 100%);
+            border-radius: 16px;
+            padding: 20px 28px;
             margin-bottom: 16px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.08);
-            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5), 
+                        0 0 0 1px rgba(255,255,255,0.08),
+                        inset 0 1px 0 rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.1);
+            backdrop-filter: blur(20px);
             flex-shrink: 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.1), transparent);
+            animation: headerShine 8s infinite;
+        }
+
+        @keyframes headerShine {
+            0% { left: -100%; }
+            50% { left: 100%; }
+            100% { left: 100%; }
         }
 
         .header h1 {
-            font-size: 1.75rem;
+            font-size: 2rem;
             color: #fff;
-            font-weight: 700;
-            letter-spacing: -0.5px;
-            background: linear-gradient(135deg, #fff 0%, #e0e0e0 100%);
+            font-weight: 800;
+            letter-spacing: -1px;
+            background: linear-gradient(135deg, #fff 0%, #60a5fa 50%, #fff 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
+            position: relative;
+            z-index: 1;
+            text-shadow: 0 0 30px rgba(96, 165, 250, 0.3);
         }
 
         .control-panel {
@@ -237,17 +261,49 @@
             filter: grayscale(0.5);
         }
 
-        .btn-primary {
-            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        .btn-record {
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
             color: white;
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3), inset 0 1px 0 rgba(255,255,255,0.1);
-            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 4px 16px rgba(220, 38, 38, 0.4), inset 0 1px 0 rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.2);
         }
 
-        .btn-primary:hover:not(:disabled) {
-            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4), inset 0 1px 0 rgba(255,255,255,0.15);
+        .btn-record:hover:not(:disabled) {
+            background: linear-gradient(135deg, #b91c1c 0%, #991b1b 100%);
+            box-shadow: 0 6px 24px rgba(220, 38, 38, 0.5), inset 0 1px 0 rgba(255,255,255,0.2);
             transform: translateY(-1px);
+        }
+
+        .btn-record.recording {
+            background: linear-gradient(135deg, #991b1b 0%, #7f1d1d 100%);
+            animation: recordPulse 2s infinite;
+        }
+
+        .btn-record.recording::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 12px;
+            height: 12px;
+            background: #fff;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            animation: recordBlink 1s infinite;
+        }
+
+        @keyframes recordPulse {
+            0%, 100% { 
+                box-shadow: 0 4px 16px rgba(220, 38, 38, 0.4), inset 0 1px 0 rgba(255,255,255,0.15);
+            }
+            50% { 
+                box-shadow: 0 6px 24px rgba(220, 38, 38, 0.6), inset 0 1px 0 rgba(255,255,255,0.2);
+            }
+        }
+
+        @keyframes recordBlink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
         }
 
         .btn-danger {
@@ -284,7 +340,7 @@
         .multiview {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
+            gap: 20px;
             flex: 1;
             overflow-y: auto;
             overflow-x: hidden;
@@ -510,6 +566,95 @@
             background: #f59e0b;
             color: white;
         }
+
+        .stats-section {
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            padding: 16px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 12px;
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .stat-label {
+            font-size: 0.7rem;
+            color: #9ca3af;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+
+        .stat-value {
+            font-size: 1.1rem;
+            color: #fff;
+            font-weight: 700;
+            font-family: 'Courier New', monospace;
+        }
+
+        .stat-value.recording {
+            color: #ef4444;
+        }
+
+        .stat-value.idle {
+            color: #9ca3af;
+        }
+
+        .camera-list {
+            margin-top: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .camera-stat {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 6px;
+            border: 1px solid rgba(255,255,255,0.05);
+            font-size: 0.85rem;
+        }
+
+        .camera-stat-name {
+            font-weight: 600;
+            color: #e0e0e0;
+        }
+
+        .camera-stat-status {
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .camera-stat-status.recording {
+            background: rgba(220, 38, 38, 0.2);
+            color: #ef4444;
+        }
+
+        .camera-stat-status.idle {
+            background: rgba(156, 163, 175, 0.2);
+            color: #9ca3af;
+        }
+
+        .camera-stat-status.preview {
+            background: rgba(59, 130, 246, 0.2);
+            color: #60a5fa;
+        }
     </style>
 </head>
 <body>
@@ -531,15 +676,26 @@
             <div>
                 <h2>Controls</h2>
                 <div class="recording-controls">
-                    <button class="btn btn-primary" id="startAllBtn" onclick="startAllRecordings()">
-                        <span class="btn-icon">[PLAY]</span>
-                        <span>Start Recording</span>
-                    </button>
-                    <button class="btn btn-danger" id="stopAllBtn" onclick="stopAllRecordings()" disabled>
-                        <span class="btn-icon">[STOP]</span>
-                        <span>Stop Recording</span>
+                    <button class="btn btn-record" id="recordBtn" onclick="toggleRecording()">
+                        <span class="btn-icon" id="recordBtnIcon">[REC]</span>
+                        <span id="recordBtnText">Start Recording</span>
                     </button>
                 </div>
+            </div>
+
+            <div class="stats-section">
+                <h2>Recording Stats</h2>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-label">Duration</div>
+                        <div class="stat-value idle" id="recordingDuration">00:00:00</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Cameras</div>
+                        <div class="stat-value idle" id="activeCameras">0 / 4</div>
+                    </div>
+                </div>
+                <div class="camera-list" id="cameraList"></div>
             </div>
         </div>
     </div>
@@ -551,6 +707,8 @@
         let hlsPlayers = {};
         let webrtcConnections = {};
         let fullscreenCamera = null;
+        let recordingStartTime = null;
+        let recordingInterval = null;
 
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', () => {
@@ -608,6 +766,7 @@
             startAllPreviews();
             checkRecordingStatus();
             setInterval(checkRecordingStatus, 2000);
+            updateStats();
         });
 
         async function initializeMultiview() {
@@ -1131,6 +1290,14 @@
             }
         }
 
+        async function toggleRecording() {
+            if (recordingState) {
+                await stopAllRecordings();
+            } else {
+                await startAllRecordings();
+            }
+        }
+
         async function startAllRecordings() {
             try {
                 const response = await fetch(`${API_BASE}/record/start-all`, { method: 'POST' });
@@ -1138,7 +1305,10 @@
                 
                 if (response.ok) {
                     recordingState = true;
+                    recordingStartTime = new Date();
                     updateRecordingUI();
+                    startRecordingTimer();
+                    updateStats();
                     showAlert('Recording started for all cameras', 'success');
                 } else {
                     showAlert('Failed to start recording', 'error');
@@ -1155,7 +1325,10 @@
                 
                 if (response.ok) {
                     recordingState = false;
+                    recordingStartTime = null;
                     updateRecordingUI();
+                    stopRecordingTimer();
+                    updateStats();
                     showAlert('Recording stopped for all cameras', 'success');
                 } else {
                     showAlert('Failed to stop recording', 'error');
@@ -1163,6 +1336,36 @@
             } catch (error) {
                 showAlert(`Error: ${error.message}`, 'error');
             }
+        }
+
+        function startRecordingTimer() {
+            if (recordingInterval) clearInterval(recordingInterval);
+            recordingInterval = setInterval(() => {
+                if (recordingState && recordingStartTime) {
+                    updateRecordingDuration();
+                }
+            }, 1000);
+        }
+
+        function stopRecordingTimer() {
+            if (recordingInterval) {
+                clearInterval(recordingInterval);
+                recordingInterval = null;
+            }
+            document.getElementById('recordingDuration').textContent = '00:00:00';
+            document.getElementById('recordingDuration').className = 'stat-value idle';
+        }
+
+        function updateRecordingDuration() {
+            if (!recordingStartTime) return;
+            const elapsed = Math.floor((new Date() - recordingStartTime) / 1000);
+            const hours = Math.floor(elapsed / 3600);
+            const minutes = Math.floor((elapsed % 3600) / 60);
+            const seconds = elapsed % 60;
+            const duration = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            const durationEl = document.getElementById('recordingDuration');
+            durationEl.textContent = duration;
+            durationEl.className = 'stat-value recording';
         }
 
         async function checkRecordingStatus() {
@@ -1173,7 +1376,17 @@
                 const anyRecording = Object.values(data.cameras).some(cam => cam.status === 'recording');
                 if (anyRecording !== recordingState) {
                     recordingState = anyRecording;
+                    if (recordingState && !recordingStartTime) {
+                        recordingStartTime = new Date();
+                        startRecordingTimer();
+                    } else if (!recordingState && recordingStartTime) {
+                        recordingStartTime = null;
+                        stopRecordingTimer();
+                    }
                     updateRecordingUI();
+                    updateStats(data);
+                } else {
+                    updateStats(data);
                 }
             } catch (error) {
                 console.error('Failed to check recording status:', error);
@@ -1182,19 +1395,55 @@
 
         function updateRecordingUI() {
             const statusEl = document.getElementById('recordingStatus');
-            const startBtn = document.getElementById('startAllBtn');
-            const stopBtn = document.getElementById('stopAllBtn');
+            const recordBtn = document.getElementById('recordBtn');
+            const recordBtnIcon = document.getElementById('recordBtnIcon');
+            const recordBtnText = document.getElementById('recordBtnText');
             
             if (recordingState) {
                 statusEl.textContent = 'RECORDING';
                 statusEl.className = 'recording-status recording';
-                startBtn.disabled = true;
-                stopBtn.disabled = false;
+                recordBtn.classList.add('recording');
+                recordBtnIcon.textContent = '[STOP]';
+                recordBtnText.textContent = 'Stop Recording';
             } else {
                 statusEl.textContent = 'IDLE';
                 statusEl.className = 'recording-status idle';
-                startBtn.disabled = false;
-                stopBtn.disabled = true;
+                recordBtn.classList.remove('recording');
+                recordBtnIcon.textContent = '[REC]';
+                recordBtnText.textContent = 'Start Recording';
+            }
+        }
+
+        function updateStats(data = null) {
+            if (!data) {
+                fetch(`${API_BASE}/status`)
+                    .then(r => r.json())
+                    .then(d => updateStats(d))
+                    .catch(err => console.error('Failed to fetch stats:', err));
+                return;
+            }
+
+            // Update active cameras count
+            const recordingCameras = Object.values(data.cameras).filter(cam => cam.status === 'recording').length;
+            const previewCameras = Object.values(data.cameras).filter(cam => cam.status === 'preview').length;
+            const activeCameras = recordingCameras + previewCameras;
+            const camerasEl = document.getElementById('activeCameras');
+            camerasEl.textContent = `${activeCameras} / ${Object.keys(data.cameras).length}`;
+            camerasEl.className = recordingState ? 'stat-value recording' : 'stat-value idle';
+
+            // Update camera list
+            const cameraList = document.getElementById('cameraList');
+            cameraList.innerHTML = '';
+            for (const [camId, camData] of Object.entries(data.cameras)) {
+                const stat = document.createElement('div');
+                stat.className = 'camera-stat';
+                const statusClass = camData.status === 'recording' ? 'recording' : 
+                                   camData.status === 'preview' ? 'preview' : 'idle';
+                stat.innerHTML = `
+                    <span class="camera-stat-name">${camId.toUpperCase()}</span>
+                    <span class="camera-stat-status ${statusClass}">${camData.status.toUpperCase()}</span>
+                `;
+                cameraList.appendChild(stat);
             }
         }
 
