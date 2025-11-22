@@ -20,13 +20,10 @@ hlsAllowOrigin: "*"
 # SRT settings
 srtAddress: :8890
 
-# WebRTC settings (ultra-low latency for live view - <100ms)
+# WebRTC settings (low latency for live view)
 webrtcAddress: :8889
 webrtcAllowOrigin: "*"
 webrtcEncryption: no
-webrtcICEServers:
-  - stun:stun.l.google.com:19302
-  - stun:stun1.l.google.com:19302
 
 # Paths configuration
 paths:

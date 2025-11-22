@@ -294,7 +294,6 @@
             <h1>🎥 R58 Recorder - Multiview</h1>
             <div class="recording-controls">
                 <span class="recording-status idle" id="recordingStatus">IDLE</span>
-                <button class="btn btn-primary" id="startStreamsBtn" onclick="startAllStreams()">Start Streams</button>
                 <button class="btn btn-primary" id="startAllBtn" onclick="startAllRecordings()">Start Recording All</button>
                 <button class="btn btn-danger" id="stopAllBtn" onclick="stopAllRecordings()" disabled>Stop Recording All</button>
             </div>
@@ -310,102 +309,36 @@
         let hlsPlayers = {};
         let webrtcConnections = {};
         let fullscreenCamera = null;
-        let userInteracted = false;
-        let pendingVideos = new Set();
 
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', () => {
+            // Request autoplay permissions for local use (like Vdo.Ninja)
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                navigator.mediaDevices.getUserMedia({ video: false, audio: false })
+                    .then(() => {
+                        console.log('Autoplay permissions granted');
+                    })
+                    .catch(() => {
+                        console.log('Autoplay permissions not available (will use user interaction)');
+                    });
+            }
+            
+            // Enable autoplay on any user interaction (click anywhere on page)
+            const enableAutoplay = () => {
+                document.querySelectorAll('video').forEach(video => {
+                    if (video.paused && (video.srcObject || video.src)) {
+                        video.play().catch(() => {});
+                    }
+                });
+            };
+            document.addEventListener('click', enableAutoplay, { once: true });
+            document.addEventListener('touchstart', enableAutoplay, { once: true });
+            
             initializeMultiview();
             startAllPreviews();
             checkRecordingStatus();
             setInterval(checkRecordingStatus, 2000);
-            
-            // Capture any user interaction to enable autoplay
-            const enableAutoplay = () => {
-                if (!userInteracted) {
-                    userInteracted = true;
-                    // Try to play all pending videos
-                    pendingVideos.forEach(video => {
-                        if (video.srcObject || video.src) {
-                            video.play().catch(e => console.debug('Autoplay after interaction:', e));
-                        }
-                    });
-                    pendingVideos.clear();
-                }
-            };
-            
-            // Listen for any user interaction
-            document.addEventListener('click', enableAutoplay, { once: true });
-            document.addEventListener('touchstart', enableAutoplay, { once: true });
-            document.addEventListener('keydown', enableAutoplay, { once: true });
         });
-        
-        function startAllStreams() {
-            console.log('Start Streams button clicked');
-            // Force play all videos - this button click counts as user interaction
-            userInteracted = true;
-            
-            let playedCount = 0;
-            let totalVideos = 0;
-            
-            // Play all videos that have streams
-            document.querySelectorAll('video').forEach(video => {
-                totalVideos++;
-                console.log(`Checking video ${video.id}:`, {
-                    hasSrcObject: !!video.srcObject,
-                    hasSrc: !!video.src,
-                    paused: video.paused
-                });
-                
-                if (video.srcObject || video.src) {
-                    video.play().then(() => {
-                        playedCount++;
-                        const placeholder = video.parentElement.querySelector('.camera-placeholder');
-                        if (placeholder) {
-                            placeholder.style.display = 'none';
-                        }
-                        console.log('Video playing:', video.id);
-                    }).catch(e => {
-                        console.warn('Video play failed, will retry:', e);
-                        // Retry after a short delay
-                        setTimeout(() => {
-                            video.play().then(() => {
-                                playedCount++;
-                                console.log('Video playing after retry:', video.id);
-                            }).catch(err => {
-                                console.error('Retry failed:', err);
-                            });
-                        }, 200);
-                    });
-                } else {
-                    console.warn('Video not ready yet:', video.id, '- no srcObject or src');
-                }
-            });
-            
-            // Update button
-            const btn = document.getElementById('startStreamsBtn');
-            if (btn) {
-                if (playedCount > 0 || totalVideos === 0) {
-                    btn.textContent = 'Streams Started ✓';
-                    btn.disabled = true;
-                    btn.style.opacity = '0.7';
-                } else {
-                    btn.textContent = `Start Streams (${playedCount}/${totalVideos} ready)`;
-                }
-            }
-            
-            // Also trigger play on any pending videos
-            pendingVideos.forEach(video => {
-                video.play().then(() => {
-                    console.log('Pending video now playing:', video.id);
-                }).catch(e => {
-                    console.debug('Pending video play:', e);
-                });
-            });
-            pendingVideos.clear();
-            
-            console.log(`Start Streams: ${playedCount}/${totalVideos} videos attempted to play`);
-        }
 
         async function initializeMultiview() {
             try {
@@ -488,14 +421,30 @@
                 const data = await response.json();
                 console.log('Preview streams started:', data);
                 
-                // Wait a moment for streams to initialize, then start WebRTC for each camera
+                // Wait for streams to initialize, then start WebRTC for each camera
+                // WebRTC needs the RTMP stream to be active first
                 setTimeout(() => {
                     loadCameraList().then(cameras => {
                         cameras.forEach(camId => {
-                            startCameraPreview(camId);
+                            // Retry WebRTC connection if stream isn't ready yet
+                            let retries = 0;
+                            const tryConnect = () => {
+                                startCameraPreview(camId);
+                                retries++;
+                                // If WebRTC fails, retry after a delay (stream might not be ready)
+                                if (retries < 3) {
+                                    setTimeout(() => {
+                                        if (!webrtcConnections[camId] || 
+                                            (webrtcConnections[camId] && webrtcConnections[camId].connectionState === 'failed')) {
+                                            tryConnect();
+                                        }
+                                    }, 2000);
+                                }
+                            };
+                            tryConnect();
                         });
                     });
-                }, 2000);
+                }, 3000); // Wait longer for RTMP stream to be ready
             } catch (error) {
                 console.error('Failed to start previews:', error);
                 showAlert('Failed to start preview streams', 'error');
@@ -518,12 +467,10 @@
             
             if (!video || !placeholder) return;
 
-            // Try WebRTC first for ultra-low latency (<100ms)
-            // MediaMTX WebRTC uses /path/whep endpoint
+            // Try WebRTC first for ultra-low latency
             const webrtcUrl = `http://${HOSTNAME}:8889/${camId}_preview/whep`;
             
             if (window.RTCPeerConnection) {
-                // Try WebRTC first, fallback to HLS if it fails
                 startWebRTCPreview(video, webrtcUrl, camId, placeholder);
             } else {
                 // Fallback to HLS
@@ -554,26 +501,14 @@
                     video.play().then(() => {
                         placeholder.style.display = 'none';
                         console.log(`WebRTC playing for ${camId} - real-time latency!`);
-                        pendingVideos.delete(video);
                     }).catch(e => {
-                        // If user has interacted, try again
-                        if (userInteracted) {
-                            setTimeout(() => {
-                                video.play().catch(() => {
-                                    // Silent fail on retry
-                                });
-                            }, 100);
-                        } else {
-                            // Add to pending videos - will play after user interaction
-                            pendingVideos.add(video);
-                            placeholder.querySelector('.text').innerHTML = 'WebRTC Ready!<br><small style="color: #10b981;">Click "Start Streams" button above</small>';
-                            placeholder.style.cursor = 'pointer';
-                        }
+                        console.debug(`WebRTC autoplay blocked for ${camId}, will play on user interaction`);
+                        // Video will play automatically on first user interaction
+                        // This is normal browser behavior for autoplay
                     });
                 };
                 
                 tryPlay();
-                
                 // Also try on next frame (sometimes helps)
                 requestAnimationFrame(() => tryPlay());
             };
@@ -668,18 +603,9 @@
                         video.play().then(() => {
                             placeholder.style.display = 'none';
                             console.log(`HLS preview started for ${camId} (low latency)`);
-                            pendingVideos.delete(video);
                         }).catch(e => {
-                            if (userInteracted) {
-                                setTimeout(() => {
-                                    video.play().catch(() => {
-                                        // Silent fail on retry
-                                    });
-                                }, 100);
-                            } else {
-                                pendingVideos.add(video);
-                                placeholder.querySelector('.text').innerHTML = 'HLS Ready!<br><small style="color: #10b981;">Click "Start Streams" button above</small>';
-                            }
+                            console.debug(`HLS autoplay blocked for ${camId}, will play on user interaction`);
+                            // Video will play automatically on first user interaction
                         });
                     };
                     tryPlay();
@@ -703,11 +629,15 @@
                 hlsPlayers[camId] = hls;
             } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
                 video.src = hlsUrl;
-                video.play().then(() => {
-                    placeholder.style.display = 'none';
-                }).catch(e => {
-                    console.error(`Native HLS play failed for ${camId}:`, e);
-                });
+                const tryPlay = () => {
+                    video.play().then(() => {
+                        placeholder.style.display = 'none';
+                    }).catch(e => {
+                        console.debug(`Native HLS autoplay blocked for ${camId}`);
+                    });
+                };
+                tryPlay();
+                requestAnimationFrame(() => tryPlay());
             } else {
                 placeholder.querySelector('.text').textContent = 'HLS not supported';
             }
@@ -731,22 +661,18 @@
         }
 
         async function stopAllRecordings() {
-            console.log('Stop Recording button clicked');
             try {
                 const response = await fetch(`${API_BASE}/record/stop-all`, { method: 'POST' });
                 const data = await response.json();
-                console.log('Stop recording response:', response.status, data);
                 
                 if (response.ok) {
                     recordingState = false;
                     updateRecordingUI();
                     showAlert('Recording stopped for all cameras', 'success');
                 } else {
-                    console.error('Stop recording failed:', response.status, data);
-                    showAlert(`Failed to stop recording: ${response.status}`, 'error');
+                    showAlert('Failed to stop recording', 'error');
                 }
             } catch (error) {
-                console.error('Stop recording error:', error);
                 showAlert(`Error: ${error.message}`, 'error');
             }
         }
