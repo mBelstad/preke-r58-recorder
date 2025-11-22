@@ -142,6 +142,15 @@
             border: 2px solid #2a2a2a;
             cursor: pointer;
             transition: all 0.3s ease;
+            min-height: 200px; /* Ensure minimum height */
+        }
+        
+        .camera-view video {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            background: #000;
         }
 
         .camera-view:hover {
@@ -324,23 +333,43 @@
             }
             
             // Enable autoplay on any user interaction (click anywhere on page)
-            const enableAutoplay = () => {
+            const enableAutoplay = (event) => {
+                console.log('User interaction detected, enabling video playback...');
+                let playedCount = 0;
                 document.querySelectorAll('video').forEach(video => {
-                    if (video.paused && (video.srcObject || video.src)) {
-                        video.play().then(() => {
-                            console.log(`Video playing: ${video.id}`);
-                            const camId = video.id.replace('video-', '');
-                            const placeholder = document.getElementById(`placeholder-${camId}`);
+                    const camId = video.id.replace('video-', '');
+                    const placeholder = document.getElementById(`placeholder-${camId}`);
+                    
+                    if (video.srcObject || video.src) {
+                        if (video.paused) {
+                            video.play().then(() => {
+                                playedCount++;
+                                console.log(`✅ Video playing: ${video.id}`);
+                                if (placeholder) {
+                                    placeholder.style.display = 'none';
+                                }
+                            }).catch(e => {
+                                console.error(`❌ Failed to play ${video.id}:`, e);
+                                // Try again after a short delay
+                                setTimeout(() => {
+                                    video.play().then(() => {
+                                        if (placeholder) placeholder.style.display = 'none';
+                                    }).catch(() => {});
+                                }, 100);
+                            });
+                        } else {
+                            // Already playing, just hide placeholder
                             if (placeholder) placeholder.style.display = 'none';
-                        }).catch(e => {
-                            console.error(`Failed to play ${video.id}:`, e);
-                        });
+                        }
+                    } else {
+                        console.log(`Video ${video.id} has no source yet`);
                     }
                 });
+                console.log(`Enabled playback for ${playedCount} videos`);
             };
             // Listen for clicks/touches to enable autoplay (multiple times, not just once)
-            document.addEventListener('click', enableAutoplay);
-            document.addEventListener('touchstart', enableAutoplay);
+            document.addEventListener('click', enableAutoplay, true); // Use capture phase
+            document.addEventListener('touchstart', enableAutoplay, true);
             
             initializeMultiview();
             startAllPreviews();
@@ -501,22 +530,36 @@
             });
 
             pc.ontrack = (event) => {
-                console.log(`WebRTC track received for ${camId} (real-time <100ms latency)`);
-                video.srcObject = event.streams[0] || null;
+                console.log(`✅ WebRTC track received for ${camId} (real-time <100ms latency)`);
+                if (!event.streams || event.streams.length === 0) {
+                    console.error(`No streams in WebRTC track for ${camId}`);
+                    return;
+                }
+                video.srcObject = event.streams[0];
+                
+                // Force video to be visible
+                video.style.display = 'block';
+                video.style.width = '100%';
+                video.style.height = '100%';
+                video.style.objectFit = 'cover';
                 
                 // Try to play immediately (muted videos can autoplay)
                 const tryPlay = () => {
                     video.play().then(() => {
                         placeholder.style.display = 'none';
-                        console.log(`WebRTC playing for ${camId} - real-time latency!`);
+                        console.log(`✅ WebRTC playing for ${camId} - real-time latency!`);
                     }).catch(e => {
-                        console.log(`WebRTC autoplay blocked for ${camId} - click anywhere to enable`);
+                        console.log(`⚠️ WebRTC autoplay blocked for ${camId} - click anywhere to enable`);
                         // Update placeholder to show user needs to click
-                        placeholder.querySelector('.text').innerHTML = 'WebRTC Ready!<br><small style="color: #10b981;">Click anywhere to start</small>';
-                        placeholder.style.cursor = 'pointer';
-                        placeholder.onclick = () => {
+                        if (placeholder && placeholder.querySelector('.text')) {
+                            placeholder.querySelector('.text').innerHTML = 'WebRTC Ready!<br><small style="color: #10b981;">Click anywhere to start</small>';
+                            placeholder.style.cursor = 'pointer';
+                        }
+                        // Also set up click handler on the video itself
+                        video.onclick = () => {
                             video.play().then(() => {
                                 placeholder.style.display = 'none';
+                                console.log(`✅ Video playing after click on ${camId}`);
                             }).catch(err => console.error('Play failed:', err));
                         };
                     });
