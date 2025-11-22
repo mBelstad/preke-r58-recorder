@@ -119,13 +119,17 @@ class Recorder:
 
         pipeline = self.pipelines[cam_id]
         try:
+            # First, set pipeline to PAUSED to stop data flow
+            pipeline.set_state(Gst.State.PAUSED)
+            pipeline.get_state(Gst.CLOCK_TIME_NONE)
+            
             # Send EOS to flush the pipeline
             pipeline.send_event(Gst.Event.new_eos())
 
-            # Wait for EOS or timeout (10 seconds max)
+            # Wait for EOS or timeout (15 seconds max)
             bus = pipeline.get_bus()
             msg = bus.timed_pop_filtered(
-                10 * Gst.SECOND,  # 10 second timeout
+                15 * Gst.SECOND,  # 15 second timeout
                 Gst.MessageType.EOS | Gst.MessageType.ERROR,
             )
 
@@ -136,8 +140,10 @@ class Recorder:
             # Set to NULL state to finalize the file
             pipeline.set_state(Gst.State.NULL)
             
-            # Wait a bit for state change
-            pipeline.get_state(Gst.CLOCK_TIME_NONE)
+            # Wait for state change to ensure file is finalized
+            ret = pipeline.get_state(Gst.CLOCK_TIME_NONE)
+            if ret[0] == Gst.StateChangeReturn.ASYNC:
+                pipeline.get_state(Gst.CLOCK_TIME_NONE)
 
             # Clean up
             del self.pipelines[cam_id]
@@ -151,6 +157,7 @@ class Recorder:
             # Force stop even if there was an error
             try:
                 pipeline.set_state(Gst.State.NULL)
+                pipeline.get_state(Gst.CLOCK_TIME_NONE)
                 del self.pipelines[cam_id]
             except:
                 pass
