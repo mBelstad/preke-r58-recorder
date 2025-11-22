@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>R58 Recorder Control Panel</title>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
         * {
             margin: 0;
@@ -480,38 +481,21 @@
                 const hostname = window.location.hostname;
                 
                 // Use WebRTC for ultra-low latency (<1s) - best for live view
-                // Fallback to HLS if WebRTC not available
-                if (window.MediaMTXWebRTC) {
-                    try {
-                        // WebRTC via MediaMTX (lowest latency)
-                        const webrtcUrl = `http://${hostname}:8889/cam0/whep`;
-                        webrtcPlayer = new window.MediaMTXWebRTC({
-                            url: webrtcUrl,
-                            video: video,
-                            onError: (err) => {
-                                console.error('WebRTC error:', err);
-                                showAlert('WebRTC stream error. Trying HLS fallback...', 'warning');
-                                // Fallback to HLS
-                                startHLSStream(video, hostname, btn, placeholder);
-                            }
-                        });
-                        webrtcPlayer.start();
-                        streamActive = true;
-                        btn.textContent = 'Stop Stream';
-                        placeholder.style.display = 'none';
-                        console.log('WebRTC stream started (low latency)');
-                    } catch (e) {
-                        console.error('WebRTC failed, falling back to HLS:', e);
-                        startHLSStream(video, hostname, btn, placeholder);
-                    }
+                // MediaMTX WHEP (WebRTC HTTP Egress Protocol) endpoint
+                const webrtcUrl = `http://${hostname}:8889/cam0/whep`;
+                
+                // Try WebRTC first (native browser API)
+                if (window.RTCPeerConnection) {
+                    startWebRTCStream(video, webrtcUrl, hostname, btn, placeholder);
                 } else {
-                    // Fallback to HLS if WebRTC library not loaded
+                    // Fallback to HLS if WebRTC not supported
+                    console.warn('WebRTC not supported, using HLS fallback');
                     startHLSStream(video, hostname, btn, placeholder);
                 }
             } else {
                 // Stop stream
                 if (webrtcPlayer) {
-                    webrtcPlayer.stop();
+                    webrtcPlayer.close();
                     webrtcPlayer = null;
                 }
                 if (window.hlsPlayer) {
@@ -524,6 +508,60 @@
                 btn.textContent = 'Start Stream';
                 placeholder.style.display = 'block';
             }
+        }
+
+        function startWebRTCStream(video, webrtcUrl, hostname, btn, placeholder) {
+            // WebRTC via MediaMTX WHEP (WebRTC HTTP Egress Protocol)
+            // This provides ultra-low latency (<1s) for live view
+            const pc = new RTCPeerConnection({
+                iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+            });
+
+            pc.ontrack = (event) => {
+                console.log('WebRTC track received');
+                video.srcObject = event.streams[0];
+                video.play().catch(e => {
+                    console.error('WebRTC play failed:', e);
+                    showAlert('WebRTC stream error. Trying HLS fallback...', 'warning');
+                    startHLSStream(video, hostname, btn, placeholder);
+                });
+            };
+
+            pc.oniceconnectionstatechange = () => {
+                if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
+                    console.error('WebRTC connection failed, falling back to HLS');
+                    showAlert('WebRTC connection lost. Using HLS fallback...', 'warning');
+                    startHLSStream(video, hostname, btn, placeholder);
+                }
+            };
+
+            // Create offer and send to MediaMTX WHEP endpoint
+            pc.createOffer().then(offer => {
+                return pc.setLocalDescription(offer);
+            }).then(() => {
+                return fetch(webrtcUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/sdp' },
+                    body: pc.localDescription.sdp
+                });
+            }).then(response => {
+                if (!response.ok) {
+                    throw new Error(`WHEP error: ${response.status}`);
+                }
+                return response.text();
+            }).then(answerSdp => {
+                return pc.setRemoteDescription({ type: 'answer', sdp: answerSdp });
+            }).then(() => {
+                webrtcPlayer = pc;
+                streamActive = true;
+                btn.textContent = 'Stop Stream';
+                placeholder.style.display = 'none';
+                console.log('WebRTC stream started (ultra-low latency)');
+            }).catch(error => {
+                console.error('WebRTC setup failed:', error);
+                showAlert('WebRTC failed. Using HLS fallback...', 'warning');
+                startHLSStream(video, hostname, btn, placeholder);
+            });
         }
 
         function startHLSStream(video, hostname, btn, placeholder) {
