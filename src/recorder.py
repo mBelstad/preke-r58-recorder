@@ -119,11 +119,7 @@ class Recorder:
 
         pipeline = self.pipelines[cam_id]
         try:
-            # First, set pipeline to PAUSED to stop data flow
-            pipeline.set_state(Gst.State.PAUSED)
-            pipeline.get_state(Gst.CLOCK_TIME_NONE)
-            
-            # Send EOS to flush the pipeline
+            # Send EOS to flush the pipeline (don't pause first - let it finish naturally)
             pipeline.send_event(Gst.Event.new_eos())
 
             # Wait for EOS or timeout (15 seconds max)
