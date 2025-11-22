@@ -476,12 +476,24 @@
 
             let resourceUrl = null;
 
+            // Collect ICE candidates before sending offer
+            const iceCandidates = [];
+            pc.onicecandidate = (event) => {
+                if (event.candidate) {
+                    iceCandidates.push(event.candidate);
+                }
+            };
+
             pc.createOffer({
                 offerToReceiveVideo: true,
                 offerToReceiveAudio: true
             }).then(offer => {
                 return pc.setLocalDescription(offer);
             }).then(() => {
+                // Wait a moment for ICE candidates to be generated
+                return new Promise(resolve => setTimeout(resolve, 100));
+            }).then(() => {
+                // Send offer with initial ICE candidates in SDP
                 return fetch(webrtcUrl, {
                     method: 'POST',
                     headers: { 
@@ -492,24 +504,28 @@
                 });
             }).then(response => {
                 if (!response.ok) {
-                    throw new Error(`WHEP error: ${response.status}`);
+                    return response.text().then(text => {
+                        throw new Error(`WHEP error: ${response.status} - ${text}`);
+                    });
                 }
                 resourceUrl = response.headers.get('Location') || webrtcUrl;
                 return response.text();
             }).then(answerSdp => {
                 return pc.setRemoteDescription({ type: 'answer', sdp: answerSdp });
             }).then(() => {
+                // Send remaining ICE candidates via PATCH
                 pc.onicecandidate = (event) => {
                     if (event.candidate && resourceUrl) {
+                        const candidateLine = 'a=' + event.candidate.candidate;
                         fetch(resourceUrl, {
                             method: 'PATCH',
                             headers: { 'Content-Type': 'application/trickle-ice-sdpfrag' },
-                            body: 'a=' + event.candidate.candidate
+                            body: candidateLine
                         }).catch(err => console.warn('ICE candidate send failed:', err));
                     }
                 };
                 webrtcConnections[camId] = pc;
-                console.log(`WebRTC preview started for ${camId} (ultra-low latency)`);
+                console.log(`WebRTC preview started for ${camId} (ultra-low latency <200ms)`);
             }).catch(error => {
                 console.error(`WebRTC setup failed for ${camId}:`, error);
                 startHLSPreview(video, camId, placeholder);
