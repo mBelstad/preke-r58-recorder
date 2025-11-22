@@ -26,7 +26,6 @@ paths:
     sourceOnDemandStartTimeout: 10s
     sourceOnDemandCloseAfter: 10s
     disablePublisherOverride: no
-    fallback: ""
     
   cam1:
     source: publisher
@@ -45,4 +44,3 @@ paths:
     sourceOnDemand: yes
     sourceOnDemandStartTimeout: 10s
     sourceOnDemandCloseAfter: 10s
-
