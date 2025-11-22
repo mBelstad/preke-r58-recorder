@@ -96,8 +96,8 @@ def build_r58_pipeline(
     # Build pipeline
     if mediamtx_path:
         # Tee to both file and MediaMTX
-        # For MediaMTX, we need to publish via RTSP
-        # Use rtspsink or rtspclientsink depending on MediaMTX setup
+        # For MediaMTX, publish via RTP/UDP (rtph264pay + udpsink)
+        # MediaMTX accepts RTP streams on UDP ports 8000 (RTP) and 8001 (RTCP)
         pipeline_str = (
             f"{source_str} ! "
             f"timeoverlay ! "
@@ -110,7 +110,8 @@ def build_r58_pipeline(
             f"filesink location={output_path} "
             f"t. ! "
             f"queue ! "
-            f"rtspclientsink location={mediamtx_path}"
+            f"rtph264pay config-interval=1 pt=96 ! "
+            f"udpsink host=127.0.0.1 port=8000"
         )
     else:
         # File only - MPP encoder expects NV12 format (already converted in source_str)
