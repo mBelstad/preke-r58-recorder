@@ -1,0 +1,56 @@
+# R58 Recorder Configuration
+
+# Platform will be auto-detected (macos or r58)
+# You can override it here if needed
+# On macOS, device paths are ignored (videotestsrc is used)
+# On R58, use /dev/video0, /dev/video1, etc.
+platform: auto
+
+# Logging level: DEBUG, INFO, WARNING, ERROR
+log_level: INFO
+
+# MediaMTX configuration (optional)
+mediamtx:
+  enabled: false
+  rtsp_port: 8554
+  rtmp_port: 1935
+  srt_port: 8890
+
+# Camera configurations
+cameras:
+  cam0:
+    device: /dev/video0
+    resolution: 1920x1080
+    bitrate: 5000
+    codec: h264
+    output_path: /var/recordings/cam0/recording_%Y%m%d_%H%M%S.mp4
+    mediamtx_enabled: false
+    mediamtx_path: null  # Auto-generated if null: rtsp://localhost:8554/cam0
+
+  cam1:
+    device: /dev/video1
+    resolution: 1920x1080
+    bitrate: 5000
+    codec: h264
+    output_path: /var/recordings/cam1/recording_%Y%m%d_%H%M%S.mp4
+    mediamtx_enabled: false
+    mediamtx_path: null
+
+  cam2:
+    device: /dev/video2
+    resolution: 1920x1080
+    bitrate: 5000
+    codec: h264
+    output_path: /var/recordings/cam2/recording_%Y%m%d_%H%M%S.mp4
+    mediamtx_enabled: false
+    mediamtx_path: null
+
+  cam3:
+    device: /dev/video3
+    resolution: 1920x1080
+    bitrate: 5000
+    codec: h265
+    output_path: /var/recordings/cam3/recording_%Y%m%d_%H%M%S.mp4
+    mediamtx_enabled: false
+    mediamtx_path: null
+

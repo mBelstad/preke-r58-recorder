@@ -1,0 +1,16 @@
+[Unit]
+Description=MediaMTX RTSP/RTMP/SRT Server
+After=network.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/local/bin/mediamtx
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+

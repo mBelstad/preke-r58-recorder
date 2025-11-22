@@ -1,0 +1,19 @@
+[Unit]
+Description=Preke R58 Recorder Service
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/preke-r58-recorder
+Environment="PATH=/opt/preke-r58-recorder/venv/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="PYTHONPATH=/opt/preke-r58-recorder"
+ExecStart=/opt/preke-r58-recorder/venv/bin/uvicorn src.main:app --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+

@@ -1,0 +1,166 @@
+"""Pipeline manager for camera recording."""
+import logging
+from datetime import datetime
+from typing import Dict, Optional
+from pathlib import Path
+import gi
+
+gi.require_version("Gst", "1.0")
+from gi.repository import Gst, GLib
+
+from .config import AppConfig, CameraConfig
+from .pipelines import build_pipeline
+
+logger = logging.getLogger(__name__)
+
+
+class Recorder:
+    """Manages recording pipelines for multiple cameras."""
+
+    def __init__(self, config: AppConfig):
+        """Initialize recorder with configuration."""
+        self.config = config
+        self.pipelines: Dict[str, Gst.Pipeline] = {}
+        self.states: Dict[str, str] = {}  # 'idle', 'recording', 'error'
+        self.loop: Optional[GLib.MainLoop] = None
+
+        # Initialize GStreamer
+        Gst.init(None)
+
+        # Initialize states
+        for cam_id in config.cameras.keys():
+            self.states[cam_id] = "idle"
+
+    def start_recording(self, cam_id: str) -> bool:
+        """Start recording for a specific camera."""
+        if cam_id not in self.config.cameras:
+            logger.error(f"Camera {cam_id} not found in configuration")
+            return False
+
+        if self.states.get(cam_id) == "recording":
+            logger.warning(f"Camera {cam_id} is already recording")
+            return False
+
+        # Stop existing pipeline if any
+        if cam_id in self.pipelines:
+            self._stop_pipeline(cam_id)
+
+        # Get camera config
+        cam_config: CameraConfig = self.config.cameras[cam_id]
+
+        # Format output path with timestamp if needed
+        output_path_str = cam_config.output_path
+        if "%" in output_path_str:
+            output_path_str = datetime.now().strftime(output_path_str)
+
+        # Ensure output directory exists
+        output_path = Path(output_path_str)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Build MediaMTX path if enabled
+        mediamtx_path = None
+        if cam_config.mediamtx_enabled and self.config.mediamtx.enabled:
+            if cam_config.mediamtx_path:
+                mediamtx_path = cam_config.mediamtx_path
+            else:
+                mediamtx_path = f"rtsp://localhost:{self.config.mediamtx.rtsp_port}/{cam_id}"
+
+        # Build pipeline
+        try:
+            pipeline = build_pipeline(
+                platform=self.config.platform,
+                cam_id=cam_id,
+                device=cam_config.device,
+                output_path=str(output_path),
+                resolution=cam_config.resolution,
+                bitrate=cam_config.bitrate,
+                codec=cam_config.codec,
+                mediamtx_path=mediamtx_path,
+            )
+
+            # Set up bus message handler
+            bus = pipeline.get_bus()
+            bus.add_signal_watch()
+            bus.connect("message", self._on_bus_message, cam_id)
+
+            # Start pipeline
+            pipeline.set_state(Gst.State.PLAYING)
+            self.pipelines[cam_id] = pipeline
+            self.states[cam_id] = "recording"
+
+            logger.info(f"Started recording for camera {cam_id}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to start recording for {cam_id}: {e}")
+            self.states[cam_id] = "error"
+            return False
+
+    def stop_recording(self, cam_id: str) -> bool:
+        """Stop recording for a specific camera."""
+        if cam_id not in self.states:
+            logger.error(f"Camera {cam_id} not found")
+            return False
+
+        if self.states.get(cam_id) != "recording":
+            logger.warning(f"Camera {cam_id} is not recording")
+            return False
+
+        return self._stop_pipeline(cam_id)
+
+    def _stop_pipeline(self, cam_id: str) -> bool:
+        """Internal method to stop a pipeline."""
+        if cam_id not in self.pipelines:
+            return False
+
+        pipeline = self.pipelines[cam_id]
+        try:
+            # Send EOS
+            pipeline.send_event(Gst.Event.new_eos())
+
+            # Wait for EOS or timeout
+            bus = pipeline.get_bus()
+            msg = bus.timed_pop_filtered(
+                Gst.CLOCK_TIME_NONE,
+                Gst.MessageType.EOS | Gst.MessageType.ERROR,
+            )
+
+            # Stop pipeline
+            pipeline.set_state(Gst.State.NULL)
+
+            # Clean up
+            del self.pipelines[cam_id]
+            self.states[cam_id] = "idle"
+
+            logger.info(f"Stopped recording for camera {cam_id}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Error stopping pipeline for {cam_id}: {e}")
+            self.states[cam_id] = "error"
+            return False
+
+    def _on_bus_message(self, bus: Gst.Bus, message: Gst.Message, cam_id: str) -> None:
+        """Handle GStreamer bus messages."""
+        if message.type == Gst.MessageType.ERROR:
+            err, debug = message.parse_error()
+            logger.error(f"Pipeline error for {cam_id}: {err.message} - {debug}")
+            self.states[cam_id] = "error"
+        elif message.type == Gst.MessageType.EOS:
+            logger.info(f"End of stream for {cam_id}")
+            self.states[cam_id] = "idle"
+        elif message.type == Gst.MessageType.STATE_CHANGED:
+            if message.src == self.pipelines.get(cam_id):
+                old_state, new_state, pending_state = message.parse_state_changed()
+                logger.debug(
+                    f"State changed for {cam_id}: {old_state.value_nick} -> {new_state.value_nick}"
+                )
+
+    def get_status(self) -> Dict[str, str]:
+        """Get status of all cameras."""
+        return self.states.copy()
+
+    def get_camera_status(self, cam_id: str) -> Optional[str]:
+        """Get status of a specific camera."""
+        return self.states.get(cam_id)
+
