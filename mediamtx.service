@@ -5,7 +5,8 @@ After=network.target
 [Service]
 Type=simple
 User=root
-ExecStart=/usr/local/bin/mediamtx
+WorkingDirectory=/opt/mediamtx
+ExecStart=/usr/local/bin/mediamtx /opt/mediamtx/mediamtx.yml
 Restart=always
 RestartSec=10
 StandardOutput=journal

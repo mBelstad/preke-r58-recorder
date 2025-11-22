@@ -7,15 +7,11 @@ logFile: mediamtx.log
 
 # RTSP settings
 rtspAddress: :8554
-encryption: strict
-serverKey: server.key
-serverCert: server.crt
+encryption: no
 
 # RTMP settings
 rtmpAddress: :1935
-rtmpEncryption: strict
-rtmpServerKey: server.key
-rtmpServerCert: server.crt
+rtmpEncryption: no
 
 # HLS settings
 hlsAddress: :8554

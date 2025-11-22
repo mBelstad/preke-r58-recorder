@@ -11,7 +11,7 @@ log_level: INFO
 
 # MediaMTX configuration (optional)
 mediamtx:
-  enabled: false
+  enabled: true
   rtsp_port: 8554
   rtmp_port: 1935
   srt_port: 8890
@@ -24,7 +24,7 @@ cameras:
     bitrate: 5000
     codec: h264
     output_path: /var/recordings/cam0/recording_%Y%m%d_%H%M%S.mp4
-    mediamtx_enabled: false
+    mediamtx_enabled: true
     mediamtx_path: null  # Auto-generated if null: rtsp://localhost:8554/cam0
 
   cam1:
