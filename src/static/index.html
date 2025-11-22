@@ -889,15 +889,34 @@
             
             if (!video || !placeholder) return;
 
-            // Try WebRTC first for ultra-low latency
-            const webrtcUrl = `http://${HOSTNAME}:8889/${camId}_preview/whep`;
-            
-            if (window.RTCPeerConnection) {
-                startWebRTCPreview(video, webrtcUrl, camId, placeholder);
-            } else {
-                // Fallback to HLS
-                startHLSPreview(video, camId, placeholder);
-            }
+            // Check if camera is recording - if so, use main stream path, otherwise use preview path
+            // We need to check the current status to determine which path to use
+            fetch(`${API_BASE}/status`)
+                .then(r => r.json())
+                .then(data => {
+                    const isRecording = data.cameras[camId]?.status === 'recording';
+                    const streamPath = isRecording ? camId : `${camId}_preview`;
+                    
+                    // Try WebRTC first for ultra-low latency
+                    const webrtcUrl = `http://${HOSTNAME}:8889/${streamPath}/whep`;
+                    
+                    if (window.RTCPeerConnection) {
+                        startWebRTCPreview(video, webrtcUrl, camId, placeholder);
+                    } else {
+                        // Fallback to HLS
+                        startHLSPreview(video, camId, placeholder, streamPath);
+                    }
+                })
+                .catch(err => {
+                    console.error(`Failed to check status for ${camId}:`, err);
+                    // Fallback to preview path
+                    const webrtcUrl = `http://${HOSTNAME}:8889/${camId}_preview/whep`;
+                    if (window.RTCPeerConnection) {
+                        startWebRTCPreview(video, webrtcUrl, camId, placeholder);
+                    } else {
+                        startHLSPreview(video, camId, placeholder);
+                    }
+                });
         }
 
         function startWebRTCPreview(video, webrtcUrl, camId, placeholder) {
@@ -1012,6 +1031,10 @@
                     cameraStreamStates[camId] = 'disconnected';
                     updatePlaceholderStatus(camId, 'disconnected');
                     updateStats();
+                    // Try to reconnect after a delay
+                    setTimeout(() => {
+                        startCameraPreview(camId);
+                    }, 2000);
                 };
                 
                 video.onstalled = () => {
@@ -1224,12 +1247,34 @@
                 console.error(`WebRTC setup failed for ${camId}:`, error);
                 cameraStreamStates[camId] = 'disconnected';
                 updatePlaceholderStatus(camId, 'disconnected');
+                // Fallback to HLS with correct path
                 startHLSPreview(video, camId, placeholder);
             });
         }
 
-        function startHLSPreview(video, camId, placeholder) {
-            const hlsUrl = `http://${HOSTNAME}:8888/${camId}_preview/index.m3u8`;
+        function startHLSPreview(video, camId, placeholder, streamPath = null) {
+            // Use provided streamPath or default to preview path
+            if (!streamPath) {
+                // Check if recording to determine path
+                fetch(`${API_BASE}/status`)
+                    .then(r => r.json())
+                    .then(data => {
+                        const isRecording = data.cameras[camId]?.status === 'recording';
+                        streamPath = isRecording ? camId : `${camId}_preview`;
+                        const hlsUrl = `http://${HOSTNAME}:8888/${streamPath}/index.m3u8`;
+                        startHLSWithUrl(video, camId, placeholder, hlsUrl);
+                    })
+                    .catch(() => {
+                        const hlsUrl = `http://${HOSTNAME}:8888/${camId}_preview/index.m3u8`;
+                        startHLSWithUrl(video, camId, placeholder, hlsUrl);
+                    });
+                return;
+            }
+            const hlsUrl = `http://${HOSTNAME}:8888/${streamPath}/index.m3u8`;
+            startHLSWithUrl(video, camId, placeholder, hlsUrl);
+        }
+
+        function startHLSWithUrl(video, camId, placeholder, hlsUrl) {
             
             // Clean up existing HLS player
             if (hlsPlayers[camId]) {
