@@ -775,6 +775,8 @@
                     const camId = video.id.replace('video-', '');
                     const placeholder = document.getElementById(`placeholder-${camId}`);
                     
+                    if (!placeholder) return;
+                    
                     if (video.srcObject || video.src) {
                         if (video.videoWidth > 0 && video.videoHeight > 0 && !video.paused && video.readyState >= 2) {
                             if (cameraStreamStates[camId] !== 'ready') {
@@ -790,6 +792,7 @@
                             }
                         }
                     } else {
+                        // No source at all - definitely disconnected
                         if (cameraStreamStates[camId] !== 'disconnected') {
                             cameraStreamStates[camId] = 'disconnected';
                             updatePlaceholderStatus(camId, 'disconnected');
@@ -797,7 +800,7 @@
                         }
                     }
                 });
-            }, 3000);
+            }, 2000); // Check every 2 seconds for faster feedback
         });
 
         async function initializeMultiview() {
@@ -827,9 +830,12 @@
                         <video id="video-${camId}" autoplay muted playsinline style="display: block; width: 100%; height: 100%; object-fit: cover; background: #000;"></video>
                         <div class="camera-placeholder" id="placeholder-${camId}">
                             <div class="icon">CAM</div>
-                            <div class="text">Loading preview...</div>
+                            <div class="text"><span style="color: #9ca3af; font-weight: 600;">WAITING</span><br><small style="color: #6b7280;">Waiting for connection</small></div>
                         </div>
                     `;
+                    // Initialize status as disconnected
+                    cameraStreamStates[camId] = 'disconnected';
+                    updatePlaceholderStatus(camId, 'disconnected');
                     multiview.appendChild(view);
                     console.log(`Added camera view for ${camId}`);
                 }
