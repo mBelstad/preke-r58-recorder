@@ -343,18 +343,41 @@
         function startAllStreams() {
             // Force play all videos - this button click counts as user interaction
             userInteracted = true;
+            
+            // Play all videos that have streams
             document.querySelectorAll('video').forEach(video => {
                 if (video.srcObject || video.src) {
                     video.play().then(() => {
                         const placeholder = video.parentElement.querySelector('.camera-placeholder');
-                        if (placeholder) placeholder.style.display = 'none';
+                        if (placeholder) {
+                            placeholder.style.display = 'none';
+                        }
+                        console.log('Video playing:', video.id);
                     }).catch(e => {
-                        console.error('Failed to play video:', e);
+                        console.warn('Video play failed, will retry:', e);
+                        // Retry after a short delay
+                        setTimeout(() => {
+                            video.play().catch(err => console.error('Retry failed:', err));
+                        }, 200);
                     });
+                } else {
+                    console.debug('Video not ready yet:', video.id);
                 }
             });
-            document.getElementById('startStreamsBtn').textContent = 'Streams Started';
-            document.getElementById('startStreamsBtn').disabled = true;
+            
+            // Update button
+            const btn = document.getElementById('startStreamsBtn');
+            if (btn) {
+                btn.textContent = 'Streams Started ✓';
+                btn.disabled = true;
+                btn.style.opacity = '0.7';
+            }
+            
+            // Also trigger play on any pending videos
+            pendingVideos.forEach(video => {
+                video.play().catch(e => console.debug('Pending video play:', e));
+            });
+            pendingVideos.clear();
         }
 
         async function initializeMultiview() {
