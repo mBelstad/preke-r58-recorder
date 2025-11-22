@@ -178,6 +178,17 @@ class Recorder:
             err, debug = message.parse_error()
             logger.error(f"Pipeline error for {cam_id}: {err.message} - {debug}")
             self.states[cam_id] = "error"
+            # Try to restart the pipeline if it's a recoverable error
+            if "busy" not in err.message.lower() and "device" not in err.message.lower():
+                logger.info(f"Attempting to restart pipeline for {cam_id} after error")
+                try:
+                    if cam_id in self.pipelines:
+                        self._stop_pipeline(cam_id)
+                    import time
+                    time.sleep(1)
+                    self.start_recording(cam_id)
+                except Exception as e:
+                    logger.error(f"Failed to restart pipeline for {cam_id}: {e}")
         elif message.type == Gst.MessageType.EOS:
             logger.info(f"End of stream for {cam_id}")
             # Don't change state to idle here - let stop_pipeline handle it
@@ -187,6 +198,11 @@ class Recorder:
                 logger.info(
                     f"State changed for {cam_id}: {old_state.value_nick} -> {new_state.value_nick}"
                 )
+                # If pipeline goes to NULL unexpectedly, mark as error
+                if new_state == Gst.State.NULL and old_state == Gst.State.PLAYING:
+                    if self.states.get(cam_id) == "recording":
+                        logger.warning(f"Pipeline for {cam_id} unexpectedly went to NULL state during recording")
+                        self.states[cam_id] = "error"
         elif message.type == Gst.MessageType.WARNING:
             warn, debug = message.parse_warning()
             logger.warning(f"Pipeline warning for {cam_id}: {warn.message} - {debug}")

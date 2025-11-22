@@ -1467,9 +1467,18 @@
                     if (recordingState && !recordingStartTime) {
                         recordingStartTime = new Date();
                         startRecordingTimer();
+                        // When recording starts, preview stops - restart preview for non-recording cameras
+                        // But don't restart preview for the camera that's recording (it uses the same device)
+                        setTimeout(() => {
+                            startAllPreviews();
+                        }, 2000);
                     } else if (!recordingState && recordingStartTime) {
                         recordingStartTime = null;
                         stopRecordingTimer();
+                        // When recording stops, restart preview streams
+                        setTimeout(() => {
+                            startAllPreviews();
+                        }, 1000);
                     }
                     updateRecordingUI();
                     updateStats(data);
