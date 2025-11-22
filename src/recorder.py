@@ -48,6 +48,13 @@ class Recorder:
         # Stop existing pipeline if any
         if cam_id in self.pipelines:
             self._stop_pipeline(cam_id)
+        
+        # Stop preview pipeline if running (same device can't be used by both)
+        # Import here to avoid circular dependency
+        from .main import preview_manager
+        if hasattr(preview_manager, 'preview_states') and preview_manager.preview_states.get(cam_id) == "preview":
+            logger.info(f"Stopping preview for {cam_id} before starting recording")
+            preview_manager.stop_preview(cam_id)
 
         # Get camera config
         cam_config: CameraConfig = self.config.cameras[cam_id]
