@@ -96,8 +96,12 @@ def build_r58_pipeline(
     # Build pipeline with optional tee for MediaMTX streaming
     # CRITICAL: Use tee in single pipeline to avoid dual device access crashes
     if mediamtx_path:
-        # Tee to both file recording and RTP streaming (single pipeline, single device access)
-        # Stream goes to MediaMTX via RTP on UDP port 8000
+        # Tee to both file recording and RTMP streaming (single pipeline, single device access)
+        # Stream goes to MediaMTX via RTMP on port 1935
+        # Extract path from mediamtx_path (e.g., rtsp://localhost:8554/cam0 -> cam0)
+        stream_path = mediamtx_path.split("/")[-1] if "/" in mediamtx_path else cam_id
+        rtmp_url = f"rtmp://127.0.0.1:1935/{stream_path}"
+        
         pipeline_str = (
             f"{source_str} ! "
             f"timeoverlay ! "
@@ -110,8 +114,8 @@ def build_r58_pipeline(
             f"filesink location={output_path} "
             f"t. ! "
             f"queue max-size-buffers=0 max-size-time=0 max-size-bytes=0 ! "
-            f"rtph264pay config-interval=1 pt=96 ! "
-            f"udpsink host=127.0.0.1 port=8000"
+            f"flvmux streamable=true ! "
+            f"rtmpsink location={rtmp_url}"
         )
     else:
         # Recording only - no streaming
