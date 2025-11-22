@@ -8,8 +8,8 @@ rtspAddress: :8554
 # RTMP settings
 rtmpAddress: :1935
 
-# HLS settings (served on same port as RTSP)
-hlsAddress: :8554
+# HLS settings (separate port for HLS)
+hlsAddress: :8888
 hlsAlwaysRemux: yes
 hlsSegmentCount: 3
 hlsSegmentDuration: 1s
