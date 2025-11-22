@@ -646,6 +646,16 @@
             background: rgba(59, 130, 246, 0.2);
             color: #60a5fa;
         }
+
+        .camera-stat-status.ready {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+        }
+
+        .camera-stat-status.disconnected {
+            background: rgba(107, 114, 128, 0.2);
+            color: #6b7280;
+        }
     </style>
 </head>
 <body>
@@ -699,6 +709,7 @@
         let fullscreenCamera = null;
         let recordingStartTime = null;
         let recordingInterval = null;
+        let cameraStreamStates = {}; // Track which cameras have active streams
 
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', () => {
@@ -757,6 +768,31 @@
             checkRecordingStatus();
             setInterval(checkRecordingStatus, 2000);
             updateStats();
+            
+            // Periodically check video stream states
+            setInterval(() => {
+                document.querySelectorAll('video').forEach(video => {
+                    const camId = video.id.replace('video-', '');
+                    if (video.srcObject || video.src) {
+                        if (video.videoWidth > 0 && video.videoHeight > 0 && !video.paused && video.readyState >= 2) {
+                            if (cameraStreamStates[camId] !== 'ready') {
+                                cameraStreamStates[camId] = 'ready';
+                                updateStats();
+                            }
+                        } else if (video.readyState === 0 && !video.srcObject && !video.src) {
+                            if (cameraStreamStates[camId] !== 'disconnected') {
+                                cameraStreamStates[camId] = 'disconnected';
+                                updateStats();
+                            }
+                        }
+                    } else {
+                        if (cameraStreamStates[camId] !== 'disconnected') {
+                            cameraStreamStates[camId] = 'disconnected';
+                            updateStats();
+                        }
+                    }
+                });
+            }, 3000);
         });
 
         async function initializeMultiview() {
@@ -1001,10 +1037,35 @@
                 // Monitor video rendering (check if frames are actually being rendered)
                 video.onplaying = () => {
                     console.log(`✅ Video is playing for ${camId}, currentTime: ${video.currentTime.toFixed(2)}s`);
+                    cameraStreamStates[camId] = 'ready';
+                    updateStats();
                 };
                 
                 video.oncanplay = () => {
                     console.log(`✅ Video can play for ${camId}, readyState: ${video.readyState}`);
+                    if (video.videoWidth > 0 && video.videoHeight > 0) {
+                        cameraStreamStates[camId] = 'ready';
+                        updateStats();
+                    }
+                };
+                
+                // Monitor if video stops or errors
+                video.onerror = () => {
+                    console.warn(`⚠️ Video error for ${camId}`);
+                    cameraStreamStates[camId] = 'disconnected';
+                    updateStats();
+                };
+                
+                video.onstalled = () => {
+                    console.warn(`⚠️ Video stalled for ${camId}`);
+                    cameraStreamStates[camId] = 'disconnected';
+                    updateStats();
+                };
+                
+                video.onsuspend = () => {
+                    console.warn(`⚠️ Video suspended for ${camId}`);
+                    cameraStreamStates[camId] = 'disconnected';
+                    updateStats();
                 };
                 
                 // Check if video is actually rendering frames
@@ -1034,6 +1095,8 @@
                 
                 event.track.onended = () => {
                     console.warn(`⚠️ Track ended for ${camId}`);
+                    cameraStreamStates[camId] = 'disconnected';
+                    updateStats();
                     placeholder.style.display = 'flex';
                     placeholder.querySelector('.text').textContent = 'Stream ended - reconnecting...';
                     setTimeout(() => {
@@ -1237,6 +1300,8 @@
                         video.play().then(() => {
                             placeholder.style.display = 'none';
                             console.log(`HLS preview started for ${camId} (low latency)`);
+                            cameraStreamStates[camId] = 'ready';
+                            updateStats();
                         }).catch(e => {
                             console.debug(`HLS autoplay blocked for ${camId}, will play on user interaction`);
                             // Video will play automatically on first user interaction
@@ -1245,6 +1310,16 @@
                     tryPlay();
                     requestAnimationFrame(() => tryPlay());
                 });
+                
+                video.onplaying = () => {
+                    cameraStreamStates[camId] = 'ready';
+                    updateStats();
+                };
+                
+                video.onerror = () => {
+                    cameraStreamStates[camId] = 'disconnected';
+                    updateStats();
+                };
                 
                 hls.on(window.Hls.Events.ERROR, (event, data) => {
                     console.error(`HLS error for ${camId}:`, data);
@@ -1426,13 +1501,33 @@
             for (const [camId, camData] of Object.entries(data.cameras)) {
                 const stat = document.createElement('div');
                 stat.className = 'camera-stat';
-                const statusClass = camData.status === 'recording' ? 'recording' : 
-                                   camData.status === 'preview' ? 'preview' : 'idle';
+                
+                // Determine status: prioritize stream state, then recording/preview status
+                let statusClass, statusText;
+                const streamState = cameraStreamStates[camId];
+                
+                if (camData.status === 'recording') {
+                    statusClass = 'recording';
+                    statusText = 'RECORDING';
+                } else if (streamState === 'ready') {
+                    statusClass = 'ready';
+                    statusText = 'READY';
+                } else if (streamState === 'disconnected') {
+                    statusClass = 'disconnected';
+                    statusText = 'DISCONNECTED';
+                } else if (camData.status === 'preview') {
+                    statusClass = 'preview';
+                    statusText = 'PREVIEW';
+                } else {
+                    statusClass = 'idle';
+                    statusText = 'IDLE';
+                }
+                
                 // Convert cam0 -> CAM 1, cam1 -> CAM 2, etc.
                 const camNumber = parseInt(camId.replace('cam', '')) + 1;
                 stat.innerHTML = `
                     <span class="camera-stat-name">CAM ${camNumber}</span>
-                    <span class="camera-stat-status ${statusClass}">${camData.status.toUpperCase()}</span>
+                    <span class="camera-stat-status ${statusClass}">${statusText}</span>
                 `;
                 cameraList.appendChild(stat);
             }
