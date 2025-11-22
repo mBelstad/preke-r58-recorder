@@ -192,6 +192,20 @@ class Recorder:
         """Get status of a specific camera."""
         return self.states.get(cam_id)
 
+    def start_all_recordings(self) -> Dict[str, bool]:
+        """Start recording for all cameras."""
+        results = {}
+        for cam_id in self.config.cameras.keys():
+            results[cam_id] = self.start_recording(cam_id)
+        return results
+
+    def stop_all_recordings(self) -> Dict[str, bool]:
+        """Stop recording for all cameras."""
+        results = {}
+        for cam_id in list(self.pipelines.keys()):
+            results[cam_id] = self.stop_recording(cam_id)
+        return results
+
     def _cleanup_stuck_pipelines(self) -> None:
         """Kill any stuck GStreamer processes that might be holding video devices."""
         import subprocess

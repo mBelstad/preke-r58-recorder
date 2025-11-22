@@ -134,6 +134,92 @@ def build_r58_pipeline(
     return pipeline
 
 
+def build_preview_pipeline(
+    platform: str,
+    cam_id: str,
+    device: str,
+    resolution: str = "1920x1080",
+    bitrate: int = 5000,
+    codec: str = "h264",
+    mediamtx_path: Optional[str] = None,
+) -> Gst.Pipeline:
+    """Build preview-only pipeline (streaming, no recording) for multiview."""
+    if platform == "macos":
+        # Mock preview pipeline
+        width, height = resolution.split("x")
+        pipeline_str = (
+            f"videotestsrc pattern=ball is-live=true ! "
+            f"video/x-raw,width={width},height={height},framerate=30/1 ! "
+            f"x264enc bitrate={bitrate} speed-preset=ultrafast tune=zerolatency ! "
+            f"video/x-h264,profile=baseline ! "
+            f"flvmux streamable=true ! "
+            f"rtmpsink location={mediamtx_path or f'rtmp://127.0.0.1:1935/{cam_id}_preview'}"
+        )
+        return Gst.parse_launch(pipeline_str)
+    else:  # r58
+        return build_r58_preview_pipeline(
+            cam_id=cam_id,
+            device=device,
+            resolution=resolution,
+            bitrate=bitrate,
+            codec=codec,
+            mediamtx_path=mediamtx_path,
+        )
+
+
+def build_r58_preview_pipeline(
+    cam_id: str,
+    device: str,
+    resolution: str = "1920x1080",
+    bitrate: int = 5000,
+    codec: str = "h264",
+    mediamtx_path: Optional[str] = None,
+) -> Gst.Pipeline:
+    """Build preview-only pipeline for R58 (streaming to MediaMTX, no recording)."""
+    width, height = resolution.split("x")
+
+    # Video source
+    if "video60" in device or "hdmirx" in device.lower():
+        source_str = (
+            f"v4l2src device={device} io-mode=mmap ! "
+            f"video/x-raw,format=NV24,width={width},height={height},framerate=60/1 ! "
+            f"videoconvert ! "
+            f"video/x-raw,format=NV12"
+        )
+    else:
+        source_str = f"v4l2src device={device} ! videoconvert ! videoscale ! video/x-raw,width={width},height={height}"
+
+    # Encoder - use lower bitrate for preview to reduce latency
+    if codec == "h265":
+        bps = bitrate * 1000
+        encoder_str = f"mpph265enc bps={bps} bps-max={bps * 2}"
+        caps_str = "video/x-h265"
+    else:  # h264
+        # Lower bitrate for preview, faster encoding for lower latency
+        preview_bitrate = max(2000, bitrate // 2)  # Half bitrate for preview
+        encoder_str = f"x264enc tune=zerolatency bitrate={preview_bitrate} speed-preset=ultrafast key-int-max=30"
+        caps_str = "video/x-h264"
+
+    # Preview pipeline: stream to MediaMTX only (no recording)
+    if mediamtx_path:
+        stream_path = mediamtx_path.split("/")[-1] if "/" in mediamtx_path else f"{cam_id}_preview"
+        rtmp_url = f"rtmp://127.0.0.1:1935/{stream_path}"
+    else:
+        rtmp_url = f"rtmp://127.0.0.1:1935/{cam_id}_preview"
+
+    pipeline_str = (
+        f"{source_str} ! "
+        f"{encoder_str} ! "
+        f"{caps_str} ! "
+        f"flvmux streamable=true ! "
+        f"rtmpsink location={rtmp_url}"
+    )
+
+    logger.info(f"Building preview pipeline for {cam_id}: {pipeline_str}")
+    pipeline = Gst.parse_launch(pipeline_str)
+    return pipeline
+
+
 def build_pipeline(
     platform: str,
     cam_id: str,

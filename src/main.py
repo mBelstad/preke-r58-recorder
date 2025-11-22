@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .config import AppConfig
 from .recorder import Recorder
+from .preview import PreviewManager
 
 # Configure logging
 logging.basicConfig(
@@ -25,8 +26,9 @@ except FileNotFoundError:
     logger.error(f"config.yml not found at {config_path}. Using default configuration.")
     config = AppConfig(platform="macos", cameras={})
 
-# Initialize recorder
+# Initialize recorder and preview manager
 recorder = Recorder(config)
+preview_manager = PreviewManager(config)
 
 # Create FastAPI app
 app = FastAPI(
@@ -84,6 +86,46 @@ async def stop_recording(cam_id: str) -> Dict[str, str]:
         )
 
     return {"status": "stopped", "camera": cam_id}
+
+
+@app.post("/record/start-all")
+async def start_all_recordings() -> Dict[str, Any]:
+    """Start recording for all configured cameras."""
+    results = recorder.start_all_recordings()
+    return {"status": "completed", "cameras": {k: "started" if v else "failed" for k, v in results.items()}}
+
+
+@app.post("/record/stop-all")
+async def stop_all_recordings() -> Dict[str, Any]:
+    """Stop recording for all active cameras."""
+    results = recorder.stop_all_recordings()
+    return {"status": "completed", "cameras": {k: "stopped" if v else "not_recording" for k, v in results.items()}}
+
+
+@app.post("/preview/start-all")
+async def start_all_previews() -> Dict[str, Any]:
+    """Start preview streams for all cameras (multiview)."""
+    results = preview_manager.start_all_previews()
+    return {"status": "completed", "cameras": {k: "preview" if v else "failed" for k, v in results.items()}}
+
+
+@app.post("/preview/stop-all")
+async def stop_all_previews() -> Dict[str, Any]:
+    """Stop preview streams for all cameras."""
+    results = preview_manager.stop_all_previews()
+    return {"status": "completed", "cameras": {k: "stopped" if v else "not_preview" for k, v in results.items()}}
+
+
+@app.get("/preview/status")
+async def get_preview_status() -> Dict[str, Dict[str, Any]]:
+    """Get preview status for all cameras."""
+    statuses = preview_manager.get_preview_status()
+    return {
+        "cameras": {
+            cam_id: {"status": status, "config": cam_id in config.cameras}
+            for cam_id, status in statuses.items()
+        }
+    }
 
 
 @app.get("/status")

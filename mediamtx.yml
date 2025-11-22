@@ -27,17 +27,17 @@ webrtcEncryption: no
 paths:
   cam0:
     source: publisher
-    sourceProtocol: udp
-    sourceOnDemand: no
+  cam0_preview:
+    source: publisher
   cam1:
     source: publisher
-    sourceProtocol: udp
-    sourceOnDemand: no
+  cam1_preview:
+    source: publisher
   cam2:
     source: publisher
-    sourceProtocol: udp
-    sourceOnDemand: no
+  cam2_preview:
+    source: publisher
   cam3:
     source: publisher
-    sourceProtocol: udp
-    sourceOnDemand: no
+  cam3_preview:
+    source: publisher
