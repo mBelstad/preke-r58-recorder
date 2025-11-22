@@ -531,7 +531,11 @@
                     }).catch(e => {
                         // If user has interacted, try again
                         if (userInteracted) {
-                            setTimeout(() => video.play().catch(() => {}), 100);
+                            setTimeout(() => {
+                                video.play().catch(() => {
+                                    // Silent fail on retry
+                                });
+                            }, 100);
                         } else {
                             // Add to pending videos - will play after user interaction
                             pendingVideos.add(video);
