@@ -94,22 +94,24 @@ class Recorder:
             self.pipelines[cam_id] = pipeline
             self.states[cam_id] = "recording"
 
-            # Start separate streaming pipeline if MediaMTX is enabled
-            if cam_config.mediamtx_enabled and self.config.mediamtx.enabled:
-                streaming_pipeline = build_streaming_pipeline(
-                    device=cam_config.device,
-                    cam_id=cam_id,
-                    resolution=cam_config.resolution,
-                    bitrate=cam_config.bitrate,
-                    mediamtx_rtsp_url=f"rtsp://localhost:{self.config.mediamtx.rtsp_port}",
-                )
-                if streaming_pipeline:
-                    try:
-                        streaming_pipeline.set_state(Gst.State.PLAYING)
-                        self.streaming_pipelines[cam_id] = streaming_pipeline
-                        logger.info(f"Started streaming pipeline for camera {cam_id}")
-                    except Exception as e:
-                        logger.warning(f"Failed to start streaming pipeline for {cam_id}: {e}")
+            # DISABLED: Separate streaming pipeline causes crashes when accessing /dev/video60 twice
+            # Instead, use tee in the main pipeline to split recording and streaming
+            # MediaMTX streaming will be handled via tee in the pipeline when needed
+            # if cam_config.mediamtx_enabled and self.config.mediamtx.enabled:
+            #     streaming_pipeline = build_streaming_pipeline(
+            #         device=cam_config.device,
+            #         cam_id=cam_id,
+            #         resolution=cam_config.resolution,
+            #         bitrate=cam_config.bitrate,
+            #         mediamtx_rtsp_url=f"rtsp://localhost:{self.config.mediamtx.rtsp_port}",
+            #     )
+            #     if streaming_pipeline:
+            #         try:
+            #             streaming_pipeline.set_state(Gst.State.PLAYING)
+            #             self.streaming_pipelines[cam_id] = streaming_pipeline
+            #             logger.info(f"Started streaming pipeline for camera {cam_id}")
+            #         except Exception as e:
+            #             logger.warning(f"Failed to start streaming pipeline for {cam_id}: {e}")
 
             logger.info(f"Started recording for camera {cam_id}")
             return True

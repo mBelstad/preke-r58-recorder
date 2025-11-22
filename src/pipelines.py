@@ -93,8 +93,15 @@ def build_r58_pipeline(
         parse_str = "h264parse"
         mux_str = "mp4mux"
 
-    # Build pipeline - recording only (streaming handled separately)
-    # When MediaMTX is enabled, a separate streaming pipeline is created
+    # Build pipeline
+    # IMPORTANT: Do NOT create separate pipelines for streaming - accessing /dev/video60 twice causes crashes
+    # Use tee in the main pipeline if streaming is needed (but currently disabled for stability)
+    if mediamtx_path:
+        # For now, just record - streaming via separate pipeline causes system crashes
+        # TODO: Implement tee-based streaming in single pipeline when MediaMTX support is stable
+        logger.warning(f"MediaMTX streaming requested for {cam_id} but disabled to prevent crashes")
+    
+    # Recording pipeline only
     pipeline_str = (
         f"{source_str} ! "
         f"timeoverlay ! "
@@ -104,17 +111,6 @@ def build_r58_pipeline(
         f"{mux_str} ! "
         f"filesink location={output_path}"
     )
-    else:
-        # File only - MPP encoder expects NV12 format (already converted in source_str)
-        pipeline_str = (
-            f"{source_str} ! "
-            f"timeoverlay ! "
-            f"{encoder_str} ! "
-            f"{caps_str} ! "
-            f"{parse_str} ! "
-            f"{mux_str} ! "
-            f"filesink location={output_path}"
-        )
 
     logger.info(f"Building R58 pipeline for {cam_id} from {device}: {pipeline_str}")
     pipeline = Gst.parse_launch(pipeline_str)
