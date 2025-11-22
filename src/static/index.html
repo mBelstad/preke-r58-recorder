@@ -1636,7 +1636,8 @@
             
             // Only update if placeholder is visible (video not playing)
             const video = document.getElementById(`video-${camId}`);
-            if (video && video.videoWidth > 0 && video.videoHeight > 0 && !video.paused) {
+            // Check for valid dimensions (not 0x0 or placeholder 2x2)
+            if (video && video.videoWidth > 2 && video.videoHeight > 2 && !video.paused) {
                 // Video is playing, placeholder should be hidden
                 return;
             }
