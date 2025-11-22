@@ -329,7 +329,8 @@
                     if (video.paused && (video.srcObject || video.src)) {
                         video.play().then(() => {
                             console.log(`Video playing: ${video.id}`);
-                            const placeholder = document.getElementById(`placeholder-${video.id.replace('video-', '')}`);
+                            const camId = video.id.replace('video-', '');
+                            const placeholder = document.getElementById(`placeholder-${camId}`);
                             if (placeholder) placeholder.style.display = 'none';
                         }).catch(e => {
                             console.error(`Failed to play ${video.id}:`, e);
@@ -337,7 +338,7 @@
                     }
                 });
             };
-            // Listen for clicks/touches to enable autoplay
+            // Listen for clicks/touches to enable autoplay (multiple times, not just once)
             document.addEventListener('click', enableAutoplay);
             document.addEventListener('touchstart', enableAutoplay);
             
