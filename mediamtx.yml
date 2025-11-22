@@ -9,14 +9,13 @@ rtspAddress: :8554
 rtmpAddress: :1935
 
 # HLS settings (separate port for HLS) - optimized for minimum latency
-# Use regular HLS (not LL-HLS) with minimal segments for lower latency
+# MediaMTX requires 7 segments for LL-HLS, so use 7 segments @ 100ms = 700ms buffer
 hlsAddress: :8888
 hlsAlwaysRemux: yes
-hlsSegmentCount: 3
-hlsSegmentDuration: 200ms
+hlsSegmentCount: 7
+hlsSegmentDuration: 100ms
+hlsPartDuration: 50ms
 hlsAllowOrigin: "*"
-# Disable LL-HLS parts to allow fewer segments
-hlsPartDuration: 0
 
 # SRT settings
 srtAddress: :8890
