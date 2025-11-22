@@ -1026,15 +1026,16 @@
                 };
                 
                 // Monitor if video stops or errors
-                video.onerror = () => {
-                    console.warn(`⚠️ Video error for ${camId}`);
+                video.onerror = (e) => {
+                    console.warn(`⚠️ Video error for ${camId}:`, e);
                     cameraStreamStates[camId] = 'disconnected';
                     updatePlaceholderStatus(camId, 'disconnected');
                     updateStats();
-                    // Try to reconnect after a delay
+                    // Try to reconnect after a delay, but check if recording first
                     setTimeout(() => {
+                        console.log(`Retrying preview for ${camId} after error...`);
                         startCameraPreview(camId);
-                    }, 2000);
+                    }, 3000);
                 };
                 
                 video.onstalled = () => {
@@ -1339,11 +1340,24 @@
                     console.error(`HLS error for ${camId}:`, data);
                     if (data.fatal) {
                         if (data.type === window.Hls.ErrorTypes.NETWORK_ERROR) {
-                            // Retry on network error
-                            console.log(`HLS network error for ${camId}, retrying...`);
+                            // Retry on network error - check if stream is available first
+                            console.log(`HLS network error for ${camId}, retrying in 2 seconds...`);
                             setTimeout(() => {
-                                hls.startLoad();
-                            }, 1000);
+                                // Check if recording status changed and use correct path
+                                fetch(`${API_BASE}/status`)
+                                    .then(r => r.json())
+                                    .then(statusData => {
+                                        const isRecording = statusData.cameras[camId]?.status === 'recording';
+                                        const streamPath = isRecording ? camId : `${camId}_preview`;
+                                        const newHlsUrl = `http://${HOSTNAME}:8888/${streamPath}/index.m3u8`;
+                                        console.log(`Retrying HLS for ${camId} with path: ${streamPath}`);
+                                        hls.loadSource(newHlsUrl);
+                                        hls.startLoad();
+                                    })
+                                    .catch(() => {
+                                        hls.startLoad();
+                                    });
+                            }, 2000);
                         } else if (data.type === window.Hls.ErrorTypes.MEDIA_ERROR) {
                             console.log(`HLS media error for ${camId}, recovering...`);
                             hls.recoverMediaError();
@@ -1352,6 +1366,11 @@
                             cameraStreamStates[camId] = 'disconnected';
                             updatePlaceholderStatus(camId, 'disconnected');
                             updateStats();
+                            // Retry with correct path after fatal error
+                            setTimeout(() => {
+                                console.log(`Retrying HLS preview for ${camId} after fatal error...`);
+                                startHLSPreview(video, camId, placeholder);
+                            }, 3000);
                         }
                     }
                 });
@@ -1462,22 +1481,41 @@
                     if (recordingState && !recordingStartTime) {
                         recordingStartTime = new Date();
                         startRecordingTimer();
-                        // When recording starts, preview stops - restart preview for non-recording cameras
-                        // But don't restart preview for the camera that's recording (it uses the same device)
+                        // When recording starts, preview stops - restart preview streams with correct paths
+                        // Wait longer to ensure recording pipeline is fully established
                         setTimeout(() => {
+                            console.log('Recording started, restarting previews with recording stream paths...');
                             startAllPreviews();
-                        }, 2000);
+                        }, 3000); // Increased delay to 3 seconds
                     } else if (!recordingState && recordingStartTime) {
                         recordingStartTime = null;
                         stopRecordingTimer();
-                        // When recording stops, restart preview streams
+                        // When recording stops, restart preview streams (will use preview paths)
                         setTimeout(() => {
+                            console.log('Recording stopped, restarting previews with preview stream paths...');
                             startAllPreviews();
                         }, 1000);
                     }
                     updateRecordingUI();
                     updateStats(data);
                 } else {
+                    // Check if individual camera recording status changed and update streams accordingly
+                    for (const [camId, camData] of Object.entries(data.cameras)) {
+                        const video = document.getElementById(`video-${camId}`);
+                        if (!video) continue;
+                        
+                        const wasRecording = cameraStreamStates[`${camId}_wasRecording`] || false;
+                        const isRecording = camData.status === 'recording';
+                        
+                        // If recording status changed, restart the preview with correct path
+                        if (wasRecording !== isRecording) {
+                            cameraStreamStates[`${camId}_wasRecording`] = isRecording;
+                            console.log(`Recording status changed for ${camId}: ${isRecording}, restarting preview in 2 seconds...`);
+                            setTimeout(() => {
+                                startCameraPreview(camId);
+                            }, 2000);
+                        }
+                    }
                     updateStats(data);
                 }
             } catch (error) {
