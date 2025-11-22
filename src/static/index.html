@@ -778,8 +778,10 @@
                     view.className = 'camera-view';
                     view.id = `view-${camId}`;
                     view.onclick = () => expandCamera(camId);
+                    // Convert cam0 -> CAM 1, cam1 -> CAM 2, etc.
+                    const camNumber = parseInt(camId.replace('cam', '')) + 1;
                     view.innerHTML = `
-                        <div class="camera-label">${camId.toUpperCase()}</div>
+                        <div class="camera-label">CAM ${camNumber}</div>
                         <div class="camera-close" onclick="event.stopPropagation(); closeFullscreen()">[X] Close</div>
                         <video id="video-${camId}" autoplay muted playsinline style="display: block; width: 100%; height: 100%; object-fit: cover; background: #000;"></video>
                         <div class="camera-placeholder" id="placeholder-${camId}">
@@ -1426,8 +1428,10 @@
                 stat.className = 'camera-stat';
                 const statusClass = camData.status === 'recording' ? 'recording' : 
                                    camData.status === 'preview' ? 'preview' : 'idle';
+                // Convert cam0 -> CAM 1, cam1 -> CAM 2, etc.
+                const camNumber = parseInt(camId.replace('cam', '')) + 1;
                 stat.innerHTML = `
-                    <span class="camera-stat-name">${camId.toUpperCase()}</span>
+                    <span class="camera-stat-name">CAM ${camNumber}</span>
                     <span class="camera-stat-status ${statusClass}">${camData.status.toUpperCase()}</span>
                 `;
                 cameraList.appendChild(stat);
