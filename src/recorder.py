@@ -118,19 +118,24 @@ class Recorder:
     def _stop_pipeline(self, cam_id: str) -> bool:
         """Internal method to stop a pipeline."""
         if cam_id not in self.pipelines:
+            logger.warning(f"Pipeline for {cam_id} not found in pipelines dict")
             return False
 
         pipeline = self.pipelines[cam_id]
         try:
+            logger.info(f"Stopping pipeline for {cam_id}...")
             # Send EOS to flush the pipeline (don't pause first - let it finish naturally)
             pipeline.send_event(Gst.Event.new_eos())
 
-            # Wait for EOS or timeout (15 seconds max)
+            # Wait for EOS or timeout (5 seconds max - reduced from 15)
             bus = pipeline.get_bus()
             msg = bus.timed_pop_filtered(
-                15 * Gst.SECOND,  # 15 second timeout
+                5 * Gst.SECOND,  # 5 second timeout
                 Gst.MessageType.EOS | Gst.MessageType.ERROR,
             )
+            
+            if msg is None:
+                logger.warning(f"EOS timeout for {cam_id}, forcing stop")
 
             if msg and msg.type == Gst.MessageType.ERROR:
                 err, debug = msg.parse_error()
