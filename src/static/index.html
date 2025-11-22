@@ -621,6 +621,32 @@
                     }
                 };
                 
+                // Monitor video rendering (check if frames are actually being rendered)
+                video.onplaying = () => {
+                    console.log(`✅ Video is playing for ${camId}, currentTime: ${video.currentTime.toFixed(2)}s`);
+                };
+                
+                video.oncanplay = () => {
+                    console.log(`✅ Video can play for ${camId}, readyState: ${video.readyState}`);
+                };
+                
+                // Check if video is actually rendering frames
+                let frameCheckCount = 0;
+                const checkVideoRendering = setInterval(() => {
+                    frameCheckCount++;
+                    if (video.videoWidth > 0 && video.videoHeight > 0 && !video.paused) {
+                        console.log(`✅ Video rendering check ${frameCheckCount}: ${video.videoWidth}x${video.videoHeight}, currentTime: ${video.currentTime.toFixed(2)}s, readyState: ${video.readyState}`);
+                        if (video.currentTime > 0) {
+                            console.log(`✅ Video is receiving frames! Current time: ${video.currentTime.toFixed(2)}s`);
+                            clearInterval(checkVideoRendering);
+                        }
+                    }
+                    if (frameCheckCount > 30) {
+                        clearInterval(checkVideoRendering);
+                        console.warn(`⚠️ Video rendering check timeout for ${camId}`);
+                    }
+                }, 200);
+                
                 // Also try playing when track becomes active
                 event.track.onunmute = () => {
                     console.log(`✅ Track unmuted for ${camId}`);
@@ -645,7 +671,12 @@
                         placeholder.style.display = 'none';
                         placeholder.style.visibility = 'hidden';
                         placeholder.style.opacity = '0';
+                        placeholder.style.pointerEvents = 'none';
                         console.log(`✅ Video has dimensions ${video.videoWidth}x${video.videoHeight}, hiding placeholder`);
+                        
+                        // Ensure video is visible and on top
+                        video.style.zIndex = '1';
+                        video.style.position = 'relative';
                     }
                     
                     if (video.paused) {
@@ -653,7 +684,16 @@
                             placeholder.style.display = 'none';
                             placeholder.style.visibility = 'hidden';
                             placeholder.style.opacity = '0';
-                            console.log(`✅ WebRTC playing for ${camId} - real-time latency!`);
+                            placeholder.style.pointerEvents = 'none';
+                            video.style.zIndex = '1';
+                            console.log(`✅ WebRTC playing for ${camId} - real-time latency! Video element:`, {
+                                width: video.videoWidth,
+                                height: video.videoHeight,
+                                currentTime: video.currentTime,
+                                paused: video.paused,
+                                readyState: video.readyState,
+                                srcObject: !!video.srcObject
+                            });
                         }).catch(e => {
                             if (e.name !== 'AbortError' && e.name !== 'NotAllowedError') {
                                 console.log(`⚠️ Play failed for ${camId}:`, e.message);
@@ -663,6 +703,7 @@
                                 placeholder.style.display = 'flex';
                                 placeholder.style.visibility = 'visible';
                                 placeholder.style.opacity = '1';
+                                placeholder.style.pointerEvents = 'auto';
                                 placeholder.querySelector('.text').innerHTML = 'WebRTC Ready!<br><small style="color: #10b981;">Click anywhere to start</small>';
                                 placeholder.style.cursor = 'pointer';
                             }
@@ -671,6 +712,8 @@
                         placeholder.style.display = 'none';
                         placeholder.style.visibility = 'hidden';
                         placeholder.style.opacity = '0';
+                        placeholder.style.pointerEvents = 'none';
+                        video.style.zIndex = '1';
                         console.log(`Video already playing for ${camId}`);
                     }
                 };
