@@ -520,7 +520,7 @@
 
             pc.ontrack = (event) => {
                 console.log(`WebRTC track received for ${camId} (real-time <100ms latency)`);
-                video.srcObject = event.streams[0};
+                video.srcObject = event.streams[0] || null;
                 
                 // Try to play immediately (muted videos can autoplay)
                 const tryPlay = () => {
