@@ -67,13 +67,17 @@ def build_r58_pipeline(
 
     # Hardware encoder selection
     if codec == "h265":
-        encoder_str = f"mpph265enc bitrate={bitrate} bps-range=0,{bitrate * 2}"
+        # bps is in bits per second (bitrate is in kbps, so multiply by 1000)
+        bps = bitrate * 1000
+        encoder_str = f"mpph265enc bps={bps} bps-max={bps * 2}"
         caps_str = "video/x-h265"
         parse_str = "h265parse"
         mux_str = "matroskamux"
     else:  # h264
         # Use mpph264enc (v4l2h264enc may not be available on all R58 systems)
-        encoder_str = f"mpph264enc bitrate={bitrate} bps-range=0,{bitrate * 2}"
+        # bps is in bits per second (bitrate is in kbps, so multiply by 1000)
+        bps = bitrate * 1000
+        encoder_str = f"mpph264enc bps={bps} bps-max={bps * 2}"
         caps_str = "video/x-h264,profile=high"
         parse_str = "h264parse"
         mux_str = "mp4mux fragment-duration=1"
