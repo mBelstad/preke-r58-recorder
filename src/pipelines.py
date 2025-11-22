@@ -72,8 +72,8 @@ def build_r58_pipeline(
         parse_str = "h265parse"
         mux_str = "matroskamux"
     else:  # h264
-        # Try v4l2h264enc first, fallback to mpph264enc
-        encoder_str = f"v4l2h264enc bitrate={bitrate} bps-range=0,{bitrate * 2}"
+        # Use mpph264enc (v4l2h264enc may not be available on all R58 systems)
+        encoder_str = f"mpph264enc bitrate={bitrate} bps-range=0,{bitrate * 2}"
         caps_str = "video/x-h264,profile=high"
         parse_str = "h264parse"
         mux_str = "mp4mux fragment-duration=1"

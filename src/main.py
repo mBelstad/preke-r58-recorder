@@ -71,7 +71,7 @@ async def stop_recording(cam_id: str) -> Dict[str, str]:
 
 
 @app.get("/status")
-async def get_status() -> Dict[str, Dict[str, str]]:
+async def get_status() -> Dict[str, Dict[str, any]]:
     """Get status of all cameras."""
     statuses = recorder.get_status()
     return {
