@@ -191,15 +191,15 @@ def build_r58_preview_pipeline(
         source_str = f"v4l2src device={device} ! videoconvert ! videoscale ! video/x-raw,width={width},height={height},framerate=30/1"
 
     # Encoder - ALWAYS use H.264 for preview (flvmux doesn't support H.265)
-    # Ultra-low latency for local device: faster encoding, shorter keyframes
+    # Balanced settings: good quality with low latency
     # Use 80% of recording bitrate for preview (better quality)
     preview_bitrate = max(4000, int(bitrate * 0.8))  # 80% of recording bitrate
-    # key-int-max=30 = keyframe every 1s at 30fps (lower latency than 2s)
+    # key-int-max=60 = keyframe every 2s at 30fps (good quality, acceptable latency)
     # speed-preset=veryfast = best balance of quality and latency
-    # threads=1 = single thread for lower latency (local device doesn't need threading)
-    # sync-lookahead=0 = zero lookahead for minimum latency
+    # threads=2 = slight threading for better quality without much latency
+    # sync-lookahead=1 = minimal lookahead for better quality
     # dct8x8=true = better quality for 1080p
-    encoder_str = f"x264enc tune=zerolatency bitrate={preview_bitrate} speed-preset=veryfast key-int-max=30 threads=1 sync-lookahead=0 dct8x8=true"
+    encoder_str = f"x264enc tune=zerolatency bitrate={preview_bitrate} speed-preset=veryfast key-int-max=60 threads=2 sync-lookahead=1 dct8x8=true"
     caps_str = "video/x-h264"
 
     # Preview pipeline: stream to MediaMTX only (no recording)
@@ -209,12 +209,14 @@ def build_r58_preview_pipeline(
     else:
         rtmp_url = f"rtmp://127.0.0.1:1935/{cam_id}_preview"
 
-    # Zero-latency pipeline: no queues, leaky downstream, no sync
-    # For real-time WebRTC on local device, eliminate all buffering
+    # Low-latency pipeline: minimal queues for stability, leaky downstream, no sync
+    # Small queues prevent frame drops while maintaining low latency
     pipeline_str = (
         f"{source_str} ! "
+        f"queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream ! "
         f"{encoder_str} ! "
         f"{caps_str} ! "
+        f"queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream ! "
         f"flvmux streamable=true ! "
         f"rtmpsink location={rtmp_url} sync=false"
     )
