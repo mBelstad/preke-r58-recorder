@@ -457,11 +457,24 @@
             pc.ontrack = (event) => {
                 console.log(`WebRTC track received for ${camId}`);
                 video.srcObject = event.streams[0];
+                // Try to play immediately - if it fails, user interaction is needed
                 video.play().catch(e => {
-                    console.error(`WebRTC play failed for ${camId}:`, e);
-                    startHLSPreview(video, camId, placeholder);
+                    console.warn(`WebRTC autoplay blocked for ${camId}, user interaction required:`, e);
+                    // Don't fallback to HLS immediately - WebRTC is working, just needs user interaction
+                    placeholder.querySelector('.text').textContent = 'Click to play (WebRTC ready)';
+                    placeholder.onclick = () => {
+                        video.play().then(() => {
+                            placeholder.style.display = 'none';
+                        }).catch(err => {
+                            console.error(`WebRTC play failed:`, err);
+                            startHLSPreview(video, camId, placeholder);
+                        });
+                    };
                 });
-                placeholder.style.display = 'none';
+                // If play succeeds, hide placeholder
+                if (!video.paused) {
+                    placeholder.style.display = 'none';
+                }
             };
 
             pc.oniceconnectionstatechange = () => {
