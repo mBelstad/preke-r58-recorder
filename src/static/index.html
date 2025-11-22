@@ -147,11 +147,17 @@
         }
         
         .camera-view video {
-            display: block;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            background: #000;
+            display: block !important;
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: cover !important;
+            background: #000 !important;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+            opacity: 1;
+            visibility: visible;
         }
 
         .camera-view:hover {
@@ -248,12 +254,17 @@
             justify-content: center;
             color: #6b7280;
             background: #111;
-            z-index: 10;
+            z-index: 2; /* Above video but below labels */
             pointer-events: none; /* Allow clicks to pass through when hidden */
+            transition: opacity 0.3s ease;
         }
         
-        .camera-placeholder[style*="display: none"] {
+        .camera-placeholder[style*="display: none"],
+        .camera-placeholder.hidden {
             display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
         }
 
         .camera-placeholder .icon {
@@ -668,6 +679,7 @@
                 const tryPlayVideo = () => {
                     // Force placeholder to be hidden when video is ready
                     if (video.videoWidth > 0 && video.videoHeight > 0) {
+                        placeholder.classList.add('hidden');
                         placeholder.style.display = 'none';
                         placeholder.style.visibility = 'hidden';
                         placeholder.style.opacity = '0';
@@ -676,7 +688,19 @@
                         
                         // Ensure video is visible and on top
                         video.style.zIndex = '1';
-                        video.style.position = 'relative';
+                        video.style.position = 'absolute';
+                        video.style.top = '0';
+                        video.style.left = '0';
+                        video.style.display = 'block';
+                        video.style.visibility = 'visible';
+                        video.style.opacity = '1';
+                        console.log(`✅ Video element styles applied:`, {
+                            display: video.style.display,
+                            visibility: video.style.visibility,
+                            opacity: video.style.opacity,
+                            zIndex: video.style.zIndex,
+                            position: video.style.position
+                        });
                     }
                     
                     if (video.paused) {
