@@ -535,23 +535,46 @@
                 }
             };
 
+            // WHEP protocol: Create offer with receive-only transceivers
+            pc.addTransceiver('video', { direction: 'recvonly' });
+            pc.addTransceiver('audio', { direction: 'recvonly' });
+
+            let resourceUrl = null;
+
             // Create offer and send to MediaMTX WHEP endpoint
             pc.createOffer().then(offer => {
                 return pc.setLocalDescription(offer);
             }).then(() => {
                 return fetch(webrtcUrl, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/sdp' },
+                    headers: { 
+                        'Content-Type': 'application/sdp',
+                        'Accept': 'application/sdp'
+                    },
                     body: pc.localDescription.sdp
                 });
             }).then(response => {
                 if (!response.ok) {
+                    // If WHEP fails, try HLS immediately
                     throw new Error(`WHEP error: ${response.status}`);
                 }
+                // Get resource URL from Location header (for ICE candidates)
+                resourceUrl = response.headers.get('Location') || webrtcUrl;
                 return response.text();
             }).then(answerSdp => {
                 return pc.setRemoteDescription({ type: 'answer', sdp: answerSdp });
             }).then(() => {
+                // Handle ICE candidates - send to resource URL
+                pc.onicecandidate = (event) => {
+                    if (event.candidate && resourceUrl) {
+                        fetch(resourceUrl, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/trickle-ice-sdpfrag' },
+                            body: 'a=' + event.candidate.candidate
+                        }).catch(err => console.warn('ICE candidate send failed:', err));
+                    }
+                };
+                
                 webrtcPlayer = pc;
                 streamActive = true;
                 btn.textContent = 'Stop Stream';
@@ -559,7 +582,8 @@
                 console.log('WebRTC stream started (ultra-low latency)');
             }).catch(error => {
                 console.error('WebRTC setup failed:', error);
-                showAlert('WebRTC failed. Using HLS fallback...', 'warning');
+                // Immediately fallback to HLS for better user experience
+                console.log('Falling back to HLS (low latency with short segments)');
                 startHLSStream(video, hostname, btn, placeholder);
             });
         }
