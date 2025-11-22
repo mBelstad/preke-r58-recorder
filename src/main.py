@@ -1,7 +1,7 @@
 """FastAPI application for R58 recorder."""
 import logging
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Any
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 
@@ -71,7 +71,7 @@ async def stop_recording(cam_id: str) -> Dict[str, str]:
 
 
 @app.get("/status")
-async def get_status() -> Dict[str, Dict[str, any]]:
+async def get_status() -> Dict[str, Dict[str, Any]]:
     """Get status of all cameras."""
     statuses = recorder.get_status()
     return {
