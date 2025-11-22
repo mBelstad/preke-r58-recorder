@@ -19,7 +19,7 @@ mediamtx:
 # Camera configurations
 cameras:
   cam0:
-    device: /dev/video0
+    device: /dev/video60  # HDMI-IN (rk_hdmirx)
     resolution: 1920x1080
     bitrate: 5000
     codec: h264
