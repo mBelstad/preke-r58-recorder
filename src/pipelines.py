@@ -93,26 +93,17 @@ def build_r58_pipeline(
         parse_str = "h264parse"
         mux_str = "mp4mux"
 
-    # Build pipeline
-    if mediamtx_path:
-        # Tee to both file and MediaMTX
-        # For MediaMTX, publish via RTP/UDP (rtph264pay + udpsink)
-        # MediaMTX accepts RTP streams on UDP ports 8000 (RTP) and 8001 (RTCP)
-        pipeline_str = (
-            f"{source_str} ! "
-            f"timeoverlay ! "
-            f"{encoder_str} ! "
-            f"{caps_str} ! "
-            f"tee name=t ! "
-            f"queue ! "
-            f"{parse_str} ! "
-            f"{mux_str} ! "
-            f"filesink location={output_path} "
-            f"t. ! "
-            f"queue ! "
-            f"rtph264pay config-interval=1 pt=96 ! "
-            f"udpsink host=127.0.0.1 port=8000"
-        )
+    # Build pipeline - recording only (streaming handled separately)
+    # When MediaMTX is enabled, a separate streaming pipeline is created
+    pipeline_str = (
+        f"{source_str} ! "
+        f"timeoverlay ! "
+        f"{encoder_str} ! "
+        f"{caps_str} ! "
+        f"{parse_str} ! "
+        f"{mux_str} ! "
+        f"filesink location={output_path}"
+    )
     else:
         # File only - MPP encoder expects NV12 format (already converted in source_str)
         pipeline_str = (
