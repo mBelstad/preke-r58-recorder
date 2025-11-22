@@ -189,16 +189,11 @@ def build_r58_preview_pipeline(
     else:
         source_str = f"v4l2src device={device} ! videoconvert ! videoscale ! video/x-raw,width={width},height={height}"
 
-    # Encoder - use lower bitrate for preview to reduce latency
-    if codec == "h265":
-        bps = bitrate * 1000
-        encoder_str = f"mpph265enc bps={bps} bps-max={bps * 2}"
-        caps_str = "video/x-h265"
-    else:  # h264
-        # Lower bitrate for preview, faster encoding for lower latency
-        preview_bitrate = max(2000, bitrate // 2)  # Half bitrate for preview
-        encoder_str = f"x264enc tune=zerolatency bitrate={preview_bitrate} speed-preset=ultrafast key-int-max=30"
-        caps_str = "video/x-h264"
+    # Encoder - ALWAYS use H.264 for preview (flvmux doesn't support H.265)
+    # Lower bitrate for preview, faster encoding for lower latency
+    preview_bitrate = max(2000, bitrate // 2)  # Half bitrate for preview
+    encoder_str = f"x264enc tune=zerolatency bitrate={preview_bitrate} speed-preset=ultrafast key-int-max=30"
+    caps_str = "video/x-h264"
 
     # Preview pipeline: stream to MediaMTX only (no recording)
     if mediamtx_path:
