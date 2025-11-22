@@ -475,25 +475,51 @@
             const btn = document.getElementById('streamBtn');
             
             if (!streamActive) {
-                // Try to start stream - using MediaMTX RTSP or HLS
-                const streamUrl = `rtsp://${window.location.hostname}:8554/cam0`;
-                // For browser, we'd need HLS or WebRTC, but RTSP won't work directly
-                // Using HLS if MediaMTX is configured
-                const hlsUrl = `http://${window.location.hostname}:8554/cam0/hls.m3u8`;
+                const hostname = window.location.hostname;
+                const hlsUrl = `http://${hostname}:8554/cam0/hls.m3u8`;
                 
-                if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                // Check for native HLS support (Safari, some browsers)
+                if (video.canPlayType('application/vnd.apple.mpegurl') || 
+                    video.canPlayType('application/x-mpegURL')) {
                     video.src = hlsUrl;
                     video.play().catch(e => {
                         console.error('Play failed:', e);
-                        showAlert('Stream not available. Enable MediaMTX and configure streaming.', 'error');
+                        showAlert('Stream not available. Start recording first and ensure MediaMTX is running.', 'error');
                     });
                     streamActive = true;
                     btn.textContent = 'Stop Stream';
                     placeholder.style.display = 'none';
+                } else if (window.Hls && window.Hls.isSupported()) {
+                    // Use HLS.js for browsers without native support
+                    const hls = new window.Hls();
+                    hls.loadSource(hlsUrl);
+                    hls.attachMedia(video);
+                    hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
+                        video.play();
+                    });
+                    hls.on(window.Hls.Events.ERROR, (event, data) => {
+                        console.error('HLS error:', data);
+                        if (data.fatal) {
+                            showAlert('Stream error. Start recording first and ensure MediaMTX is running.', 'error');
+                            hls.destroy();
+                            streamActive = false;
+                            btn.textContent = 'Start Stream';
+                            placeholder.style.display = 'block';
+                        }
+                    });
+                    window.hlsPlayer = hls;
+                    streamActive = true;
+                    btn.textContent = 'Stop Stream';
+                    placeholder.style.display = 'none';
                 } else {
-                    showAlert('HLS not supported. Please use VLC or similar player with RTSP URL.', 'error');
+                    showAlert('HLS not supported. Use VLC with rtsp://' + hostname + ':8554/cam0', 'error');
                 }
             } else {
+                // Stop stream
+                if (window.hlsPlayer) {
+                    window.hlsPlayer.destroy();
+                    window.hlsPlayer = null;
+                }
                 video.pause();
                 video.src = '';
                 streamActive = false;

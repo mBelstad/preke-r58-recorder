@@ -1,19 +1,14 @@
 # MediaMTX configuration for R58 Recorder
-# Place this file at /opt/mediamtx/mediamtx.yml or configure as needed
-
 logLevel: info
 logDestinations: [stdout]
-logFile: mediamtx.log
 
 # RTSP settings
 rtspAddress: :8554
-encryption: no
 
 # RTMP settings
 rtmpAddress: :1935
-rtmpEncryption: no
 
-# HLS settings
+# HLS settings (served on same port as RTSP)
 hlsAddress: :8554
 hlsAlwaysRemux: yes
 hlsSegmentCount: 3
