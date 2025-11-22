@@ -50,6 +50,11 @@ ssh "${R58_USER}@${R58_HOST}" << EOF
     pip install --upgrade pip
     pip install -r requirements.txt
     
+    # Create recordings directory
+    echo "Creating recordings directory..."
+    mkdir -p /var/recordings/{cam0,cam1,cam2,cam3}
+    chmod 755 /var/recordings
+    
     # Install systemd service if not already installed
     if [ ! -f "/etc/systemd/system/${SERVICE_NAME}" ]; then
         echo "Installing systemd service..."
