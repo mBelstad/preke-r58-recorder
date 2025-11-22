@@ -178,25 +178,20 @@ def build_r58_preview_pipeline(
     """Build preview-only pipeline for R58 (streaming to MediaMTX, no recording)."""
     width, height = resolution.split("x")
 
-    # Video source - use 30fps for preview to reduce encoding latency
+    # Video source
     if "video60" in device or "hdmirx" in device.lower():
         source_str = (
             f"v4l2src device={device} io-mode=mmap ! "
             f"video/x-raw,format=NV24,width={width},height={height},framerate=60/1 ! "
-            f"videorate ! video/x-raw,framerate=30/1 ! "
             f"videoconvert ! "
             f"video/x-raw,format=NV12"
         )
     else:
-        source_str = f"v4l2src device={device} ! videoconvert ! videoscale ! video/x-raw,width={width},height={height},framerate=30/1"
+        source_str = f"v4l2src device={device} ! videoconvert ! videoscale ! video/x-raw,width={width},height={height}"
 
     # Encoder - ALWAYS use H.264 for preview (flvmux doesn't support H.265)
-    # Simple, stable settings: lower bitrate, faster encoding for lower latency
-    # Use half of recording bitrate for preview (reduces encoding load)
+    # Lower bitrate for preview, faster encoding for lower latency
     preview_bitrate = max(2000, bitrate // 2)  # Half bitrate for preview
-    # speed-preset=ultrafast = fastest encoding (lowest latency)
-    # key-int-max=30 = keyframe every 1s at 30fps (good balance)
-    # Keep it simple - no explicit threads/lookahead to avoid issues
     encoder_str = f"x264enc tune=zerolatency bitrate={preview_bitrate} speed-preset=ultrafast key-int-max=30"
     caps_str = "video/x-h264"
 
@@ -207,16 +202,12 @@ def build_r58_preview_pipeline(
     else:
         rtmp_url = f"rtmp://127.0.0.1:1935/{cam_id}_preview"
 
-    # Low-latency pipeline: minimal queues for stability, leaky downstream, no sync
-    # Small queues prevent frame drops while maintaining low latency
     pipeline_str = (
         f"{source_str} ! "
-        f"queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream ! "
         f"{encoder_str} ! "
         f"{caps_str} ! "
-        f"queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream ! "
         f"flvmux streamable=true ! "
-        f"rtmpsink location={rtmp_url} sync=false"
+        f"rtmpsink location={rtmp_url}"
     )
 
     logger.info(f"Building preview pipeline for {cam_id}: {pipeline_str}")
