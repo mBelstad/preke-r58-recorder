@@ -11,7 +11,6 @@ from gi.repository import Gst, GLib
 
 from .config import AppConfig, CameraConfig
 from .pipelines import build_pipeline
-from .streamer import build_streaming_pipeline
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +22,6 @@ class Recorder:
         """Initialize recorder with configuration."""
         self.config = config
         self.pipelines: Dict[str, Gst.Pipeline] = {}
-        self.streaming_pipelines: Dict[str, Gst.Pipeline] = {}  # Separate pipelines for streaming
         self.states: Dict[str, str] = {}  # 'idle', 'recording', 'error'
         self.loop: Optional[GLib.MainLoop] = None
 
@@ -94,24 +92,8 @@ class Recorder:
             self.pipelines[cam_id] = pipeline
             self.states[cam_id] = "recording"
 
-            # DISABLED: Separate streaming pipeline causes crashes when accessing /dev/video60 twice
-            # Instead, use tee in the main pipeline to split recording and streaming
-            # MediaMTX streaming will be handled via tee in the pipeline when needed
-            # if cam_config.mediamtx_enabled and self.config.mediamtx.enabled:
-            #     streaming_pipeline = build_streaming_pipeline(
-            #         device=cam_config.device,
-            #         cam_id=cam_id,
-            #         resolution=cam_config.resolution,
-            #         bitrate=cam_config.bitrate,
-            #         mediamtx_rtsp_url=f"rtsp://localhost:{self.config.mediamtx.rtsp_port}",
-            #     )
-            #     if streaming_pipeline:
-            #         try:
-            #             streaming_pipeline.set_state(Gst.State.PLAYING)
-            #             self.streaming_pipelines[cam_id] = streaming_pipeline
-            #             logger.info(f"Started streaming pipeline for camera {cam_id}")
-            #         except Exception as e:
-            #             logger.warning(f"Failed to start streaming pipeline for {cam_id}: {e}")
+            # Streaming is now handled via tee in the main pipeline (no separate pipeline needed)
+            # This avoids dual device access which caused system crashes
 
             logger.info(f"Started recording for camera {cam_id}")
             return True
@@ -162,16 +144,7 @@ class Recorder:
             if ret[0] == Gst.StateChangeReturn.ASYNC:
                 pipeline.get_state(Gst.CLOCK_TIME_NONE)
 
-            # Stop streaming pipeline if exists
-            if cam_id in self.streaming_pipelines:
-                try:
-                    streaming_pipeline = self.streaming_pipelines[cam_id]
-                    streaming_pipeline.set_state(Gst.State.NULL)
-                    streaming_pipeline.get_state(Gst.CLOCK_TIME_NONE)
-                    del self.streaming_pipelines[cam_id]
-                    logger.info(f"Stopped streaming pipeline for camera {cam_id}")
-                except Exception as e:
-                    logger.warning(f"Error stopping streaming pipeline for {cam_id}: {e}")
+            # Streaming is handled in the main pipeline via tee, no separate cleanup needed
 
             # Clean up
             del self.pipelines[cam_id]

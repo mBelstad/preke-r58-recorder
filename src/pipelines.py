@@ -93,24 +93,37 @@ def build_r58_pipeline(
         parse_str = "h264parse"
         mux_str = "mp4mux"
 
-    # Build pipeline
-    # IMPORTANT: Do NOT create separate pipelines for streaming - accessing /dev/video60 twice causes crashes
-    # Use tee in the main pipeline if streaming is needed (but currently disabled for stability)
+    # Build pipeline with optional tee for MediaMTX streaming
+    # CRITICAL: Use tee in single pipeline to avoid dual device access crashes
     if mediamtx_path:
-        # For now, just record - streaming via separate pipeline causes system crashes
-        # TODO: Implement tee-based streaming in single pipeline when MediaMTX support is stable
-        logger.warning(f"MediaMTX streaming requested for {cam_id} but disabled to prevent crashes")
-    
-    # Recording pipeline only
-    pipeline_str = (
-        f"{source_str} ! "
-        f"timeoverlay ! "
-        f"{encoder_str} ! "
-        f"{caps_str} ! "
-        f"{parse_str} ! "
-        f"{mux_str} ! "
-        f"filesink location={output_path}"
-    )
+        # Tee to both file recording and RTP streaming (single pipeline, single device access)
+        # Stream goes to MediaMTX via RTP on UDP port 8000
+        pipeline_str = (
+            f"{source_str} ! "
+            f"timeoverlay ! "
+            f"{encoder_str} ! "
+            f"{caps_str} ! "
+            f"tee name=t ! "
+            f"queue max-size-buffers=0 max-size-time=0 max-size-bytes=0 ! "
+            f"{parse_str} ! "
+            f"{mux_str} ! "
+            f"filesink location={output_path} "
+            f"t. ! "
+            f"queue max-size-buffers=0 max-size-time=0 max-size-bytes=0 ! "
+            f"rtph264pay config-interval=1 pt=96 ! "
+            f"udpsink host=127.0.0.1 port=8000"
+        )
+    else:
+        # Recording only - no streaming
+        pipeline_str = (
+            f"{source_str} ! "
+            f"timeoverlay ! "
+            f"{encoder_str} ! "
+            f"{caps_str} ! "
+            f"{parse_str} ! "
+            f"{mux_str} ! "
+            f"filesink location={output_path}"
+        )
 
     logger.info(f"Building R58 pipeline for {cam_id} from {device}: {pipeline_str}")
     pipeline = Gst.parse_launch(pipeline_str)
