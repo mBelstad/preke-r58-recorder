@@ -18,6 +18,11 @@ hlsAllowOrigin: "*"
 # SRT settings
 srtAddress: :8890
 
+# WebRTC settings (low latency for live view)
+webrtcAddress: :8889
+webrtcAllowOrigin: "*"
+webrtcEncryption: no
+
 # Paths configuration
 paths:
   cam0:

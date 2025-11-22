@@ -469,6 +469,8 @@
             }
         }
 
+        let webrtcPlayer = null;
+
         function toggleStream() {
             const video = document.getElementById('liveVideo');
             const placeholder = document.getElementById('videoPlaceholder');
@@ -476,47 +478,42 @@
             
             if (!streamActive) {
                 const hostname = window.location.hostname;
-                // Try both HLS path formats
-                const hlsUrl = `http://${hostname}:8888/cam0/index.m3u8`;
                 
-                // Check for native HLS support (Safari, some browsers)
-                if (video.canPlayType('application/vnd.apple.mpegurl') || 
-                    video.canPlayType('application/x-mpegURL')) {
-                    video.src = hlsUrl;
-                    video.play().catch(e => {
-                        console.error('Play failed:', e);
-                        showAlert('Stream not available. Start recording first and ensure MediaMTX is running.', 'error');
-                    });
-                    streamActive = true;
-                    btn.textContent = 'Stop Stream';
-                    placeholder.style.display = 'none';
-                } else if (window.Hls && window.Hls.isSupported()) {
-                    // Use HLS.js for browsers without native support
-                    const hls = new window.Hls();
-                    hls.loadSource(hlsUrl);
-                    hls.attachMedia(video);
-                    hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
-                        video.play();
-                    });
-                    hls.on(window.Hls.Events.ERROR, (event, data) => {
-                        console.error('HLS error:', data);
-                        if (data.fatal) {
-                            showAlert('Stream error. Start recording first and ensure MediaMTX is running.', 'error');
-                            hls.destroy();
-                            streamActive = false;
-                            btn.textContent = 'Start Stream';
-                            placeholder.style.display = 'block';
-                        }
-                    });
-                    window.hlsPlayer = hls;
-                    streamActive = true;
-                    btn.textContent = 'Stop Stream';
-                    placeholder.style.display = 'none';
+                // Use WebRTC for ultra-low latency (<1s) - best for live view
+                // Fallback to HLS if WebRTC not available
+                if (window.MediaMTXWebRTC) {
+                    try {
+                        // WebRTC via MediaMTX (lowest latency)
+                        const webrtcUrl = `http://${hostname}:8889/cam0/whep`;
+                        webrtcPlayer = new window.MediaMTXWebRTC({
+                            url: webrtcUrl,
+                            video: video,
+                            onError: (err) => {
+                                console.error('WebRTC error:', err);
+                                showAlert('WebRTC stream error. Trying HLS fallback...', 'warning');
+                                // Fallback to HLS
+                                startHLSStream(video, hostname, btn, placeholder);
+                            }
+                        });
+                        webrtcPlayer.start();
+                        streamActive = true;
+                        btn.textContent = 'Stop Stream';
+                        placeholder.style.display = 'none';
+                        console.log('WebRTC stream started (low latency)');
+                    } catch (e) {
+                        console.error('WebRTC failed, falling back to HLS:', e);
+                        startHLSStream(video, hostname, btn, placeholder);
+                    }
                 } else {
-                    showAlert('HLS not supported. Use VLC with rtsp://' + hostname + ':8554/cam0', 'error');
+                    // Fallback to HLS if WebRTC library not loaded
+                    startHLSStream(video, hostname, btn, placeholder);
                 }
             } else {
                 // Stop stream
+                if (webrtcPlayer) {
+                    webrtcPlayer.stop();
+                    webrtcPlayer = null;
+                }
                 if (window.hlsPlayer) {
                     window.hlsPlayer.destroy();
                     window.hlsPlayer = null;
@@ -526,6 +523,45 @@
                 streamActive = false;
                 btn.textContent = 'Start Stream';
                 placeholder.style.display = 'block';
+            }
+        }
+
+        function startHLSStream(video, hostname, btn, placeholder) {
+            const hlsUrl = `http://${hostname}:8888/cam0/index.m3u8`;
+            
+            if (video.canPlayType('application/vnd.apple.mpegurl') || 
+                video.canPlayType('application/x-mpegURL')) {
+                video.src = hlsUrl;
+                video.play().catch(e => {
+                    console.error('Play failed:', e);
+                    showAlert('Stream not available. Start recording first.', 'error');
+                });
+                streamActive = true;
+                btn.textContent = 'Stop Stream';
+                placeholder.style.display = 'none';
+            } else if (window.Hls && window.Hls.isSupported()) {
+                const hls = new window.Hls();
+                hls.loadSource(hlsUrl);
+                hls.attachMedia(video);
+                hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
+                    video.play();
+                });
+                hls.on(window.Hls.Events.ERROR, (event, data) => {
+                    console.error('HLS error:', data);
+                    if (data.fatal) {
+                        showAlert('Stream error. Start recording first.', 'error');
+                        hls.destroy();
+                        streamActive = false;
+                        btn.textContent = 'Start Stream';
+                        placeholder.style.display = 'block';
+                    }
+                });
+                window.hlsPlayer = hls;
+                streamActive = true;
+                btn.textContent = 'Stop Stream';
+                placeholder.style.display = 'none';
+            } else {
+                showAlert('Streaming not supported. Use VLC with rtsp://' + hostname + ':8554/cam0', 'error');
             }
         }
 
