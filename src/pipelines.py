@@ -96,6 +96,8 @@ def build_r58_pipeline(
     # Build pipeline
     if mediamtx_path:
         # Tee to both file and MediaMTX
+        # For MediaMTX, we need to publish via RTSP
+        # Use rtspsink or rtspclientsink depending on MediaMTX setup
         pipeline_str = (
             f"{source_str} ! "
             f"timeoverlay ! "

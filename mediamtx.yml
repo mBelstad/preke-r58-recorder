@@ -1,0 +1,57 @@
+# MediaMTX configuration for R58 Recorder
+# Place this file at /opt/mediamtx/mediamtx.yml or configure as needed
+
+logLevel: info
+logDestinations: [stdout]
+logFile: mediamtx.log
+
+# RTSP settings
+rtspAddress: :8554
+encryption: strict
+serverKey: server.key
+serverCert: server.crt
+
+# RTMP settings
+rtmpAddress: :1935
+rtmpEncryption: strict
+rtmpServerKey: server.key
+rtmpServerCert: server.crt
+
+# HLS settings
+hlsAddress: :8554
+hlsAlwaysRemux: yes
+hlsSegmentCount: 3
+hlsSegmentDuration: 1s
+hlsAllowOrigin: "*"
+
+# SRT settings
+srtAddress: :8890
+
+# Paths configuration
+paths:
+  cam0:
+    source: publisher
+    sourceOnDemand: yes
+    sourceOnDemandStartTimeout: 10s
+    sourceOnDemandCloseAfter: 10s
+    disablePublisherOverride: no
+    fallback: ""
+    
+  cam1:
+    source: publisher
+    sourceOnDemand: yes
+    sourceOnDemandStartTimeout: 10s
+    sourceOnDemandCloseAfter: 10s
+    
+  cam2:
+    source: publisher
+    sourceOnDemand: yes
+    sourceOnDemandStartTimeout: 10s
+    sourceOnDemandCloseAfter: 10s
+    
+  cam3:
+    source: publisher
+    sourceOnDemand: yes
+    sourceOnDemandStartTimeout: 10s
+    sourceOnDemandCloseAfter: 10s
+
