@@ -102,10 +102,11 @@ def build_r58_pipeline(
             f"rtspclientsink location={mediamtx_path}"
         )
     else:
-        # File only
+        # File only - ensure proper format conversion for MPP encoder
         pipeline_str = (
             f"{source_str} ! "
             f"timeoverlay ! "
+            f"video/x-raw,format=NV12 ! "  # MPP encoder expects NV12
             f"{encoder_str} ! "
             f"{caps_str} ! "
             f"{parse_str} ! "
