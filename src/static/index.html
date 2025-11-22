@@ -480,18 +480,10 @@
             if (!streamActive) {
                 const hostname = window.location.hostname;
                 
-                // Use WebRTC for ultra-low latency (<1s) - best for live view
-                // MediaMTX WHEP (WebRTC HTTP Egress Protocol) endpoint
-                const webrtcUrl = `http://${hostname}:8889/cam0/whep`;
-                
-                // Try WebRTC first (native browser API)
-                if (window.RTCPeerConnection) {
-                    startWebRTCStream(video, webrtcUrl, hostname, btn, placeholder);
-                } else {
-                    // Fallback to HLS if WebRTC not supported
-                    console.warn('WebRTC not supported, using HLS fallback');
-                    startHLSStream(video, hostname, btn, placeholder);
-                }
+                // Use HLS with 1-second segments for low latency (~2-3s)
+                // WebRTC WHEP is complex and unreliable, HLS is more stable
+                // HLS with 1s segments provides acceptable latency for live view
+                startHLSStream(video, hostname, btn, placeholder);
             } else {
                 // Stop stream
                 if (webrtcPlayer) {
