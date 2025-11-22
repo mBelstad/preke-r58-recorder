@@ -13,100 +13,226 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: #0a0a0a;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
             color: #fff;
             min-height: 100vh;
-            padding: 10px;
+            padding: 0;
             overflow-x: hidden;
         }
 
         .container {
             max-width: 100%;
-            margin: 0 auto;
+            margin: 0;
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            gap: 20px;
+            padding: 20px;
+            height: calc(100vh - 40px);
+        }
+
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
         }
 
         .header {
-            background: #1a1a1a;
-            border-radius: 8px;
-            padding: 15px 20px;
-            margin-bottom: 10px;
+            background: linear-gradient(135deg, #1a1a1a 0%, #252525 100%);
+            border-radius: 12px;
+            padding: 20px 24px;
+            margin-bottom: 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.5);
-            border: 1px solid #2a2a2a;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.08);
+            backdrop-filter: blur(10px);
         }
 
         .header h1 {
-            font-size: 1.5rem;
+            font-size: 1.75rem;
             color: #fff;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #fff 0%, #e0e0e0 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .control-panel {
+            background: linear-gradient(135deg, #1a1a1a 0%, #252525 100%);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.08);
+            backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            height: fit-content;
+            position: sticky;
+            top: 20px;
+        }
+
+        .control-panel h2 {
+            font-size: 1.1rem;
             font-weight: 600;
+            color: #e0e0e0;
+            margin-bottom: 8px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            font-size: 0.75rem;
         }
 
         .recording-controls {
             display: flex;
-            gap: 10px;
-            align-items: center;
+            flex-direction: column;
+            gap: 12px;
         }
 
         .recording-status {
-            padding: 8px 16px;
-            border-radius: 6px;
+            padding: 12px 20px;
+            border-radius: 8px;
             font-weight: 600;
-            font-size: 0.9rem;
+            font-size: 0.875rem;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .recording-status::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+            transition: left 0.5s;
+        }
+
+        .recording-status:hover::before {
+            left: 100%;
         }
 
         .recording-status.idle {
-            background: #374151;
-            color: #9ca3af;
+            background: linear-gradient(135deg, #374151 0%, #4b5563 100%);
+            color: #d1d5db;
+            border: 1px solid rgba(255,255,255,0.1);
         }
 
         .recording-status.recording {
-            background: #dc2626;
+            background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
             color: #fff;
             animation: pulse 2s infinite;
-            box-shadow: 0 0 10px rgba(220, 38, 38, 0.5);
+            box-shadow: 0 0 20px rgba(220, 38, 38, 0.6), inset 0 0 20px rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .recording-status.recording::after {
+            content: '●';
+            animation: blink 1s infinite;
+            margin-left: 4px;
         }
 
         @keyframes pulse {
+            0%, 100% { 
+                opacity: 1;
+                box-shadow: 0 0 20px rgba(220, 38, 38, 0.6), inset 0 0 20px rgba(255,255,255,0.1);
+            }
+            50% { 
+                opacity: 0.9;
+                box-shadow: 0 0 30px rgba(220, 38, 38, 0.8), inset 0 0 20px rgba(255,255,255,0.15);
+            }
+        }
+
+        @keyframes blink {
             0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
+            50% { opacity: 0.3; }
         }
 
         .btn {
-            padding: 10px 20px;
+            padding: 14px 24px;
             border: none;
-            border-radius: 6px;
-            font-size: 1rem;
-            font-weight: 500;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            position: relative;
+            overflow: hidden;
+            letter-spacing: 0.3px;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .btn:hover:not(:disabled)::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .btn:active:not(:disabled) {
+            transform: scale(0.98);
         }
 
         .btn:disabled {
-            opacity: 0.5;
+            opacity: 0.4;
             cursor: not-allowed;
+            filter: grayscale(0.5);
         }
 
         .btn-primary {
-            background: #3b82f6;
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
             color: white;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3), inset 0 1px 0 rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.1);
         }
 
         .btn-primary:hover:not(:disabled) {
-            background: #2563eb;
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4), inset 0 1px 0 rgba(255,255,255,0.15);
+            transform: translateY(-1px);
         }
 
         .btn-danger {
-            background: #dc2626;
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
             color: white;
+            box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3), inset 0 1px 0 rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.1);
         }
 
         .btn-danger:hover:not(:disabled) {
-            background: #b91c1c;
+            background: linear-gradient(135deg, #b91c1c 0%, #991b1b 100%);
+            box-shadow: 0 6px 20px rgba(220, 38, 38, 0.4), inset 0 1px 0 rgba(255,255,255,0.15);
+            transform: translateY(-1px);
+        }
+
+        .btn-icon {
+            font-size: 1.1rem;
         }
 
         .btn-back {
@@ -124,9 +250,29 @@
         .multiview {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 8px;
-            margin: 20px 0;
-            min-height: 400px; /* Ensure minimum height so it's visible */
+            gap: 12px;
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 8px;
+            min-height: 400px;
+        }
+
+        .multiview::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .multiview::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.05);
+            border-radius: 4px;
+        }
+
+        .multiview::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.2);
+            border-radius: 4px;
+        }
+
+        .multiview::-webkit-scrollbar-thumb:hover {
+            background: rgba(255,255,255,0.3);
         }
 
         .multiview.fullscreen {
@@ -136,14 +282,14 @@
         .camera-view {
             position: relative;
             background: #000;
-            border-radius: 6px;
+            border-radius: 10px;
             overflow: hidden;
             aspect-ratio: 16/9;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.7);
-            border: 2px solid #2a2a2a;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
             cursor: pointer;
-            transition: all 0.3s ease;
-            min-height: 200px; /* Ensure minimum height */
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            min-height: 200px;
         }
         
         .camera-view video {
@@ -162,8 +308,8 @@
 
         .camera-view:hover {
             border-color: #3b82f6;
-            transform: scale(1.01);
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+            transform: translateY(-2px) scale(1.01);
+            box-shadow: 0 8px 24px rgba(59, 130, 246, 0.4), 0 0 0 1px rgba(59, 130, 246, 0.3);
         }
 
         .camera-view.fullscreen {
@@ -193,18 +339,20 @@
 
         .camera-label {
             position: absolute;
-            top: 8px;
-            left: 8px;
-            background: rgba(0,0,0,0.85);
+            top: 10px;
+            left: 10px;
+            background: linear-gradient(135deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.7) 100%);
             color: #fff;
-            padding: 6px 14px;
-            border-radius: 4px;
-            font-size: 0.875rem;
-            font-weight: 600;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 700;
             z-index: 10;
             text-transform: uppercase;
-            letter-spacing: 1px;
-            border: 1px solid rgba(255,255,255,0.1);
+            letter-spacing: 1.5px;
+            border: 1px solid rgba(255,255,255,0.15);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
         }
 
         .camera-view.fullscreen .camera-label {
@@ -317,16 +465,34 @@
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>🎥 R58 Recorder - Multiview</h1>
-            <div class="recording-controls">
-                <span class="recording-status idle" id="recordingStatus">IDLE</span>
-                <button class="btn btn-primary" id="startAllBtn" onclick="startAllRecordings()">Start Recording All</button>
-                <button class="btn btn-danger" id="stopAllBtn" onclick="stopAllRecordings()" disabled>Stop Recording All</button>
+        <div class="main-content">
+            <div class="header">
+                <h1>🎥 R58 Recorder - Multiview</h1>
             </div>
+
+            <div class="multiview" id="multiview"></div>
         </div>
 
-        <div class="multiview" id="multiview"></div>
+        <div class="control-panel">
+            <div>
+                <h2>Recording Status</h2>
+                <span class="recording-status idle" id="recordingStatus">IDLE</span>
+            </div>
+            
+            <div>
+                <h2>Controls</h2>
+                <div class="recording-controls">
+                    <button class="btn btn-primary" id="startAllBtn" onclick="startAllRecordings()">
+                        <span class="btn-icon">▶</span>
+                        <span>Start Recording</span>
+                    </button>
+                    <button class="btn btn-danger" id="stopAllBtn" onclick="stopAllRecordings()" disabled>
+                        <span class="btn-icon">⏹</span>
+                        <span>Stop Recording</span>
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
