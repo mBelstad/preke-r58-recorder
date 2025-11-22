@@ -327,12 +327,19 @@
             const enableAutoplay = () => {
                 document.querySelectorAll('video').forEach(video => {
                     if (video.paused && (video.srcObject || video.src)) {
-                        video.play().catch(() => {});
+                        video.play().then(() => {
+                            console.log(`Video playing: ${video.id}`);
+                            const placeholder = document.getElementById(`placeholder-${video.id.replace('video-', '')}`);
+                            if (placeholder) placeholder.style.display = 'none';
+                        }).catch(e => {
+                            console.error(`Failed to play ${video.id}:`, e);
+                        });
                     }
                 });
             };
-            document.addEventListener('click', enableAutoplay, { once: true });
-            document.addEventListener('touchstart', enableAutoplay, { once: true });
+            // Listen for clicks/touches to enable autoplay
+            document.addEventListener('click', enableAutoplay);
+            document.addEventListener('touchstart', enableAutoplay);
             
             initializeMultiview();
             startAllPreviews();
@@ -502,9 +509,15 @@
                         placeholder.style.display = 'none';
                         console.log(`WebRTC playing for ${camId} - real-time latency!`);
                     }).catch(e => {
-                        console.debug(`WebRTC autoplay blocked for ${camId}, will play on user interaction`);
-                        // Video will play automatically on first user interaction
-                        // This is normal browser behavior for autoplay
+                        console.log(`WebRTC autoplay blocked for ${camId} - click anywhere to enable`);
+                        // Update placeholder to show user needs to click
+                        placeholder.querySelector('.text').innerHTML = 'WebRTC Ready!<br><small style="color: #10b981;">Click anywhere to start</small>';
+                        placeholder.style.cursor = 'pointer';
+                        placeholder.onclick = () => {
+                            video.play().then(() => {
+                                placeholder.style.display = 'none';
+                            }).catch(err => console.error('Play failed:', err));
+                        };
                     });
                 };
                 
@@ -613,14 +626,19 @@
                 });
                 
                 hls.on(window.Hls.Events.ERROR, (event, data) => {
+                    console.error(`HLS error for ${camId}:`, data);
                     if (data.fatal) {
-                        console.error(`HLS error for ${camId}:`, data);
                         if (data.type === window.Hls.ErrorTypes.NETWORK_ERROR) {
                             // Retry on network error
+                            console.log(`HLS network error for ${camId}, retrying...`);
                             setTimeout(() => {
                                 hls.startLoad();
                             }, 1000);
+                        } else if (data.type === window.Hls.ErrorTypes.MEDIA_ERROR) {
+                            console.log(`HLS media error for ${camId}, recovering...`);
+                            hls.recoverMediaError();
                         } else {
+                            console.error(`HLS fatal error for ${camId}:`, data);
                             placeholder.querySelector('.text').textContent = 'Stream unavailable';
                         }
                     }
