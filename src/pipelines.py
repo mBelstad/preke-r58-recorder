@@ -111,11 +111,10 @@ def build_r58_pipeline(
         )
     else:
         # File only - ensure proper format conversion for MPP encoder
-        # videoconvert already handles format conversion, but we ensure NV12 for MPP
+        # Remove redundant format specification - videoconvert handles it
         pipeline_str = (
             f"{source_str} ! "
             f"timeoverlay ! "
-            f"video/x-raw,format=NV12 ! "  # MPP encoder expects NV12
             f"{encoder_str} ! "
             f"{caps_str} ! "
             f"{parse_str} ! "
