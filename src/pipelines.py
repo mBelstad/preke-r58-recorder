@@ -62,8 +62,9 @@ def build_r58_pipeline(
     """Build a real hardware-accelerated pipeline for R58."""
     width, height = resolution.split("x")
 
-    # Video source
-    source_str = f"v4l2src device={device} ! video/x-raw,width={width},height={height}"
+    # Video source - let v4l2src auto-negotiate format, only specify resolution
+    # For HDMI inputs, we may need to let it auto-detect the format
+    source_str = f"v4l2src device={device} ! video/x-raw,width={width},height={height} ! videoconvert"
 
     # Hardware encoder selection
     if codec == "h265":
