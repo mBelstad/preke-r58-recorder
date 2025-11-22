@@ -457,13 +457,34 @@
             });
 
             pc.ontrack = (event) => {
-                console.log(`WebRTC track received for ${camId}`);
+                console.log(`WebRTC track received for ${camId} (real-time <100ms latency)`);
                 video.srcObject = event.streams[0];
-                video.play().catch(e => {
-                    console.error(`WebRTC play failed for ${camId}:`, e);
-                    startHLSPreview(video, camId, placeholder);
+                
+                // Try to play - if autoplay is blocked, show click-to-play message
+                video.play().then(() => {
+                    placeholder.style.display = 'none';
+                    console.log(`WebRTC playing for ${camId} - real-time latency!`);
+                }).catch(e => {
+                    // Autoplay blocked - show user-friendly message
+                    console.warn(`WebRTC autoplay blocked for ${camId} (browser policy), click to play`);
+                    placeholder.querySelector('.text').innerHTML = 'WebRTC Ready!<br><small style="color: #10b981;">Click anywhere to start (real-time <100ms)</small>';
+                    placeholder.style.cursor = 'pointer';
+                    
+                    // Play on any user interaction
+                    const playHandler = () => {
+                        video.play().then(() => {
+                            placeholder.style.display = 'none';
+                            document.removeEventListener('click', playHandler);
+                            document.removeEventListener('touchstart', playHandler);
+                        }).catch(err => {
+                            console.error(`WebRTC play failed:`, err);
+                            startHLSPreview(video, camId, placeholder);
+                        });
+                    };
+                    placeholder.onclick = playHandler;
+                    document.addEventListener('click', playHandler, { once: true });
+                    document.addEventListener('touchstart', playHandler, { once: true });
                 });
-                placeholder.style.display = 'none';
             };
 
             pc.oniceconnectionstatechange = () => {
