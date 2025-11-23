@@ -108,11 +108,17 @@
             flex: 1;
             position: relative;
             overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .reveal-container .reveal {
             height: 100%;
             width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .control-panel {
@@ -313,9 +319,12 @@
             <div class="reveal-container">
                 <div class="reveal" id="reveal">
                     <div class="slides" id="slides">
-                        <section>
-                            <h1>Welcome</h1>
-                            <p>Create your presentation using Markdown or HTML</p>
+                        <section data-markdown>
+                            <script type="text/template">
+# Welcome
+
+Create your presentation using Markdown or HTML
+                            </script>
                         </section>
                     </div>
                 </div>
@@ -397,6 +406,13 @@
 
         // Initialize Reveal.js
         function initReveal() {
+            // Check if Reveal.js is loaded
+            if (typeof Reveal === 'undefined') {
+                console.error('Reveal.js is not loaded. Check CDN connection.');
+                showNotification('Reveal.js failed to load. Check your internet connection.', 'error');
+                return;
+            }
+
             // Destroy existing instance if any
             if (reveal) {
                 try {
@@ -404,6 +420,12 @@
                 } catch (e) {
                     console.warn('Error destroying Reveal instance:', e);
                 }
+            }
+
+            const revealElement = document.getElementById('reveal');
+            if (!revealElement) {
+                console.error('Reveal container element not found');
+                return;
             }
 
             reveal = new Reveal({
@@ -454,6 +476,7 @@
             });
 
             reveal.initialize().then(() => {
+                console.log('Reveal.js initialized successfully');
                 updateSlideIndicator();
                 
                 reveal.on('slidechanged', (event) => {
@@ -463,6 +486,7 @@
                 });
             }).catch((error) => {
                 console.error('Failed to initialize Reveal.js:', error);
+                showNotification('Failed to initialize presentation viewer: ' + error.message, 'error');
             });
         }
 
@@ -792,7 +816,23 @@
         }
 
         // Initialize on load
-        window.addEventListener('load', init);
+        window.addEventListener('load', () => {
+            console.log('Page loaded, initializing graphics app...');
+            // Wait a bit for Reveal.js to load from CDN
+            if (typeof Reveal === 'undefined') {
+                console.warn('Reveal.js not loaded yet, waiting...');
+                setTimeout(() => {
+                    if (typeof Reveal === 'undefined') {
+                        console.error('Reveal.js still not loaded after timeout');
+                        showNotification('Reveal.js failed to load. Please refresh the page.', 'error');
+                    } else {
+                        init();
+                    }
+                }, 1000);
+            } else {
+                init();
+            }
+        });
     </script>
 </body>
 </html>
