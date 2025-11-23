@@ -323,6 +323,18 @@ class MixerCore:
                 logger.warning(f"Device {device} for {cam_id} does not exist, skipping")
                 continue
             
+            # Check if device is busy (being used by another process)
+            # Only check for non-video60 devices (video60 is the main HDMI input)
+            if "video60" not in device:
+                try:
+                    import fcntl
+                    with open(device, 'r') as f:
+                        fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                        fcntl.flock(f, fcntl.LOCK_UN)
+                except (IOError, OSError):
+                    logger.warning(f"Device {device} for {cam_id} is busy or not accessible, skipping")
+                    continue
+            
             # Build source pipeline (similar to existing R58 pipeline)
             if "video60" in device or "hdmirx" in device.lower():
                 # HDMI input (NV24 format) - use EXACT same approach as working recorder pipeline
