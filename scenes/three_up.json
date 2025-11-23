@@ -1,0 +1,38 @@
+{
+  "id": "three_up",
+  "label": "3-up equal",
+  "resolution": {
+    "width": 1920,
+    "height": 1080
+  },
+  "slots": [
+    {
+      "source": "cam0",
+      "x_rel": 0.0,
+      "y_rel": 0.0,
+      "w_rel": 0.333,
+      "h_rel": 1.0,
+      "z": 0,
+      "alpha": 1.0
+    },
+    {
+      "source": "cam1",
+      "x_rel": 0.333,
+      "y_rel": 0.0,
+      "w_rel": 0.333,
+      "h_rel": 1.0,
+      "z": 0,
+      "alpha": 1.0
+    },
+    {
+      "source": "cam2",
+      "x_rel": 0.666,
+      "y_rel": 0.0,
+      "w_rel": 0.334,
+      "h_rel": 1.0,
+      "z": 0,
+      "alpha": 1.0
+    }
+  ]
+}
+

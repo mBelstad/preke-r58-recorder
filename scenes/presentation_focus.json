@@ -1,0 +1,29 @@
+{
+  "id": "presentation_focus",
+  "label": "Presentation focus",
+  "resolution": {
+    "width": 1920,
+    "height": 1080
+  },
+  "slots": [
+    {
+      "source": "cam1",
+      "x_rel": 0.0,
+      "y_rel": 0.0,
+      "w_rel": 1.0,
+      "h_rel": 1.0,
+      "z": 0,
+      "alpha": 1.0
+    },
+    {
+      "source": "cam0",
+      "x_rel": 0.02,
+      "y_rel": 0.02,
+      "w_rel": 0.25,
+      "h_rel": 0.25,
+      "z": 1,
+      "alpha": 1.0
+    }
+  ]
+}
+
