@@ -1153,6 +1153,26 @@ Create your presentation using Markdown or HTML
                 </div>
             </div>
 
+            <!-- Templates -->
+            <div class="panel-section">
+                <div class="panel-title">
+                    <span>📋 Templates</span>
+                </div>
+                <div class="form-group">
+                    <select id="templateSelect" class="form-select" style="margin-bottom: 8px;">
+                        <option value="">Choose a template...</option>
+                        <option value="title">Title Slide</option>
+                        <option value="content">Content Slide</option>
+                        <option value="two-column">Two Column</option>
+                        <option value="image-left">Image Left, Text Right</option>
+                        <option value="image-right">Text Left, Image Right</option>
+                        <option value="quote">Quote Slide</option>
+                        <option value="code">Code Slide</option>
+                    </select>
+                    <button class="btn btn-primary" id="applyTemplateBtn" style="width: 100%;">Apply Template</button>
+                </div>
+            </div>
+
             <!-- Slide Content -->
             <div class="panel-section">
                 <div class="panel-title">
@@ -1184,7 +1204,15 @@ Create your presentation using Markdown or HTML
             <!-- Image Management -->
             <div class="panel-section">
                 <div class="panel-title">
-                    <span>🖼️ Images</span>
+                    <span>🖼️ Media Library</span>
+                    <button class="btn btn-secondary btn-small" id="refreshMediaBtn" style="padding: 4px 8px; font-size: 11px; margin-left: auto;" title="Refresh Media Library">🔄</button>
+                </div>
+                <div class="form-group" style="margin-bottom: 12px;">
+                    <div style="display: flex; gap: 8px;">
+                        <input type="file" id="addImageFile" accept="image/*" multiple style="display: none;">
+                        <button type="button" class="btn btn-primary" style="flex: 1;" onclick="document.getElementById('addImageFile').click()">📤 Upload Images</button>
+                        <button type="button" class="btn btn-secondary" id="browseMediaBtn" style="flex: 1;">📁 Browse Library</button>
+                    </div>
                 </div>
                 <div id="imageManagement">
                     <div class="form-group">
@@ -1902,6 +1930,80 @@ Create your presentation using Markdown or HTML
             }
         }
 
+        // Template definitions
+        const templates = {
+            'title': {
+                content: '# Title\n\n## Subtitle\n\nYour presentation description here',
+                notes: 'Welcome slide template'
+            },
+            'content': {
+                content: '## Heading\n\n- Point 1\n- Point 2\n- Point 3\n\n**Key Message**',
+                notes: 'Standard content slide'
+            },
+            'two-column': {
+                content: '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">\n  <div>\n    <h3>Left Column</h3>\n    <p>Content here</p>\n  </div>\n  <div>\n    <h3>Right Column</h3>\n    <p>Content here</p>\n  </div>\n</div>',
+                notes: 'Two column layout'
+            },
+            'image-left': {
+                content: '<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 20px; align-items: center;">\n  <div>\n    <img src="https://via.placeholder.com/400x300" alt="Image" style="width: 100%;">\n  </div>\n  <div>\n    <h2>Heading</h2>\n    <p>Your content here</p>\n  </div>\n</div>',
+                notes: 'Image on left, text on right'
+            },
+            'image-right': {
+                content: '<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px; align-items: center;">\n  <div>\n    <h2>Heading</h2>\n    <p>Your content here</p>\n  </div>\n  <div>\n    <img src="https://via.placeholder.com/400x300" alt="Image" style="width: 100%;">\n  </div>\n</div>',
+                notes: 'Text on left, image on right'
+            },
+            'quote': {
+                content: '<blockquote style="font-size: 2em; font-style: italic; text-align: center; margin: 2em 0;">\n  "Your quote here"\n</blockquote>\n<p style="text-align: center; font-size: 1.2em;">— Author Name</p>',
+                notes: 'Quote slide template'
+            },
+            'code': {
+                content: '## Code Example\n\n```python\ndef hello():\n    print("Hello, World!")\n```',
+                notes: 'Code slide template'
+            }
+        };
+
+        // Apply template to current slide
+        function applyTemplate() {
+            const templateId = document.getElementById('templateSelect').value;
+            if (!templateId || !templates[templateId]) {
+                if (typeof showNotification === 'function') {
+                    showNotification('Please select a template', 'warning');
+                } else {
+                    alert('Please select a template');
+                }
+                return;
+            }
+
+            const template = templates[templateId];
+            
+            // Update content
+            document.getElementById('slideContent').value = template.content;
+            
+            // Update Quill if in visual mode
+            if (quillEditor && editorMode === 'visual') {
+                const html = markdownToQuill(template.content);
+                quillEditor.root.innerHTML = html;
+            }
+            
+            // Update notes if provided
+            if (template.notes) {
+                document.getElementById('slideNotes').value = template.notes;
+            }
+            
+            // Update the slide
+            updateSlide();
+            
+            // Reset template selector
+            document.getElementById('templateSelect').value = '';
+            
+            // Show success message if showNotification exists
+            if (typeof showNotification === 'function') {
+                showNotification(`Template "${templateId}" applied`, 'success');
+            } else {
+                console.log(`Template "${templateId}" applied successfully`);
+            }
+        }
+
         function setupEventListeners() {
             document.getElementById('presentationSelect').addEventListener('change', handlePresentationSelect);
             document.getElementById('saveBtn').addEventListener('click', savePresentation);
@@ -1911,9 +2013,30 @@ Create your presentation using Markdown or HTML
             document.getElementById('addVerticalSlideBtn').addEventListener('click', addVerticalSlide);
             document.getElementById('removeSlideBtn').addEventListener('click', removeSlide);
             document.getElementById('updateSlideBtn').addEventListener('click', updateSlide);
+            document.getElementById('applyTemplateBtn').addEventListener('click', applyTemplate);
             document.getElementById('toggleEditorMode').addEventListener('click', function() {
                 editorMode = editorMode === 'visual' ? 'markdown' : 'visual';
                 toggleEditorMode();
+            });
+            
+            // Enhanced media management
+            document.getElementById('addImageFile').addEventListener('change', async function(e) {
+                const files = Array.from(e.target.files);
+                for (const file of files) {
+                    await uploadAndAddImage(file);
+                }
+                e.target.value = ''; // Reset input
+            });
+            
+            document.getElementById('browseMediaBtn').addEventListener('click', function() {
+                showMediaLibrary();
+            });
+            
+            document.getElementById('refreshMediaBtn').addEventListener('click', function() {
+                if (typeof updateImageList === 'function') {
+                    updateImageList();
+                }
+                showNotification('Media library refreshed', 'success');
             });
             document.getElementById('prevBtn').addEventListener('click', () => {
                 if (reveal) reveal.prev();
@@ -1981,6 +2104,107 @@ Create your presentation using Markdown or HTML
         }
         
         let currentEditingImageIndex = -1;
+        
+        // Enhanced: Upload and add image (for multiple files)
+        async function uploadAndAddImage(file) {
+            if (!file.type.startsWith('image/')) {
+                if (typeof showNotification === 'function') {
+                    showNotification('Please select an image file', 'error');
+                }
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                if (typeof showNotification === 'function') {
+                    showNotification('Uploading image...');
+                }
+                const response = await fetch(`${API_BASE}/api/graphics/upload/image`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const imageUrl = `${API_BASE}${data.url}`;
+                    
+                    // Add image to current slide
+                    if (!currentPresentation.slides) {
+                        currentPresentation.slides = [];
+                    }
+                    while (currentPresentation.slides.length <= currentSlideIndex) {
+                        currentPresentation.slides.push({ content: '', notes: '', properties: {}, images: [] });
+                    }
+                    
+                    if (!currentPresentation.slides[currentSlideIndex].images) {
+                        currentPresentation.slides[currentSlideIndex].images = [];
+                    }
+                    
+                    const newImage = {
+                        url: imageUrl,
+                        x: 50,
+                        y: 50,
+                        width: 50,
+                        height: 50,
+                        cropX: 0,
+                        cropY: 0,
+                        cropWidth: 100,
+                        cropHeight: 100,
+                        borderRadius: 0,
+                        objectFit: 'contain',
+                        opacity: 100
+                    };
+                    
+                    currentPresentation.slides[currentSlideIndex].images.push(newImage);
+                    if (typeof updateImageList === 'function') {
+                        updateImageList();
+                    }
+                    loadSlidesIntoReveal(currentPresentation.slides);
+                    if (typeof showNotification === 'function') {
+                        showNotification('Image added successfully');
+                    }
+                } else {
+                    const error = await response.text();
+                    if (typeof showNotification === 'function') {
+                        showNotification('Failed to upload image: ' + error, 'error');
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to upload image:', error);
+                if (typeof showNotification === 'function') {
+                    showNotification('Failed to upload image', 'error');
+                }
+            }
+        }
+        
+        // Enhanced: Show media library browser
+        async function showMediaLibrary() {
+            try {
+                // Fetch uploaded images from server
+                const response = await fetch(`${API_BASE}/api/graphics/media`);
+                if (response.ok) {
+                    const media = await response.json();
+                    // Create modal or panel to show media library
+                    // For now, just log - can be enhanced with a modal UI
+                    console.log('Media library:', media);
+                    if (typeof showNotification === 'function') {
+                        showNotification('Media library: ' + (media.length || 0) + ' items', 'success');
+                    }
+                } else {
+                    // If endpoint doesn't exist, show message
+                    if (typeof showNotification === 'function') {
+                        showNotification('Media library feature coming soon', 'info');
+                    }
+                }
+            } catch (error) {
+                console.log('Media library not available:', error);
+                if (typeof showNotification === 'function') {
+                    showNotification('Media library feature coming soon', 'info');
+                }
+            }
+        }
         
         // Handle adding image to slide content
         async function handleAddImageToSlide(event) {
