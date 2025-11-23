@@ -12,6 +12,7 @@ from .recorder import Recorder
 from .preview import PreviewManager
 from .mixer.scenes import SceneManager
 from .mixer.core import MixerCore
+from .mixer.graphics import GraphicsRenderer
 
 # Configure logging
 logging.basicConfig(
@@ -35,6 +36,7 @@ preview_manager = PreviewManager(config)
 # Initialize mixer (if enabled)
 mixer_core: Optional[MixerCore] = None
 scene_manager: Optional[SceneManager] = None
+graphics_renderer: Optional[GraphicsRenderer] = None
 if config.mixer.enabled:
     scene_manager = SceneManager(scenes_dir=config.mixer.scenes_dir)
     mixer_core = MixerCore(
@@ -48,6 +50,7 @@ if config.mixer.enabled:
         mediamtx_enabled=config.mixer.mediamtx_enabled,
         mediamtx_path=config.mixer.mediamtx_path,
     )
+    graphics_renderer = GraphicsRenderer()
     logger.info("Mixer Core initialized")
 else:
     logger.info("Mixer Core disabled in configuration")
@@ -90,6 +93,15 @@ async def scene_editor():
     if editor_path.exists():
         return editor_path.read_text()
     return "<h1>Scene Editor</h1><p>Scene editor not found.</p>"
+
+
+@app.get("/graphics", response_class=HTMLResponse)
+async def graphics_app():
+    """Serve the graphics/presentation app interface."""
+    graphics_path = Path(__file__).parent / "static" / "graphics.html"
+    if graphics_path.exists():
+        return graphics_path.read_text()
+    return "<h1>Graphics App</h1><p>Graphics app not found.</p>"
 
 
 @app.get("/control", response_class=HTMLResponse)
@@ -380,6 +392,123 @@ async def get_mixer_status() -> Dict[str, Any]:
         raise HTTPException(status_code=503, detail="Mixer not enabled")
     
     return mixer_core.get_status()
+
+
+# Graphics/Presentation API endpoints
+@app.get("/api/graphics/presentations")
+async def list_presentations() -> Dict[str, Any]:
+    """List all saved presentations."""
+    presentations_dir = Path(__file__).parent.parent / "presentations"
+    presentations_dir.mkdir(exist_ok=True)
+    
+    presentations = []
+    try:
+        for f_path in presentations_dir.glob("*.json"):
+            try:
+                import json
+                with open(f_path, "r") as f:
+                    pres = json.load(f)
+                    presentations.append({
+                        "id": pres.get("id", f_path.stem),
+                        "name": pres.get("name", pres.get("id", f_path.stem)),
+                        "theme": pres.get("theme", "black"),
+                        "slides": pres.get("slides", [])
+                    })
+            except Exception as e:
+                logger.error(f"Failed to load presentation {f_path}: {e}")
+    except Exception as e:
+        logger.error(f"Error listing presentations: {e}")
+    
+    return {"presentations": presentations}
+
+
+@app.get("/api/graphics/presentations/{pres_id}")
+async def get_presentation(pres_id: str) -> Dict[str, Any]:
+    """Get a specific presentation."""
+    presentations_dir = Path(__file__).parent.parent / "presentations"
+    pres_path = presentations_dir / f"{pres_id}.json"
+    
+    if not pres_path.exists():
+        raise HTTPException(status_code=404, detail=f"Presentation {pres_id} not found")
+    
+    try:
+        import json
+        with open(pres_path, "r") as f:
+            return json.load(f)
+    except Exception as e:
+        logger.error(f"Failed to load presentation {pres_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to load presentation: {e}")
+
+
+@app.post("/api/graphics/presentations")
+async def save_presentation(presentation: Dict[str, Any]) -> Dict[str, str]:
+    """Save a presentation."""
+    pres_id = presentation.get("id")
+    if not pres_id:
+        raise HTTPException(status_code=400, detail="Presentation ID required")
+    
+    presentations_dir = Path(__file__).parent.parent / "presentations"
+    presentations_dir.mkdir(exist_ok=True)
+    pres_path = presentations_dir / f"{pres_id}.json"
+    
+    try:
+        import json
+        with open(pres_path, "w") as f:
+            json.dump(presentation, f, indent=2)
+        logger.info(f"Saved presentation: {pres_id}")
+        return {"status": "saved", "id": pres_id}
+    except Exception as e:
+        logger.error(f"Failed to save presentation {pres_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to save presentation: {e}")
+
+
+@app.delete("/api/graphics/presentations/{pres_id}")
+async def delete_presentation(pres_id: str) -> Dict[str, str]:
+    """Delete a presentation."""
+    presentations_dir = Path(__file__).parent.parent / "presentations"
+    pres_path = presentations_dir / f"{pres_id}.json"
+    
+    if not pres_path.exists():
+        raise HTTPException(status_code=404, detail=f"Presentation {pres_id} not found")
+    
+    try:
+        pres_path.unlink()
+        logger.info(f"Deleted presentation: {pres_id}")
+        return {"status": "deleted", "id": pres_id}
+    except Exception as e:
+        logger.error(f"Failed to delete presentation {pres_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete presentation: {e}")
+
+
+@app.post("/api/graphics/export/{pres_id}")
+async def export_presentation_to_mixer(pres_id: str) -> Dict[str, str]:
+    """Export a presentation to the mixer as a graphics source."""
+    if not graphics_renderer:
+        raise HTTPException(status_code=503, detail="Graphics renderer not available")
+    
+    presentations_dir = Path(__file__).parent.parent / "presentations"
+    pres_path = presentations_dir / f"{pres_id}.json"
+    
+    if not pres_path.exists():
+        raise HTTPException(status_code=404, detail=f"Presentation {pres_id} not found")
+    
+    try:
+        import json
+        with open(pres_path, "r") as f:
+            pres = json.load(f)
+        
+        # Create presentation source in graphics renderer
+        source_id = f"presentation:{pres_id}"
+        pipeline = graphics_renderer.create_presentation_source(source_id, pres)
+        
+        if not pipeline:
+            raise HTTPException(status_code=500, detail="Failed to create presentation source")
+        
+        logger.info(f"Exported presentation {pres_id} to mixer")
+        return {"status": "exported", "id": pres_id, "source_id": source_id}
+    except Exception as e:
+        logger.error(f"Failed to export presentation {pres_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to export presentation: {e}")
 
 
 # Switcher/Controller API endpoints
