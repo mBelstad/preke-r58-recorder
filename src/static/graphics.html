@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Graphics App - R58 Mixer</title>
     
     <!-- Reveal.js CSS -->
@@ -20,24 +23,28 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             background: #000;
-            color: #fff;
+            color: #e5e5e5;
             height: 100vh;
             overflow: hidden;
             display: flex;
             flex-direction: column;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
 
         .header {
-            background: #1a1a1a;
-            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
-            padding: 16px 24px;
+            background: linear-gradient(180deg, #111111 0%, #0a0a0a 100%);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 18px 28px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             z-index: 1000;
             position: relative;
+            backdrop-filter: blur(20px);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
         }
 
         .header h1 {
@@ -53,33 +60,64 @@
         }
 
         .btn {
-            padding: 10px 20px;
-            border-radius: 8px;
+            padding: 11px 22px;
+            border-radius: 10px;
             border: none;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            text-transform: none;
+            letter-spacing: 0.3px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            transform: translate(-50%, -50%);
+            transition: width 0.4s, height 0.4s;
+        }
+
+        .btn:hover::before {
+            width: 300px;
+            height: 300px;
         }
 
         .btn-primary {
-            background: #3b82f6;
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
             color: white;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
         }
 
         .btn-primary:hover {
-            background: #2563eb;
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+            transform: translateY(-1px);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
         }
 
         .btn-secondary {
-            background: rgba(255, 255, 255, 0.1);
-            color: white;
+            background: rgba(255, 255, 255, 0.08);
+            color: #e5e5e5;
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         .btn-secondary:hover {
-            background: rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
         }
 
         .btn-danger {
@@ -130,67 +168,134 @@
         }
 
         .control-panel {
-            background: #1a1a1a;
-            border-left: 2px solid rgba(255, 255, 255, 0.1);
+            background: #0a0a0a;
+            border-left: 1px solid rgba(255, 255, 255, 0.06);
             display: flex;
             flex-direction: column;
             overflow-y: auto;
+            backdrop-filter: blur(10px);
         }
 
         .panel-section {
-            padding: 20px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 20px 24px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            background: rgba(255, 255, 255, 0.03);
+            margin: 10px 12px;
+            border-radius: 16px;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .panel-section:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.08);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
         }
 
         .panel-title {
-            font-size: 14px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            color: #888;
-            margin-bottom: 16px;
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: none;
+            letter-spacing: 0.5px;
+            color: #e0e0e0;
+            margin-bottom: 12px;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
 
+        .panel-title .icon {
+            margin-right: 8px;
+            font-size: 16px;
+        }
+
         .panel-toggle {
-            background: none;
+            background: rgba(255, 255, 255, 0.1);
             border: none;
-            color: #888;
+            color: #aaa;
             cursor: pointer;
-            font-size: 12px;
+            font-size: 10px;
             padding: 4px 8px;
+            border-radius: 4px;
+            transition: all 0.2s;
         }
 
         .panel-toggle:hover {
+            background: rgba(255, 255, 255, 0.15);
             color: #fff;
         }
 
+        .advanced-toggle {
+            background: none;
+            border: none;
+            color: #60a5fa;
+            cursor: pointer;
+            font-size: 12px;
+            padding: 6px 0;
+            text-decoration: underline;
+            text-underline-offset: 4px;
+            transition: all 0.2s;
+            margin-top: 8px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .advanced-toggle:hover {
+            color: #93c5fd;
+        }
+
+        .advanced-section {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .advanced-section.expanded {
+            max-height: 2000px;
+        }
+
         .form-group {
-            margin-bottom: 16px;
+            margin-bottom: 14px;
+        }
+
+        .form-group:last-child {
+            margin-bottom: 0;
         }
 
         .form-label {
             display: block;
             font-size: 12px;
-            color: #aaa;
-            margin-bottom: 6px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+            color: #b0b0b0;
+            margin-bottom: 8px;
+            font-weight: 500;
+            text-transform: none;
+            letter-spacing: 0.2px;
         }
 
         .form-input,
         .form-select,
         .form-textarea {
             width: 100%;
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 6px;
-            color: white;
-            padding: 10px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1.5px solid rgba(255, 255, 255, 0.12);
+            border-radius: 10px;
+            color: #ffffff;
+            padding: 11px 14px;
             font-size: 14px;
-            font-family: 'Courier New', monospace;
+            font-family: inherit;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .form-input:hover,
+        .form-select:hover,
+        .form-textarea:hover {
+            background: rgba(255, 255, 255, 0.09);
+            border-color: rgba(255, 255, 255, 0.2);
         }
 
         .form-textarea {
@@ -202,12 +307,46 @@
             min-height: 80px;
         }
 
+        /* Quill Editor Styling */
+        #quillEditor {
+            background: white;
+            border-radius: 8px;
+            min-height: 200px;
+            margin-bottom: 8px;
+        }
+
+        #quillEditor .ql-container {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, sans-serif;
+            font-size: 14px;
+            min-height: 200px;
+        }
+
+        #quillEditor .ql-editor {
+            min-height: 200px;
+            color: #333;
+        }
+
+        #quillEditor .ql-toolbar {
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        #quillEditor .ql-container {
+            border-bottom-left-radius: 8px;
+            border-bottom-right-radius: 8px;
+            border: none;
+        }
+
         .form-input:focus,
         .form-select:focus,
         .form-textarea:focus {
             outline: none;
             border-color: #3b82f6;
-            background: rgba(255, 255, 255, 0.15);
+            background: rgba(255, 255, 255, 0.1);
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15), 0 2px 8px rgba(0, 0, 0, 0.2);
+            transform: translateY(-1px);
         }
 
         .form-checkbox {
@@ -217,9 +356,11 @@
         }
 
         .form-checkbox input[type="checkbox"] {
-            width: 18px;
-            height: 18px;
+            width: 20px;
+            height: 20px;
             cursor: pointer;
+            accent-color: #3b82f6;
+            border-radius: 4px;
         }
 
         .form-row {
@@ -270,31 +411,38 @@
         }
 
         .slide-btn {
-            padding: 12px;
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 6px;
-            color: white;
+            padding: 14px 18px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1.5px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            color: #e5e5e5;
             cursor: pointer;
-            font-size: 18px;
-            transition: all 0.2s;
+            font-size: 20px;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            font-weight: 500;
         }
 
         .slide-btn:hover {
-            background: rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.25);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
         }
 
         .slide-btn:active {
-            transform: scale(0.95);
+            transform: translateY(0) scale(0.98);
         }
 
         .slide-indicator {
             text-align: center;
-            padding: 12px;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 6px;
-            font-size: 14px;
+            padding: 14px 18px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            font-size: 13px;
             font-weight: 600;
+            color: #d0d0d0;
+            letter-spacing: 0.5px;
         }
 
         .notification {
@@ -367,6 +515,418 @@
         .reveal .progress-bar {
             background: #3b82f6;
         }
+
+        /* Custom Scrollbar */
+        .control-panel::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .control-panel::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .control-panel::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+
+        .control-panel::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Loading States */
+        .btn.loading {
+            position: relative;
+            color: transparent;
+            pointer-events: none;
+        }
+
+        .btn.loading::after {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            top: 50%;
+            left: 50%;
+            margin-left: -8px;
+            margin-top: -8px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Tooltips */
+        .tooltip {
+            position: relative;
+            display: inline-block;
+        }
+
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            background-color: rgba(0, 0, 0, 0.9);
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 8px 12px;
+            position: absolute;
+            z-index: 10001;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 12px;
+            white-space: nowrap;
+            pointer-events: none;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .tooltip .tooltiptext::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: rgba(0, 0, 0, 0.9) transparent transparent transparent;
+        }
+
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        /* Improved Input Groups */
+        .input-group {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .input-group .form-input {
+            flex: 1;
+        }
+
+        .input-group-label {
+            color: #aaa;
+            font-size: 12px;
+            min-width: 40px;
+            text-align: center;
+        }
+
+        /* Better Image/Shape List Items */
+        .item-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 300px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .item-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .item-list::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+        }
+
+        .list-item {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .list-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(59, 130, 246, 0.5);
+            transform: translateX(2px);
+        }
+
+        .list-item.active {
+            background: rgba(59, 130, 246, 0.2);
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+        }
+
+        .list-item-thumbnail {
+            width: 48px;
+            height: 48px;
+            border-radius: 6px;
+            object-fit: cover;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            flex-shrink: 0;
+        }
+
+        .list-item-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .list-item-title {
+            font-weight: 600;
+            font-size: 13px;
+            margin-bottom: 4px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .list-item-subtitle {
+            font-size: 11px;
+            color: #888;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 32px 16px;
+            color: #666;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+            opacity: 0.5;
+        }
+
+        .empty-state-text {
+            font-size: 13px;
+            color: #888;
+        }
+
+        /* Help Text */
+        .help-text {
+            font-size: 11px;
+            color: #666;
+            margin-top: 6px;
+            line-height: 1.4;
+        }
+
+        .help-text code {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-family: 'Courier New', monospace;
+        }
+
+        /* Improved Color Input */
+        .color-input-group {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .color-picker-wrapper {
+            position: relative;
+            flex: 1;
+        }
+
+        input[type="color"] {
+            width: 100%;
+            height: 44px;
+            border: 2px solid rgba(255, 255, 255, 0.15);
+            border-radius: 10px;
+            cursor: pointer;
+            background: rgba(255, 255, 255, 0.08);
+            transition: all 0.2s;
+        }
+
+        input[type="color"]:hover {
+            border-color: rgba(255, 255, 255, 0.25);
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        input[type="color"]:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+        }
+
+        input[type="color"]::-webkit-color-swatch-wrapper {
+            padding: 2px;
+            border-radius: 8px;
+        }
+
+        input[type="color"]::-webkit-color-swatch {
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+        }
+
+        .color-preview {
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .color-preview:hover {
+            transform: scale(1.05);
+            border-color: rgba(255, 255, 255, 0.4) !important;
+        }
+
+        /* Range Input Styling */
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.1);
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #3b82f6;
+            cursor: pointer;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #3b82f6;
+            cursor: pointer;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Section Dividers */
+        .section-divider {
+            height: 1px;
+            background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.1), transparent);
+            margin: 16px 0;
+        }
+
+        /* Status Badges */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-badge.success {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+        }
+
+        .status-badge.warning {
+            background: rgba(245, 158, 11, 0.2);
+            color: #f59e0b;
+        }
+
+        .status-badge.info {
+            background: rgba(59, 130, 246, 0.2);
+            color: #60a5fa;
+        }
+
+        /* Improved Button Groups */
+        .button-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        .button-group .btn {
+            flex: 1;
+        }
+
+        /* Focus Improvements */
+        .form-input:focus,
+        .form-select:focus,
+        .form-textarea:focus {
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        }
+
+        /* Disabled States */
+        .btn:disabled,
+        .form-input:disabled,
+        .form-select:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Quick Actions */
+        .quick-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .quick-action-btn {
+            padding: 6px 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            color: white;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .quick-action-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: #3b82f6;
+        }
+
+        /* Preview Thumbnail */
+        .preview-thumbnail {
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            margin-bottom: 12px;
+        }
+
+        .preview-thumbnail img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        /* Value Display */
+        .value-display {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+            font-size: 12px;
+            font-family: 'Courier New', monospace;
+            color: #60a5fa;
+        }
     </style>
 </head>
 <body>
@@ -376,9 +936,18 @@
             <select id="presentationSelect" class="form-select" style="width: 200px; margin-right: 12px;">
                 <option value="">New Presentation...</option>
             </select>
-            <button class="btn btn-primary" id="saveBtn">Save</button>
-            <button class="btn btn-secondary" id="exportBtn">Export to Mixer</button>
-            <button class="btn btn-secondary" id="fullscreenBtn">Fullscreen</button>
+            <button class="btn btn-primary tooltip" id="saveBtn">
+                Save
+                <span class="tooltiptext">Save presentation (Ctrl+S)</span>
+            </button>
+            <button class="btn btn-secondary tooltip" id="exportBtn">
+                Export to Mixer
+                <span class="tooltiptext">Export this presentation to the mixer</span>
+            </button>
+            <button class="btn btn-secondary tooltip" id="fullscreenBtn">
+                Fullscreen
+                <span class="tooltiptext">Toggle fullscreen mode (F11)</span>
+            </button>
             <button class="btn btn-secondary" onclick="window.location.href='/switcher'">Back to Switcher</button>
         </div>
     </div>
@@ -404,32 +973,35 @@ Create your presentation using Markdown or HTML
             <!-- Presentation Settings -->
             <div class="panel-section">
                 <div class="panel-title">
-                    <span>Presentation</span>
-                    <button class="panel-toggle" onclick="toggleSection('presSettings')">▼</button>
+                    <span>📄 Presentation</span>
                 </div>
-                <div class="collapsible-content expanded" id="presSettings">
-                    <div class="form-group">
-                        <label class="form-label">Name</label>
-                        <input type="text" id="presentationName" class="form-input" placeholder="My Presentation">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">ID</label>
-                        <input type="text" id="presentationId" class="form-input" placeholder="my_presentation">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Theme</label>
-                        <select id="themeSelect" class="form-select">
-                            <option value="black">Black</option>
-                            <option value="white">White</option>
-                            <option value="league">League</option>
-                            <option value="beige">Beige</option>
-                            <option value="sky">Sky</option>
-                            <option value="night">Night</option>
-                            <option value="serif">Serif</option>
-                            <option value="simple">Simple</option>
-                            <option value="solarized">Solarized</option>
-                        </select>
-                    </div>
+                <div class="form-group">
+                    <label class="form-label">Name</label>
+                    <input type="text" id="presentationName" class="form-input" placeholder="My Presentation">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">ID</label>
+                    <input type="text" id="presentationId" class="form-input" placeholder="my_presentation">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Theme</label>
+                    <select id="themeSelect" class="form-select">
+                        <option value="black">Black</option>
+                        <option value="white">White</option>
+                        <option value="league">League</option>
+                        <option value="beige">Beige</option>
+                        <option value="sky">Sky</option>
+                        <option value="night">Night</option>
+                        <option value="serif">Serif</option>
+                        <option value="simple">Simple</option>
+                        <option value="solarized">Solarized</option>
+                    </select>
+                </div>
+                <button class="advanced-toggle" onclick="toggleAdvanced('presAdvanced')">
+                    <span>⚙️ Advanced Settings</span>
+                    <span id="presAdvancedIcon">▼</span>
+                </button>
+                <div class="advanced-section" id="presAdvanced">
                     <div class="form-group">
                         <label class="form-label">Global Transition</label>
                         <select id="globalTransition" class="form-select">
@@ -483,7 +1055,7 @@ Create your presentation using Markdown or HTML
             <!-- Slide Navigation -->
             <div class="panel-section">
                 <div class="panel-title">
-                    <span>Slide Navigation</span>
+                    <span>🎯 Current Slide</span>
                 </div>
                 <div class="slide-controls">
                     <button class="slide-btn" id="prevBtn">◀</button>
@@ -491,19 +1063,36 @@ Create your presentation using Markdown or HTML
                     <button class="slide-btn" id="nextBtn">▶</button>
                 </div>
                 <div style="margin-top: 12px; display: flex; gap: 8px;">
-                    <button class="btn btn-secondary btn-small" id="addSlideBtn" style="flex: 1;">Add Slide</button>
-                    <button class="btn btn-secondary btn-small" id="addVerticalSlideBtn" style="flex: 1;">Add Vertical</button>
-                    <button class="btn btn-danger btn-small" id="removeSlideBtn" style="flex: 1;">Remove</button>
+                    <button class="btn btn-secondary btn-small" id="addSlideBtn" style="flex: 1;">➕ Add</button>
+                    <button class="btn btn-secondary btn-small" id="addVerticalSlideBtn" style="flex: 1;">📄 Vertical</button>
+                    <button class="btn btn-danger btn-small" id="removeSlideBtn" style="flex: 1;">🗑️ Remove</button>
                 </div>
             </div>
 
             <!-- Slide Properties -->
             <div class="panel-section">
                 <div class="panel-title">
-                    <span>Slide Properties</span>
-                    <button class="panel-toggle" onclick="toggleSection('slideProps')">▼</button>
+                    <span>🎨 Slide Style</span>
                 </div>
-                <div class="collapsible-content expanded" id="slideProps">
+                <div class="form-group">
+                    <label class="form-label">Background Color</label>
+                    <div class="color-input-group">
+                        <div class="color-picker-wrapper">
+                            <input type="color" id="slideBgColor" class="form-input" style="height: 44px;">
+                        </div>
+                        <div class="input-group" style="width: 120px;">
+                            <input type="number" id="slideBgColorOpacity" class="form-input" value="100" min="0" max="100" step="1">
+                            <span class="input-group-label">%</span>
+                        </div>
+                        <div class="color-preview" id="bgColorPreview" style="width: 44px; height: 44px; border-radius: 8px; border: 2px solid rgba(255,255,255,0.2); cursor: pointer;" title="Click to apply immediately"></div>
+                    </div>
+                    <div class="help-text" style="margin-top: 8px; font-size: 11px; color: #888;">💡 Changes apply when you click "Update Slide"</div>
+                </div>
+                <button class="advanced-toggle" onclick="toggleAdvanced('slideAdvanced')">
+                    <span>⚙️ Advanced Background</span>
+                    <span id="slideAdvancedIcon">▼</span>
+                </button>
+                <div class="advanced-section" id="slideAdvanced">
                     <div class="form-group">
                         <label class="form-label">Transition</label>
                         <select id="slideTransition" class="form-select">
@@ -515,10 +1104,6 @@ Create your presentation using Markdown or HTML
                             <option value="convex">Convex</option>
                             <option value="concave">Concave</option>
                         </select>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Background Color</label>
-                        <input type="color" id="slideBgColor" class="form-input" style="height: 40px;">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Background Image URL</label>
@@ -571,26 +1156,275 @@ Create your presentation using Markdown or HTML
             <!-- Slide Content -->
             <div class="panel-section">
                 <div class="panel-title">
-                    <span>Slide Content</span>
+                    <span>✏️ Slide Content</span>
+                    <div style="display: flex; gap: 4px; margin-left: auto;">
+                        <button class="btn" id="toggleEditorMode" style="padding: 4px 8px; font-size: 11px;" title="Toggle Editor Mode">📝 Visual</button>
+                    </div>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Markdown/HTML Content</label>
-                    <textarea id="slideContent" class="form-textarea" placeholder="# Slide Title&#10;&#10;Your content here..."></textarea>
+                    <label class="form-label">Content (Visual Editor / Markdown)</label>
+                    <!-- Quill Editor Container -->
+                    <div id="quillEditor" style="display: none; background: white; border-radius: 8px; min-height: 200px; margin-bottom: 8px;"></div>
+                    <!-- Fallback Textarea (hidden by default, shown when toggled) -->
+                    <textarea id="slideContent" class="form-textarea" placeholder="# Slide Title&#10;&#10;Your content here..." style="display: block;"></textarea>
                 </div>
-                <div class="form-group">
-                    <label class="form-label">Speaker Notes</label>
-                    <textarea id="slideNotes" class="form-textarea form-textarea-small" placeholder="Notes visible only in presenter mode..."></textarea>
+                <button class="btn btn-primary" id="updateSlideBtn" style="width: 100%; margin-top: 8px;">💾 Update Slide</button>
+                <button class="advanced-toggle" onclick="toggleAdvanced('notesAdvanced')" style="margin-top: 8px;">
+                    <span>📝 Speaker Notes</span>
+                    <span id="notesAdvancedIcon">▼</span>
+                </button>
+                <div class="advanced-section" id="notesAdvanced">
+                    <div class="form-group" style="margin-top: 0;">
+                        <textarea id="slideNotes" class="form-textarea form-textarea-small" placeholder="Notes visible only in presenter mode..."></textarea>
+                    </div>
                 </div>
-                <button class="btn btn-primary" id="updateSlideBtn" style="width: 100%;">Update Slide</button>
+                <div class="help-text" style="margin-top: 8px;">💡 Tip: Use Markdown for text formatting or HTML for advanced layouts</div>
+            </div>
+
+            <!-- Image Management -->
+            <div class="panel-section">
+                <div class="panel-title">
+                    <span>🖼️ Images</span>
+                </div>
+                <div id="imageManagement">
+                    <div class="form-group">
+                        <label class="form-label">Add Image</label>
+                        <div style="display: flex; gap: 8px;">
+                            <input type="file" id="addImageBtn" accept="image/*" style="display: none;">
+                            <button type="button" class="btn btn-secondary btn-small" onclick="document.getElementById('addImageBtn').click()" style="flex: 1;">Upload & Add</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Images on This Slide</label>
+                        <div id="imageList" class="item-list"></div>
+                    </div>
+                    <div id="imageEditor" style="display: none;">
+                        <div class="form-group">
+                            <label class="form-label">Image URL</label>
+                            <input type="text" id="imageUrl" class="form-input" readonly>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">X Position (%)</label>
+                                <input type="number" id="imageX" class="form-input" value="50" min="0" max="100" step="1">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Y Position (%)</label>
+                                <input type="number" id="imageY" class="form-input" value="50" min="0" max="100" step="1">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Width (%)</label>
+                                <input type="number" id="imageWidth" class="form-input" value="50" min="1" max="100" step="1">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Height (%)</label>
+                                <input type="number" id="imageHeight" class="form-input" value="50" min="1" max="100" step="1">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Crop X (%)</label>
+                                <input type="number" id="imageCropX" class="form-input" value="0" min="0" max="100" step="1">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Crop Y (%)</label>
+                                <input type="number" id="imageCropY" class="form-input" value="0" min="0" max="100" step="1">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Crop Width (%)</label>
+                                <input type="number" id="imageCropWidth" class="form-input" value="100" min="0" max="100" step="1">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Crop Height (%)</label>
+                                <input type="number" id="imageCropHeight" class="form-input" value="100" min="0" max="100" step="1">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Border Radius (px)</label>
+                            <input type="number" id="imageBorderRadius" class="form-input" value="0" min="0" step="1">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Object Fit</label>
+                            <select id="imageObjectFit" class="form-select">
+                                <option value="contain">Contain</option>
+                                <option value="cover">Cover</option>
+                                <option value="fill">Fill</option>
+                                <option value="none">None</option>
+                                <option value="scale-down">Scale Down</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Opacity (%)</label>
+                            <input type="number" id="imageOpacity" class="form-input" value="100" min="0" max="100" step="1">
+                        </div>
+                        <div style="display: flex; gap: 8px; margin-top: 12px;">
+                            <button class="btn btn-primary btn-small" id="updateImageBtn" style="flex: 1;">Update Image</button>
+                            <button class="btn btn-danger btn-small" id="removeImageBtn" style="flex: 1;">Remove</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Shapes -->
+            <div class="panel-section">
+                <div class="panel-title">
+                    <span>🔷 Shapes</span>
+                </div>
+                <div id="shapesManagement">
+                    <div class="form-group">
+                        <label class="form-label">Add Shape</label>
+                        <select id="shapeType" class="form-select">
+                            <option value="rectangle">Rectangle</option>
+                            <option value="circle">Circle</option>
+                            <option value="triangle">Triangle</option>
+                            <option value="ellipse">Ellipse</option>
+                            <option value="polygon">Polygon</option>
+                            <option value="line">Line</option>
+                        </select>
+                        <button type="button" class="btn btn-secondary btn-small" id="addShapeBtn" style="width: 100%; margin-top: 8px;">Add Shape</button>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Shapes on This Slide</label>
+                        <div id="shapeList" class="item-list"></div>
+                    </div>
+                    <div id="shapeEditor" style="display: none;">
+                        <div class="form-group">
+                            <label class="form-label">Shape Type</label>
+                            <input type="text" id="shapeTypeDisplay" class="form-input" readonly>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">X Position (%)</label>
+                                <input type="number" id="shapeX" class="form-input" value="50" min="0" max="100" step="1">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Y Position (%)</label>
+                                <input type="number" id="shapeY" class="form-input" value="50" min="0" max="100" step="1">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Width (%)</label>
+                                <input type="number" id="shapeWidth" class="form-input" value="30" min="1" max="100" step="1">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Height (%)</label>
+                                <input type="number" id="shapeHeight" class="form-input" value="30" min="1" max="100" step="1">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Fill Type</label>
+                            <select id="shapeFillType" class="form-select">
+                                <option value="color">Color</option>
+                                <option value="image">Image</option>
+                                <option value="gradient">Gradient</option>
+                            </select>
+                        </div>
+                        <div id="shapeFillColor" class="form-group">
+                            <label class="form-label">Fill Color</label>
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <input type="color" id="shapeColor" class="form-input" style="height: 40px; flex: 1;">
+                                <input type="number" id="shapeColorOpacity" class="form-input" value="100" min="0" max="100" step="1" style="width: 80px;">
+                                <span style="color: #aaa; font-size: 12px;">%</span>
+                            </div>
+                        </div>
+                        <div id="shapeFillImage" class="form-group" style="display: none;">
+                            <label class="form-label">Fill Image URL</label>
+                            <div style="display: flex; gap: 8px;">
+                                <input type="text" id="shapeImageUrl" class="form-input" placeholder="Image URL" style="flex: 1;">
+                                <input type="file" id="uploadShapeImageBtn" accept="image/*" style="display: none;">
+                                <button type="button" class="btn btn-secondary btn-small" onclick="document.getElementById('uploadShapeImageBtn').click()">Upload</button>
+                            </div>
+                        </div>
+                        <div id="shapeFillGradient" class="form-group" style="display: none;">
+                            <label class="form-label">Gradient Type</label>
+                            <select id="shapeGradientType" class="form-select">
+                                <option value="linear">Linear</option>
+                                <option value="radial">Radial</option>
+                                <option value="conic">Conic</option>
+                            </select>
+                            <div class="form-group" style="margin-top: 12px;">
+                                <label class="form-label">Gradient Direction (for linear)</label>
+                                <select id="shapeGradientDirection" class="form-select">
+                                    <option value="to right">To Right</option>
+                                    <option value="to left">To Left</option>
+                                    <option value="to bottom">To Bottom</option>
+                                    <option value="to top">To Top</option>
+                                    <option value="to bottom right">To Bottom Right</option>
+                                    <option value="to bottom left">To Bottom Left</option>
+                                    <option value="to top right">To Top Right</option>
+                                    <option value="to top left">To Top Left</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Color 1</label>
+                                <div style="display: flex; gap: 8px; align-items: center;">
+                                    <input type="color" id="shapeGradientColor1" class="form-input" style="height: 40px; flex: 1;">
+                                    <input type="number" id="shapeGradientStop1" class="form-input" value="0" min="0" max="100" step="1" style="width: 80px;" placeholder="Stop %">
+                                    <span style="color: #aaa; font-size: 12px;">%</span>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Color 2</label>
+                                <div style="display: flex; gap: 8px; align-items: center;">
+                                    <input type="color" id="shapeGradientColor2" class="form-input" style="height: 40px; flex: 1;">
+                                    <input type="number" id="shapeGradientStop2" class="form-input" value="100" min="0" max="100" step="1" style="width: 80px;" placeholder="Stop %">
+                                    <span style="color: #aaa; font-size: 12px;">%</span>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-secondary btn-small" id="addGradientColorBtn" style="width: 100%; margin-top: 8px;">Add Color Stop</button>
+                            <div id="gradientColorStops" style="margin-top: 8px;"></div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Border Width (px)</label>
+                            <input type="number" id="shapeBorderWidth" class="form-input" value="0" min="0" step="1">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Border Color</label>
+                            <div class="color-input-group">
+                                <div class="color-picker-wrapper">
+                                    <input type="color" id="shapeBorderColor" class="form-input" style="height: 40px;">
+                                </div>
+                                <div class="input-group" style="width: 120px;">
+                                    <input type="number" id="shapeBorderOpacity" class="form-input" value="100" min="0" max="100" step="1">
+                                    <span class="input-group-label">%</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Border Radius (px)</label>
+                            <input type="number" id="shapeBorderRadius" class="form-input" value="0" min="0" step="1">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Opacity (%)</label>
+                            <input type="number" id="shapeOpacity" class="form-input" value="100" min="0" max="100" step="1">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Rotation (degrees)</label>
+                            <input type="number" id="shapeRotation" class="form-input" value="0" min="0" max="360" step="1">
+                        </div>
+                        <div style="display: flex; gap: 8px; margin-top: 12px;">
+                            <button class="btn btn-primary btn-small" id="updateShapeBtn" style="flex: 1;">Update Shape</button>
+                            <button class="btn btn-danger btn-small" id="removeShapeBtn" style="flex: 1;">Remove</button>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Fragments -->
             <div class="panel-section">
                 <div class="panel-title">
-                    <span>Fragments <span class="badge">Advanced</span></span>
-                    <button class="panel-toggle" onclick="toggleSection('fragments')">▼</button>
+                    <span>🔀 Fragments</span>
                 </div>
-                <div class="collapsible-content" id="fragments">
+                <button class="advanced-toggle" onclick="toggleAdvanced('fragments')">
+                    <span>⚙️ Fragment Settings</span>
+                    <span id="fragmentsIcon">▼</span>
+                </button>
+                <div class="advanced-section" id="fragments">
                     <div class="form-group">
                         <label class="form-label">Fragment Style</label>
                         <select id="fragmentStyle" class="form-select">
@@ -613,6 +1447,13 @@ Create your presentation using Markdown or HTML
                     <p style="font-size: 11px; color: #888; margin-top: 8px;">
                         Use <code>&lt;span class="fragment"&gt;</code> in your content to create fragments
                     </p>
+                    <div style="margin-top: 12px; padding: 10px; background: rgba(59, 130, 246, 0.1); border-radius: 6px; border-left: 3px solid #3b82f6;">
+                        <p style="font-size: 11px; color: #93c5fd; margin: 0 0 6px 0; font-weight: 600;">✨ Appearance Animations</p>
+                        <p style="font-size: 10px; color: #888; margin: 0;">
+                            Add <code>data-appearance="fade-in"</code> to elements for sequential animations. 
+                            Options: fade-in, fade-up, fade-down, zoom-in, slide-in
+                        </p>
+                    </div>
                 </div>
             </div>
 
@@ -624,6 +1465,10 @@ Create your presentation using Markdown or HTML
         </div>
     </div>
 
+    <!-- Quill.js WYSIWYG Editor -->
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+    <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+    
     <!-- Reveal.js JavaScript -->
     <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/plugin/markdown/markdown.js"></script>
@@ -631,9 +1476,23 @@ Create your presentation using Markdown or HTML
     <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/plugin/highlight/highlight.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/plugin/zoom/zoom.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/plugin/search/search.js"></script>
+    
+    <!-- Appearance Plugin for Sequential Animations -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js-appearance@1.3.0/plugin/appearance/appearance.css">
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js-appearance@1.3.0/plugin/appearance/appearance.js"></script>
+    
+    <!-- Chalkboard Plugin for Annotations -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rajgoel/reveal.js-plugins@master/chalkboard/plugin.css">
+    <script src="https://cdn.jsdelivr.net/gh/rajgoel/reveal.js-plugins@master/chalkboard/plugin.js"></script>
+    
+    <!-- Menu Plugin for Navigation -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rajgoel/reveal.js-plugins@master/menu/plugin.css">
+    <script src="https://cdn.jsdelivr.net/gh/rajgoel/reveal.js-plugins@master/menu/plugin.js"></script>
     <script>
         const API_BASE = window.location.origin;
         let reveal = null;
+        let quillEditor = null;
+        let editorMode = 'visual'; // 'visual' or 'markdown'
         let currentPresentation = {
             id: '',
             name: '',
@@ -656,6 +1515,150 @@ Create your presentation using Markdown or HTML
             const toggle = content.previousElementSibling.querySelector('.panel-toggle');
             content.classList.toggle('expanded');
             toggle.textContent = content.classList.contains('expanded') ? '▼' : '▶';
+        }
+
+        function toggleAdvanced(sectionId) {
+            const section = document.getElementById(sectionId);
+            const icon = document.getElementById(sectionId + 'Icon');
+            section.classList.toggle('expanded');
+            if (icon) {
+                icon.textContent = section.classList.contains('expanded') ? '▲' : '▼';
+            }
+        }
+
+        // Initialize Quill Editor
+        function initQuillEditor() {
+            if (typeof Quill === 'undefined') {
+                console.warn('Quill.js not loaded, falling back to textarea');
+                document.getElementById('quillEditor').style.display = 'none';
+                document.getElementById('slideContent').style.display = 'block';
+                editorMode = 'markdown';
+                return;
+            }
+
+            const quillContainer = document.getElementById('quillEditor');
+            const textarea = document.getElementById('slideContent');
+            
+            // Configure Quill with useful modules
+            quillEditor = new Quill('#quillEditor', {
+                theme: 'snow',
+                modules: {
+                    toolbar: [
+                        [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+                        ['bold', 'italic', 'underline', 'strike'],
+                        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                        [{ 'script': 'sub'}, { 'script': 'super' }],
+                        [{ 'indent': '-1'}, { 'indent': '+1' }],
+                        [{ 'color': [] }, { 'background': [] }],
+                        [{ 'align': [] }],
+                        ['link', 'image', 'video'],
+                        ['clean']
+                    ]
+                },
+                placeholder: 'Start typing your slide content...'
+            });
+
+            // Sync Quill content to textarea on change
+            quillEditor.on('text-change', function() {
+                const html = quillEditor.root.innerHTML;
+                textarea.value = htmlToMarkdown(html);
+            });
+
+            // Set initial mode
+            toggleEditorMode();
+        }
+
+        // Convert HTML to Markdown (simplified)
+        function htmlToMarkdown(html) {
+            if (!html || html === '<p><br></p>') return '';
+            
+            // Basic conversion - keep HTML for complex formatting
+            let markdown = html
+                .replace(/<h1>(.*?)<\/h1>/gi, '# $1\n\n')
+                .replace(/<h2>(.*?)<\/h2>/gi, '## $1\n\n')
+                .replace(/<h3>(.*?)<\/h3>/gi, '### $1\n\n')
+                .replace(/<strong>(.*?)<\/strong>/gi, '**$1**')
+                .replace(/<b>(.*?)<\/b>/gi, '**$1**')
+                .replace(/<em>(.*?)<\/em>/gi, '*$1*')
+                .replace(/<i>(.*?)<\/i>/gi, '*$1*')
+                .replace(/<ul>(.*?)<\/ul>/gis, '$1')
+                .replace(/<ol>(.*?)<\/ol>/gis, '$1')
+                .replace(/<li>(.*?)<\/li>/gi, '- $1\n')
+                .replace(/<p>(.*?)<\/p>/gi, '$1\n\n')
+                .replace(/<br\s*\/?>/gi, '\n')
+                .replace(/<a href="(.*?)">(.*?)<\/a>/gi, '[$2]($1)')
+                .replace(/<img src="(.*?)" alt="(.*?)"\/?>/gi, '![$2]($1)')
+                .trim();
+            
+            // If conversion resulted in mostly HTML tags, return original HTML
+            if (markdown.includes('<') && markdown.includes('>')) {
+                return html;
+            }
+            
+            return markdown;
+        }
+
+        // Convert Markdown/HTML to Quill Delta
+        function markdownToQuill(content) {
+            if (!content) return '';
+            
+            // If content looks like HTML, use it directly
+            if (content.includes('<') && content.includes('>')) {
+                return content;
+            }
+            
+            // Basic Markdown to HTML conversion
+            let html = content
+                .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+                .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+                .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2">$1</a>')
+                .replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" />')
+                .replace(/^- (.*$)/gim, '<li>$1</li>')
+                .replace(/\n\n/g, '</p><p>')
+                .replace(/\n/g, '<br>');
+            
+            if (!html.startsWith('<')) {
+                html = '<p>' + html + '</p>';
+            }
+            
+            return html;
+        }
+
+        // Toggle between visual and markdown editor
+        function toggleEditorMode() {
+            const quillContainer = document.getElementById('quillEditor');
+            const textarea = document.getElementById('slideContent');
+            const toggleBtn = document.getElementById('toggleEditorMode');
+            
+            if (editorMode === 'visual') {
+                // Show Quill, hide textarea
+                quillContainer.style.display = 'block';
+                textarea.style.display = 'none';
+                toggleBtn.textContent = '📝 Markdown';
+                toggleBtn.title = 'Switch to Markdown Editor';
+                
+                // Sync textarea content to Quill
+                if (quillEditor) {
+                    const content = textarea.value || '';
+                    const html = markdownToQuill(content);
+                    quillEditor.root.innerHTML = html;
+                }
+            } else {
+                // Show textarea, hide Quill
+                quillContainer.style.display = 'none';
+                textarea.style.display = 'block';
+                toggleBtn.textContent = '✨ Visual';
+                toggleBtn.title = 'Switch to Visual Editor';
+                
+                // Sync Quill content to textarea
+                if (quillEditor) {
+                    const html = quillEditor.root.innerHTML;
+                    textarea.value = htmlToMarkdown(html);
+                }
+            }
         }
 
         // Initialize Reveal.js
@@ -733,8 +1736,43 @@ Create your presentation using Markdown or HTML
                     RevealNotes, 
                     RevealHighlight,
                     RevealZoom,
-                    RevealSearch
-                ]
+                    RevealSearch,
+                    RevealAppearance,
+                    RevealChalkboard,
+                    RevealMenu
+                ],
+                chalkboard: {
+                    boardmarkerWidth: 3,
+                    chalkWidth: 4,
+                    chalkEffect: 0.5,
+                    storage: null,
+                    src: null,
+                    readOnly: false,
+                    toggleChalkboardButton: { left: "80px", bottom: "30px", top: "auto", right: "auto" },
+                    toggleNotesButton: { left: "130px", bottom: "30px", top: "auto", right: "auto" },
+                    color: [ 'rgba(0,0,255,1)', 'rgba(255,255,255,0.5)' ],
+                    background: [ 'rgba(127,127,127,.1)', 'rgba(0,0,0,0)' ],
+                    grid: { color: 'rgba(128,128,128,0.1)', distance: 80, width: 1 },
+                    eraser: { src: null, radius: 20 }
+                },
+                menu: {
+                    side: 'left',
+                    numbers: false,
+                    titleSelector: 'h1, h2, h3, h4, h5, h6',
+                    hideMissingTitles: false,
+                    markers: true,
+                    custom: false,
+                    themes: false,
+                    transitions: false,
+                    openButton: true,
+                    openSlideNumber: false,
+                    keyboard: true,
+                    sticky: false,
+                    autoOpen: true,
+                    delayInit: false,
+                    openOnInit: false,
+                    loadIcons: true
+                }
             });
 
             reveal.initialize().then(() => {
@@ -746,6 +1784,12 @@ Create your presentation using Markdown or HTML
                     currentVerticalIndex = event.indexv || 0;
                     updateSlideContent();
                     updateSlideProperties();
+                    updateImageList();
+                    updateShapeList();
+                    currentEditingImageIndex = -1;
+                    currentEditingShapeIndex = -1;
+                    document.getElementById('imageEditor').style.display = 'none';
+                    document.getElementById('shapeEditor').style.display = 'none';
                     updateSlideIndicator();
                 });
 
@@ -764,6 +1808,9 @@ Create your presentation using Markdown or HTML
 
         // Initialize
         async function init() {
+            // Initialize Quill editor first
+            initQuillEditor();
+            
             setupEventListeners();
             await loadPresentations();
             
@@ -771,11 +1818,26 @@ Create your presentation using Markdown or HTML
                 currentPresentation.slides = [{ 
                     content: '# Welcome\n\nCreate your presentation',
                     notes: '',
-                    properties: {}
+                    properties: {},
+                    images: []
                 }];
             }
             
+            // Ensure all slides have images and shapes arrays
+            currentPresentation.slides.forEach(slide => {
+                if (!slide.images) {
+                    slide.images = [];
+                }
+                if (!slide.shapes) {
+                    slide.shapes = [];
+                }
+            });
+            
             initReveal();
+            
+            // Initialize image and shape lists
+            updateImageList();
+            updateShapeList();
         }
 
         // Load presentations
@@ -802,6 +1864,23 @@ Create your presentation using Markdown or HTML
         }
 
         // Setup event listeners
+        // Update background color preview in real-time
+        function updateBgColorPreview() {
+            const bgColor = document.getElementById('slideBgColor').value || '#000000';
+            const bgColorOpacity = parseFloat(document.getElementById('slideBgColorOpacity').value) || 100;
+            const preview = document.getElementById('bgColorPreview');
+            
+            if (bgColor && bgColor.startsWith('#')) {
+                const r = parseInt(bgColor.slice(1, 3), 16);
+                const g = parseInt(bgColor.slice(3, 5), 16);
+                const b = parseInt(bgColor.slice(5, 7), 16);
+                const a = bgColorOpacity / 100;
+                preview.style.backgroundColor = `rgba(${r}, ${g}, ${b}, ${a})`;
+            } else {
+                preview.style.backgroundColor = bgColor;
+            }
+        }
+
         function setupEventListeners() {
             document.getElementById('presentationSelect').addEventListener('change', handlePresentationSelect);
             document.getElementById('saveBtn').addEventListener('click', savePresentation);
@@ -811,6 +1890,10 @@ Create your presentation using Markdown or HTML
             document.getElementById('addVerticalSlideBtn').addEventListener('click', addVerticalSlide);
             document.getElementById('removeSlideBtn').addEventListener('click', removeSlide);
             document.getElementById('updateSlideBtn').addEventListener('click', updateSlide);
+            document.getElementById('toggleEditorMode').addEventListener('click', function() {
+                editorMode = editorMode === 'visual' ? 'markdown' : 'visual';
+                toggleEditorMode();
+            });
             document.getElementById('prevBtn').addEventListener('click', () => {
                 if (reveal) reveal.prev();
             });
@@ -827,6 +1910,548 @@ Create your presentation using Markdown or HTML
             document.getElementById('autoSlide').addEventListener('change', updateGlobalSettings);
             document.getElementById('uploadImageBtn').addEventListener('change', handleImageUpload);
             document.getElementById('uploadVideoBtn').addEventListener('change', handleVideoUpload);
+            document.getElementById('addImageBtn').addEventListener('change', handleAddImageToSlide);
+            document.getElementById('updateImageBtn').addEventListener('click', updateImageProperties);
+            document.getElementById('removeImageBtn').addEventListener('click', removeCurrentImage);
+            
+            // Image property change listeners
+            ['imageX', 'imageY', 'imageWidth', 'imageHeight', 'imageCropX', 'imageCropY', 'imageCropWidth', 'imageCropHeight', 'imageBorderRadius', 'imageObjectFit', 'imageOpacity'].forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.addEventListener('input', updateImagePreview);
+                }
+            });
+            
+            // Shape event listeners
+            document.getElementById('addShapeBtn').addEventListener('click', addShape);
+            document.getElementById('updateShapeBtn').addEventListener('click', updateShapeProperties);
+            document.getElementById('removeShapeBtn').addEventListener('click', removeCurrentShape);
+            document.getElementById('shapeFillType').addEventListener('change', updateShapeFillType);
+            document.getElementById('addGradientColorBtn').addEventListener('click', addGradientColorStop);
+            document.getElementById('uploadShapeImageBtn').addEventListener('change', handleShapeImageUpload);
+            
+            // Shape property change listeners
+            ['shapeX', 'shapeY', 'shapeWidth', 'shapeHeight', 'shapeColor', 'shapeColorOpacity', 'shapeBorderWidth', 'shapeBorderColor', 'shapeBorderOpacity', 'shapeBorderRadius', 'shapeOpacity', 'shapeRotation'].forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.addEventListener('input', updateShapePreview);
+                }
+            });
+            
+            // Background color preview listeners
+            const bgColorInput = document.getElementById('slideBgColor');
+            const bgOpacityInput = document.getElementById('slideBgColorOpacity');
+            const bgPreview = document.getElementById('bgColorPreview');
+            
+            if (bgColorInput) {
+                bgColorInput.addEventListener('input', updateBgColorPreview);
+                bgColorInput.addEventListener('change', updateBgColorPreview);
+            }
+            if (bgOpacityInput) {
+                bgOpacityInput.addEventListener('input', updateBgColorPreview);
+                bgOpacityInput.addEventListener('change', updateBgColorPreview);
+            }
+            if (bgPreview) {
+                bgPreview.addEventListener('click', () => {
+                    // Apply background immediately on preview click
+                    updateSlide();
+                });
+            }
+        }
+        
+        let currentEditingImageIndex = -1;
+        
+        // Handle adding image to slide content
+        async function handleAddImageToSlide(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (!file.type.startsWith('image/')) {
+                showNotification('Please select an image file', 'error');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                showNotification('Uploading image...');
+                const response = await fetch(`${API_BASE}/api/graphics/upload/image`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const imageUrl = `${API_BASE}${data.url}`;
+                    
+                    // Add image to current slide
+                    if (!currentPresentation.slides) {
+                        currentPresentation.slides = [];
+                    }
+                    while (currentPresentation.slides.length <= currentSlideIndex) {
+                        currentPresentation.slides.push({ content: '', notes: '', properties: {}, images: [] });
+                    }
+                    
+                    if (!currentPresentation.slides[currentSlideIndex].images) {
+                        currentPresentation.slides[currentSlideIndex].images = [];
+                    }
+                    
+                    const newImage = {
+                        url: imageUrl,
+                        x: 50,
+                        y: 50,
+                        width: 50,
+                        height: 50,
+                        cropX: 0,
+                        cropY: 0,
+                        cropWidth: 100,
+                        cropHeight: 100,
+                        borderRadius: 0,
+                        objectFit: 'contain',
+                        opacity: 100
+                    };
+                    
+                    currentPresentation.slides[currentSlideIndex].images.push(newImage);
+                    updateImageList();
+                    editImage(currentPresentation.slides[currentSlideIndex].images.length - 1);
+                    loadSlidesIntoReveal(currentPresentation.slides);
+                    showNotification('Image added successfully');
+                } else {
+                    const error = await response.text();
+                    showNotification('Failed to upload image: ' + error, 'error');
+                }
+            } catch (error) {
+                console.error('Failed to upload image:', error);
+                showNotification('Failed to upload image', 'error');
+            }
+
+            // Reset file input
+            event.target.value = '';
+        }
+        
+        // Update image list display
+        function updateImageList() {
+            const imageList = document.getElementById('imageList');
+            imageList.innerHTML = '';
+            
+            if (!currentPresentation.slides || currentSlideIndex >= currentPresentation.slides.length) {
+                imageList.innerHTML = '<div class="empty-state"><div class="empty-state-text">No slide selected</div></div>';
+                return;
+            }
+            
+            const slide = currentPresentation.slides[currentSlideIndex];
+            if (!slide.images || slide.images.length === 0) {
+                imageList.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🖼️</div><div class="empty-state-text">No images on this slide<br>Click "Upload & Add" to add an image</div></div>';
+                return;
+            }
+            
+            slide.images.forEach((img, index) => {
+                const item = document.createElement('div');
+                item.className = 'list-item' + (currentEditingImageIndex === index ? ' active' : '');
+                item.innerHTML = `
+                    <img src="${img.url}" class="list-item-thumbnail" alt="Image ${index + 1}">
+                    <div class="list-item-content">
+                        <div class="list-item-title">Image ${index + 1}</div>
+                        <div class="list-item-subtitle">${img.url.split('/').pop()}</div>
+                    </div>
+                `;
+                item.addEventListener('click', () => editImage(index));
+                imageList.appendChild(item);
+            });
+        }
+        
+        // Edit image properties
+        function editImage(index) {
+            if (!currentPresentation.slides || currentSlideIndex >= currentPresentation.slides.length) {
+                return;
+            }
+            
+            const slide = currentPresentation.slides[currentSlideIndex];
+            if (!slide.images || index >= slide.images.length) {
+                return;
+            }
+            
+            currentEditingImageIndex = index;
+            const img = slide.images[index];
+            
+            document.getElementById('imageUrl').value = img.url;
+            document.getElementById('imageX').value = img.x || 50;
+            document.getElementById('imageY').value = img.y || 50;
+            document.getElementById('imageWidth').value = img.width || 50;
+            document.getElementById('imageHeight').value = img.height || 50;
+            document.getElementById('imageCropX').value = img.cropX || 0;
+            document.getElementById('imageCropY').value = img.cropY || 0;
+            document.getElementById('imageCropWidth').value = img.cropWidth || 100;
+            document.getElementById('imageCropHeight').value = img.cropHeight || 100;
+            document.getElementById('imageBorderRadius').value = img.borderRadius || 0;
+            document.getElementById('imageObjectFit').value = img.objectFit || 'contain';
+            document.getElementById('imageOpacity').value = img.opacity || 100;
+            
+            document.getElementById('imageEditor').style.display = 'block';
+            updateImageList();
+        }
+        
+        // Update image properties
+        function updateImageProperties() {
+            if (currentEditingImageIndex < 0) return;
+            
+            if (!currentPresentation.slides || currentSlideIndex >= currentPresentation.slides.length) {
+                return;
+            }
+            
+            const slide = currentPresentation.slides[currentSlideIndex];
+            if (!slide.images || currentEditingImageIndex >= slide.images.length) {
+                return;
+            }
+            
+            const img = slide.images[currentEditingImageIndex];
+            img.x = parseFloat(document.getElementById('imageX').value) || 50;
+            img.y = parseFloat(document.getElementById('imageY').value) || 50;
+            img.width = parseFloat(document.getElementById('imageWidth').value) || 50;
+            img.height = parseFloat(document.getElementById('imageHeight').value) || 50;
+            img.cropX = parseFloat(document.getElementById('imageCropX').value) || 0;
+            img.cropY = parseFloat(document.getElementById('imageCropY').value) || 0;
+            img.cropWidth = parseFloat(document.getElementById('imageCropWidth').value) || 100;
+            img.cropHeight = parseFloat(document.getElementById('imageCropHeight').value) || 100;
+            img.borderRadius = parseFloat(document.getElementById('imageBorderRadius').value) || 0;
+            img.objectFit = document.getElementById('imageObjectFit').value || 'contain';
+            img.opacity = parseFloat(document.getElementById('imageOpacity').value) || 100;
+            
+            loadSlidesIntoReveal(currentPresentation.slides);
+            updateImageList();
+            showNotification('Image updated');
+        }
+        
+        // Remove current image
+        function removeCurrentImage() {
+            if (currentEditingImageIndex < 0) return;
+            
+            if (!currentPresentation.slides || currentSlideIndex >= currentPresentation.slides.length) {
+                return;
+            }
+            
+            const slide = currentPresentation.slides[currentSlideIndex];
+            if (!slide.images || currentEditingImageIndex >= slide.images.length) {
+                return;
+            }
+            
+            slide.images.splice(currentEditingImageIndex, 1);
+            currentEditingImageIndex = -1;
+            document.getElementById('imageEditor').style.display = 'none';
+            updateImageList();
+            loadSlidesIntoReveal(currentPresentation.slides);
+            showNotification('Image removed');
+        }
+        
+        // Update image preview (real-time updates)
+        function updateImagePreview() {
+            if (currentEditingImageIndex < 0) return;
+            updateImageProperties();
+        }
+        
+        let currentEditingShapeIndex = -1;
+        let gradientColorStops = [];
+        
+        // Add shape
+        function addShape() {
+            if (!currentPresentation.slides) {
+                currentPresentation.slides = [];
+            }
+            while (currentPresentation.slides.length <= currentSlideIndex) {
+                currentPresentation.slides.push({ content: '', notes: '', properties: {}, images: [], shapes: [] });
+            }
+            
+            if (!currentPresentation.slides[currentSlideIndex].shapes) {
+                currentPresentation.slides[currentSlideIndex].shapes = [];
+            }
+            
+            const shapeType = document.getElementById('shapeType').value;
+            const newShape = {
+                type: shapeType,
+                x: 50,
+                y: 50,
+                width: 30,
+                height: 30,
+                fillType: 'color',
+                color: '#3b82f6',
+                colorOpacity: 100,
+                imageUrl: '',
+                gradientType: 'linear',
+                gradientDirection: 'to right',
+                gradientColors: [{ color: '#3b82f6', stop: 0 }, { color: '#8b5cf6', stop: 100 }],
+                borderWidth: 0,
+                borderColor: '#000000',
+                borderOpacity: 100,
+                borderRadius: 0,
+                opacity: 100,
+                rotation: 0
+            };
+            
+            currentPresentation.slides[currentSlideIndex].shapes.push(newShape);
+            updateShapeList();
+            editShape(currentPresentation.slides[currentSlideIndex].shapes.length - 1);
+            loadSlidesIntoReveal(currentPresentation.slides);
+            showNotification('Shape added');
+        }
+        
+        // Update shape list display
+        function updateShapeList() {
+            const shapeList = document.getElementById('shapeList');
+            shapeList.innerHTML = '';
+            
+            if (!currentPresentation.slides || currentSlideIndex >= currentPresentation.slides.length) {
+                shapeList.innerHTML = '<div class="empty-state"><div class="empty-state-text">No slide selected</div></div>';
+                return;
+            }
+            
+            const slide = currentPresentation.slides[currentSlideIndex];
+            if (!slide.shapes || slide.shapes.length === 0) {
+                shapeList.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🔷</div><div class="empty-state-text">No shapes on this slide<br>Select a shape type and click "Add Shape"</div></div>';
+                return;
+            }
+            
+            slide.shapes.forEach((shape, index) => {
+                const item = document.createElement('div');
+                item.className = 'list-item' + (currentEditingShapeIndex === index ? ' active' : '');
+                
+                // Create preview thumbnail
+                let previewStyle = '';
+                if (shape.fillType === 'color') {
+                    const opacity = (shape.colorOpacity || 100) / 100;
+                    const color = shape.color || '#3b82f6';
+                    if (color.startsWith('#')) {
+                        const r = parseInt(color.slice(1, 3), 16);
+                        const g = parseInt(color.slice(3, 5), 16);
+                        const b = parseInt(color.slice(5, 7), 16);
+                        previewStyle = `background: rgba(${r}, ${g}, ${b}, ${opacity});`;
+                    } else {
+                        previewStyle = `background: ${color};`;
+                    }
+                } else if (shape.fillType === 'gradient' && shape.gradientColors) {
+                    const colors = shape.gradientColors.map(c => `${c.color} ${c.stop}%`).join(', ');
+                    if (shape.gradientType === 'radial') {
+                        previewStyle = `background: radial-gradient(circle, ${colors});`;
+                    } else if (shape.gradientType === 'conic') {
+                        previewStyle = `background: conic-gradient(${colors});`;
+                    } else {
+                        previewStyle = `background: linear-gradient(${shape.gradientDirection || 'to right'}, ${colors});`;
+                    }
+                } else {
+                    previewStyle = 'background: #888;';
+                }
+                
+                item.innerHTML = `
+                    <div class="list-item-thumbnail" style="${previewStyle}"></div>
+                    <div class="list-item-content">
+                        <div class="list-item-title">${shape.type.charAt(0).toUpperCase() + shape.type.slice(1)}</div>
+                        <div class="list-item-subtitle">${shape.fillType} • ${shape.width}% × ${shape.height}%</div>
+                    </div>
+                `;
+                item.addEventListener('click', () => editShape(index));
+                shapeList.appendChild(item);
+            });
+        }
+        
+        // Edit shape properties
+        function editShape(index) {
+            if (!currentPresentation.slides || currentSlideIndex >= currentPresentation.slides.length) {
+                return;
+            }
+            
+            const slide = currentPresentation.slides[currentSlideIndex];
+            if (!slide.shapes || index >= slide.shapes.length) {
+                return;
+            }
+            
+            currentEditingShapeIndex = index;
+            const shape = slide.shapes[index];
+            
+            document.getElementById('shapeTypeDisplay').value = shape.type;
+            document.getElementById('shapeX').value = shape.x || 50;
+            document.getElementById('shapeY').value = shape.y || 50;
+            document.getElementById('shapeWidth').value = shape.width || 30;
+            document.getElementById('shapeHeight').value = shape.height || 30;
+            document.getElementById('shapeFillType').value = shape.fillType || 'color';
+            document.getElementById('shapeColor').value = shape.color || '#3b82f6';
+            document.getElementById('shapeColorOpacity').value = shape.colorOpacity || 100;
+            document.getElementById('shapeImageUrl').value = shape.imageUrl || '';
+            document.getElementById('shapeGradientType').value = shape.gradientType || 'linear';
+            document.getElementById('shapeGradientDirection').value = shape.gradientDirection || 'to right';
+            document.getElementById('shapeBorderWidth').value = shape.borderWidth || 0;
+            document.getElementById('shapeBorderColor').value = shape.borderColor || '#000000';
+            document.getElementById('shapeBorderOpacity').value = shape.borderOpacity || 100;
+            document.getElementById('shapeBorderRadius').value = shape.borderRadius || 0;
+            document.getElementById('shapeOpacity').value = shape.opacity || 100;
+            document.getElementById('shapeRotation').value = shape.rotation || 0;
+            
+            // Setup gradient colors
+            if (shape.gradientColors && shape.gradientColors.length > 0) {
+                gradientColorStops = [...shape.gradientColors];
+                document.getElementById('shapeGradientColor1').value = shape.gradientColors[0].color || '#3b82f6';
+                document.getElementById('shapeGradientStop1').value = shape.gradientColors[0].stop || 0;
+                if (shape.gradientColors.length > 1) {
+                    document.getElementById('shapeGradientColor2').value = shape.gradientColors[1].color || '#8b5cf6';
+                    document.getElementById('shapeGradientStop2').value = shape.gradientColors[1].stop || 100;
+                }
+                updateGradientColorStops();
+            } else {
+                gradientColorStops = [{ color: '#3b82f6', stop: 0 }, { color: '#8b5cf6', stop: 100 }];
+            }
+            
+            updateShapeFillType();
+            document.getElementById('shapeEditor').style.display = 'block';
+            updateShapeList();
+        }
+        
+        // Update shape fill type display
+        function updateShapeFillType() {
+            const fillType = document.getElementById('shapeFillType').value;
+            document.getElementById('shapeFillColor').style.display = fillType === 'color' ? 'block' : 'none';
+            document.getElementById('shapeFillImage').style.display = fillType === 'image' ? 'block' : 'none';
+            document.getElementById('shapeFillGradient').style.display = fillType === 'gradient' ? 'block' : 'none';
+        }
+        
+        // Add gradient color stop
+        function addGradientColorStop() {
+            const color = document.getElementById('shapeGradientColor2').value;
+            const stop = parseFloat(document.getElementById('shapeGradientStop2').value) || 100;
+            gradientColorStops.push({ color, stop });
+            updateGradientColorStops();
+        }
+        
+        // Update gradient color stops display
+        function updateGradientColorStops() {
+            const container = document.getElementById('gradientColorStops');
+            container.innerHTML = '';
+            
+            const additionalStops = gradientColorStops.filter((stop, index) => index >= 2);
+            
+            if (additionalStops.length === 0) {
+                return;
+            }
+            
+            additionalStops.forEach((stop, localIndex) => {
+                const actualIndex = localIndex + 2;
+                const div = document.createElement('div');
+                div.style.cssText = 'display: flex; gap: 8px; align-items: center; margin-bottom: 8px; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;';
+                div.innerHTML = `
+                    <div class="color-picker-wrapper" style="flex: 1;">
+                        <input type="color" value="${stop.color}" class="form-input" style="height: 40px; width: 100%;" onchange="gradientColorStops[${actualIndex}].color = this.value; updateGradientColorStops(); updateShapePreview();">
+                    </div>
+                    <div class="input-group" style="width: 120px;">
+                        <input type="number" value="${stop.stop}" min="0" max="100" step="1" class="form-input" onchange="gradientColorStops[${actualIndex}].stop = parseFloat(this.value); updateGradientColorStops(); updateShapePreview();">
+                        <span class="input-group-label">%</span>
+                    </div>
+                    <button type="button" class="btn btn-danger btn-small" onclick="if(gradientColorStops.length > 2) { gradientColorStops.splice(${actualIndex}, 1); updateGradientColorStops(); updateShapePreview(); } else { showNotification('Gradient needs at least 2 color stops', 'error'); }" style="min-width: 80px;">Remove</button>
+                `;
+                container.appendChild(div);
+            });
+        }
+        
+        // Handle shape image upload
+        async function handleShapeImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (!file.type.startsWith('image/')) {
+                showNotification('Please select an image file', 'error');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                showNotification('Uploading image...');
+                const response = await fetch(`${API_BASE}/api/graphics/upload/image`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const imageUrl = `${API_BASE}${data.url}`;
+                    document.getElementById('shapeImageUrl').value = imageUrl;
+                    showNotification('Image uploaded successfully');
+                } else {
+                    const error = await response.text();
+                    showNotification('Failed to upload image: ' + error, 'error');
+                }
+            } catch (error) {
+                console.error('Failed to upload image:', error);
+                showNotification('Failed to upload image', 'error');
+            }
+
+            event.target.value = '';
+        }
+        
+        // Update shape properties
+        function updateShapeProperties() {
+            if (currentEditingShapeIndex < 0) return;
+            
+            if (!currentPresentation.slides || currentSlideIndex >= currentPresentation.slides.length) {
+                return;
+            }
+            
+            const slide = currentPresentation.slides[currentSlideIndex];
+            if (!slide.shapes || currentEditingShapeIndex >= slide.shapes.length) {
+                return;
+            }
+            
+            const shape = slide.shapes[currentEditingShapeIndex];
+            shape.x = parseFloat(document.getElementById('shapeX').value) || 50;
+            shape.y = parseFloat(document.getElementById('shapeY').value) || 50;
+            shape.width = parseFloat(document.getElementById('shapeWidth').value) || 30;
+            shape.height = parseFloat(document.getElementById('shapeHeight').value) || 30;
+            shape.fillType = document.getElementById('shapeFillType').value || 'color';
+            shape.color = document.getElementById('shapeColor').value || '#3b82f6';
+            shape.colorOpacity = parseFloat(document.getElementById('shapeColorOpacity').value) || 100;
+            shape.imageUrl = document.getElementById('shapeImageUrl').value || '';
+            shape.gradientType = document.getElementById('shapeGradientType').value || 'linear';
+            shape.gradientDirection = document.getElementById('shapeGradientDirection').value || 'to right';
+            shape.borderWidth = parseFloat(document.getElementById('shapeBorderWidth').value) || 0;
+            shape.borderColor = document.getElementById('shapeBorderColor').value || '#000000';
+            shape.borderOpacity = parseFloat(document.getElementById('shapeBorderOpacity').value) || 100;
+            shape.borderRadius = parseFloat(document.getElementById('shapeBorderRadius').value) || 0;
+            shape.opacity = parseFloat(document.getElementById('shapeOpacity').value) || 100;
+            shape.rotation = parseFloat(document.getElementById('shapeRotation').value) || 0;
+            
+            // Update gradient colors
+            gradientColorStops[0] = { color: document.getElementById('shapeGradientColor1').value, stop: parseFloat(document.getElementById('shapeGradientStop1').value) || 0 };
+            gradientColorStops[1] = { color: document.getElementById('shapeGradientColor2').value, stop: parseFloat(document.getElementById('shapeGradientStop2').value) || 100 };
+            shape.gradientColors = [...gradientColorStops];
+            
+            loadSlidesIntoReveal(currentPresentation.slides);
+            updateShapeList();
+            showNotification('Shape updated');
+        }
+        
+        // Remove current shape
+        function removeCurrentShape() {
+            if (currentEditingShapeIndex < 0) return;
+            
+            if (!currentPresentation.slides || currentSlideIndex >= currentPresentation.slides.length) {
+                return;
+            }
+            
+            const slide = currentPresentation.slides[currentSlideIndex];
+            if (!slide.shapes || currentEditingShapeIndex >= slide.shapes.length) {
+                return;
+            }
+            
+            slide.shapes.splice(currentEditingShapeIndex, 1);
+            currentEditingShapeIndex = -1;
+            document.getElementById('shapeEditor').style.display = 'none';
+            updateShapeList();
+            loadSlidesIntoReveal(currentPresentation.slides);
+            showNotification('Shape removed');
+        }
+        
+        // Update shape preview (real-time updates)
+        function updateShapePreview() {
+            if (currentEditingShapeIndex < 0) return;
+            updateShapeProperties();
         }
 
         // Handle image upload
@@ -945,7 +2570,7 @@ Create your presentation using Markdown or HTML
                     fragments: true,
                     autoAnimate: false,
                     autoSlide: 0,
-                    slides: [{ content: '# Welcome\n\nCreate your presentation', notes: '', properties: {} }]
+                    slides: [{ content: '# Welcome\n\nCreate your presentation', notes: '', properties: {}, images: [], shapes: [] }]
                 };
                 document.getElementById('presentationName').value = '';
                 document.getElementById('presentationId').value = '';
@@ -999,7 +2624,7 @@ Create your presentation using Markdown or HTML
         // Load slides into Reveal.js
         function loadSlidesIntoReveal(slides) {
             if (!slides || slides.length === 0) {
-                slides = [{ content: '# Welcome\n\nCreate your presentation', notes: '', properties: {} }];
+                slides = [{ content: '# Welcome\n\nCreate your presentation', notes: '', properties: {}, images: [], shapes: [] }];
             }
 
             const slidesContainer = document.getElementById('slides');
@@ -1008,10 +2633,21 @@ Create your presentation using Markdown or HTML
             slides.forEach((slide, index) => {
                 const section = document.createElement('section');
                 
+                // Ensure images array exists
+                if (!slide.images) {
+                    slide.images = [];
+                }
+                
                 // Apply slide properties
                 const props = slide.properties || {};
                 if (props.transition) section.setAttribute('data-transition', props.transition);
-                if (props.background) section.setAttribute('data-background', props.background);
+                // Always set background - even if it's black or default
+                if (props.background) {
+                    section.setAttribute('data-background', props.background);
+                } else {
+                    // Default to black if no background specified
+                    section.setAttribute('data-background', '#000000');
+                }
                 if (props.backgroundImage) section.setAttribute('data-background-image', props.backgroundImage);
                 if (props.backgroundVideo) section.setAttribute('data-background-video', props.backgroundVideo);
                 if (props.backgroundSize) section.setAttribute('data-background-size', props.backgroundSize);
@@ -1038,10 +2674,149 @@ Create your presentation using Markdown or HTML
                 script.textContent = slide.content || '';
                 section.appendChild(script);
                 
+                // Add images if present
+                if (slide.images && slide.images.length > 0) {
+                    const imagesContainer = document.createElement('div');
+                    imagesContainer.className = 'slide-images-container';
+                    imagesContainer.style.cssText = 'position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10;';
+                    
+                    slide.images.forEach((img) => {
+                        const imgElement = document.createElement('img');
+                        imgElement.src = img.url;
+                        imgElement.style.cssText = `
+                            position: absolute;
+                            left: ${img.x}%;
+                            top: ${img.y}%;
+                            width: ${img.width}%;
+                            height: ${img.height}%;
+                            object-fit: ${img.objectFit || 'contain'};
+                            border-radius: ${img.borderRadius || 0}px;
+                            opacity: ${(img.opacity || 100) / 100};
+                            transform: translate(-50%, -50%);
+                            pointer-events: auto;
+                        `;
+                        
+                        // Apply cropping using clip-path
+                        if (img.cropX !== undefined && img.cropY !== undefined && 
+                            img.cropWidth !== undefined && img.cropHeight !== undefined &&
+                            (img.cropX !== 0 || img.cropY !== 0 || img.cropWidth !== 100 || img.cropHeight !== 100)) {
+                            const clipX = img.cropX;
+                            const clipY = img.cropY;
+                            const clipWidth = img.cropWidth;
+                            const clipHeight = img.cropHeight;
+                            imgElement.style.clipPath = `inset(${clipY}% ${100 - clipX - clipWidth}% ${100 - clipY - clipHeight}% ${clipX}%)`;
+                        }
+                        
+                        imagesContainer.appendChild(imgElement);
+                    });
+                    
+                    section.appendChild(imagesContainer);
+                }
+                
+                // Add shapes if present
+                if (slide.shapes && slide.shapes.length > 0) {
+                    const shapesContainer = document.createElement('div');
+                    shapesContainer.className = 'slide-shapes-container';
+                    shapesContainer.style.cssText = 'position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9;';
+                    
+                    slide.shapes.forEach((shape) => {
+                        const shapeElement = document.createElement('div');
+                        shapeElement.style.cssText = `
+                            position: absolute;
+                            left: ${shape.x}%;
+                            top: ${shape.y}%;
+                            width: ${shape.width}%;
+                            height: ${shape.height}%;
+                            opacity: ${(shape.opacity || 100) / 100};
+                            transform: translate(-50%, -50%) rotate(${shape.rotation || 0}deg);
+                            pointer-events: auto;
+                        `;
+                        
+                        // Set shape type
+                        if (shape.type === 'circle' || shape.type === 'ellipse') {
+                            shapeElement.style.borderRadius = '50%';
+                        } else if (shape.type === 'triangle') {
+                            shapeElement.style.width = '0';
+                            shapeElement.style.height = '0';
+                            shapeElement.style.borderLeft = `${shape.width / 2}% solid transparent`;
+                            shapeElement.style.borderRight = `${shape.width / 2}% solid transparent`;
+                            shapeElement.style.borderBottom = `${shape.height}% solid`;
+                            shapeElement.style.borderTop = 'none';
+                            shapeElement.style.background = 'none';
+                        } else {
+                            shapeElement.style.borderRadius = `${shape.borderRadius || 0}px`;
+                        }
+                        
+                        // Set fill
+                        if (shape.fillType === 'color') {
+                            const opacity = (shape.colorOpacity || 100) / 100;
+                            const color = shape.color || '#3b82f6';
+                            if (color.startsWith('#')) {
+                                const r = parseInt(color.slice(1, 3), 16);
+                                const g = parseInt(color.slice(3, 5), 16);
+                                const b = parseInt(color.slice(5, 7), 16);
+                                shapeElement.style.backgroundColor = `rgba(${r}, ${g}, ${b}, ${opacity})`;
+                            } else {
+                                shapeElement.style.backgroundColor = color;
+                            }
+                        } else if (shape.fillType === 'image' && shape.imageUrl) {
+                            shapeElement.style.backgroundImage = `url(${shape.imageUrl})`;
+                            shapeElement.style.backgroundSize = 'cover';
+                            shapeElement.style.backgroundPosition = 'center';
+                        } else if (shape.fillType === 'gradient' && shape.gradientColors) {
+                            const colors = shape.gradientColors.map(c => {
+                                const opacity = 1; // Gradient colors use their own opacity
+                                if (c.color.startsWith('#')) {
+                                    const r = parseInt(c.color.slice(1, 3), 16);
+                                    const g = parseInt(c.color.slice(3, 5), 16);
+                                    const b = parseInt(c.color.slice(5, 7), 16);
+                                    return `rgba(${r}, ${g}, ${b}, ${opacity}) ${c.stop}%`;
+                                }
+                                return `${c.color} ${c.stop}%`;
+                            }).join(', ');
+                            
+                            if (shape.gradientType === 'radial') {
+                                shapeElement.style.background = `radial-gradient(circle, ${colors})`;
+                            } else if (shape.gradientType === 'conic') {
+                                shapeElement.style.background = `conic-gradient(${colors})`;
+                            } else {
+                                shapeElement.style.background = `linear-gradient(${shape.gradientDirection || 'to right'}, ${colors})`;
+                            }
+                        }
+                        
+                        // Set border
+                        if (shape.borderWidth > 0) {
+                            const borderOpacity = (shape.borderOpacity || 100) / 100;
+                            const borderColor = shape.borderColor || '#000000';
+                            if (borderColor.startsWith('#')) {
+                                const r = parseInt(borderColor.slice(1, 3), 16);
+                                const g = parseInt(borderColor.slice(3, 5), 16);
+                                const b = parseInt(borderColor.slice(5, 7), 16);
+                                shapeElement.style.border = `${shape.borderWidth}px solid rgba(${r}, ${g}, ${b}, ${borderOpacity})`;
+                            } else {
+                                shapeElement.style.border = `${shape.borderWidth}px solid ${borderColor}`;
+                            }
+                        }
+                        
+                        shapesContainer.appendChild(shapeElement);
+                    });
+                    
+                    section.appendChild(shapesContainer);
+                }
+                
                 // Add vertical slides if present
                 if (slide.verticalSlides && slide.verticalSlides.length > 0) {
                     slide.verticalSlides.forEach((verticalSlide) => {
                         const verticalSection = document.createElement('section');
+                        
+                        // Ensure images and shapes arrays exist
+                        if (!verticalSlide.images) {
+                            verticalSlide.images = [];
+                        }
+                        if (!verticalSlide.shapes) {
+                            verticalSlide.shapes = [];
+                        }
+                        
                         const verticalProps = verticalSlide.properties || {};
                         
                         if (verticalProps.transition) verticalSection.setAttribute('data-transition', verticalProps.transition);
@@ -1069,6 +2844,135 @@ Create your presentation using Markdown or HTML
                         verticalScript.textContent = verticalSlide.content || '';
                         verticalSection.appendChild(verticalScript);
                         
+                        // Add images to vertical slide if present
+                        if (verticalSlide.images && verticalSlide.images.length > 0) {
+                            const imagesContainer = document.createElement('div');
+                            imagesContainer.className = 'slide-images-container';
+                            imagesContainer.style.cssText = 'position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10;';
+                            
+                            verticalSlide.images.forEach((img) => {
+                                const imgElement = document.createElement('img');
+                                imgElement.src = img.url;
+                                imgElement.style.cssText = `
+                                    position: absolute;
+                                    left: ${img.x}%;
+                                    top: ${img.y}%;
+                                    width: ${img.width}%;
+                                    height: ${img.height}%;
+                                    object-fit: ${img.objectFit || 'contain'};
+                                    border-radius: ${img.borderRadius || 0}px;
+                                    opacity: ${(img.opacity || 100) / 100};
+                                    transform: translate(-50%, -50%);
+                                    pointer-events: auto;
+                                `;
+                                
+                                // Apply cropping using clip-path
+                                if (img.cropX !== undefined && img.cropY !== undefined && 
+                                    img.cropWidth !== undefined && img.cropHeight !== undefined &&
+                                    (img.cropX !== 0 || img.cropY !== 0 || img.cropWidth !== 100 || img.cropHeight !== 100)) {
+                                    const clipX = img.cropX;
+                                    const clipY = img.cropY;
+                                    const clipWidth = img.cropWidth;
+                                    const clipHeight = img.cropHeight;
+                                    imgElement.style.clipPath = `inset(${clipY}% ${100 - clipX - clipWidth}% ${100 - clipY - clipHeight}% ${clipX}%)`;
+                                }
+                                
+                                imagesContainer.appendChild(imgElement);
+                            });
+                            
+                            verticalSection.appendChild(imagesContainer);
+                        }
+                        
+                        // Add shapes to vertical slide if present
+                        if (verticalSlide.shapes && verticalSlide.shapes.length > 0) {
+                            const shapesContainer = document.createElement('div');
+                            shapesContainer.className = 'slide-shapes-container';
+                            shapesContainer.style.cssText = 'position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9;';
+                            
+                            verticalSlide.shapes.forEach((shape) => {
+                                const shapeElement = document.createElement('div');
+                                shapeElement.style.cssText = `
+                                    position: absolute;
+                                    left: ${shape.x}%;
+                                    top: ${shape.y}%;
+                                    width: ${shape.width}%;
+                                    height: ${shape.height}%;
+                                    opacity: ${(shape.opacity || 100) / 100};
+                                    transform: translate(-50%, -50%) rotate(${shape.rotation || 0}deg);
+                                    pointer-events: auto;
+                                `;
+                                
+                                // Set shape type
+                                if (shape.type === 'circle' || shape.type === 'ellipse') {
+                                    shapeElement.style.borderRadius = '50%';
+                                } else if (shape.type === 'triangle') {
+                                    shapeElement.style.width = '0';
+                                    shapeElement.style.height = '0';
+                                    shapeElement.style.borderLeft = `${shape.width / 2}% solid transparent`;
+                                    shapeElement.style.borderRight = `${shape.width / 2}% solid transparent`;
+                                    shapeElement.style.borderBottom = `${shape.height}% solid`;
+                                    shapeElement.style.borderTop = 'none';
+                                    shapeElement.style.background = 'none';
+                                } else {
+                                    shapeElement.style.borderRadius = `${shape.borderRadius || 0}px`;
+                                }
+                                
+                                // Set fill (same logic as main slides)
+                                if (shape.fillType === 'color') {
+                                    const opacity = (shape.colorOpacity || 100) / 100;
+                                    const color = shape.color || '#3b82f6';
+                                    if (color.startsWith('#')) {
+                                        const r = parseInt(color.slice(1, 3), 16);
+                                        const g = parseInt(color.slice(3, 5), 16);
+                                        const b = parseInt(color.slice(5, 7), 16);
+                                        shapeElement.style.backgroundColor = `rgba(${r}, ${g}, ${b}, ${opacity})`;
+                                    } else {
+                                        shapeElement.style.backgroundColor = color;
+                                    }
+                                } else if (shape.fillType === 'image' && shape.imageUrl) {
+                                    shapeElement.style.backgroundImage = `url(${shape.imageUrl})`;
+                                    shapeElement.style.backgroundSize = 'cover';
+                                    shapeElement.style.backgroundPosition = 'center';
+                                } else if (shape.fillType === 'gradient' && shape.gradientColors) {
+                                    const colors = shape.gradientColors.map(c => {
+                                        if (c.color.startsWith('#')) {
+                                            const r = parseInt(c.color.slice(1, 3), 16);
+                                            const g = parseInt(c.color.slice(3, 5), 16);
+                                            const b = parseInt(c.color.slice(5, 7), 16);
+                                            return `rgba(${r}, ${g}, ${b}, 1) ${c.stop}%`;
+                                        }
+                                        return `${c.color} ${c.stop}%`;
+                                    }).join(', ');
+                                    
+                                    if (shape.gradientType === 'radial') {
+                                        shapeElement.style.background = `radial-gradient(circle, ${colors})`;
+                                    } else if (shape.gradientType === 'conic') {
+                                        shapeElement.style.background = `conic-gradient(${colors})`;
+                                    } else {
+                                        shapeElement.style.background = `linear-gradient(${shape.gradientDirection || 'to right'}, ${colors})`;
+                                    }
+                                }
+                                
+                                // Set border
+                                if (shape.borderWidth > 0) {
+                                    const borderOpacity = (shape.borderOpacity || 100) / 100;
+                                    const borderColor = shape.borderColor || '#000000';
+                                    if (borderColor.startsWith('#')) {
+                                        const r = parseInt(borderColor.slice(1, 3), 16);
+                                        const g = parseInt(borderColor.slice(3, 5), 16);
+                                        const b = parseInt(borderColor.slice(5, 7), 16);
+                                        shapeElement.style.border = `${shape.borderWidth}px solid rgba(${r}, ${g}, ${b}, ${borderOpacity})`;
+                                    } else {
+                                        shapeElement.style.border = `${shape.borderWidth}px solid ${borderColor}`;
+                                    }
+                                }
+                                
+                                shapesContainer.appendChild(shapeElement);
+                            });
+                            
+                            verticalSection.appendChild(shapesContainer);
+                        }
+                        
                         section.appendChild(verticalSection);
                     });
                 }
@@ -1081,6 +2985,9 @@ Create your presentation using Markdown or HTML
                     reveal.slide(currentSlideIndex, currentVerticalIndex);
                     updateSlideContent();
                     updateSlideProperties();
+                    updateImageList();
+                    currentEditingImageIndex = -1;
+                    document.getElementById('imageEditor').style.display = 'none';
                     updateSlideIndicator();
                 }).catch((error) => {
                     console.error('Failed to reinitialize Reveal.js:', error);
@@ -1099,7 +3006,9 @@ Create your presentation using Markdown or HTML
             const newSlide = { 
                 content: '# New Slide\n\nAdd your content here',
                 notes: '',
-                properties: {}
+                properties: {},
+                images: [],
+                shapes: []
             };
             const insertIndex = currentSlideIndex + 1;
             currentPresentation.slides.splice(insertIndex, 0, newSlide);
@@ -1127,7 +3036,9 @@ Create your presentation using Markdown or HTML
             const newVerticalSlide = {
                 content: '# Vertical Slide\n\nSub-slide content',
                 notes: '',
-                properties: {}
+                properties: {},
+                images: [],
+                shapes: []
             };
             
             currentSlide.verticalSlides.push(newVerticalSlide);
@@ -1157,7 +3068,18 @@ Create your presentation using Markdown or HTML
 
         // Update slide
         function updateSlide() {
-            const content = document.getElementById('slideContent').value;
+            // Get content from appropriate editor
+            let content;
+            if (editorMode === 'visual' && quillEditor) {
+                // Get HTML from Quill and convert to markdown
+                const html = quillEditor.root.innerHTML;
+                content = htmlToMarkdown(html);
+                // Also update textarea for consistency
+                document.getElementById('slideContent').value = content;
+            } else {
+                content = document.getElementById('slideContent').value;
+            }
+            
             const notes = document.getElementById('slideNotes').value;
             
             if (!currentPresentation.slides) {
@@ -1165,13 +3087,40 @@ Create your presentation using Markdown or HTML
             }
             
             while (currentPresentation.slides.length <= currentSlideIndex) {
-                currentPresentation.slides.push({ content: '', notes: '', properties: {} });
+                currentPresentation.slides.push({ content: '', notes: '', properties: {}, images: [], shapes: [] });
+            }
+            
+            // Ensure images and shapes arrays exist
+            if (!currentPresentation.slides[currentSlideIndex].images) {
+                currentPresentation.slides[currentSlideIndex].images = [];
+            }
+            if (!currentPresentation.slides[currentSlideIndex].shapes) {
+                currentPresentation.slides[currentSlideIndex].shapes = [];
             }
             
             // Get properties from UI
+            const bgColor = document.getElementById('slideBgColor').value || '#000000';
+            const bgColorOpacity = parseFloat(document.getElementById('slideBgColorOpacity').value) || 100;
+            
+            // Convert hex color + opacity to rgba - ALWAYS set a background
+            let backgroundValue = bgColor;
+            if (bgColor && bgColor.startsWith('#')) {
+                const r = parseInt(bgColor.slice(1, 3), 16);
+                const g = parseInt(bgColor.slice(3, 5), 16);
+                const b = parseInt(bgColor.slice(5, 7), 16);
+                const a = bgColorOpacity / 100;
+                // Always create rgba, even if opacity is 100%
+                if (a === 1.0) {
+                    backgroundValue = `rgb(${r}, ${g}, ${b})`;
+                } else {
+                    backgroundValue = `rgba(${r}, ${g}, ${b}, ${a})`;
+                }
+            }
+            
             const props = {
                 transition: document.getElementById('slideTransition').value || null,
-                background: document.getElementById('slideBgColor').value !== '#000000' ? document.getElementById('slideBgColor').value : null,
+                background: backgroundValue, // Always set background, even if black
+                backgroundOpacity: bgColorOpacity,
                 backgroundImage: document.getElementById('slideBgImage').value || null,
                 backgroundVideo: document.getElementById('slideBgVideo').value || null,
                 backgroundSize: document.getElementById('slideBgSize').value || null,
@@ -1180,9 +3129,9 @@ Create your presentation using Markdown or HTML
                 autoAnimateEasing: document.getElementById('slideAutoAnimateEasing').value || null
             };
             
-            // Remove null values
+            // Remove null/empty values, but KEEP background
             Object.keys(props).forEach(key => {
-                if (props[key] === null || props[key] === '') {
+                if (key !== 'background' && (props[key] === null || props[key] === '')) {
                     delete props[key];
                 }
             });
@@ -1199,16 +3148,29 @@ Create your presentation using Markdown or HTML
             if (!currentPresentation.slides || currentPresentation.slides.length === 0) {
                 document.getElementById('slideContent').value = '';
                 document.getElementById('slideNotes').value = '';
+                if (quillEditor) {
+                    quillEditor.root.innerHTML = '';
+                }
                 return;
             }
             
             if (currentSlideIndex < currentPresentation.slides.length) {
                 const slide = currentPresentation.slides[currentSlideIndex];
-                document.getElementById('slideContent').value = slide.content || '';
+                const content = slide.content || '';
+                document.getElementById('slideContent').value = content;
                 document.getElementById('slideNotes').value = slide.notes || '';
+                
+                // Update Quill editor if in visual mode
+                if (quillEditor && editorMode === 'visual') {
+                    const html = markdownToQuill(content);
+                    quillEditor.root.innerHTML = html;
+                }
             } else {
                 document.getElementById('slideContent').value = '';
                 document.getElementById('slideNotes').value = '';
+                if (quillEditor) {
+                    quillEditor.root.innerHTML = '';
+                }
             }
         }
 
@@ -1221,13 +3183,34 @@ Create your presentation using Markdown or HTML
             if (currentSlideIndex < currentPresentation.slides.length) {
                 const props = currentPresentation.slides[currentSlideIndex].properties || {};
                 document.getElementById('slideTransition').value = props.transition || '';
-                document.getElementById('slideBgColor').value = props.background || '#000000';
+                
+                // Handle background color - extract hex from rgba if needed
+                let bgColor = props.background || '#000000';
+                let bgOpacity = props.backgroundOpacity || 100;
+                
+                if (bgColor.startsWith('rgba')) {
+                    const match = bgColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+                    if (match) {
+                        const r = parseInt(match[1]);
+                        const g = parseInt(match[2]);
+                        const b = parseInt(match[3]);
+                        const a = match[4] ? parseFloat(match[4]) : 1;
+                        bgColor = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+                        bgOpacity = Math.round(a * 100);
+                    }
+                }
+                
+                document.getElementById('slideBgColor').value = bgColor;
+                document.getElementById('slideBgColorOpacity').value = bgOpacity;
                 document.getElementById('slideBgImage').value = props.backgroundImage || '';
                 document.getElementById('slideBgVideo').value = props.backgroundVideo || '';
                 document.getElementById('slideBgSize').value = props.backgroundSize || '';
                 document.getElementById('slideAutoAnimate').checked = props.autoAnimate || false;
                 document.getElementById('slideAutoAnimateDuration').value = props.autoAnimateDuration || '1.0';
                 document.getElementById('slideAutoAnimateEasing').value = props.autoAnimateEasing || 'ease';
+                
+                // Update preview
+                updateBgColorPreview();
             }
         }
 
@@ -1286,6 +3269,11 @@ Create your presentation using Markdown or HTML
                 return;
             }
 
+            const saveBtn = document.getElementById('saveBtn');
+            const originalText = saveBtn.textContent;
+            saveBtn.classList.add('loading');
+            saveBtn.disabled = true;
+
             currentPresentation.name = name;
             currentPresentation.id = id;
 
@@ -1307,6 +3295,10 @@ Create your presentation using Markdown or HTML
             } catch (error) {
                 console.error('Failed to save presentation:', error);
                 showNotification('Failed to save presentation', 'error');
+            } finally {
+                saveBtn.classList.remove('loading');
+                saveBtn.disabled = false;
+                saveBtn.textContent = originalText;
             }
         }
 
@@ -1316,6 +3308,11 @@ Create your presentation using Markdown or HTML
                 showNotification('Please save the presentation first', 'error');
                 return;
             }
+
+            const exportBtn = document.getElementById('exportBtn');
+            const originalText = exportBtn.textContent;
+            exportBtn.classList.add('loading');
+            exportBtn.disabled = true;
 
             try {
                 const response = await fetch(`${API_BASE}/api/graphics/export/${currentPresentation.id}`, {
@@ -1331,6 +3328,10 @@ Create your presentation using Markdown or HTML
             } catch (error) {
                 console.error('Failed to export presentation:', error);
                 showNotification('Failed to export presentation', 'error');
+            } finally {
+                exportBtn.classList.remove('loading');
+                exportBtn.disabled = false;
+                exportBtn.textContent = originalText;
             }
         }
 
@@ -1366,6 +3367,26 @@ Create your presentation using Markdown or HTML
         }
 
         // Initialize on load
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Don't trigger shortcuts when typing in inputs
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                return;
+            }
+            
+            // Ctrl+S or Cmd+S to save
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                savePresentation();
+            }
+            
+            // F11 for fullscreen
+            if (e.key === 'F11') {
+                e.preventDefault();
+                toggleFullscreen();
+            }
+        });
+
         window.addEventListener('load', () => {
             console.log('Page loaded, initializing graphics app...');
             if (typeof Reveal === 'undefined') {
