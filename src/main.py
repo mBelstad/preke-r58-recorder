@@ -151,6 +151,15 @@ async def graphics_app():
     return "<h1>Graphics App</h1><p>Graphics app not found.</p>"
 
 
+@app.get("/broadcast-graphics", response_class=HTMLResponse)
+async def broadcast_graphics_app():
+    """Serve the broadcast graphics management interface."""
+    graphics_path = Path(__file__).parent / "static" / "broadcast_graphics.html"
+    if graphics_path.exists():
+        return graphics_path.read_text()
+    return "<h1>Broadcast Graphics</h1><p>Broadcast graphics interface not found.</p>"
+
+
 @app.get("/control", response_class=HTMLResponse)
 async def control():
     """Serve the comprehensive device control interface."""
