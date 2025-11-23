@@ -69,6 +69,12 @@ static_path = Path(__file__).parent / "static"
 if static_path.exists():
     app.mount("/static", StaticFiles(directory=str(static_path)), name="static")
 
+# Mount Reveal.js dist files for serving presentations
+reveal_js_dist_path = Path(__file__).parent.parent / "reveal.js" / "dist"
+if reveal_js_dist_path.exists():
+    app.mount("/reveal.js", StaticFiles(directory=str(reveal_js_dist_path)), name="reveal.js")
+    logger.info(f"Mounted Reveal.js dist files at /reveal.js")
+
 # Create uploads directory for graphics
 uploads_dir = Path(__file__).parent.parent / "uploads"
 uploads_dir.mkdir(exist_ok=True)
@@ -113,7 +119,14 @@ async def graphics_app():
     """Serve the graphics/presentation app interface."""
     graphics_path = Path(__file__).parent / "static" / "graphics.html"
     if graphics_path.exists():
-        return graphics_path.read_text()
+        content = graphics_path.read_text()
+        # Add cache-busting meta tag
+        if '<meta name="viewport"' in content:
+            content = content.replace(
+                '<meta name="viewport"',
+                '<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">\n    <meta http-equiv="Pragma" content="no-cache">\n    <meta http-equiv="Expires" content="0">\n    <meta name="viewport"'
+            )
+        return content
     return "<h1>Graphics App</h1><p>Graphics app not found.</p>"
 
 
