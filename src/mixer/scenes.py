@@ -12,11 +12,12 @@ logger = logging.getLogger(__name__)
 class SceneSlot:
     """A single source slot in a scene."""
     source: str  # e.g., "cam0", "cam1", "presentation:1", "image:logo.png", "lower_third:name"
-    source_type: str = "video"  # "video", "image", "presentation", "graphics", "lower_third"
     x_rel: float  # 0.0-1.0
     y_rel: float  # 0.0-1.0
     w_rel: float  # 0.0-1.0
     h_rel: float  # 0.0-1.0
+    # Optional fields with defaults (must come after required fields)
+    source_type: str = "video"  # "video", "image", "presentation", "graphics", "lower_third"
     z: int = 0  # z-order (higher = on top)
     alpha: float = 1.0  # 0.0-1.0
     # Styling options
