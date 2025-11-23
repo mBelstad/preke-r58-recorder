@@ -108,6 +108,9 @@ class MixerCore:
 
             # Build and start pipeline
             try:
+                # Clean up any stuck GStreamer processes that might be holding video devices
+                self._cleanup_stuck_pipelines()
+                
                 self.pipeline = self._build_pipeline()
                 if not self.pipeline:
                     return False
@@ -339,6 +342,8 @@ class MixerCore:
             if "video60" in device or "hdmirx" in device.lower():
                 # HDMI input (NV24 format) - use EXACT same approach as working recorder pipeline
                 # Match the working pipeline exactly: format=NV24,width={width},height={height},framerate=60/1
+                # Then convert to NV12 and scale to match compositor input requirements
+                # Note: Don't specify width/height in NV12 caps - let videoscale handle it
                 source_str = (
                     f"v4l2src device={device} io-mode=mmap ! "
                     f"video/x-raw,format=NV24,width={width},height={height},framerate=60/1 ! "
@@ -599,8 +604,9 @@ class MixerCore:
         """Kill any stuck GStreamer processes that might be holding video devices."""
         try:
             # Find any gst-launch or python processes using video devices
+            # Also check for any process using video60 specifically
             result = subprocess.run(
-                ["pgrep", "-f", "gst.*video60|gst.*video[0-9]"],
+                ["pgrep", "-f", "gst.*video60|gst.*video[0-9]|python.*recorder|python.*preview"],
                 capture_output=True,
                 text=True,
                 timeout=2
@@ -615,7 +621,19 @@ class MixerCore:
                         except Exception as e:
                             logger.debug(f"Failed to kill process {pid}: {e}")
                 if pids:
-                    time.sleep(0.5)  # Give device time to release
+                    time.sleep(1.0)  # Give device time to release
+                    
+            # Additional check: try to open video60 to ensure it's released
+            if Path("/dev/video60").exists():
+                try:
+                    import fcntl
+                    with open("/dev/video60", 'r') as f:
+                        fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                        fcntl.flock(f, fcntl.LOCK_UN)
+                    logger.debug("Device /dev/video60 is available")
+                except (IOError, OSError) as e:
+                    logger.warning(f"Device /dev/video60 still appears busy: {e}")
+                    time.sleep(0.5)  # Wait a bit more
         except Exception as e:
             logger.debug(f"Error cleaning up stuck pipelines: {e}")
 

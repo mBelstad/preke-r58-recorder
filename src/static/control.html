@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>R58 Device Control</title>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+            color: #fff;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .app-container {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 16px;
+            padding: 16px;
+            height: 100vh;
+            max-height: 100vh;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .sidebar::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .sidebar::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.1);
+            border-radius: 2px;
+        }
+
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-width: 0;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 50%, #1a1a1a 100%);
+            border-radius: 12px;
+            padding: 16px 24px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.1);
+            flex-shrink: 0;
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #fff 0%, #60a5fa 50%, #fff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #10b981;
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+        }
+
+        .status-dot.error {
+            background: #ef4444;
+            box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+        }
+
+        .card {
+            background: linear-gradient(135deg, #1a1a1a 0%, #252525 100%);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.08);
+            backdrop-filter: blur(10px);
+        }
+
+        .card-title {
+            font-size: 0.875rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #9ca3af;
+            margin-bottom: 16px;
+        }
+
+        .nav-item {
+            padding: 12px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #9ca3af;
+            margin-bottom: 4px;
+        }
+
+        .nav-item:hover {
+            background: rgba(255,255,255,0.05);
+            color: #fff;
+        }
+
+        .nav-item.active {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(59, 130, 246, 0.1) 100%);
+            color: #60a5fa;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        .nav-icon {
+            font-size: 1.2rem;
+            width: 24px;
+            text-align: center;
+        }
+
+        .content-area {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding-right: 8px;
+        }
+
+        .content-area::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .content-area::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.1);
+            border-radius: 2px;
+        }
+
+        .panel {
+            display: none;
+        }
+
+        .panel.active {
+            display: block;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(239, 68, 68, 0.4);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-success:hover:not(:disabled) {
+            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+        }
+
+        .btn-secondary {
+            background: rgba(107, 114, 128, 0.2);
+            color: #e5e7eb;
+            border: 1px solid rgba(107, 114, 128, 0.3);
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: rgba(107, 114, 128, 0.3);
+            border-color: rgba(107, 114, 128, 0.5);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .camera-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .camera-card {
+            background: rgba(30, 30, 30, 0.6);
+            border-radius: 12px;
+            padding: 16px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .camera-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .camera-name {
+            font-weight: 700;
+            font-size: 1rem;
+            color: #fff;
+        }
+
+        .camera-status {
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .camera-status.idle {
+            background: rgba(156, 163, 175, 0.2);
+            color: #9ca3af;
+        }
+
+        .camera-status.recording {
+            background: rgba(220, 38, 38, 0.2);
+            color: #ef4444;
+        }
+
+        .camera-status.preview {
+            background: rgba(59, 130, 246, 0.2);
+            color: #60a5fa;
+        }
+
+        .camera-controls {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .camera-controls .btn {
+            flex: 1;
+            min-width: 100px;
+            padding: 10px 16px;
+            font-size: 0.8rem;
+        }
+
+        .scene-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .scene-button {
+            background: rgba(59, 130, 246, 0.1);
+            border: 2px solid rgba(59, 130, 246, 0.3);
+            color: #60a5fa;
+            padding: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 600;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .scene-button:hover {
+            background: rgba(59, 130, 246, 0.2);
+            border-color: rgba(59, 130, 246, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .scene-button.active {
+            background: rgba(59, 130, 246, 0.3);
+            border-color: #3b82f6;
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: rgba(30, 30, 30, 0.6);
+            border-radius: 8px;
+            padding: 16px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: #9ca3af;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #fff;
+            font-family: 'Courier New', monospace;
+        }
+
+        .alert {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            z-index: 2000;
+            animation: slideIn 0.3s;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .alert-success {
+            background: #10b981;
+            color: white;
+        }
+
+        .alert-error {
+            background: #ef4444;
+            color: white;
+        }
+
+        .alert-info {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .mixer-preview {
+            background: #000;
+            border-radius: 12px;
+            aspect-ratio: 16/9;
+            margin-bottom: 24px;
+            position: relative;
+            overflow: hidden;
+            border: 2px solid rgba(255,255,255,0.1);
+        }
+
+        .mixer-preview video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .mixer-preview-overlay {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 48px 24px;
+            color: #6b7280;
+        }
+
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        @media (max-width: 1200px) {
+            .app-container {
+                grid-template-columns: 240px 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .app-container {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 1fr;
+            }
+
+            .sidebar {
+                flex-direction: row;
+                overflow-x: auto;
+                overflow-y: hidden;
+                height: auto;
+            }
+
+            .nav-item {
+                white-space: nowrap;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="sidebar">
+            <div class="card">
+                <div class="card-title">Navigation</div>
+                <div class="nav-item active" data-panel="dashboard">
+                    <span class="nav-icon">📊</span>
+                    <span>Dashboard</span>
+                </div>
+                <div class="nav-item" data-panel="recording">
+                    <span class="nav-icon">🔴</span>
+                    <span>Recording</span>
+                </div>
+                <div class="nav-item" data-panel="preview">
+                    <span class="nav-icon">👁️</span>
+                    <span>Preview</span>
+                </div>
+                <div class="nav-item" data-panel="mixer">
+                    <span class="nav-icon">🎬</span>
+                    <span>Mixer</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="header">
+                <h1>R58 Device Control</h1>
+                <div class="status-badge" id="systemStatus">
+                    <div class="status-dot"></div>
+                    <span>System Online</span>
+                </div>
+            </div>
+
+            <div class="content-area">
+                <!-- Dashboard Panel -->
+                <div class="panel active" id="dashboard">
+                    <div class="card">
+                        <div class="card-title">System Overview</div>
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-label">Active Cameras</div>
+                                <div class="stat-value" id="activeCamerasCount">0 / 4</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">Recording Status</div>
+                                <div class="stat-value" id="recordingStatusText">IDLE</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">Mixer Status</div>
+                                <div class="stat-value" id="mixerStatusText">STOPPED</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">System Health</div>
+                                <div class="stat-value" id="systemHealthText">HEALTHY</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card" style="margin-top: 16px;">
+                        <div class="card-title">Camera Status</div>
+                        <div class="camera-grid" id="dashboardCameraGrid"></div>
+                    </div>
+                </div>
+
+                <!-- Recording Panel -->
+                <div class="panel" id="recording">
+                    <div class="card">
+                        <div class="card-title">Recording Control</div>
+                        <div class="btn-group" style="margin-bottom: 24px;">
+                            <button class="btn btn-success" onclick="startAllRecordings()">Start All Recordings</button>
+                            <button class="btn btn-danger" onclick="stopAllRecordings()">Stop All Recordings</button>
+                        </div>
+                        <div class="camera-grid" id="recordingCameraGrid"></div>
+                    </div>
+                </div>
+
+                <!-- Preview Panel -->
+                <div class="panel" id="preview">
+                    <div class="card">
+                        <div class="card-title">Preview Control</div>
+                        <div class="btn-group" style="margin-bottom: 24px;">
+                            <button class="btn btn-primary" onclick="startAllPreviews()">Start All Previews</button>
+                            <button class="btn btn-secondary" onclick="stopAllPreviews()">Stop All Previews</button>
+                        </div>
+                        <div class="camera-grid" id="previewCameraGrid"></div>
+                    </div>
+                </div>
+
+                <!-- Mixer Panel -->
+                <div class="panel" id="mixer">
+                    <div class="card">
+                        <div class="card-title">Mixer Control</div>
+                        <div class="mixer-preview">
+                            <video id="mixerPreviewVideo" autoplay muted playsinline></video>
+                            <div class="mixer-preview-overlay" id="mixerPreviewOverlay">STOPPED</div>
+                        </div>
+                        <div class="btn-group" style="margin-bottom: 24px;">
+                            <button class="btn btn-success" onclick="startMixer()">Start Mixer</button>
+                            <button class="btn btn-danger" onclick="stopMixer()">Stop Mixer</button>
+                        </div>
+                        <div class="card-title" style="margin-top: 24px;">Available Scenes</div>
+                        <div class="scene-grid" id="sceneGrid"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+        const HOSTNAME = window.location.hostname;
+        let cameras = {};
+        let mixerState = 'NULL';
+        let currentScene = null;
+        let scenes = [];
+        let statusInterval = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            setupNavigation();
+            loadInitialData();
+            startStatusPolling();
+        });
+
+        // Navigation
+        function setupNavigation() {
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const panelId = item.dataset.panel;
+                    switchPanel(panelId);
+                });
+            });
+        }
+
+        function switchPanel(panelId) {
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            document.querySelectorAll('.panel').forEach(panel => {
+                panel.classList.remove('active');
+            });
+
+            document.querySelector(`[data-panel="${panelId}"]`).classList.add('active');
+            document.getElementById(panelId).classList.add('active');
+
+            // Load panel-specific data
+            if (panelId === 'mixer') {
+                loadScenes();
+                checkMixerStatus();
+            }
+        }
+
+        // Load initial data
+        async function loadInitialData() {
+            await Promise.all([
+                checkSystemStatus(),
+                checkCameraStatus(),
+                checkMixerStatus()
+            ]);
+        }
+
+        // System status
+        async function checkSystemStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                const data = await response.json();
+                const badge = document.getElementById('systemStatus');
+                const dot = badge.querySelector('.status-dot');
+                if (data.status === 'healthy') {
+                    dot.classList.remove('error');
+                    badge.querySelector('span').textContent = 'System Online';
+                } else {
+                    dot.classList.add('error');
+                    badge.querySelector('span').textContent = 'System Error';
+                }
+            } catch (error) {
+                console.error('Failed to check system status:', error);
+            }
+        }
+
+        // Camera status
+        async function checkCameraStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/status`);
+                const data = await response.json();
+                cameras = data.cameras || {};
+                updateCameraDisplays();
+                updateDashboard();
+            } catch (error) {
+                console.error('Failed to check camera status:', error);
+            }
+        }
+
+        function updateCameraDisplays() {
+            updateCameraGrid('dashboardCameraGrid', true);
+            updateCameraGrid('recordingCameraGrid', false);
+            updateCameraGrid('previewCameraGrid', false);
+        }
+
+        function updateCameraGrid(gridId, showStatusOnly) {
+            const grid = document.getElementById(gridId);
+            if (!grid) return;
+
+            grid.innerHTML = '';
+            Object.entries(cameras).forEach(([camId, camData]) => {
+                const card = document.createElement('div');
+                card.className = 'camera-card';
+                
+                const camNumber = parseInt(camId.replace('cam', '')) + 1;
+                const status = camData.status || 'idle';
+                
+                let controls = '';
+                if (!showStatusOnly) {
+                    if (gridId === 'recordingCameraGrid') {
+                        controls = `
+                            <div class="camera-controls">
+                                <button class="btn btn-success" onclick="startRecording('${camId}')" ${status === 'recording' ? 'disabled' : ''}>
+                                    Start
+                                </button>
+                                <button class="btn btn-danger" onclick="stopRecording('${camId}')" ${status !== 'recording' ? 'disabled' : ''}>
+                                    Stop
+                                </button>
+                            </div>
+                        `;
+                    } else if (gridId === 'previewCameraGrid') {
+                        controls = `
+                            <div class="camera-controls">
+                                <button class="btn btn-primary" onclick="startPreview('${camId}')" ${status === 'preview' ? 'disabled' : ''}>
+                                    Start Preview
+                                </button>
+                                <button class="btn btn-secondary" onclick="stopPreview('${camId}')" ${status !== 'preview' ? 'disabled' : ''}>
+                                    Stop Preview
+                                </button>
+                            </div>
+                        `;
+                    }
+                }
+
+                card.innerHTML = `
+                    <div class="camera-header">
+                        <div class="camera-name">CAM ${camNumber}</div>
+                        <div class="camera-status ${status}">${status.toUpperCase()}</div>
+                    </div>
+                    ${controls}
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function updateDashboard() {
+            const recordingCount = Object.values(cameras).filter(c => c.status === 'recording').length;
+            const previewCount = Object.values(cameras).filter(c => c.status === 'preview').length;
+            const activeCount = recordingCount + previewCount;
+            
+            document.getElementById('activeCamerasCount').textContent = `${activeCount} / ${Object.keys(cameras).length}`;
+            document.getElementById('recordingStatusText').textContent = recordingCount > 0 ? 'RECORDING' : 'IDLE';
+            document.getElementById('recordingStatusText').style.color = recordingCount > 0 ? '#ef4444' : '#9ca3af';
+        }
+
+        // Recording controls
+        async function startRecording(camId) {
+            try {
+                const response = await fetch(`${API_BASE}/record/start/${camId}`, { method: 'POST' });
+                if (response.ok) {
+                    showAlert('Recording started', 'success');
+                    await checkCameraStatus();
+                } else {
+                    showAlert('Failed to start recording', 'error');
+                }
+            } catch (error) {
+                showAlert(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function stopRecording(camId) {
+            try {
+                const response = await fetch(`${API_BASE}/record/stop/${camId}`, { method: 'POST' });
+                if (response.ok) {
+                    showAlert('Recording stopped', 'success');
+                    await checkCameraStatus();
+                } else {
+                    showAlert('Failed to stop recording', 'error');
+                }
+            } catch (error) {
+                showAlert(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function startAllRecordings() {
+            try {
+                const response = await fetch(`${API_BASE}/record/start-all`, { method: 'POST' });
+                if (response.ok) {
+                    showAlert('All recordings started', 'success');
+                    await checkCameraStatus();
+                } else {
+                    showAlert('Failed to start recordings', 'error');
+                }
+            } catch (error) {
+                showAlert(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function stopAllRecordings() {
+            try {
+                const response = await fetch(`${API_BASE}/record/stop-all`, { method: 'POST' });
+                if (response.ok) {
+                    showAlert('All recordings stopped', 'success');
+                    await checkCameraStatus();
+                } else {
+                    showAlert('Failed to stop recordings', 'error');
+                }
+            } catch (error) {
+                showAlert(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Preview controls
+        async function startPreview(camId) {
+            try {
+                // Preview is managed via start-all, individual control would need API endpoint
+                await startAllPreviews();
+            } catch (error) {
+                showAlert(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function stopPreview(camId) {
+            try {
+                await stopAllPreviews();
+            } catch (error) {
+                showAlert(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function startAllPreviews() {
+            try {
+                const response = await fetch(`${API_BASE}/preview/start-all`, { method: 'POST' });
+                if (response.ok) {
+                    showAlert('All previews started', 'success');
+                    await checkCameraStatus();
+                } else {
+                    showAlert('Failed to start previews', 'error');
+                }
+            } catch (error) {
+                showAlert(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function stopAllPreviews() {
+            try {
+                const response = await fetch(`${API_BASE}/preview/stop-all`, { method: 'POST' });
+                if (response.ok) {
+                    showAlert('All previews stopped', 'success');
+                    await checkCameraStatus();
+                } else {
+                    showAlert('Failed to stop previews', 'error');
+                }
+            } catch (error) {
+                showAlert(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Mixer controls
+        async function loadScenes() {
+            try {
+                const response = await fetch(`${API_BASE}/api/scenes`);
+                const data = await response.json();
+                scenes = data.scenes || [];
+                renderScenes();
+            } catch (error) {
+                console.error('Failed to load scenes:', error);
+                document.getElementById('sceneGrid').innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div><div>Mixer not available</div></div>';
+            }
+        }
+
+        function renderScenes() {
+            const grid = document.getElementById('sceneGrid');
+            grid.innerHTML = '';
+            
+            scenes.forEach(scene => {
+                const btn = document.createElement('div');
+                btn.className = 'scene-button';
+                if (scene.id === currentScene) {
+                    btn.classList.add('active');
+                }
+                btn.textContent = scene.label;
+                btn.addEventListener('click', () => switchScene(scene.id));
+                grid.appendChild(btn);
+            });
+        }
+
+        async function switchScene(sceneId) {
+            try {
+                const response = await fetch(`${API_BASE}/api/mixer/set_scene`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: sceneId })
+                });
+                
+                if (response.ok) {
+                    currentScene = sceneId;
+                    renderScenes();
+                    await checkMixerStatus();
+                    showAlert(`Scene switched to ${sceneId}`, 'success');
+                } else {
+                    showAlert('Failed to switch scene', 'error');
+                }
+            } catch (error) {
+                showAlert(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function startMixer() {
+            try {
+                const response = await fetch(`${API_BASE}/api/mixer/start`, { method: 'POST' });
+                if (response.ok) {
+                    showAlert('Mixer started', 'success');
+                    await checkMixerStatus();
+                } else {
+                    showAlert('Failed to start mixer', 'error');
+                }
+            } catch (error) {
+                showAlert(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function stopMixer() {
+            try {
+                const response = await fetch(`${API_BASE}/api/mixer/stop`, { method: 'POST' });
+                if (response.ok) {
+                    showAlert('Mixer stopped', 'success');
+                    await checkMixerStatus();
+                } else {
+                    showAlert('Failed to stop mixer', 'error');
+                }
+            } catch (error) {
+                showAlert(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function checkMixerStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/api/mixer/status`);
+                const data = await response.json();
+                mixerState = data.state || 'NULL';
+                currentScene = data.current_scene;
+                
+                document.getElementById('mixerStatusText').textContent = mixerState === 'PLAYING' ? 'PLAYING' : 'STOPPED';
+                document.getElementById('mixerStatusText').style.color = mixerState === 'PLAYING' ? '#10b981' : '#9ca3af';
+                
+                const overlay = document.getElementById('mixerPreviewOverlay');
+                if (mixerState === 'PLAYING') {
+                    overlay.textContent = `PROGRAM - ${currentScene || 'Unknown'}`;
+                    updateMixerPreview();
+                } else {
+                    overlay.textContent = 'STOPPED';
+                    const video = document.getElementById('mixerPreviewVideo');
+                    video.src = '';
+                }
+                
+                renderScenes();
+            } catch (error) {
+                console.error('Failed to check mixer status:', error);
+                document.getElementById('mixerStatusText').textContent = 'UNAVAILABLE';
+                document.getElementById('mixerStatusText').style.color = '#ef4444';
+            }
+        }
+
+        function updateMixerPreview() {
+            const video = document.getElementById('mixerPreviewVideo');
+            const hlsUrl = `http://${HOSTNAME}:8888/mixer_program/index.m3u8`;
+            
+            if (video.src === hlsUrl) return;
+            
+            if (window.Hls && Hls.isSupported()) {
+                const hls = new Hls({
+                    enableWorker: true,
+                    lowLatencyMode: true,
+                    backBufferLength: 90
+                });
+                hls.loadSource(hlsUrl);
+                hls.attachMedia(video);
+                hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                    video.play().catch(e => console.error('Play error:', e));
+                });
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                video.src = hlsUrl;
+                video.play().catch(e => console.error('Play error:', e));
+            }
+        }
+
+        // Status polling
+        function startStatusPolling() {
+            statusInterval = setInterval(async () => {
+                await checkCameraStatus();
+                await checkMixerStatus();
+            }, 2000);
+        }
+
+        // Alert system
+        function showAlert(message, type = 'info') {
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+            document.body.appendChild(alert);
+            
+            setTimeout(() => {
+                alert.remove();
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
+
