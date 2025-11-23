@@ -604,10 +604,13 @@ class MixerCore:
     def _cleanup_stuck_pipelines(self) -> None:
         """Kill any stuck GStreamer processes that might be holding video devices."""
         try:
-            # Find any gst-launch or python processes using video devices
-            # Also check for any process using video60 specifically
+            import os
+            current_pid = os.getpid()
+            
+            # Find any gst-launch processes using video devices (but not our own process)
+            # Only look for gst-launch processes, not python processes (to avoid killing ourselves)
             result = subprocess.run(
-                ["pgrep", "-f", "gst.*video60|gst.*video[0-9]|python.*recorder|python.*preview"],
+                ["pgrep", "-f", "gst-launch.*video60|gst-launch.*video[0-9]"],
                 capture_output=True,
                 text=True,
                 timeout=2
@@ -615,12 +618,15 @@ class MixerCore:
             if result.returncode == 0:
                 pids = result.stdout.strip().split("\n")
                 for pid in pids:
-                    if pid:
-                        try:
-                            logger.warning(f"Killing stuck GStreamer process: {pid}")
-                            subprocess.run(["kill", "-9", pid], timeout=1, check=False)
-                        except Exception as e:
-                            logger.debug(f"Failed to kill process {pid}: {e}")
+                    if pid and pid.strip():
+                        pid_int = int(pid.strip())
+                        # Don't kill our own process
+                        if pid_int != current_pid:
+                            try:
+                                logger.warning(f"Killing stuck GStreamer process: {pid}")
+                                subprocess.run(["kill", "-9", pid], timeout=1, check=False)
+                            except Exception as e:
+                                logger.debug(f"Failed to kill process {pid}: {e}")
                 if pids:
                     time.sleep(1.0)  # Give device time to release
                     
