@@ -188,7 +188,8 @@ class GraphicsRenderer:
             r = int(hex_color[0:2], 16)
             g = int(hex_color[2:4], 16)
             b = int(hex_color[4:6], 16)
-            a = int(alpha * 255)
+            # Round alpha to nearest integer (0.5 * 255 = 127.5 -> 128)
+            a = int(round(alpha * 255))
             return f"0x{a:02X}{r:02X}{g:02X}{b:02X}"
         return "0xFFFFFFFF"
     
