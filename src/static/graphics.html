@@ -1478,8 +1478,8 @@ Create your presentation using Markdown or HTML
     <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/plugin/search/search.js"></script>
     
     <!-- Appearance Plugin for Sequential Animations -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js-appearance@1.3.0/plugin/appearance/appearance.css">
-    <script src="https://cdn.jsdelivr.net/npm/reveal.js-appearance@1.3.0/plugin/appearance/appearance.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/reveal.js-appearance@1.3.0/plugin/appearance/appearance.css">
+    <script src="https://unpkg.com/reveal.js-appearance@1.3.0/plugin/appearance/appearance.js"></script>
     
     <!-- Chalkboard Plugin for Annotations -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rajgoel/reveal.js-plugins@master/chalkboard/plugin.css">
@@ -1687,7 +1687,8 @@ Create your presentation using Markdown or HTML
             const autoSlide = parseInt(document.getElementById('autoSlide').value) || 0;
             const autoAnimate = document.getElementById('enableAutoAnimate').checked;
 
-            reveal = new Reveal({
+            // Build Reveal.js configuration
+            const revealConfig = {
                 hash: true,
                 controls: document.getElementById('enableControls').checked,
                 progress: document.getElementById('enableProgress').checked,
@@ -1730,18 +1731,33 @@ Create your presentation using Markdown or HTML
                 parallaxBackgroundRepeat: '',
                 parallaxBackgroundPosition: '',
                 parallaxBackgroundOpacity: null,
-                parallaxBackgroundAngle: null,
-                plugins: [ 
-                    RevealMarkdown, 
-                    RevealNotes, 
-                    RevealHighlight,
-                    RevealZoom,
-                    RevealSearch,
-                    RevealAppearance,
-                    RevealChalkboard,
-                    RevealMenu
-                ],
-                chalkboard: {
+                parallaxBackgroundAngle: null
+            };
+
+            // Build plugins array conditionally
+            const pluginsArray = [ 
+                RevealMarkdown, 
+                RevealNotes, 
+                RevealHighlight,
+                RevealZoom,
+                RevealSearch
+            ];
+            
+            if (typeof RevealAppearance !== 'undefined') {
+                pluginsArray.push(RevealAppearance);
+            }
+            if (typeof RevealChalkboard !== 'undefined') {
+                pluginsArray.push(RevealChalkboard);
+            }
+            if (typeof RevealMenu !== 'undefined') {
+                pluginsArray.push(RevealMenu);
+            }
+            
+            revealConfig.plugins = pluginsArray;
+            
+            // Add plugin-specific configurations
+            if (typeof RevealChalkboard !== 'undefined') {
+                revealConfig.chalkboard = {
                     boardmarkerWidth: 3,
                     chalkWidth: 4,
                     chalkEffect: 0.5,
@@ -1754,8 +1770,11 @@ Create your presentation using Markdown or HTML
                     background: [ 'rgba(127,127,127,.1)', 'rgba(0,0,0,0)' ],
                     grid: { color: 'rgba(128,128,128,0.1)', distance: 80, width: 1 },
                     eraser: { src: null, radius: 20 }
-                },
-                menu: {
+                };
+            }
+            
+            if (typeof RevealMenu !== 'undefined') {
+                revealConfig.menu = {
                     side: 'left',
                     numbers: false,
                     titleSelector: 'h1, h2, h3, h4, h5, h6',
@@ -1772,8 +1791,10 @@ Create your presentation using Markdown or HTML
                     delayInit: false,
                     openOnInit: false,
                     loadIcons: true
-                }
-            });
+                };
+            }
+
+            reveal = new Reveal(revealConfig);
 
             reveal.initialize().then(() => {
                 console.log('Reveal.js initialized successfully');
