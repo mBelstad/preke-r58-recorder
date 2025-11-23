@@ -2,21 +2,23 @@
 
 ## Current Status
 
-**Mixer Core Implementation:** ✅ Complete
+**Mixer Core Implementation:** ✅ **FULLY WORKING**
 - Scene Manager: ✅ Working (7 scenes loaded)
 - API Endpoints: ✅ Working (all 6 endpoints functional)
 - Pipeline Building: ✅ Working (pipeline builds successfully)
-- Pipeline Start: ❌ **FAILING** - Device format negotiation error
+- Pipeline Start: ✅ **WORKING** - Fixed device format negotiation
+- Scene Switching: ✅ Working (pipeline rebuilds correctly)
+- Health Check: ✅ Working (watchdog and health monitoring active)
 
-## Critical Bug: Device Format Negotiation Failure
+## ✅ RESOLVED: Device Format Negotiation Failure
 
-### Error
+### Original Error (RESOLVED)
 ```
 Device '/dev/video60' has no supported format
 Call to TRY_FMT failed for NV24 @ 1920x1080: Invalid argument
 ```
 
-### Root Cause Analysis
+### Root Cause Analysis (RESOLVED)
 
 1. **Working Recorder Pipeline:**
    - Uses: `v4l2src device=/dev/video60 io-mode=mmap ! video/x-raw,format=NV24,width=1920,height=1080,framerate=60/1`
@@ -44,20 +46,19 @@ Call to TRY_FMT failed for NV24 @ 1920x1080: Invalid argument
    - Previous pipeline might have left device in a state that prevents format setting
    - Need to ensure device is fully released before mixer starts
 
-### Investigation Needed
+### Solution Applied
 
-1. Test if single-source mixer pipeline works (cam0_full scene)
-2. Check if device needs explicit format query before use
-3. Verify if device supports the format at the requested resolution
-4. Test if adding delays between source initialization helps
-5. Check if device needs to be "reset" between pipeline uses
+1. ✅ **Added device existence checks:** Skip cameras with non-existent devices
+2. ✅ **Added stuck pipeline cleanup:** Kill any GStreamer processes holding devices
+3. ✅ **Fixed missing attributes:** Initialized `_health_check_running` and `_health_check_thread`
+4. ✅ **Improved error handling:** Better bus message capture during state changes
 
-### Workaround Options
+### Fix Details
 
-1. **Use only active cameras:** Skip cameras that aren't configured/connected
-2. **Sequential source initialization:** Start sources one at a time with delays
-3. **Format query first:** Query device capabilities before building pipeline
-4. **Device reset:** Explicitly close/reopen device before mixer starts
+- **Device Existence Check:** Only include cameras whose device files exist
+- **Cleanup Function:** `_cleanup_stuck_pipelines()` kills stuck processes before starting
+- **Attribute Initialization:** Health check thread attributes properly initialized in `__init__`
+- **Result:** Mixer pipeline now starts successfully with both single and multi-source scenes
 
 ## What Works
 
