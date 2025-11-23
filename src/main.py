@@ -648,6 +648,16 @@ async def create_lower_third(request: Dict[str, Any]) -> Dict[str, Any]:
         raise HTTPException(status_code=400, detail="line1 text required")
     
     try:
+        # Resolve image path if present
+        bg_image = request.get("background_image")
+        if bg_image:
+            # Look for the image in uploads/images
+            image_path = images_dir / bg_image
+            if image_path.exists():
+                request["background_image_path"] = str(image_path.absolute())
+            else:
+                logger.warning(f"Background image not found: {bg_image}")
+
         # Create or update the lower-third source
         text_data = {k: v for k, v in request.items() if k != "source_id"}
         pipeline = graphics_renderer.create_lower_third_source(source_id, text_data)

@@ -237,6 +237,7 @@ class GraphicsRenderer:
         line2 = text_data.get("line2", "")
         bg_color = text_data.get("background_color", "#000000")
         bg_alpha = text_data.get("background_alpha", 0.8)
+        bg_image_path = text_data.get("background_image_path")
         text_color = text_data.get("text_color", "#FFFFFF")
         line1_font = text_data.get("line1_font", "Sans Bold 32")
         line2_font = text_data.get("line2_font", "Sans 24")
@@ -272,10 +273,6 @@ class GraphicsRenderer:
         # We'll use videotestsrc with alpha for background, then overlay text
         # For better control, we create a transparent video source and overlay text
         
-        # Create background rectangle using videotestsrc with alpha
-        # Note: GStreamer's textoverlay doesn't support background rectangles directly
-        # We'll use a combination approach: create a colored background video and overlay text
-        
         # Build text string
         if line2:
             # Two lines - we'll need to position them separately
@@ -284,62 +281,52 @@ class GraphicsRenderer:
         else:
             text_content = line1_escaped
         
-        # Create pipeline with background and text overlay
-        # Using videotestsrc for background, then textoverlay for text
-        # The background will be a solid color with alpha channel
-        
-        # For now, use textoverlay with background color support
-        # Note: textoverlay has limited background support, so we create a colored background
-        # and overlay text on top
-        
-        # Create background video source with alpha
-        bg_color_rgb = self._hex_to_gstreamer_color(bg_color, 1.0)  # Full opacity for background source
-        
-        # Build the pipeline
-        # Create a full-frame transparent video, then overlay background and text
-        # We'll use videotestsrc with alpha for the background rectangle
-        # and textoverlay for the text
-        
-        # Create background color source (full frame, we'll crop/position later)
-        # Use a solid color background at the lower-third position
-        # For simplicity, create a video source sized to the lower-third with background color
-        
-        # Calculate text Y positions
-        # Line 1 should be near the top of the lower-third
-        # Line 2 should be below line 1
-        
-        # Build text overlay - textoverlay supports multi-line with \n
-        # We'll position it within the lower-third bounds
-        
-        # Create pipeline: background video + text overlay
-        # Note: textoverlay can draw on a video source, so we create a colored background
-        # and overlay text on top
-        
-        # For the background, we use videotestsrc with the background color
-        # Then overlay text using textoverlay
-        # Finally, we need to position this on a 1920x1080 canvas
-        
-        # Simplified approach: Create lower-third sized video with background and text
-        # Then use videobox to position it on full frame
-        
-        # Escape the background color for videotestsrc (it uses color format)
-        bg_color_hex = bg_color.lstrip('#')
-        if len(bg_color_hex) == 6:
-            bg_r = int(bg_color_hex[0:2], 16)
-            bg_g = int(bg_color_hex[2:4], 16)
-            bg_b = int(bg_color_hex[4:6], 16)
-            # videotestsrc uses 0xRRGGBB format
-            bg_color_gst = f"0x{bg_r:02X}{bg_g:02X}{bg_b:02X}"
+        # Determine background source
+        if bg_image_path and Path(bg_image_path).exists():
+            # Use image as background
+            # Note: images might have their own alpha. If user sets bg_alpha, we apply it.
+            
+            bg_source = (
+                f"multifilesrc location={bg_image_path} loop=true ! "
+                f"decodebin ! "
+                f"videoscale ! "
+                f"video/x-raw,width={width},height={height},framerate=30/1 ! "
+            )
+            
+            if bg_alpha < 1.0:
+                # Apply overall transparency to the image
+                bg_source += f"alpha method=set alpha={bg_alpha} ! "
         else:
-            bg_color_gst = "0x000000"
+            # Use solid color background
+            # Create background rectangle using videotestsrc with alpha
+            # Note: GStreamer's textoverlay doesn't support background rectangles directly
+            # We'll use a combination approach: create a colored background video and overlay text
+            
+            # Escape the background color for videotestsrc (it uses color format)
+            bg_color_hex = bg_color.lstrip('#')
+            if len(bg_color_hex) == 6:
+                bg_r = int(bg_color_hex[0:2], 16)
+                bg_g = int(bg_color_hex[2:4], 16)
+                bg_b = int(bg_color_hex[4:6], 16)
+                # videotestsrc uses 0xRRGGBB format without alpha here if we control alpha via color
+                # However, we want to use the alpha from the input.
+                # videotestsrc foreground-color takes 0xAARRGGBB
+                bg_a = int(round(bg_alpha * 255))
+                bg_color_gst = f"0x{bg_a:02X}{bg_r:02X}{bg_g:02X}{bg_b:02X}"
+            else:
+                bg_color_gst = "0x000000"
+            
+            bg_source = (
+                f"videotestsrc pattern=solid-color foreground-color={bg_color_gst} ! "
+                f"video/x-raw,width={width},height={height},framerate=30/1 ! "
+            )
         
         # Build pipeline
         # Create background video source with the lower-third dimensions
         # Overlay text on top
         # Position on full 1920x1080 frame using videobox
         pipeline = (
-            f"videotestsrc pattern=solid-color foreground-color={bg_color_gst} ! "
-            f"video/x-raw,width={width},height={height},framerate=30/1 ! "
+            f"{bg_source} "
             f"textoverlay text=\"{text_content}\" "
             f"valign=top halign=left "
             f"xpad={padding_x} ypad={padding_y} "
