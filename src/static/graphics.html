@@ -9,6 +9,9 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/theme/black.css" id="theme">
     
+    <!-- KaTeX for Math -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    
     <style>
         * {
             margin: 0;
@@ -88,10 +91,15 @@
             background: #dc2626;
         }
 
+        .btn-small {
+            padding: 8px 16px;
+            font-size: 12px;
+        }
+
         .main-container {
             flex: 1;
             display: grid;
-            grid-template-columns: 1fr 400px;
+            grid-template-columns: 1fr 500px;
             gap: 0;
             overflow: hidden;
         }
@@ -141,6 +149,22 @@
             letter-spacing: 2px;
             color: #888;
             margin-bottom: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-toggle {
+            background: none;
+            border: none;
+            color: #888;
+            cursor: pointer;
+            font-size: 12px;
+            padding: 4px 8px;
+        }
+
+        .panel-toggle:hover {
+            color: #fff;
         }
 
         .form-group {
@@ -170,8 +194,12 @@
         }
 
         .form-textarea {
-            min-height: 200px;
+            min-height: 150px;
             resize: vertical;
+        }
+
+        .form-textarea-small {
+            min-height: 80px;
         }
 
         .form-input:focus,
@@ -180,6 +208,24 @@
             outline: none;
             border-color: #3b82f6;
             background: rgba(255, 255, 255, 0.15);
+        }
+
+        .form-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .form-checkbox input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
         }
 
         .presentation-list {
@@ -283,6 +329,28 @@
             display: none;
         }
 
+        .collapsible-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+
+        .collapsible-content.expanded {
+            max-height: 2000px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            background: rgba(59, 130, 246, 0.2);
+            color: #60a5fa;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-left: 8px;
+        }
+
         /* Custom Reveal.js overrides */
         .reveal .slides section {
             text-align: left;
@@ -310,6 +378,7 @@
             </select>
             <button class="btn btn-primary" id="saveBtn">Save</button>
             <button class="btn btn-secondary" id="exportBtn">Export to Mixer</button>
+            <button class="btn btn-secondary" id="fullscreenBtn">Fullscreen</button>
             <button class="btn btn-secondary" onclick="window.location.href='/switcher'">Back to Switcher</button>
         </div>
     </div>
@@ -332,34 +401,90 @@ Create your presentation using Markdown or HTML
         </div>
 
         <div class="control-panel">
+            <!-- Presentation Settings -->
             <div class="panel-section">
-                <div class="panel-title">Presentation</div>
-                <div class="form-group">
-                    <label class="form-label">Name</label>
-                    <input type="text" id="presentationName" class="form-input" placeholder="My Presentation">
+                <div class="panel-title">
+                    <span>Presentation</span>
+                    <button class="panel-toggle" onclick="toggleSection('presSettings')">▼</button>
                 </div>
-                <div class="form-group">
-                    <label class="form-label">ID</label>
-                    <input type="text" id="presentationId" class="form-input" placeholder="my_presentation">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Theme</label>
-                    <select id="themeSelect" class="form-select">
-                        <option value="black">Black</option>
-                        <option value="white">White</option>
-                        <option value="league">League</option>
-                        <option value="beige">Beige</option>
-                        <option value="sky">Sky</option>
-                        <option value="night">Night</option>
-                        <option value="serif">Serif</option>
-                        <option value="simple">Simple</option>
-                        <option value="solarized">Solarized</option>
-                    </select>
+                <div class="collapsible-content expanded" id="presSettings">
+                    <div class="form-group">
+                        <label class="form-label">Name</label>
+                        <input type="text" id="presentationName" class="form-input" placeholder="My Presentation">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">ID</label>
+                        <input type="text" id="presentationId" class="form-input" placeholder="my_presentation">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Theme</label>
+                        <select id="themeSelect" class="form-select">
+                            <option value="black">Black</option>
+                            <option value="white">White</option>
+                            <option value="league">League</option>
+                            <option value="beige">Beige</option>
+                            <option value="sky">Sky</option>
+                            <option value="night">Night</option>
+                            <option value="serif">Serif</option>
+                            <option value="simple">Simple</option>
+                            <option value="solarized">Solarized</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Global Transition</label>
+                        <select id="globalTransition" class="form-select">
+                            <option value="slide">Slide</option>
+                            <option value="fade">Fade</option>
+                            <option value="none">None</option>
+                            <option value="zoom">Zoom</option>
+                            <option value="convex">Convex</option>
+                            <option value="concave">Concave</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Transition Speed</label>
+                        <select id="transitionSpeed" class="form-select">
+                            <option value="default">Default</option>
+                            <option value="fast">Fast</option>
+                            <option value="slow">Slow</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <div class="form-checkbox">
+                            <input type="checkbox" id="enableControls" checked>
+                            <label class="form-label" style="margin: 0;">Show Controls</label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <div class="form-checkbox">
+                            <input type="checkbox" id="enableProgress" checked>
+                            <label class="form-label" style="margin: 0;">Show Progress</label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <div class="form-checkbox">
+                            <input type="checkbox" id="enableFragments" checked>
+                            <label class="form-label" style="margin: 0;">Enable Fragments</label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <div class="form-checkbox">
+                            <input type="checkbox" id="enableAutoAnimate">
+                            <label class="form-label" style="margin: 0;">Auto-Animate</label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Auto-Slide (seconds, 0 = disabled)</label>
+                        <input type="number" id="autoSlide" class="form-input" value="0" min="0" step="1">
+                    </div>
                 </div>
             </div>
 
+            <!-- Slide Navigation -->
             <div class="panel-section">
-                <div class="panel-title">Slide Navigation</div>
+                <div class="panel-title">
+                    <span>Slide Navigation</span>
+                </div>
                 <div class="slide-controls">
                     <button class="slide-btn" id="prevBtn">◀</button>
                     <div class="slide-indicator" id="slideIndicator">1 / 1</div>
@@ -367,19 +492,123 @@ Create your presentation using Markdown or HTML
                 </div>
                 <div style="margin-top: 12px; display: flex; gap: 8px;">
                     <button class="btn btn-secondary btn-small" id="addSlideBtn" style="flex: 1;">Add Slide</button>
+                    <button class="btn btn-secondary btn-small" id="addVerticalSlideBtn" style="flex: 1;">Add Vertical</button>
                     <button class="btn btn-danger btn-small" id="removeSlideBtn" style="flex: 1;">Remove</button>
                 </div>
             </div>
 
+            <!-- Slide Properties -->
             <div class="panel-section">
-                <div class="panel-title">Slide Content</div>
+                <div class="panel-title">
+                    <span>Slide Properties</span>
+                    <button class="panel-toggle" onclick="toggleSection('slideProps')">▼</button>
+                </div>
+                <div class="collapsible-content expanded" id="slideProps">
+                    <div class="form-group">
+                        <label class="form-label">Transition</label>
+                        <select id="slideTransition" class="form-select">
+                            <option value="">Use Global</option>
+                            <option value="slide">Slide</option>
+                            <option value="fade">Fade</option>
+                            <option value="none">None</option>
+                            <option value="zoom">Zoom</option>
+                            <option value="convex">Convex</option>
+                            <option value="concave">Concave</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Background Color</label>
+                        <input type="color" id="slideBgColor" class="form-input" style="height: 40px;">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Background Image URL</label>
+                        <input type="text" id="slideBgImage" class="form-input" placeholder="https://example.com/image.jpg">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Background Video URL</label>
+                        <input type="text" id="slideBgVideo" class="form-input" placeholder="https://example.com/video.mp4">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Background Size</label>
+                        <select id="slideBgSize" class="form-select">
+                            <option value="">Default</option>
+                            <option value="cover">Cover</option>
+                            <option value="contain">Contain</option>
+                            <option value="auto">Auto</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <div class="form-checkbox">
+                            <input type="checkbox" id="slideAutoAnimate">
+                            <label class="form-label" style="margin: 0;">Auto-Animate This Slide</label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Auto-Animate Duration (seconds)</label>
+                        <input type="number" id="slideAutoAnimateDuration" class="form-input" value="1.0" min="0.1" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Auto-Animate Easing</label>
+                        <select id="slideAutoAnimateEasing" class="form-select">
+                            <option value="ease">Ease</option>
+                            <option value="ease-in">Ease In</option>
+                            <option value="ease-out">Ease Out</option>
+                            <option value="ease-in-out">Ease In Out</option>
+                            <option value="linear">Linear</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide Content -->
+            <div class="panel-section">
+                <div class="panel-title">
+                    <span>Slide Content</span>
+                </div>
                 <div class="form-group">
-                    <label class="form-label">Current Slide (Markdown/HTML)</label>
+                    <label class="form-label">Markdown/HTML Content</label>
                     <textarea id="slideContent" class="form-textarea" placeholder="# Slide Title&#10;&#10;Your content here..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Speaker Notes</label>
+                    <textarea id="slideNotes" class="form-textarea form-textarea-small" placeholder="Notes visible only in presenter mode..."></textarea>
                 </div>
                 <button class="btn btn-primary" id="updateSlideBtn" style="width: 100%;">Update Slide</button>
             </div>
 
+            <!-- Fragments -->
+            <div class="panel-section">
+                <div class="panel-title">
+                    <span>Fragments <span class="badge">Advanced</span></span>
+                    <button class="panel-toggle" onclick="toggleSection('fragments')">▼</button>
+                </div>
+                <div class="collapsible-content" id="fragments">
+                    <div class="form-group">
+                        <label class="form-label">Fragment Style</label>
+                        <select id="fragmentStyle" class="form-select">
+                            <option value="fade-in">Fade In</option>
+                            <option value="fade-out">Fade Out</option>
+                            <option value="fade-up">Fade Up</option>
+                            <option value="fade-down">Fade Down</option>
+                            <option value="fade-left">Fade Left</option>
+                            <option value="fade-right">Fade Right</option>
+                            <option value="zoom-in">Zoom In</option>
+                            <option value="zoom-out">Zoom Out</option>
+                            <option value="slide-in">Slide In</option>
+                            <option value="none">None</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Fragment Index (order)</label>
+                        <input type="number" id="fragmentIndex" class="form-input" value="0" min="0">
+                    </div>
+                    <p style="font-size: 11px; color: #888; margin-top: 8px;">
+                        Use <code>&lt;span class="fragment"&gt;</code> in your content to create fragments
+                    </p>
+                </div>
+            </div>
+
+            <!-- Presentations List -->
             <div class="panel-section">
                 <div class="panel-title">Presentations</div>
                 <div class="presentation-list" id="presentationList"></div>
@@ -392,6 +621,9 @@ Create your presentation using Markdown or HTML
     <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/plugin/markdown/markdown.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/plugin/notes/notes.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/plugin/highlight/highlight.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/plugin/zoom/zoom.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/plugin/search/search.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/plugin/math/math.js"></script>
 
     <script>
         const API_BASE = window.location.origin;
@@ -400,20 +632,34 @@ Create your presentation using Markdown or HTML
             id: '',
             name: '',
             theme: 'black',
+            transition: 'slide',
+            transitionSpeed: 'default',
+            controls: true,
+            progress: true,
+            fragments: true,
+            autoAnimate: false,
+            autoSlide: 0,
             slides: []
         };
         let currentSlideIndex = 0;
+        let currentVerticalIndex = 0;
+
+        // Toggle collapsible sections
+        function toggleSection(sectionId) {
+            const content = document.getElementById(sectionId);
+            const toggle = content.previousElementSibling.querySelector('.panel-toggle');
+            content.classList.toggle('expanded');
+            toggle.textContent = content.classList.contains('expanded') ? '▼' : '▶';
+        }
 
         // Initialize Reveal.js
         function initReveal() {
-            // Check if Reveal.js is loaded
             if (typeof Reveal === 'undefined') {
                 console.error('Reveal.js is not loaded. Check CDN connection.');
                 showNotification('Reveal.js failed to load. Check your internet connection.', 'error');
                 return;
             }
 
-            // Destroy existing instance if any
             if (reveal) {
                 try {
                     reveal.destroy();
@@ -428,29 +674,33 @@ Create your presentation using Markdown or HTML
                 return;
             }
 
+            // Get configuration from UI
+            const autoSlide = parseInt(document.getElementById('autoSlide').value) || 0;
+            const autoAnimate = document.getElementById('enableAutoAnimate').checked;
+
             reveal = new Reveal({
                 hash: true,
-                controls: true,
-                progress: true,
+                controls: document.getElementById('enableControls').checked,
+                progress: document.getElementById('enableProgress').checked,
                 center: true,
                 touch: true,
                 loop: false,
                 rtl: false,
                 navigationMode: 'default',
                 shuffle: false,
-                fragments: true,
+                fragments: document.getElementById('enableFragments').checked,
                 embedded: false,
                 help: true,
                 pause: true,
                 showNotes: false,
                 autoPlayMedia: null,
                 preloadIframes: null,
-                autoAnimate: true,
+                autoAnimate: autoAnimate,
                 autoAnimateMatcher: null,
                 autoAnimateEasing: 'ease',
                 autoAnimateDuration: 1.0,
                 autoAnimateUnmatched: true,
-                autoSlide: 0,
+                autoSlide: autoSlide * 1000, // Convert to milliseconds
                 autoSlideStoppable: true,
                 autoSlideMethod: null,
                 defaultTiming: null,
@@ -459,8 +709,8 @@ Create your presentation using Markdown or HTML
                 postMessage: true,
                 postMessageEvents: false,
                 focusBodyOnPageVisibilityChange: true,
-                transition: 'slide',
-                transitionSpeed: 'default',
+                transition: document.getElementById('globalTransition').value,
+                transitionSpeed: document.getElementById('transitionSpeed').value,
                 backgroundTransition: 'fade',
                 view: null,
                 viewDistance: 3,
@@ -472,7 +722,14 @@ Create your presentation using Markdown or HTML
                 parallaxBackgroundPosition: '',
                 parallaxBackgroundOpacity: null,
                 parallaxBackgroundAngle: null,
-                plugins: [ RevealMarkdown, RevealNotes, RevealHighlight ]
+                plugins: [ 
+                    RevealMarkdown, 
+                    RevealNotes, 
+                    RevealHighlight,
+                    RevealZoom,
+                    RevealSearch,
+                    RevealMath
+                ]
             });
 
             reveal.initialize().then(() => {
@@ -481,8 +738,18 @@ Create your presentation using Markdown or HTML
                 
                 reveal.on('slidechanged', (event) => {
                     currentSlideIndex = event.indexh;
+                    currentVerticalIndex = event.indexv || 0;
                     updateSlideContent();
+                    updateSlideProperties();
                     updateSlideIndicator();
+                });
+
+                reveal.on('fragmentshown', (event) => {
+                    console.log('Fragment shown:', event);
+                });
+
+                reveal.on('fragmenthidden', (event) => {
+                    console.log('Fragment hidden:', event);
                 });
             }).catch((error) => {
                 console.error('Failed to initialize Reveal.js:', error);
@@ -495,14 +762,12 @@ Create your presentation using Markdown or HTML
             setupEventListeners();
             await loadPresentations();
             
-            // Initialize with default presentation if none loaded
             if (!currentPresentation.slides || currentPresentation.slides.length === 0) {
-                currentPresentation = {
-                    id: '',
-                    name: '',
-                    theme: 'black',
-                    slides: [{ content: '# Welcome\n\nCreate your presentation' }]
-                };
+                currentPresentation.slides = [{ 
+                    content: '# Welcome\n\nCreate your presentation',
+                    notes: '',
+                    properties: {}
+                }];
             }
             
             initReveal();
@@ -536,7 +801,9 @@ Create your presentation using Markdown or HTML
             document.getElementById('presentationSelect').addEventListener('change', handlePresentationSelect);
             document.getElementById('saveBtn').addEventListener('click', savePresentation);
             document.getElementById('exportBtn').addEventListener('click', exportToMixer);
+            document.getElementById('fullscreenBtn').addEventListener('click', toggleFullscreen);
             document.getElementById('addSlideBtn').addEventListener('click', addSlide);
+            document.getElementById('addVerticalSlideBtn').addEventListener('click', addVerticalSlide);
             document.getElementById('removeSlideBtn').addEventListener('click', removeSlide);
             document.getElementById('updateSlideBtn').addEventListener('click', updateSlide);
             document.getElementById('prevBtn').addEventListener('click', () => {
@@ -546,22 +813,67 @@ Create your presentation using Markdown or HTML
                 if (reveal) reveal.next();
             });
             document.getElementById('themeSelect').addEventListener('change', changeTheme);
+            document.getElementById('globalTransition').addEventListener('change', updateGlobalSettings);
+            document.getElementById('transitionSpeed').addEventListener('change', updateGlobalSettings);
+            document.getElementById('enableControls').addEventListener('change', updateGlobalSettings);
+            document.getElementById('enableProgress').addEventListener('change', updateGlobalSettings);
+            document.getElementById('enableFragments').addEventListener('change', updateGlobalSettings);
+            document.getElementById('enableAutoAnimate').addEventListener('change', updateGlobalSettings);
+            document.getElementById('autoSlide').addEventListener('change', updateGlobalSettings);
+        }
+
+        // Update global settings
+        function updateGlobalSettings() {
+            if (!reveal) return;
+            
+            const transition = document.getElementById('globalTransition').value;
+            const speed = document.getElementById('transitionSpeed').value;
+            const autoSlide = parseInt(document.getElementById('autoSlide').value) || 0;
+            const autoAnimate = document.getElementById('enableAutoAnimate').checked;
+
+            reveal.configure({
+                transition: transition,
+                transitionSpeed: speed,
+                autoSlide: autoSlide * 1000,
+                autoAnimate: autoAnimate,
+                controls: document.getElementById('enableControls').checked,
+                progress: document.getElementById('enableProgress').checked,
+                fragments: document.getElementById('enableFragments').checked
+            });
+
+            currentPresentation.transition = transition;
+            currentPresentation.transitionSpeed = speed;
+            currentPresentation.autoSlide = autoSlide;
+            currentPresentation.autoAnimate = autoAnimate;
         }
 
         // Handle presentation select
         async function handlePresentationSelect(e) {
             const presId = e.target.value;
             if (!presId) {
-                // New presentation
                 currentPresentation = {
                     id: '',
                     name: '',
                     theme: 'black',
-                    slides: [{ content: '# Welcome\n\nCreate your presentation' }]
+                    transition: 'slide',
+                    transitionSpeed: 'default',
+                    controls: true,
+                    progress: true,
+                    fragments: true,
+                    autoAnimate: false,
+                    autoSlide: 0,
+                    slides: [{ content: '# Welcome\n\nCreate your presentation', notes: '', properties: {} }]
                 };
                 document.getElementById('presentationName').value = '';
                 document.getElementById('presentationId').value = '';
                 document.getElementById('themeSelect').value = 'black';
+                document.getElementById('globalTransition').value = 'slide';
+                document.getElementById('transitionSpeed').value = 'default';
+                document.getElementById('enableControls').checked = true;
+                document.getElementById('enableProgress').checked = true;
+                document.getElementById('enableFragments').checked = true;
+                document.getElementById('enableAutoAnimate').checked = false;
+                document.getElementById('autoSlide').value = '0';
                 loadSlidesIntoReveal(currentPresentation.slides);
                 return;
             }
@@ -574,11 +886,25 @@ Create your presentation using Markdown or HTML
                     id: pres.id || presId,
                     name: pres.name || pres.id || presId,
                     theme: pres.theme || 'black',
+                    transition: pres.transition || 'slide',
+                    transitionSpeed: pres.transitionSpeed || 'default',
+                    controls: pres.controls !== false,
+                    progress: pres.progress !== false,
+                    fragments: pres.fragments !== false,
+                    autoAnimate: pres.autoAnimate || false,
+                    autoSlide: pres.autoSlide || 0,
                     slides: pres.slides || []
                 };
                 document.getElementById('presentationName').value = currentPresentation.name;
                 document.getElementById('presentationId').value = currentPresentation.id;
                 document.getElementById('themeSelect').value = currentPresentation.theme;
+                document.getElementById('globalTransition').value = currentPresentation.transition;
+                document.getElementById('transitionSpeed').value = currentPresentation.transitionSpeed;
+                document.getElementById('enableControls').checked = currentPresentation.controls;
+                document.getElementById('enableProgress').checked = currentPresentation.progress;
+                document.getElementById('enableFragments').checked = currentPresentation.fragments;
+                document.getElementById('enableAutoAnimate').checked = currentPresentation.autoAnimate;
+                document.getElementById('autoSlide').value = currentPresentation.autoSlide;
                 loadSlidesIntoReveal(currentPresentation.slides);
                 changeTheme();
             } catch (error) {
@@ -590,7 +916,7 @@ Create your presentation using Markdown or HTML
         // Load slides into Reveal.js
         function loadSlidesIntoReveal(slides) {
             if (!slides || slides.length === 0) {
-                slides = [{ content: '# Welcome\n\nCreate your presentation' }];
+                slides = [{ content: '# Welcome\n\nCreate your presentation', notes: '', properties: {} }];
             }
 
             const slidesContainer = document.getElementById('slides');
@@ -598,20 +924,80 @@ Create your presentation using Markdown or HTML
             
             slides.forEach((slide, index) => {
                 const section = document.createElement('section');
+                
+                // Apply slide properties
+                const props = slide.properties || {};
+                if (props.transition) section.setAttribute('data-transition', props.transition);
+                if (props.background) section.setAttribute('data-background', props.background);
+                if (props.backgroundImage) section.setAttribute('data-background-image', props.backgroundImage);
+                if (props.backgroundVideo) section.setAttribute('data-background-video', props.backgroundVideo);
+                if (props.backgroundSize) section.setAttribute('data-background-size', props.backgroundSize);
+                if (props.autoAnimate) section.setAttribute('data-auto-animate', '');
+                if (props.autoAnimateDuration) section.setAttribute('data-auto-animate-duration', props.autoAnimateDuration);
+                if (props.autoAnimateEasing) section.setAttribute('data-auto-animate-easing', props.autoAnimateEasing);
+                
                 section.setAttribute('data-markdown', '');
+                
+                // Add speaker notes if present
+                if (slide.notes) {
+                    const notesElement = document.createElement('aside');
+                    notesElement.className = 'notes';
+                    notesElement.setAttribute('data-markdown', '');
+                    const notesScript = document.createElement('script');
+                    notesScript.type = 'text/template';
+                    notesScript.textContent = slide.notes;
+                    notesElement.appendChild(notesScript);
+                    section.appendChild(notesElement);
+                }
+                
                 const script = document.createElement('script');
                 script.type = 'text/template';
                 script.textContent = slide.content || '';
                 section.appendChild(script);
+                
+                // Add vertical slides if present
+                if (slide.verticalSlides && slide.verticalSlides.length > 0) {
+                    slide.verticalSlides.forEach((verticalSlide) => {
+                        const verticalSection = document.createElement('section');
+                        const verticalProps = verticalSlide.properties || {};
+                        
+                        if (verticalProps.transition) verticalSection.setAttribute('data-transition', verticalProps.transition);
+                        if (verticalProps.background) verticalSection.setAttribute('data-background', verticalProps.background);
+                        if (verticalProps.backgroundImage) verticalSection.setAttribute('data-background-image', verticalProps.backgroundImage);
+                        if (verticalProps.backgroundVideo) verticalSection.setAttribute('data-background-video', verticalProps.backgroundVideo);
+                        if (verticalProps.backgroundSize) verticalSection.setAttribute('data-background-size', verticalProps.backgroundSize);
+                        if (verticalProps.autoAnimate) verticalSection.setAttribute('data-auto-animate', '');
+                        
+                        verticalSection.setAttribute('data-markdown', '');
+                        
+                        if (verticalSlide.notes) {
+                            const verticalNotesElement = document.createElement('aside');
+                            verticalNotesElement.className = 'notes';
+                            verticalNotesElement.setAttribute('data-markdown', '');
+                            const verticalNotesScript = document.createElement('script');
+                            verticalNotesScript.type = 'text/template';
+                            verticalNotesScript.textContent = verticalSlide.notes;
+                            verticalNotesElement.appendChild(verticalNotesScript);
+                            verticalSection.appendChild(verticalNotesElement);
+                        }
+                        
+                        const verticalScript = document.createElement('script');
+                        verticalScript.type = 'text/template';
+                        verticalScript.textContent = verticalSlide.content || '';
+                        verticalSection.appendChild(verticalScript);
+                        
+                        section.appendChild(verticalSection);
+                    });
+                }
+                
                 slidesContainer.appendChild(section);
             });
 
-            // Reinitialize Reveal.js if it exists, otherwise initialize it
             if (reveal) {
                 reveal.initialize().then(() => {
-                    reveal.slide(0);
-                    currentSlideIndex = 0;
+                    reveal.slide(currentSlideIndex, currentVerticalIndex);
                     updateSlideContent();
+                    updateSlideProperties();
                     updateSlideIndicator();
                 }).catch((error) => {
                     console.error('Failed to reinitialize Reveal.js:', error);
@@ -627,17 +1013,42 @@ Create your presentation using Markdown or HTML
                 currentPresentation.slides = [];
             }
             
-            const newSlide = { content: '# New Slide\n\nAdd your content here' };
+            const newSlide = { 
+                content: '# New Slide\n\nAdd your content here',
+                notes: '',
+                properties: {}
+            };
             const insertIndex = currentSlideIndex + 1;
             currentPresentation.slides.splice(insertIndex, 0, newSlide);
             loadSlidesIntoReveal(currentPresentation.slides);
             
-            // Wait for Reveal to initialize, then navigate to new slide
             setTimeout(() => {
                 if (reveal) {
                     reveal.slide(insertIndex);
                 }
             }, 100);
+        }
+
+        // Add vertical slide
+        function addVerticalSlide() {
+            if (!currentPresentation.slides) {
+                currentPresentation.slides = [];
+            }
+            
+            // Find current slide and add vertical slide to it
+            const currentSlide = currentPresentation.slides[currentSlideIndex];
+            if (!currentSlide.verticalSlides) {
+                currentSlide.verticalSlides = [];
+            }
+            
+            const newVerticalSlide = {
+                content: '# Vertical Slide\n\nSub-slide content',
+                notes: '',
+                properties: {}
+            };
+            
+            currentSlide.verticalSlides.push(newVerticalSlide);
+            loadSlidesIntoReveal(currentPresentation.slides);
         }
 
         // Remove slide
@@ -654,7 +1065,6 @@ Create your presentation using Markdown or HTML
             currentPresentation.slides.splice(currentSlideIndex, 1);
             loadSlidesIntoReveal(currentPresentation.slides);
             
-            // Wait for Reveal to initialize, then navigate to correct slide
             setTimeout(() => {
                 if (reveal) {
                     reveal.slide(Math.max(0, newIndex));
@@ -665,16 +1075,39 @@ Create your presentation using Markdown or HTML
         // Update slide
         function updateSlide() {
             const content = document.getElementById('slideContent').value;
+            const notes = document.getElementById('slideNotes').value;
+            
             if (!currentPresentation.slides) {
                 currentPresentation.slides = [];
             }
             
-            // Ensure slides array is large enough
             while (currentPresentation.slides.length <= currentSlideIndex) {
-                currentPresentation.slides.push({ content: '' });
+                currentPresentation.slides.push({ content: '', notes: '', properties: {} });
             }
             
+            // Get properties from UI
+            const props = {
+                transition: document.getElementById('slideTransition').value || null,
+                background: document.getElementById('slideBgColor').value !== '#000000' ? document.getElementById('slideBgColor').value : null,
+                backgroundImage: document.getElementById('slideBgImage').value || null,
+                backgroundVideo: document.getElementById('slideBgVideo').value || null,
+                backgroundSize: document.getElementById('slideBgSize').value || null,
+                autoAnimate: document.getElementById('slideAutoAnimate').checked,
+                autoAnimateDuration: document.getElementById('slideAutoAnimateDuration').value || null,
+                autoAnimateEasing: document.getElementById('slideAutoAnimateEasing').value || null
+            };
+            
+            // Remove null values
+            Object.keys(props).forEach(key => {
+                if (props[key] === null || props[key] === '') {
+                    delete props[key];
+                }
+            });
+            
             currentPresentation.slides[currentSlideIndex].content = content;
+            currentPresentation.slides[currentSlideIndex].notes = notes;
+            currentPresentation.slides[currentSlideIndex].properties = props;
+            
             loadSlidesIntoReveal(currentPresentation.slides);
         }
 
@@ -682,13 +1115,36 @@ Create your presentation using Markdown or HTML
         function updateSlideContent() {
             if (!currentPresentation.slides || currentPresentation.slides.length === 0) {
                 document.getElementById('slideContent').value = '';
+                document.getElementById('slideNotes').value = '';
                 return;
             }
             
             if (currentSlideIndex < currentPresentation.slides.length) {
-                document.getElementById('slideContent').value = currentPresentation.slides[currentSlideIndex].content || '';
+                const slide = currentPresentation.slides[currentSlideIndex];
+                document.getElementById('slideContent').value = slide.content || '';
+                document.getElementById('slideNotes').value = slide.notes || '';
             } else {
                 document.getElementById('slideContent').value = '';
+                document.getElementById('slideNotes').value = '';
+            }
+        }
+
+        // Update slide properties in UI
+        function updateSlideProperties() {
+            if (!currentPresentation.slides || currentPresentation.slides.length === 0) {
+                return;
+            }
+            
+            if (currentSlideIndex < currentPresentation.slides.length) {
+                const props = currentPresentation.slides[currentSlideIndex].properties || {};
+                document.getElementById('slideTransition').value = props.transition || '';
+                document.getElementById('slideBgColor').value = props.background || '#000000';
+                document.getElementById('slideBgImage').value = props.backgroundImage || '';
+                document.getElementById('slideBgVideo').value = props.backgroundVideo || '';
+                document.getElementById('slideBgSize').value = props.backgroundSize || '';
+                document.getElementById('slideAutoAnimate').checked = props.autoAnimate || false;
+                document.getElementById('slideAutoAnimateDuration').value = props.autoAnimateDuration || '1.0';
+                document.getElementById('slideAutoAnimateEasing').value = props.autoAnimateEasing || 'ease';
             }
         }
 
@@ -703,7 +1159,8 @@ Create your presentation using Markdown or HTML
                 const total = reveal.getTotalSlides();
                 const indices = reveal.getIndices();
                 const current = (indices.h || 0) + 1;
-                document.getElementById('slideIndicator').textContent = `${current} / ${total}`;
+                const vertical = indices.v > 0 ? ` (${indices.v + 1})` : '';
+                document.getElementById('slideIndicator').textContent = `${current}${vertical} / ${total}`;
             } catch (e) {
                 console.warn('Failed to update slide indicator:', e);
                 const slideCount = currentPresentation.slides ? currentPresentation.slides.length : 0;
@@ -719,6 +1176,18 @@ Create your presentation using Markdown or HTML
             themeLink.href = `https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/theme/${theme}.css`;
         }
 
+        // Toggle fullscreen
+        function toggleFullscreen() {
+            const revealContainer = document.querySelector('.reveal-container');
+            if (!document.fullscreenElement) {
+                revealContainer.requestFullscreen().catch(err => {
+                    showNotification('Error attempting to enable fullscreen: ' + err.message, 'error');
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
         // Save presentation
         async function savePresentation() {
             const name = document.getElementById('presentationName').value;
@@ -729,8 +1198,6 @@ Create your presentation using Markdown or HTML
                 return;
             }
 
-            // Use currentPresentation.slides (which is the source of truth)
-            // Don't extract from DOM as Reveal.js may have processed the markdown
             if (!currentPresentation.slides || currentPresentation.slides.length === 0) {
                 showNotification('No slides to save', 'error');
                 return;
@@ -818,7 +1285,6 @@ Create your presentation using Markdown or HTML
         // Initialize on load
         window.addEventListener('load', () => {
             console.log('Page loaded, initializing graphics app...');
-            // Wait a bit for Reveal.js to load from CDN
             if (typeof Reveal === 'undefined') {
                 console.warn('Reveal.js not loaded yet, waiting...');
                 setTimeout(() => {
@@ -836,4 +1302,3 @@ Create your presentation using Markdown or HTML
     </script>
 </body>
 </html>
-
