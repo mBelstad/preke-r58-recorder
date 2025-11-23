@@ -18,7 +18,7 @@ mediamtx:
 
 # Mixer configuration (optional)
 mixer:
-  enabled: false  # Set to true to enable mixer
+  enabled: true  # Set to true to enable mixer
   output_resolution: 1920x1080
   output_bitrate: 8000  # kbps
   output_codec: h264  # h264 or h265

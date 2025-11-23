@@ -2,48 +2,47 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>R58 Professional Switcher</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
         }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+            background: #000;
             color: #fff;
             min-height: 100vh;
             overflow: hidden;
+            touch-action: manipulation;
         }
 
         .switcher-container {
             display: grid;
-            grid-template-columns: 1fr 400px;
+            grid-template-columns: 1fr 320px;
             height: 100vh;
-            gap: 16px;
-            padding: 16px;
+            gap: 0;
         }
 
         .main-view {
             display: flex;
             flex-direction: column;
-            background: rgba(20, 20, 20, 0.8);
-            border-radius: 16px;
-            padding: 16px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: #000;
+            position: relative;
         }
 
         .preview-area {
             flex: 1;
             background: #000;
-            border-radius: 12px;
             position: relative;
             overflow: hidden;
-            margin-bottom: 16px;
-            border: 2px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         #previewVideo {
@@ -54,200 +53,209 @@
 
         .preview-overlay {
             position: absolute;
-            top: 16px;
-            left: 16px;
-            background: rgba(0, 0, 0, 0.7);
-            padding: 8px 16px;
+            top: 24px;
+            left: 24px;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 12px 24px;
             border-radius: 8px;
-            font-size: 14px;
-            font-weight: 600;
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            border: 2px solid rgba(255, 255, 255, 0.3);
         }
 
         .control-panel {
             display: flex;
             flex-direction: column;
-            gap: 16px;
-            background: rgba(20, 20, 20, 0.8);
-            border-radius: 16px;
-            padding: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: #0a0a0a;
+            border-left: 2px solid rgba(255, 255, 255, 0.1);
             overflow-y: auto;
         }
 
         .section {
-            background: rgba(30, 30, 30, 0.6);
-            border-radius: 12px;
-            padding: 16px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 24px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         .section-title {
-            font-size: 14px;
+            font-size: 16px;
             font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 1px;
-            color: #9ca3af;
-            margin-bottom: 12px;
+            letter-spacing: 2px;
+            color: #888;
+            margin-bottom: 20px;
         }
 
         .scene-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 8px;
+            gap: 16px;
         }
 
         .scene-button {
-            background: rgba(59, 130, 246, 0.1);
-            border: 2px solid rgba(59, 130, 246, 0.3);
-            color: #60a5fa;
-            padding: 12px;
-            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 3px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            padding: 0;
+            border-radius: 12px;
             cursor: pointer;
-            font-size: 12px;
-            font-weight: 600;
+            font-size: 20px;
+            font-weight: 700;
             text-align: center;
-            transition: all 0.2s;
+            transition: all 0.15s;
             position: relative;
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            touch-action: manipulation;
         }
 
-        .scene-button:hover {
-            background: rgba(59, 130, 246, 0.2);
-            border-color: rgba(59, 130, 246, 0.5);
-            transform: translateY(-2px);
+        .scene-button:active {
+            transform: scale(0.95);
+            background: rgba(255, 255, 255, 0.1);
         }
 
         .scene-button.active {
             background: rgba(59, 130, 246, 0.3);
             border-color: #3b82f6;
-            box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+            box-shadow: 0 0 30px rgba(59, 130, 246, 0.6);
+            color: #60a5fa;
         }
 
         .scene-button .key-hint {
             position: absolute;
-            top: 4px;
-            right: 6px;
-            font-size: 10px;
-            opacity: 0.6;
+            top: 8px;
+            right: 10px;
+            font-size: 14px;
+            opacity: 0.5;
+            font-weight: 600;
         }
 
         .control-buttons {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
+            grid-template-columns: 1fr;
+            gap: 16px;
         }
 
         .btn {
-            padding: 14px;
-            border-radius: 8px;
+            padding: 20px;
+            border-radius: 12px;
             border: none;
-            font-size: 14px;
-            font-weight: 600;
+            font-size: 18px;
+            font-weight: 700;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.15s;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
-        }
-
-        .btn-danger {
-            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-            color: white;
-        }
-
-        .btn-danger:hover {
-            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+            letter-spacing: 1px;
+            min-height: 64px;
+            touch-action: manipulation;
         }
 
         .btn:active {
-            transform: translateY(0);
+            transform: scale(0.95);
+        }
+
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-primary:active {
+            background: #2563eb;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-danger:active {
+            background: #dc2626;
         }
 
         .status-indicator {
             display: flex;
             align-items: center;
-            gap: 8px;
-            padding: 8px 12px;
-            background: rgba(30, 30, 30, 0.6);
-            border-radius: 8px;
-            font-size: 12px;
+            gap: 12px;
+            padding: 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
         }
 
         .status-dot {
-            width: 8px;
-            height: 8px;
+            width: 16px;
+            height: 16px;
             border-radius: 50%;
             background: #6b7280;
+            flex-shrink: 0;
         }
 
         .status-dot.active {
             background: #10b981;
-            box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+            box-shadow: 0 0 12px rgba(16, 185, 129, 0.8);
         }
 
         .status-dot.error {
             background: #ef4444;
-            box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+            box-shadow: 0 0 12px rgba(239, 68, 68, 0.8);
         }
 
         .controller-status {
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 12px;
         }
 
         .controller-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 8px 12px;
-            background: rgba(30, 30, 30, 0.6);
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.05);
             border-radius: 8px;
-            font-size: 12px;
+            font-size: 14px;
         }
 
         .controller-name {
             font-weight: 600;
+            font-size: 16px;
         }
 
         .controller-type {
-            font-size: 10px;
+            font-size: 12px;
             opacity: 0.6;
         }
 
         .camera-controls {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 8px;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
         }
 
         .camera-button {
-            background: rgba(107, 114, 128, 0.1);
-            border: 2px solid rgba(107, 114, 128, 0.3);
-            color: #9ca3af;
-            padding: 12px 8px;
-            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            padding: 16px;
+            border-radius: 12px;
             cursor: pointer;
-            font-size: 11px;
-            font-weight: 600;
+            font-size: 16px;
+            font-weight: 700;
             text-align: center;
-            transition: all 0.2s;
+            transition: all 0.15s;
+            min-height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            touch-action: manipulation;
         }
 
-        .camera-button:hover {
-            background: rgba(107, 114, 128, 0.2);
-            border-color: rgba(107, 114, 128, 0.5);
+        .camera-button:active {
+            transform: scale(0.95);
         }
 
         .camera-button.active {
@@ -257,35 +265,69 @@
         }
 
         .info-text {
-            font-size: 11px;
-            color: #6b7280;
-            line-height: 1.5;
+            font-size: 14px;
+            color: #888;
+            line-height: 1.6;
         }
 
         .keyboard-hints {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 4px;
-            font-size: 10px;
-            color: #6b7280;
+            grid-template-columns: 1fr;
+            gap: 8px;
+            font-size: 14px;
+            color: #888;
         }
 
         .keyboard-hint {
             display: flex;
             justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
         }
 
         .key {
-            background: rgba(107, 114, 128, 0.2);
-            padding: 2px 6px;
-            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 4px 12px;
+            border-radius: 6px;
             font-family: monospace;
-            font-size: 9px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        /* Hide scrollbar but keep functionality */
+        .control-panel::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .control-panel::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .control-panel::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
         }
 
         @media (max-width: 1400px) {
             .switcher-container {
-                grid-template-columns: 1fr 350px;
+                grid-template-columns: 1fr 280px;
+            }
+        }
+
+        @media (min-width: 1200px) {
+            .scene-button {
+                min-height: 100px;
+                font-size: 24px;
+            }
+            
+            .btn {
+                min-height: 72px;
+                font-size: 20px;
+            }
+            
+            .camera-button {
+                min-height: 72px;
+                font-size: 18px;
             }
         }
     </style>
@@ -297,13 +339,6 @@
                 <video id="previewVideo" autoplay muted playsinline></video>
                 <div class="preview-overlay" id="previewOverlay">PROGRAM</div>
             </div>
-            <div class="section">
-                <div class="section-title">Mixer Status</div>
-                <div class="status-indicator">
-                    <div class="status-dot" id="statusDot"></div>
-                    <span id="statusText">Checking...</span>
-                </div>
-            </div>
         </div>
 
         <div class="control-panel">
@@ -313,37 +348,29 @@
             </div>
 
             <div class="section">
-                <div class="section-title">Controls</div>
+                <div class="section-title">Mixer Control</div>
                 <div class="control-buttons">
-                    <button class="btn btn-primary" id="startBtn">Start Mixer</button>
-                    <button class="btn btn-danger" id="stopBtn">Stop Mixer</button>
+                    <button class="btn btn-primary" id="startBtn">Start</button>
+                    <button class="btn btn-danger" id="stopBtn">Stop</button>
                 </div>
             </div>
 
             <div class="section">
-                <div class="section-title">Camera Selection</div>
+                <div class="section-title">Status</div>
+                <div class="status-indicator">
+                    <div class="status-dot" id="statusDot"></div>
+                    <span id="statusText">Checking...</span>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Cameras</div>
                 <div class="camera-controls" id="cameraControls"></div>
-            </div>
-
-            <div class="section">
-                <div class="section-title">Controller Status</div>
-                <div class="controller-status" id="controllerStatus">
-                    <div class="info-text">No controllers detected. Press any button on your gamepad or connect a StreamDeck.</div>
-                </div>
-            </div>
-
-            <div class="section">
-                <div class="section-title">Keyboard Shortcuts</div>
-                <div class="keyboard-hints">
-                    <div class="keyboard-hint"><span>1-7</span><span class="key">Switch Scene</span></div>
-                    <div class="keyboard-hint"><span>Space</span><span class="key">Start/Stop</span></div>
-                    <div class="keyboard-hint"><span>Q/W/E/R</span><span class="key">Camera 1-4</span></div>
-                    <div class="keyboard-hint"><span>Arrow Keys</span><span class="key">Navigate</span></div>
-                </div>
             </div>
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <script>
         const API_BASE = window.location.origin;
         let currentScene = null;
@@ -367,29 +394,52 @@
         async function loadScenes() {
             try {
                 const response = await fetch(`${API_BASE}/api/scenes`);
+                if (response.status === 503) {
+                    const errorData = await response.json();
+                    showErrorMessage('Mixer is not enabled. Please enable it in config.yml');
+                    return;
+                }
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
                 const data = await response.json();
                 scenes = data.scenes || [];
                 renderScenes();
             } catch (error) {
                 console.error('Failed to load scenes:', error);
+                showErrorMessage('Failed to load scenes: ' + error.message);
             }
         }
 
         // Render scene buttons
         function renderScenes() {
             const grid = document.getElementById('sceneGrid');
+            if (!grid) {
+                console.error("Element with ID 'sceneGrid' not found.");
+                return;
+            }
             grid.innerHTML = '';
             
             const sceneKeys = ['1', '2', '3', '4', '5', '6', '7'];
             scenes.forEach((scene, index) => {
                 const btn = document.createElement('div');
                 btn.className = 'scene-button';
-                btn.textContent = scene.label;
                 btn.dataset.sceneId = scene.id;
                 if (index < sceneKeys.length) {
-                    btn.innerHTML = `<span class="key-hint">${sceneKeys[index]}</span>${scene.label}`;
+                    btn.innerHTML = `<span class="key-hint">${sceneKeys[index]}</span><span>${scene.label}</span>`;
+                } else {
+                    btn.innerHTML = `<span>${scene.label}</span>`;
                 }
                 btn.addEventListener('click', () => switchScene(scene.id));
+                btn.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    btn.style.transform = 'scale(0.95)';
+                });
+                btn.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    btn.style.transform = '';
+                    switchScene(scene.id);
+                });
                 grid.appendChild(btn);
             });
         }
@@ -398,6 +448,15 @@
         async function checkMixerStatus() {
             try {
                 const response = await fetch(`${API_BASE}/api/mixer/status`);
+                if (response.status === 503) {
+                    const errorData = await response.json();
+                    showErrorMessage('Mixer is not enabled. Please enable it in config.yml');
+                    updateStatus({ state: 'DISABLED', health: 'unhealthy' });
+                    return;
+                }
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
                 const data = await response.json();
                 mixerState = data.state;
                 currentScene = data.current_scene;
@@ -405,6 +464,7 @@
                 updateStatus(data);
                 updateSceneButtons();
                 updatePreview(data);
+                clearErrorMessage();
             } catch (error) {
                 console.error('Failed to check mixer status:', error);
                 updateStatus({ state: 'ERROR', health: 'unhealthy' });
@@ -416,15 +476,44 @@
             const dot = document.getElementById('statusDot');
             const text = document.getElementById('statusText');
             
+            if (!dot || !text) {
+                console.error('Status elements not found');
+                return;
+            }
+            
             dot.className = 'status-dot';
             if (data.state === 'PLAYING' && data.health === 'healthy') {
                 dot.classList.add('active');
                 text.textContent = `PLAYING - ${data.current_scene || 'No scene'}`;
             } else if (data.state === 'NULL') {
                 text.textContent = 'STOPPED';
+            } else if (data.state === 'DISABLED') {
+                dot.classList.add('error');
+                text.textContent = 'MIXER DISABLED';
             } else {
                 dot.classList.add('error');
                 text.textContent = `ERROR - ${data.last_error || 'Unknown error'}`;
+            }
+        }
+        
+        // Show error message
+        function showErrorMessage(message) {
+            let errorDiv = document.getElementById('errorMessage');
+            if (!errorDiv) {
+                errorDiv = document.createElement('div');
+                errorDiv.id = 'errorMessage';
+                errorDiv.style.cssText = 'position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #ef4444; color: white; padding: 16px 24px; border-radius: 8px; z-index: 10000; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.3);';
+                document.body.appendChild(errorDiv);
+            }
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+        
+        // Clear error message
+        function clearErrorMessage() {
+            const errorDiv = document.getElementById('errorMessage');
+            if (errorDiv) {
+                errorDiv.style.display = 'none';
             }
         }
 
@@ -507,10 +596,19 @@
                     body: JSON.stringify({ id: sceneId })
                 });
                 
+                if (response.status === 503) {
+                    const errorData = await response.json();
+                    alert('Mixer is not enabled. Please enable it in config.yml and restart the service.');
+                    return;
+                }
+                
                 if (response.ok) {
                     currentScene = sceneId;
                     updateSceneButtons();
                     await checkMixerStatus();
+                } else {
+                    const errorData = await response.json();
+                    console.error('Failed to switch scene:', errorData);
                 }
             } catch (error) {
                 console.error('Failed to switch scene:', error);
@@ -524,10 +622,17 @@
                     method: 'POST'
                 });
                 
+                if (response.status === 503) {
+                    const errorData = await response.json();
+                    alert('Mixer is not enabled. Please enable it in config.yml and restart the service.');
+                    return;
+                }
+                
                 if (response.ok) {
                     await checkMixerStatus();
                 } else {
-                    alert('Failed to start mixer');
+                    const errorData = await response.json();
+                    alert('Failed to start mixer: ' + (errorData.detail || 'Unknown error'));
                 }
             } catch (error) {
                 console.error('Failed to start mixer:', error);
@@ -552,8 +657,34 @@
 
         // Setup event listeners
         function setupEventListeners() {
-            document.getElementById('startBtn').addEventListener('click', startMixer);
-            document.getElementById('stopBtn').addEventListener('click', stopMixer);
+            const startBtn = document.getElementById('startBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            
+            if (startBtn) {
+                startBtn.addEventListener('click', startMixer);
+                startBtn.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    startBtn.style.transform = 'scale(0.95)';
+                });
+                startBtn.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    startBtn.style.transform = '';
+                    startMixer();
+                });
+            }
+            
+            if (stopBtn) {
+                stopBtn.addEventListener('click', stopMixer);
+                stopBtn.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    stopBtn.style.transform = 'scale(0.95)';
+                });
+                stopBtn.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    stopBtn.style.transform = '';
+                    stopMixer();
+                });
+            }
         }
 
         // Setup gamepad support
@@ -691,41 +822,10 @@
             }
         }
 
-        // Update controller status display
+        // Update controller status display (removed from UI but keeping function for future use)
         function updateControllerStatus() {
-            const container = document.getElementById('controllerStatus');
-            container.innerHTML = '';
-
-            if (gamepads.length === 0 && !streamdeckConnected) {
-                container.innerHTML = '<div class="info-text">No controllers detected. Press any button on your gamepad or connect a StreamDeck.</div>';
-                return;
-            }
-
-            gamepads.forEach((gamepad, index) => {
-                const item = document.createElement('div');
-                item.className = 'controller-item';
-                item.innerHTML = `
-                    <div>
-                        <div class="controller-name">${gamepad.id}</div>
-                        <div class="controller-type">Gamepad</div>
-                    </div>
-                    <div class="status-dot active"></div>
-                `;
-                container.appendChild(item);
-            });
-
-            if (streamdeckConnected) {
-                const item = document.createElement('div');
-                item.className = 'controller-item';
-                item.innerHTML = `
-                    <div>
-                        <div class="controller-name">Elgato StreamDeck</div>
-                        <div class="controller-type">StreamDeck</div>
-                    </div>
-                    <div class="status-dot active"></div>
-                `;
-                container.appendChild(item);
-            }
+            // Controller status section removed from UI for cleaner design
+            // Function kept for potential future use
         }
 
         // Setup keyboard shortcuts
@@ -774,11 +874,23 @@
         // Initialize camera controls
         function initCameraControls() {
             const container = document.getElementById('cameraControls');
+            if (!container) {
+                console.error("Element with ID 'cameraControls' not found.");
+                return;
+            }
             for (let i = 0; i < 4; i++) {
                 const btn = document.createElement('div');
                 btn.className = 'camera-button';
                 btn.textContent = `CAM ${i + 1}`;
                 btn.dataset.cameraId = `cam${i}`;
+                btn.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    btn.style.transform = 'scale(0.95)';
+                });
+                btn.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    btn.style.transform = '';
+                });
                 container.appendChild(btn);
             }
         }
@@ -788,10 +900,8 @@
             init();
             initCameraControls();
         });
-    </script>
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-    <script>
-        // Ensure HLS is available before using it
+        
+        // Ensure HLS is available
         if (typeof Hls === 'undefined') {
             console.warn('HLS.js not loaded, HLS playback may not work');
         }
