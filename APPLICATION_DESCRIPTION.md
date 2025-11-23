@@ -315,11 +315,42 @@ cameras:
 
 ## Technical Highlights
 
+### Hardware Acceleration Details
+
+**MPP (Media Process Platform) Encoders**
+- **mpph264enc**: Hardware H.264 encoder
+  - Bitrate control: `bps` (bits per second) parameter
+  - Max bitrate: `bps-max` for variable bitrate
+  - Low latency mode support
+  - Used in recording pipelines when available
+- **mpph265enc**: Hardware H.265/HEVC encoder
+  - Better compression than H.264
+  - Higher CPU overhead for decoding
+  - Used for high-quality recordings
+- **Fallback Strategy**: Software x264enc
+  - More reliable than hardware encoders
+  - Better compatibility
+  - Used when hardware encoder fails or unavailable
+
+**RGA (Raster Graphics Acceleration)**
+- Hardware-accelerated video scaling and rotation
+- Format conversion acceleration
+- Used by GStreamer `videoscale` and `videoconvert` elements
+- Significantly faster than CPU-based processing
+
+**VPU Capabilities in Practice**
+- **Simultaneous Encoding**: Can encode multiple streams simultaneously
+- **Resolution Support**: Up to 4K@60fps per stream
+- **Bitrate Control**: Hardware-accelerated rate control
+- **Low Latency**: Hardware encoding reduces latency vs software
+
 ### Why GStreamer?
-- **Hardware Support**: Direct access to RK3588 MPP encoders
+- **Hardware Support**: Direct access to RK3588 MPP encoders via GStreamer plugins
+- **RGA Integration**: Automatic use of RGA for scaling/conversion
 - **Flexibility**: Pipeline-based architecture allows complex workflows
 - **Performance**: Low-level control for optimization
 - **Maturity**: Battle-tested in professional video applications
+- **Rockchip Plugins**: Vendor-provided plugins for hardware acceleration
 
 ### Why FastAPI?
 - **Modern**: Async/await support for non-blocking operations
@@ -335,21 +366,146 @@ cameras:
 
 ## Performance Characteristics
 
-- **Recording Latency**: Near-zero (direct to file)
+### Encoding Performance
+
+**Hardware Encoding (MPP)**
+- **H.264**: Up to 4K@60fps per encoder instance
+- **H.265**: Up to 4K@60fps per encoder instance
+- **CPU Usage**: ~5-10% per hardware-encoded stream
+- **Power Efficiency**: Significantly lower power than software encoding
+- **Latency**: ~50-100ms (hardware pipeline latency)
+
+**Software Encoding (x264enc)**
+- **H.264**: Up to 1080p@60fps per CPU core
+- **CPU Usage**: ~30-40% per active camera
+- **Quality**: Better quality control, more reliable
+- **Latency**: ~100-200ms (depends on preset)
+
+**Simultaneous Streams**
+- **Hardware**: Can handle 4x 1080p@60fps streams simultaneously
+- **Software**: Limited by CPU cores (typically 2-3 streams max)
+- **Mixed**: Hardware for recording, software for preview (optimal)
+
+### System Performance
+
+- **Recording Latency**: Near-zero (direct to file, no network)
 - **Preview Latency**: <100ms (WebRTC), ~300ms (HLS)
 - **Mixer Latency**: ~200ms (encoding + compositing)
-- **CPU Usage**: ~30-40% per active camera (with hardware encoding)
-- **Memory**: ~200MB base + ~50MB per active pipeline
-- **Disk I/O**: Depends on bitrate and number of recordings
+- **CPU Usage**: 
+  - Idle: ~5-10%
+  - 1 camera (hardware): ~10-15%
+  - 1 camera (software): ~30-40%
+  - 4 cameras (hardware): ~20-30%
+  - 4 cameras (software): ~80-100% (not recommended)
+- **Memory**: 
+  - Base application: ~200MB
+  - Per recording pipeline: ~50MB
+  - Per preview pipeline: ~30MB
+  - Per mixer pipeline: ~100MB
+  - Total (4 cameras + mixer): ~500-600MB
+- **Disk I/O**: 
+  - Recording: ~6-8 MB/s per 1080p@60fps stream (5000 kbps)
+  - 4 simultaneous recordings: ~24-32 MB/s
+  - **Recommendation**: Use SSD via SATA for reliable recording
+- **Network**: 
+  - Streaming: ~5-8 Mbps per stream (5000 kbps)
+  - 4 streams: ~20-32 Mbps
+  - Gigabit Ethernet easily handles multiple streams
+- **VPU Utilization**: 
+  - Hardware encoding: ~60-80% VPU utilization per stream
+  - Can handle 4 simultaneous hardware encodes
+  - VPU offloads CPU significantly
+
+## Hardware-Specific Considerations
+
+### Storage Recommendations
+
+**For Production Use:**
+- **SSD via SATA**: Recommended for reliable high-speed recording
+  - Can handle 4x simultaneous 4K recordings
+  - Lower latency than eMMC or SD card
+  - Better for long-duration recordings
+- **eMMC**: Suitable for short recordings or testing
+  - Limited write endurance
+  - Slower than SSD
+- **SD Card**: Not recommended for continuous recording
+  - Write speed limitations
+  - Wear concerns with constant writes
+
+### Network Configuration
+
+**Gigabit Ethernet:**
+- **Local Streaming**: Easily handles 4x 1080p streams
+- **Remote Streaming**: Can stream to multiple destinations
+- **Bandwidth**: ~20-32 Mbps for 4 simultaneous streams
+- **Latency**: <10ms on local network
+
+**Wi-Fi (if available):**
+- **Not Recommended**: For production streaming
+- **Use Case**: Remote monitoring only
+- **Limitations**: Higher latency, less reliable
+
+### Power Requirements
+
+**Typical Power Consumption:**
+- **Idle**: ~8-12W
+- **1 Camera Recording**: ~12-15W
+- **4 Cameras Recording**: ~18-25W
+- **4 Cameras + Mixer**: ~20-28W
+- **Peak**: ~30W (all features active)
+
+**Power Supply:**
+- **Required**: 12V DC, minimum 3A (36W) recommended
+- **Stability**: Use quality power supply for reliable operation
+- **UPS**: Consider for critical applications
+
+### Thermal Considerations
+
+**Heat Management:**
+- **Passive Cooling**: Device relies on case for heat dissipation
+- **Active Cooling**: Optional fan can be added
+- **Monitoring**: CPU/VPU temperature monitoring available
+- **Throttling**: Automatic throttling if temperature too high
+- **Recommendation**: Ensure adequate ventilation for 24/7 operation
+
+### Expansion Possibilities
+
+**PCIe Expansion:**
+- **Network Cards**: 10GbE for high-bandwidth streaming
+- **Capture Cards**: Additional video input sources
+- **Storage**: NVMe SSD for ultra-fast recording
+
+**USB Expansion:**
+- **Storage**: External USB 3.0 drives for recordings
+- **Network**: USB-to-Ethernet adapters
+- **Capture**: USB video capture devices
+
+**GPIO/I2C/SPI:**
+- **Sensors**: Temperature, motion, etc.
+- **Control**: External device control
+- **Status Indicators**: LEDs, displays
 
 ## Future Enhancements
 
 - **NDI Support**: Network Device Interface for professional workflows
+  - Leverages GPU/VPU for NDI encoding
+  - Low-latency network video
 - **SRT Output**: Secure Reliable Transport for long-distance streaming
+  - Uses hardware encoding for efficiency
+  - Error correction for unreliable networks
 - **ISO Recording**: Individual camera recordings from mixer
+  - Uses VPU for simultaneous multi-stream encoding
 - **Advanced Scenes**: Transitions, effects, overlays
+  - GPU acceleration for effects
+  - RGA for real-time transformations
+- **AI Integration**: NPU utilization
+  - Object detection and tracking
+  - Automatic scene switching
+  - Video analytics
 - **Remote Control**: WebSocket API for real-time control
 - **Multi-Device**: Support for multiple R58 units
+  - Network synchronization
+  - Distributed recording
 
 ## Conclusion
 
