@@ -343,7 +343,7 @@ class MixerCore:
                 # HDMI input (NV24 format) - use EXACT same approach as working recorder pipeline
                 # Match the working pipeline exactly: format=NV24,width={width},height={height},framerate=60/1
                 # Then convert to NV12 and scale to match compositor input requirements
-                # Note: Don't specify width/height in NV12 caps - let videoscale handle it
+                # Add explicit caps after queue to prevent compositor from negotiating upstream
                 source_str = (
                     f"v4l2src device={device} io-mode=mmap ! "
                     f"video/x-raw,format=NV24,width={width},height={height},framerate=60/1 ! "
@@ -351,7 +351,8 @@ class MixerCore:
                     f"video/x-raw,format=NV12 ! "
                     f"videoscale ! "
                     f"video/x-raw,width={width},height={height} ! "
-                    f"queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream"
+                    f"queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream ! "
+                    f"video/x-raw,format=NV12,width={width},height={height}"
                 )
             else:
                 # Other video devices - check if they exist first
