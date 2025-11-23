@@ -1697,13 +1697,13 @@ Create your presentation using Markdown or HTML
 
         // Toggle between visual and markdown editor
         function toggleEditorMode() {
-            const quillContainer = document.getElementById('quillEditor');
+            const quillEditorElement = document.getElementById('quillEditor');
             const textarea = document.getElementById('slideContent');
             const toggleBtn = document.getElementById('toggleEditorMode');
             
             if (editorMode === 'visual') {
                 // Show Quill, hide textarea
-                quillContainer.style.display = 'block';
+                quillEditorElement.style.display = 'block';
                 textarea.style.display = 'none';
                 toggleBtn.textContent = '📝 Markdown';
                 toggleBtn.title = 'Switch to Markdown Editor';
@@ -1716,7 +1716,7 @@ Create your presentation using Markdown or HTML
                 }
             } else {
                 // Show textarea, hide Quill
-                quillContainer.style.display = 'none';
+                quillEditorElement.style.display = 'none';
                 textarea.style.display = 'block';
                 toggleBtn.textContent = '✨ Visual';
                 toggleBtn.title = 'Switch to Visual Editor';
