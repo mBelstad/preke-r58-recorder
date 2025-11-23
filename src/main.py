@@ -15,6 +15,10 @@ from .preview import PreviewManager
 from .mixer.scenes import SceneManager
 from .mixer.core import MixerCore
 from .mixer.graphics import GraphicsRenderer
+from .mixer.graphics_templates import get_template, list_templates, GraphicsTemplate
+from .mixer.database import Database
+from .mixer.files import FileManager
+from .mixer.queue import SceneQueue
 
 # Configure logging
 logging.basicConfig(
@@ -35,12 +39,29 @@ except FileNotFoundError:
 recorder = Recorder(config)
 preview_manager = PreviewManager(config)
 
+# Initialize database
+database = Database(db_path="data/app.db")
+database.migrate_json_scenes(config.mixer.scenes_dir if config.mixer.enabled else "scenes")
+
+# Initialize file manager
+file_manager = FileManager(uploads_dir="uploads", database=database)
+
 # Initialize mixer (if enabled)
 mixer_core: Optional[MixerCore] = None
 scene_manager: Optional[SceneManager] = None
 graphics_renderer: Optional[GraphicsRenderer] = None
+scene_queue: Optional[SceneQueue] = None
 if config.mixer.enabled:
     scene_manager = SceneManager(scenes_dir=config.mixer.scenes_dir)
+    
+    # Initialize queue with callback to advance scene
+    def queue_advance_callback(scene_id: str):
+        """Callback when queue advances to next scene."""
+        if mixer_core:
+            mixer_core.apply_scene(scene_id)
+    
+    scene_queue = SceneQueue(database=database, on_advance=queue_advance_callback)
+    
     mixer_core = MixerCore(
         config=config,
         scene_manager=scene_manager,
@@ -587,6 +608,258 @@ async def upload_video(file: UploadFile = File(...)) -> Dict[str, str]:
         raise HTTPException(status_code=500, detail=f"Failed to upload video: {e}")
 
 
+# Broadcast Graphics API endpoints
+@app.post("/api/graphics/lower_third")
+async def create_lower_third(request: Dict[str, Any]) -> Dict[str, Any]:
+    """Create or update a lower-third graphics overlay.
+    
+    Request body:
+        - source_id: Unique identifier for the lower-third
+        - line1: Primary text (required)
+        - line2: Secondary text (optional)
+        - background_color: Background color hex (default: "#000000")
+        - background_alpha: Background transparency 0.0-1.0 (default: 0.8)
+        - text_color: Text color hex (default: "#FFFFFF")
+        - line1_font: Font for line1 (default: "Sans Bold 32")
+        - line2_font: Font for line2 (default: "Sans 24")
+        - position: Position preset (default: "bottom-left")
+        - width: Lower-third width (default: 600)
+        - height: Lower-third height (default: 120)
+        - padding: Padding dict with x, y (default: {"x": 20, "y": 15})
+        - template_id: Template ID to apply (optional)
+    """
+    if not graphics_renderer:
+        raise HTTPException(status_code=503, detail="Graphics renderer not available")
+    
+    source_id = request.get("source_id")
+    if not source_id:
+        raise HTTPException(status_code=400, detail="source_id required")
+    
+    if not request.get("line1"):
+        raise HTTPException(status_code=400, detail="line1 text required")
+    
+    try:
+        # Create or update the lower-third source
+        text_data = {k: v for k, v in request.items() if k != "source_id"}
+        pipeline = graphics_renderer.create_lower_third_source(source_id, text_data)
+        
+        if not pipeline:
+            raise HTTPException(status_code=500, detail="Failed to create lower-third")
+        
+        # Store the graphics source
+        from .mixer.graphics import GraphicsSource
+        graphics_source = GraphicsSource(
+            source_id=source_id,
+            source_type="lower_third",
+            data=text_data
+        )
+        
+        with graphics_renderer._lock:
+            graphics_renderer.active_sources[source_id] = graphics_source
+        
+        logger.info(f"Created lower-third: {source_id}")
+        return {
+            "status": "created",
+            "source_id": source_id,
+            "source": f"lower_third:{source_id}",
+            "config": text_data
+        }
+    except Exception as e:
+        logger.error(f"Failed to create lower-third {source_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create lower-third: {e}")
+
+
+@app.get("/api/graphics/templates")
+async def list_graphics_templates(template_type: Optional[str] = None) -> Dict[str, Any]:
+    """List all available graphics templates.
+    
+    Query parameters:
+        - template_type: Filter by type (e.g., "lower_third")
+    """
+    templates = list_templates(template_type)
+    return {
+        "templates": [
+            {
+                "id": t.id,
+                "name": t.name,
+                "type": t.type,
+                "description": t.description,
+                "default_config": t.default_config,
+            }
+            for t in templates
+        ]
+    }
+
+
+@app.get("/api/graphics/templates/{template_id}")
+async def get_graphics_template(template_id: str) -> Dict[str, Any]:
+    """Get a specific graphics template."""
+    template = get_template(template_id)
+    if not template:
+        raise HTTPException(status_code=404, detail=f"Template {template_id} not found")
+    
+    return {
+        "id": template.id,
+        "name": template.name,
+        "type": template.type,
+        "description": template.description,
+        "default_config": template.default_config,
+    }
+
+
+@app.post("/api/graphics/template/{template_id}")
+async def apply_template(template_id: str, request: Dict[str, Any]) -> Dict[str, Any]:
+    """Apply a template to create a graphics source.
+    
+    Request body:
+        - source_id: Unique identifier for the graphics source
+        - Additional fields will override template defaults
+    """
+    if not graphics_renderer:
+        raise HTTPException(status_code=503, detail="Graphics renderer not available")
+    
+    template = get_template(template_id)
+    if not template:
+        raise HTTPException(status_code=404, detail=f"Template {template_id} not found")
+    
+    source_id = request.get("source_id")
+    if not source_id:
+        raise HTTPException(status_code=400, detail="source_id required")
+    
+    try:
+        # Merge template defaults with request data
+        config = template.default_config.copy()
+        config.update({k: v for k, v in request.items() if k != "source_id"})
+        config["template_id"] = template_id
+        
+        # Create the graphics source based on type
+        if template.type == "lower_third":
+            pipeline = graphics_renderer.create_lower_third_source(source_id, config)
+            if not pipeline:
+                raise HTTPException(status_code=500, detail="Failed to create lower-third from template")
+            
+            from .mixer.graphics import GraphicsSource
+            graphics_source = GraphicsSource(
+                source_id=source_id,
+                source_type="lower_third",
+                data=config
+            )
+            
+            with graphics_renderer._lock:
+                graphics_renderer.active_sources[source_id] = graphics_source
+            
+            return {
+                "status": "created",
+                "source_id": source_id,
+                "source": f"lower_third:{source_id}",
+                "template_id": template_id,
+                "config": config
+            }
+        else:
+            raise HTTPException(status_code=400, detail=f"Template type {template.type} not yet supported")
+    except Exception as e:
+        logger.error(f"Failed to apply template {template_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to apply template: {e}")
+
+
+@app.delete("/api/graphics/{source_id}")
+async def delete_graphics_source(source_id: str) -> Dict[str, str]:
+    """Delete a graphics source."""
+    if not graphics_renderer:
+        raise HTTPException(status_code=503, detail="Graphics renderer not available")
+    
+    try:
+        with graphics_renderer._lock:
+            if source_id not in graphics_renderer.active_sources:
+                raise HTTPException(status_code=404, detail=f"Graphics source {source_id} not found")
+            
+            del graphics_renderer.active_sources[source_id]
+            
+            # Also remove from pipelines if present
+            if source_id in graphics_renderer.pipelines:
+                del graphics_renderer.pipelines[source_id]
+        
+        logger.info(f"Deleted graphics source: {source_id}")
+        return {"status": "deleted", "source_id": source_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete graphics source {source_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete graphics source: {e}")
+
+
+@app.post("/api/graphics/graphics")
+async def create_graphics_source(request: Dict[str, Any]) -> Dict[str, Any]:
+    """Create a graphics source (stinger, ticker, timer, scoreboard, etc.).
+    
+    Request body:
+        - source_id: Unique identifier for the graphics source
+        - type: Graphics type ("stinger", "ticker", "timer", "scoreboard")
+        - Additional type-specific configuration
+    """
+    if not graphics_renderer:
+        raise HTTPException(status_code=503, detail="Graphics renderer not available")
+    
+    source_id = request.get("source_id")
+    if not source_id:
+        raise HTTPException(status_code=400, detail="source_id required")
+    
+    graphics_type = request.get("type")
+    if not graphics_type:
+        raise HTTPException(status_code=400, detail="type required")
+    
+    try:
+        # Create the graphics source
+        graphics_data = {k: v for k, v in request.items() if k != "source_id"}
+        pipeline = graphics_renderer.create_graphics_source(source_id, graphics_data)
+        
+        if not pipeline:
+            raise HTTPException(status_code=500, detail=f"Failed to create {graphics_type} graphics")
+        
+        # Store the graphics source
+        from .mixer.graphics import GraphicsSource
+        graphics_source = GraphicsSource(
+            source_id=source_id,
+            source_type="graphics",
+            data=graphics_data
+        )
+        
+        with graphics_renderer._lock:
+            graphics_renderer.active_sources[source_id] = graphics_source
+        
+        logger.info(f"Created graphics source: {source_id} type={graphics_type}")
+        return {
+            "status": "created",
+            "source_id": source_id,
+            "source": f"graphics:{source_id}",
+            "type": graphics_type,
+            "config": graphics_data
+        }
+    except Exception as e:
+        logger.error(f"Failed to create graphics source {source_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create graphics source: {e}")
+
+
+@app.get("/api/graphics/{source_id}")
+async def get_graphics_source(source_id: str) -> Dict[str, Any]:
+    """Get a graphics source configuration."""
+    if not graphics_renderer:
+        raise HTTPException(status_code=503, detail="Graphics renderer not available")
+    
+    with graphics_renderer._lock:
+        if source_id not in graphics_renderer.active_sources:
+            raise HTTPException(status_code=404, detail=f"Graphics source {source_id} not found")
+        
+        graphics_source = graphics_renderer.active_sources[source_id]
+        
+        return {
+            "source_id": graphics_source.source_id,
+            "source_type": graphics_source.source_type,
+            "source": f"{graphics_source.source_type}:{source_id}",
+            "data": graphics_source.data,
+        }
+
+
 # Switcher/Controller API endpoints
 @app.post("/api/switcher/action")
 async def switcher_action(request: Dict[str, Any]) -> Dict[str, str]:
@@ -640,6 +913,187 @@ async def switcher_action(request: Dict[str, Any]) -> Dict[str, str]:
     
     else:
         raise HTTPException(status_code=400, detail=f"Unknown action: {action}")
+
+
+# File Upload API endpoints
+@app.post("/api/files/upload")
+async def upload_file(
+    file: UploadFile = File(...),
+    loop: bool = False
+) -> Dict[str, Any]:
+    """Upload a video or image file."""
+    try:
+        # Read file content
+        content = await file.read()
+        
+        # Save file
+        metadata = file_manager.save_file(content, file.filename, loop=loop)
+        
+        return {
+            "status": "uploaded",
+            "file_id": metadata["id"],
+            "file_path": metadata["file_path"],
+            "file_type": metadata["file_type"],
+            "metadata": metadata
+        }
+    except Exception as e:
+        logger.error(f"Failed to upload file: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to upload file: {str(e)}")
+
+
+@app.get("/api/files")
+async def list_files() -> Dict[str, Any]:
+    """List all uploaded files."""
+    files = file_manager.list_files()
+    return {"files": files}
+
+
+@app.get("/api/files/{file_id}")
+async def get_file_metadata(file_id: str) -> Dict[str, Any]:
+    """Get file metadata."""
+    metadata = file_manager.get_file_metadata(file_id)
+    if not metadata:
+        raise HTTPException(status_code=404, detail=f"File {file_id} not found")
+    return metadata
+
+
+@app.delete("/api/files/{file_id}")
+async def delete_file(file_id: str) -> Dict[str, str]:
+    """Delete a file."""
+    success = file_manager.delete_file(file_id)
+    if not success:
+        raise HTTPException(status_code=404, detail=f"File {file_id} not found")
+    return {"status": "deleted", "file_id": file_id}
+
+
+@app.put("/api/files/{file_id}")
+async def update_file_settings(file_id: str, settings: Dict[str, Any]) -> Dict[str, str]:
+    """Update file settings (e.g., loop)."""
+    success = file_manager.update_file_settings(file_id, settings)
+    if not success:
+        raise HTTPException(status_code=404, detail=f"File {file_id} not found")
+    return {"status": "updated", "file_id": file_id}
+
+
+# Scene Queue API endpoints
+@app.get("/api/queue")
+async def get_queue() -> Dict[str, Any]:
+    """Get current queue."""
+    if not scene_queue:
+        raise HTTPException(status_code=503, detail="Mixer not enabled")
+    queue_items = scene_queue.queue
+    return {"queue": queue_items}
+
+
+@app.post("/api/queue")
+async def add_to_queue(request: Dict[str, Any]) -> Dict[str, str]:
+    """Add scene to queue."""
+    if not scene_queue:
+        raise HTTPException(status_code=503, detail="Mixer not enabled")
+    
+    scene_id = request.get("scene_id")
+    if not scene_id:
+        raise HTTPException(status_code=400, detail="scene_id required")
+    
+    duration = request.get("duration")
+    transition = request.get("transition", "cut")
+    
+    success = scene_queue.add(scene_id, duration, transition)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to add to queue")
+    
+    return {"status": "added", "scene_id": scene_id}
+
+
+@app.delete("/api/queue/{index}")
+async def remove_from_queue(index: int) -> Dict[str, str]:
+    """Remove scene from queue by index."""
+    if not scene_queue:
+        raise HTTPException(status_code=503, detail="Mixer not enabled")
+    
+    success = scene_queue.remove(index)
+    if not success:
+        raise HTTPException(status_code=404, detail=f"Queue item at index {index} not found")
+    
+    return {"status": "removed", "index": index}
+
+
+@app.put("/api/queue/reorder")
+async def reorder_queue(request: Dict[str, Any]) -> Dict[str, str]:
+    """Reorder queue items."""
+    if not scene_queue:
+        raise HTTPException(status_code=503, detail="Mixer not enabled")
+    
+    indices = request.get("indices")
+    if not indices or not isinstance(indices, list):
+        raise HTTPException(status_code=400, detail="indices array required")
+    
+    success = scene_queue.reorder(indices)
+    if not success:
+        raise HTTPException(status_code=400, detail="Invalid indices")
+    
+    return {"status": "reordered"}
+
+
+@app.post("/api/queue/advance")
+async def manual_advance() -> Dict[str, Any]:
+    """Manually advance to next scene in queue."""
+    if not scene_queue:
+        raise HTTPException(status_code=503, detail="Mixer not enabled")
+    
+    scene_id = scene_queue.advance()
+    if not scene_id:
+        return {"status": "completed", "scene_id": None}
+    
+    return {"status": "advanced", "scene_id": scene_id}
+
+
+@app.post("/api/queue/start")
+async def start_auto_advance() -> Dict[str, str]:
+    """Start auto-advance mode."""
+    if not scene_queue:
+        raise HTTPException(status_code=503, detail="Mixer not enabled")
+    
+    success = scene_queue.start_auto_advance()
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to start auto-advance")
+    
+    return {"status": "started"}
+
+
+@app.post("/api/queue/stop")
+async def stop_auto_advance() -> Dict[str, str]:
+    """Stop auto-advance mode."""
+    if not scene_queue:
+        raise HTTPException(status_code=503, detail="Mixer not enabled")
+    
+    success = scene_queue.stop_auto_advance()
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to stop auto-advance")
+    
+    return {"status": "stopped"}
+
+
+@app.get("/api/queue/status")
+async def get_queue_status() -> Dict[str, Any]:
+    """Get queue status."""
+    if not scene_queue:
+        raise HTTPException(status_code=503, detail="Mixer not enabled")
+    
+    return scene_queue.get_status()
+
+
+@app.delete("/api/queue")
+async def clear_queue() -> Dict[str, str]:
+    """Clear the queue."""
+    if not scene_queue:
+        raise HTTPException(status_code=503, detail="Mixer not enabled")
+    
+    success = scene_queue.clear()
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to clear queue")
+    
+    return {"status": "cleared"}
 
 
 if __name__ == "__main__":
