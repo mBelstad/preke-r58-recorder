@@ -15,6 +15,27 @@
     <!-- KaTeX for Math -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
     
+    <!-- Quill CSS -->
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+
+    <!-- Reveal.js Plugins -->
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/plugin/markdown/markdown.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/plugin/notes/notes.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/plugin/highlight/highlight.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/plugin/zoom/zoom.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/plugin/search/search.js"></script>
+    
+    <!-- Additional Reveal.js Plugins (conditionally loaded if available) -->
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js-appearance@1.1.1/plugin/appearance/appearance.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js-chalkboard@2.3.0/plugin/chalkboard/plugin.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js-menu@2.1.0/plugin/menu/menu.js"></script>
+
+    <!-- Quill JS -->
+    <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+    
+    <!-- Reveal.js Core -->
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.js"></script>
+
     <style>
         * {
             margin: 0;
@@ -22,10 +43,30 @@
             box-sizing: border-box;
         }
 
+        :root {
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #111111;
+            --bg-tertiary: #1a1a1a;
+            --bg-hover: #222222;
+            --border-color: rgba(255, 255, 255, 0.1);
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0a0;
+            --accent-blue: #3b82f6;
+            --accent-blue-hover: #2563eb;
+            --accent-green: #10b981;
+            --accent-red: #ef4444;
+            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+            --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.5);
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: #000;
-            color: #e5e5e5;
+            background: var(--bg-primary);
+            color: var(--text-primary);
             height: 100vh;
             overflow: hidden;
             display: flex;
@@ -34,23 +75,25 @@
             -moz-osx-font-smoothing: grayscale;
         }
 
+        /* Header */
         .header {
-            background: linear-gradient(180deg, #111111 0%, #0a0a0a 100%);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-            padding: 18px 28px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            padding: 16px 24px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             z-index: 1000;
-            position: relative;
-            backdrop-filter: blur(20px);
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+            box-shadow: var(--shadow-sm);
         }
 
         .header h1 {
-            font-size: 24px;
+            font-size: 20px;
             font-weight: 700;
-            letter-spacing: 1px;
+            background: linear-gradient(135deg, #ffffff 0%, #a0a0a0 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
 
         .header-actions {
@@ -59,208 +102,69 @@
             align-items: center;
         }
 
-        .btn {
-            padding: 11px 22px;
-            border-radius: 10px;
-            border: none;
-            font-size: 13px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            text-transform: none;
-            letter-spacing: 0.3px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .btn::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 0;
-            height: 0;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.2);
-            transform: translate(-50%, -50%);
-            transition: width 0.4s, height 0.4s;
-        }
-
-        .btn:hover::before {
-            width: 300px;
-            height: 300px;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-            color: white;
-            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
-        }
-
-        .btn-primary:hover {
-            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
-            transform: translateY(-1px);
-        }
-
-        .btn-primary:active {
-            transform: translateY(0);
-        }
-
-        .btn-secondary {
-            background: rgba(255, 255, 255, 0.08);
-            color: #e5e5e5;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .btn-secondary:hover {
-            background: rgba(255, 255, 255, 0.15);
-            border-color: rgba(255, 255, 255, 0.2);
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-        }
-
-        .btn-danger {
-            background: #ef4444;
-            color: white;
-        }
-
-        .btn-danger:hover {
-            background: #dc2626;
-        }
-
-        .btn-small {
-            padding: 8px 16px;
-            font-size: 12px;
-        }
-
+        /* Main Container */
         .main-container {
             flex: 1;
             display: grid;
-            grid-template-columns: 1fr 500px;
+            grid-template-columns: 1fr 450px;
             gap: 0;
             overflow: hidden;
         }
 
+        /* Presentation Area */
         .presentation-area {
-            display: flex;
-            flex-direction: column;
             background: #000;
             position: relative;
             overflow: hidden;
+            display: flex;
+            flex-direction: column;
         }
 
         .reveal-container {
             flex: 1;
             position: relative;
             overflow: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: center;
         }
 
-        .reveal-container .reveal {
-            height: 100%;
+        .reveal {
             width: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            height: 100%;
         }
 
+        /* Control Panel */
         .control-panel {
-            background: #0a0a0a;
-            border-left: 1px solid rgba(255, 255, 255, 0.06);
+            background: var(--bg-secondary);
+            border-left: 1px solid var(--border-color);
+            overflow-y: auto;
+            padding: 20px;
             display: flex;
             flex-direction: column;
-            overflow-y: auto;
-            backdrop-filter: blur(10px);
+            gap: 20px;
         }
 
         .panel-section {
-            padding: 20px 24px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-            background: rgba(255, 255, 255, 0.03);
-            margin: 10px 12px;
-            border-radius: 16px;
-            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        .panel-section:hover {
-            background: rgba(255, 255, 255, 0.05);
-            border-color: rgba(255, 255, 255, 0.08);
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            box-shadow: var(--shadow-sm);
         }
 
         .panel-title {
-            font-size: 13px;
+            font-size: 14px;
             font-weight: 600;
-            text-transform: none;
-            letter-spacing: 0.5px;
-            color: #e0e0e0;
-            margin-bottom: 12px;
+            color: var(--text-primary);
+            margin-bottom: 16px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border-color);
         }
 
-        .panel-title .icon {
-            margin-right: 8px;
-            font-size: 16px;
-        }
-
-        .panel-toggle {
-            background: rgba(255, 255, 255, 0.1);
-            border: none;
-            color: #aaa;
-            cursor: pointer;
-            font-size: 10px;
-            padding: 4px 8px;
-            border-radius: 4px;
-            transition: all 0.2s;
-        }
-
-        .panel-toggle:hover {
-            background: rgba(255, 255, 255, 0.15);
-            color: #fff;
-        }
-
-        .advanced-toggle {
-            background: none;
-            border: none;
-            color: #60a5fa;
-            cursor: pointer;
-            font-size: 12px;
-            padding: 6px 0;
-            text-decoration: underline;
-            text-underline-offset: 4px;
-            transition: all 0.2s;
-            margin-top: 8px;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .advanced-toggle:hover {
-            color: #93c5fd;
-        }
-
-        .advanced-section {
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.3s ease-out;
-            margin-top: 12px;
-            padding-top: 12px;
-            border-top: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        .advanced-section.expanded {
-            max-height: 2000px;
-        }
-
+        /* Forms */
         .form-group {
-            margin-bottom: 14px;
+            margin-bottom: 16px;
         }
 
         .form-group:last-child {
@@ -270,83 +174,38 @@
         .form-label {
             display: block;
             font-size: 12px;
-            color: #b0b0b0;
-            margin-bottom: 8px;
-            font-weight: 500;
-            text-transform: none;
-            letter-spacing: 0.2px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
         .form-input,
         .form-select,
         .form-textarea {
             width: 100%;
-            background: rgba(255, 255, 255, 0.06);
-            border: 1.5px solid rgba(255, 255, 255, 0.12);
-            border-radius: 10px;
-            color: #ffffff;
-            padding: 11px 14px;
-            font-size: 14px;
+            padding: 10px 12px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-size: 13px;
             font-family: inherit;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .form-input:hover,
-        .form-select:hover,
-        .form-textarea:hover {
-            background: rgba(255, 255, 255, 0.09);
-            border-color: rgba(255, 255, 255, 0.2);
-        }
-
-        .form-textarea {
-            min-height: 150px;
-            resize: vertical;
-        }
-
-        .form-textarea-small {
-            min-height: 80px;
-        }
-
-        /* Quill Editor Styling */
-        #quillEditor {
-            background: white;
-            border-radius: 8px;
-            min-height: 200px;
-            margin-bottom: 8px;
-        }
-
-        #quillEditor .ql-container {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, sans-serif;
-            font-size: 14px;
-            min-height: 200px;
-        }
-
-        #quillEditor .ql-editor {
-            min-height: 200px;
-            color: #333;
-        }
-
-        #quillEditor .ql-toolbar {
-            border-top-left-radius: 8px;
-            border-top-right-radius: 8px;
-            background: #f8f9fa;
-            border-bottom: 1px solid #e0e0e0;
-        }
-
-        #quillEditor .ql-container {
-            border-bottom-left-radius: 8px;
-            border-bottom-right-radius: 8px;
-            border: none;
+            transition: all 0.2s ease;
         }
 
         .form-input:focus,
         .form-select:focus,
         .form-textarea:focus {
             outline: none;
-            border-color: #3b82f6;
-            background: rgba(255, 255, 255, 0.1);
-            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15), 0 2px 8px rgba(0, 0, 0, 0.2);
-            transform: translateY(-1px);
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+        }
+
+        .form-textarea {
+            min-height: 100px;
+            resize: vertical;
         }
 
         .form-checkbox {
@@ -356,599 +215,314 @@
         }
 
         .form-checkbox input[type="checkbox"] {
-            width: 20px;
-            height: 20px;
+            accent-color: var(--accent-blue);
+            width: 16px;
+            height: 16px;
             cursor: pointer;
-            accent-color: #3b82f6;
-            border-radius: 4px;
         }
 
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-        }
-
-        .presentation-list {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .presentation-item {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 6px;
-            padding: 12px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .presentation-item:hover {
-            background: rgba(255, 255, 255, 0.1);
-            border-color: #3b82f6;
-        }
-
-        .presentation-item.active {
-            background: rgba(59, 130, 246, 0.2);
-            border-color: #3b82f6;
-        }
-
-        .presentation-item-name {
+        /* Buttons */
+        .btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
             font-weight: 600;
-            margin-bottom: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
         }
 
-        .presentation-item-info {
-            font-size: 11px;
-            color: #888;
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-blue-hover) 100%);
+            color: white;
+            box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
         }
 
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(59, 130, 246, 0.4);
+        }
+
+        .btn-secondary {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-hover);
+            border-color: var(--accent-blue);
+        }
+
+        .btn-danger {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--accent-red);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        .btn-danger:hover {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: var(--accent-red);
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        /* Slide Controls */
         .slide-controls {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: 40px 1fr 40px;
             gap: 8px;
-        }
-
-        .slide-btn {
-            padding: 14px 18px;
-            background: rgba(255, 255, 255, 0.08);
-            border: 1.5px solid rgba(255, 255, 255, 0.15);
-            border-radius: 12px;
-            color: #e5e5e5;
-            cursor: pointer;
-            font-size: 20px;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            font-weight: 500;
-        }
-
-        .slide-btn:hover {
-            background: rgba(255, 255, 255, 0.15);
-            border-color: rgba(255, 255, 255, 0.25);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-        }
-
-        .slide-btn:active {
-            transform: translateY(0) scale(0.98);
+            align-items: center;
+            margin-bottom: 12px;
         }
 
         .slide-indicator {
             text-align: center;
-            padding: 14px 18px;
-            background: rgba(255, 255, 255, 0.06);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
-            font-size: 13px;
-            font-weight: 600;
-            color: #d0d0d0;
-            letter-spacing: 0.5px;
+            background: var(--bg-primary);
+            padding: 10px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-color);
+            font-family: monospace;
+            font-size: 14px;
         }
 
-        .notification {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: #10b981;
-            color: white;
-            padding: 12px 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-            z-index: 10000;
-            animation: slideIn 0.3s ease-out;
-        }
-
-        .notification.error {
-            background: #ef4444;
-        }
-
-        @keyframes slideIn {
-            from {
-                transform: translateX(400px);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
-        }
-
-        .hidden {
-            display: none;
-        }
-
-        .collapsible-content {
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.3s ease-out;
-        }
-
-        .collapsible-content.expanded {
-            max-height: 2000px;
-        }
-
-        .badge {
-            display: inline-block;
-            padding: 2px 8px;
-            background: rgba(59, 130, 246, 0.2);
-            color: #60a5fa;
-            border-radius: 4px;
-            font-size: 10px;
-            font-weight: 600;
-            text-transform: uppercase;
-            margin-left: 8px;
-        }
-
-        /* Custom Reveal.js overrides */
-        .reveal .slides section {
-            text-align: left;
-        }
-
-        .reveal .controls {
-            color: #3b82f6;
-        }
-
-        .reveal .progress {
-            background: rgba(255, 255, 255, 0.1);
-        }
-
-        .reveal .progress-bar {
-            background: #3b82f6;
-        }
-
-        /* Custom Scrollbar */
-        .control-panel::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        .control-panel::-webkit-scrollbar-track {
-            background: rgba(255, 255, 255, 0.05);
-        }
-
-        .control-panel::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 4px;
-        }
-
-        .control-panel::-webkit-scrollbar-thumb:hover {
-            background: rgba(255, 255, 255, 0.3);
-        }
-
-        /* Loading States */
-        .btn.loading {
-            position: relative;
-            color: transparent;
-            pointer-events: none;
-        }
-
-        .btn.loading::after {
-            content: '';
-            position: absolute;
-            width: 16px;
-            height: 16px;
-            top: 50%;
-            left: 50%;
-            margin-left: -8px;
-            margin-top: -8px;
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            border-top-color: white;
-            border-radius: 50%;
-            animation: spin 0.6s linear infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        /* Tooltips */
-        .tooltip {
-            position: relative;
-            display: inline-block;
-        }
-
-        .tooltip .tooltiptext {
-            visibility: hidden;
-            background-color: rgba(0, 0, 0, 0.9);
-            color: #fff;
-            text-align: center;
-            border-radius: 6px;
-            padding: 8px 12px;
-            position: absolute;
-            z-index: 10001;
-            bottom: 125%;
-            left: 50%;
-            transform: translateX(-50%);
-            opacity: 0;
-            transition: opacity 0.3s;
+        /* Advanced Sections */
+        .advanced-toggle {
+            background: none;
+            border: none;
+            color: var(--accent-blue);
             font-size: 12px;
-            white-space: nowrap;
-            pointer-events: none;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .tooltip .tooltiptext::after {
-            content: "";
-            position: absolute;
-            top: 100%;
-            left: 50%;
-            margin-left: -5px;
-            border-width: 5px;
-            border-style: solid;
-            border-color: rgba(0, 0, 0, 0.9) transparent transparent transparent;
-        }
-
-        .tooltip:hover .tooltiptext {
-            visibility: visible;
-            opacity: 1;
-        }
-
-        /* Improved Input Groups */
-        .input-group {
+            cursor: pointer;
             display: flex;
-            gap: 8px;
             align-items: center;
+            gap: 4px;
+            padding: 0;
+            margin-top: 12px;
         }
 
-        .input-group .form-input {
-            flex: 1;
+        .advanced-toggle:hover {
+            text-decoration: underline;
         }
 
-        .input-group-label {
-            color: #aaa;
-            font-size: 12px;
-            min-width: 40px;
-            text-align: center;
+        .advanced-section {
+            display: none;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border-color);
         }
 
-        /* Better Image/Shape List Items */
+        .advanced-section.expanded {
+            display: block;
+            animation: slideDown 0.2s ease;
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Quill Editor Overrides */
+        #quillEditor {
+            background: white;
+            border-radius: var(--radius-sm);
+            color: #333;
+            min-height: 200px;
+        }
+        
+        .ql-toolbar {
+            border-top-left-radius: var(--radius-sm);
+            border-top-right-radius: var(--radius-sm);
+            background: #f3f4f6;
+            border-color: #e5e7eb !important;
+        }
+        
+        .ql-container {
+            border-bottom-left-radius: var(--radius-sm);
+            border-bottom-right-radius: var(--radius-sm);
+            border-color: #e5e7eb !important;
+            font-size: 14px;
+        }
+
+        /* Lists */
         .item-list {
             display: flex;
             flex-direction: column;
             gap: 8px;
-            max-height: 300px;
+            max-height: 250px;
             overflow-y: auto;
-            padding-right: 4px;
-        }
-
-        .item-list::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        .item-list::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 3px;
         }
 
         .list-item {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            padding: 12px;
-            cursor: pointer;
-            transition: all 0.2s;
             display: flex;
             align-items: center;
             gap: 12px;
+            padding: 8px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.2s ease;
         }
 
         .list-item:hover {
-            background: rgba(255, 255, 255, 0.1);
-            border-color: rgba(59, 130, 246, 0.5);
-            transform: translateX(2px);
+            border-color: var(--accent-blue);
+            background: rgba(59, 130, 246, 0.05);
         }
 
         .list-item.active {
-            background: rgba(59, 130, 246, 0.2);
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+            border-color: var(--accent-blue);
+            background: rgba(59, 130, 246, 0.1);
         }
 
         .list-item-thumbnail {
-            width: 48px;
-            height: 48px;
-            border-radius: 6px;
+            width: 40px;
+            height: 40px;
+            border-radius: 4px;
             object-fit: cover;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            flex-shrink: 0;
+            background: #333;
         }
 
         .list-item-content {
             flex: 1;
-            min-width: 0;
+            overflow: hidden;
         }
 
         .list-item-title {
-            font-weight: 600;
             font-size: 13px;
-            margin-bottom: 4px;
+            font-weight: 600;
+            white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            white-space: nowrap;
         }
 
         .list-item-subtitle {
             font-size: 11px;
-            color: #888;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            color: var(--text-secondary);
         }
 
-        /* Empty State */
-        .empty-state {
-            text-align: center;
-            padding: 32px 16px;
-            color: #666;
-        }
-
-        .empty-state-icon {
-            font-size: 48px;
-            margin-bottom: 12px;
-            opacity: 0.5;
-        }
-
-        .empty-state-text {
-            font-size: 13px;
-            color: #888;
-        }
-
-        /* Help Text */
-        .help-text {
-            font-size: 11px;
-            color: #666;
-            margin-top: 6px;
-            line-height: 1.4;
-        }
-
-        .help-text code {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-size: 10px;
-            font-family: 'Courier New', monospace;
-        }
-
-        /* Improved Color Input */
+        /* Color Picker & Inputs */
         .color-input-group {
             display: flex;
             gap: 8px;
             align-items: center;
         }
 
-        .color-picker-wrapper {
-            position: relative;
-            flex: 1;
-        }
-
         input[type="color"] {
-            width: 100%;
-            height: 44px;
-            border: 2px solid rgba(255, 255, 255, 0.15);
-            border-radius: 10px;
+            -webkit-appearance: none;
+            border: none;
+            width: 40px;
+            height: 40px;
             cursor: pointer;
-            background: rgba(255, 255, 255, 0.08);
-            transition: all 0.2s;
-        }
-
-        input[type="color"]:hover {
-            border-color: rgba(255, 255, 255, 0.25);
-            background: rgba(255, 255, 255, 0.12);
-        }
-
-        input[type="color"]:focus {
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+            background: none;
+            padding: 0;
         }
 
         input[type="color"]::-webkit-color-swatch-wrapper {
-            padding: 2px;
-            border-radius: 8px;
+            padding: 0;
         }
 
         input[type="color"]::-webkit-color-swatch {
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
         }
 
         .color-preview {
-            transition: all 0.2s;
-            flex-shrink: 0;
+            width: 40px;
+            height: 40px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-color);
         }
 
-        .color-preview:hover {
-            transform: scale(1.05);
-            border-color: rgba(255, 255, 255, 0.4) !important;
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
         }
 
-        /* Range Input Styling */
-        input[type="range"] {
-            width: 100%;
-            height: 6px;
-            border-radius: 3px;
-            background: rgba(255, 255, 255, 0.1);
-            outline: none;
-            -webkit-appearance: none;
+        ::-webkit-scrollbar-track {
+            background: var(--bg-primary);
         }
 
-        input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 18px;
-            height: 18px;
-            border-radius: 50%;
-            background: #3b82f6;
-            cursor: pointer;
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-        }
-
-        input[type="range"]::-moz-range-thumb {
-            width: 18px;
-            height: 18px;
-            border-radius: 50%;
-            background: #3b82f6;
-            cursor: pointer;
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-        }
-
-        /* Section Dividers */
-        .section-divider {
-            height: 1px;
-            background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.1), transparent);
-            margin: 16px 0;
-        }
-
-        /* Status Badges */
-        .status-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 4px 10px;
-            border-radius: 12px;
-            font-size: 11px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .status-badge.success {
-            background: rgba(16, 185, 129, 0.2);
-            color: #10b981;
-        }
-
-        .status-badge.warning {
-            background: rgba(245, 158, 11, 0.2);
-            color: #f59e0b;
-        }
-
-        .status-badge.info {
-            background: rgba(59, 130, 246, 0.2);
-            color: #60a5fa;
-        }
-
-        /* Improved Button Groups */
-        .button-group {
-            display: flex;
-            gap: 8px;
-        }
-
-        .button-group .btn {
-            flex: 1;
-        }
-
-        /* Focus Improvements */
-        .form-input:focus,
-        .form-select:focus,
-        .form-textarea:focus {
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
-        }
-
-        /* Disabled States */
-        .btn:disabled,
-        .form-input:disabled,
-        .form-select:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        /* Quick Actions */
-        .quick-actions {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-
-        .quick-action-btn {
-            padding: 6px 12px;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 6px;
-            color: white;
-            font-size: 12px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .quick-action-btn:hover {
-            background: rgba(255, 255, 255, 0.1);
-            border-color: #3b82f6;
-        }
-
-        /* Preview Thumbnail */
-        .preview-thumbnail {
-            width: 100%;
-            aspect-ratio: 16/9;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 6px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-            margin-bottom: 12px;
-        }
-
-        .preview-thumbnail img {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-        }
-
-        /* Value Display */
-        .value-display {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            padding: 4px 8px;
-            background: rgba(255, 255, 255, 0.05);
+        ::-webkit-scrollbar-thumb {
+            background: var(--bg-hover);
             border-radius: 4px;
-            font-size: 12px;
-            font-family: 'Courier New', monospace;
-            color: #60a5fa;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #333;
+        }
+
+        /* Notification */
+        .notification {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 16px 20px;
+            box-shadow: var(--shadow-lg);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 300px;
+            animation: slideIn 0.3s ease;
+            color: var(--text-primary);
+        }
+
+        .notification.error {
+            border-left: 4px solid var(--accent-red);
+        }
+
+        .notification:not(.error) {
+            border-left: 4px solid var(--accent-green);
+        }
+
+        .hidden {
+            display: none;
+        }
+        
+        .empty-state {
+            padding: 20px;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+        
+        .empty-state-icon {
+            font-size: 24px;
+            margin-bottom: 8px;
+            opacity: 0.5;
         }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>Graphics App</h1>
+        <h1>🎨 Graphics App</h1>
         <div class="header-actions">
-            <select id="presentationSelect" class="form-select" style="width: 200px; margin-right: 12px;">
+            <select id="presentationSelect" class="form-select" style="width: 200px;">
                 <option value="">New Presentation...</option>
             </select>
-            <button class="btn btn-primary tooltip" id="saveBtn">
-                Save
-                <span class="tooltiptext">Save presentation (Ctrl+S)</span>
+            <button class="btn btn-primary" id="saveBtn" title="Save (Ctrl+S)">
+                <span>💾</span> Save
             </button>
-            <button class="btn btn-secondary tooltip" id="exportBtn">
-                Export to Mixer
-                <span class="tooltiptext">Export this presentation to the mixer</span>
+            <button class="btn btn-secondary" id="exportBtn" title="Export to Mixer">
+                <span>📤</span> Export
             </button>
-            <button class="btn btn-secondary tooltip" id="fullscreenBtn">
-                Fullscreen
-                <span class="tooltiptext">Toggle fullscreen mode (F11)</span>
+            <button class="btn btn-secondary" id="fullscreenBtn" title="Fullscreen (F11)">
+                <span>⛶</span>
             </button>
-            <button class="btn btn-secondary" onclick="window.location.href='/switcher'">Back to Switcher</button>
+            <button class="btn btn-secondary" onclick="window.location.href='/switcher'">
+                <span>←</span> Back
+            </button>
         </div>
     </div>
 
@@ -1024,25 +598,25 @@ Create your presentation using Markdown or HTML
                     <div class="form-group">
                         <div class="form-checkbox">
                             <input type="checkbox" id="enableControls" checked>
-                            <label class="form-label" style="margin: 0;">Show Controls</label>
+                            <label>Show Controls</label>
                         </div>
                     </div>
                     <div class="form-group">
                         <div class="form-checkbox">
                             <input type="checkbox" id="enableProgress" checked>
-                            <label class="form-label" style="margin: 0;">Show Progress</label>
+                            <label>Show Progress</label>
                         </div>
                     </div>
                     <div class="form-group">
                         <div class="form-checkbox">
                             <input type="checkbox" id="enableFragments" checked>
-                            <label class="form-label" style="margin: 0;">Enable Fragments</label>
+                            <label>Enable Fragments</label>
                         </div>
                     </div>
                     <div class="form-group">
                         <div class="form-checkbox">
                             <input type="checkbox" id="enableAutoAnimate">
-                            <label class="form-label" style="margin: 0;">Auto-Animate</label>
+                            <label>Auto-Animate</label>
                         </div>
                     </div>
                     <div class="form-group">
@@ -1055,21 +629,21 @@ Create your presentation using Markdown or HTML
             <!-- Slide Navigation -->
             <div class="panel-section">
                 <div class="panel-title">
-                    <span>🎯 Current Slide</span>
+                    <span>🎯 Navigation</span>
                 </div>
                 <div class="slide-controls">
-                    <button class="slide-btn" id="prevBtn">◀</button>
+                    <button class="btn btn-secondary" id="prevBtn">◀</button>
                     <div class="slide-indicator" id="slideIndicator">1 / 1</div>
-                    <button class="slide-btn" id="nextBtn">▶</button>
+                    <button class="btn btn-secondary" id="nextBtn">▶</button>
                 </div>
-                <div style="margin-top: 12px; display: flex; gap: 8px;">
-                    <button class="btn btn-secondary btn-small" id="addSlideBtn" style="flex: 1;">➕ Add</button>
-                    <button class="btn btn-secondary btn-small" id="addVerticalSlideBtn" style="flex: 1;">📄 Vertical</button>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn btn-secondary btn-small" id="addSlideBtn" style="flex: 1;">➕ Add Slide</button>
+                    <button class="btn btn-secondary btn-small" id="addVerticalSlideBtn" style="flex: 1;">⬇ Vertical</button>
                     <button class="btn btn-danger btn-small" id="removeSlideBtn" style="flex: 1;">🗑️ Remove</button>
                 </div>
             </div>
 
-            <!-- Slide Properties -->
+            <!-- Slide Style -->
             <div class="panel-section">
                 <div class="panel-title">
                     <span>🎨 Slide Style</span>
@@ -1077,16 +651,13 @@ Create your presentation using Markdown or HTML
                 <div class="form-group">
                     <label class="form-label">Background Color</label>
                     <div class="color-input-group">
-                        <div class="color-picker-wrapper">
-                            <input type="color" id="slideBgColor" class="form-input" style="height: 44px;">
+                        <input type="color" id="slideBgColor">
+                        <div style="flex: 1; display: flex; align-items: center; gap: 8px;">
+                            <input type="number" id="slideBgColorOpacity" class="form-input" value="100" min="0" max="100" style="width: 70px;">
+                            <span style="font-size: 12px; color: var(--text-secondary);">% Opacity</span>
                         </div>
-                        <div class="input-group" style="width: 120px;">
-                            <input type="number" id="slideBgColorOpacity" class="form-input" value="100" min="0" max="100" step="1">
-                            <span class="input-group-label">%</span>
-                        </div>
-                        <div class="color-preview" id="bgColorPreview" style="width: 44px; height: 44px; border-radius: 8px; border: 2px solid rgba(255,255,255,0.2); cursor: pointer;" title="Click to apply immediately"></div>
+                        <div class="color-preview" id="bgColorPreview" style="background: #000;"></div>
                     </div>
-                    <div class="help-text" style="margin-top: 8px; font-size: 11px; color: #888;">💡 Changes apply when you click "Update Slide"</div>
                 </div>
                 <button class="advanced-toggle" onclick="toggleAdvanced('slideAdvanced')">
                     <span>⚙️ Advanced Background</span>
@@ -1108,17 +679,17 @@ Create your presentation using Markdown or HTML
                     <div class="form-group">
                         <label class="form-label">Background Image URL</label>
                         <div style="display: flex; gap: 8px;">
-                            <input type="text" id="slideBgImage" class="form-input" placeholder="https://example.com/image.jpg" style="flex: 1;">
-                            <input type="file" id="uploadImageBtn" accept="image/*" style="display: none;">
-                            <button type="button" class="btn btn-secondary btn-small" onclick="document.getElementById('uploadImageBtn').click()">Upload</button>
+                            <input type="text" id="slideBgImage" class="form-input" placeholder="https://...">
+                            <input type="file" id="uploadImageBtn" accept="image/*" class="hidden">
+                            <button class="btn btn-secondary btn-small" onclick="document.getElementById('uploadImageBtn').click()">Upload</button>
                         </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Background Video URL</label>
                         <div style="display: flex; gap: 8px;">
-                            <input type="text" id="slideBgVideo" class="form-input" placeholder="https://example.com/video.mp4" style="flex: 1;">
-                            <input type="file" id="uploadVideoBtn" accept="video/*" style="display: none;">
-                            <button type="button" class="btn btn-secondary btn-small" onclick="document.getElementById('uploadVideoBtn').click()">Upload</button>
+                            <input type="text" id="slideBgVideo" class="form-input" placeholder="https://...">
+                            <input type="file" id="uploadVideoBtn" accept="video/*" class="hidden">
+                            <button class="btn btn-secondary btn-small" onclick="document.getElementById('uploadVideoBtn').click()">Upload</button>
                         </div>
                     </div>
                     <div class="form-group">
@@ -1133,20 +704,17 @@ Create your presentation using Markdown or HTML
                     <div class="form-group">
                         <div class="form-checkbox">
                             <input type="checkbox" id="slideAutoAnimate">
-                            <label class="form-label" style="margin: 0;">Auto-Animate This Slide</label>
+                            <label>Auto-Animate This Slide</label>
                         </div>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Auto-Animate Duration (seconds)</label>
-                        <input type="number" id="slideAutoAnimateDuration" class="form-input" value="1.0" min="0.1" step="0.1">
+                        <label class="form-label">Duration (s)</label>
+                        <input type="number" id="slideAutoAnimateDuration" class="form-input" value="1.0" step="0.1">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Auto-Animate Easing</label>
+                        <label class="form-label">Easing</label>
                         <select id="slideAutoAnimateEasing" class="form-select">
                             <option value="ease">Ease</option>
-                            <option value="ease-in">Ease In</option>
-                            <option value="ease-out">Ease Out</option>
-                            <option value="ease-in-out">Ease In Out</option>
                             <option value="linear">Linear</option>
                         </select>
                     </div>
@@ -1158,141 +726,124 @@ Create your presentation using Markdown or HTML
                 <div class="panel-title">
                     <span>📋 Templates</span>
                 </div>
-                <div class="form-group">
-                    <select id="templateSelect" class="form-select" style="margin-bottom: 8px;">
-                        <option value="">Choose a template...</option>
+                <div style="display: flex; gap: 8px;">
+                    <select id="templateSelect" class="form-select">
+                        <option value="">Choose template...</option>
                         <option value="title">Title Slide</option>
                         <option value="content">Content Slide</option>
                         <option value="two-column">Two Column</option>
-                        <option value="image-left">Image Left, Text Right</option>
-                        <option value="image-right">Text Left, Image Right</option>
-                        <option value="quote">Quote Slide</option>
-                        <option value="code">Code Slide</option>
+                        <option value="image-left">Image Left</option>
+                        <option value="image-right">Image Right</option>
+                        <option value="quote">Quote</option>
+                        <option value="code">Code</option>
                     </select>
-                    <button class="btn btn-primary" id="applyTemplateBtn" style="width: 100%;">Apply Template</button>
+                    <button class="btn btn-primary btn-small" id="applyTemplateBtn">Apply</button>
                 </div>
             </div>
 
-            <!-- Slide Content -->
+            <!-- Content Editor -->
             <div class="panel-section">
                 <div class="panel-title">
-                    <span>✏️ Slide Content</span>
-                    <div style="display: flex; gap: 4px; margin-left: auto;">
-                        <button class="btn" id="toggleEditorMode" style="padding: 4px 8px; font-size: 11px;" title="Toggle Editor Mode">📝 Visual</button>
-                    </div>
+                    <span>✏️ Content</span>
+                    <button class="btn btn-secondary btn-small" id="toggleEditorMode">📝 Mode</button>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Content (Visual Editor / Markdown)</label>
-                    <!-- Quill Editor Container -->
-                    <div id="quillEditor" style="display: none; background: white; border-radius: 8px; min-height: 200px; margin-bottom: 8px;"></div>
-                    <!-- Fallback Textarea (hidden by default, shown when toggled) -->
-                    <textarea id="slideContent" class="form-textarea" placeholder="# Slide Title&#10;&#10;Your content here..." style="display: block;"></textarea>
+                    <div id="quillEditor"></div>
+                    <textarea id="slideContent" class="form-textarea" placeholder="# Slide Title&#10;&#10;Content..." style="display: none; height: 200px; font-family: monospace;"></textarea>
                 </div>
-                <button class="btn btn-primary" id="updateSlideBtn" style="width: 100%; margin-top: 8px;">💾 Update Slide</button>
-                <button class="advanced-toggle" onclick="toggleAdvanced('notesAdvanced')" style="margin-top: 8px;">
+                <button class="btn btn-primary" id="updateSlideBtn" style="width: 100%;">
+                    💾 Update Slide
+                </button>
+                
+                <button class="advanced-toggle" onclick="toggleAdvanced('notesAdvanced')">
                     <span>📝 Speaker Notes</span>
                     <span id="notesAdvancedIcon">▼</span>
                 </button>
                 <div class="advanced-section" id="notesAdvanced">
-                    <div class="form-group" style="margin-top: 0;">
-                        <textarea id="slideNotes" class="form-textarea form-textarea-small" placeholder="Notes visible only in presenter mode..."></textarea>
-                    </div>
+                    <textarea id="slideNotes" class="form-textarea" placeholder="Notes..." style="height: 100px;"></textarea>
                 </div>
-                <div class="help-text" style="margin-top: 8px;">💡 Tip: Use Markdown for text formatting or HTML for advanced layouts</div>
             </div>
 
-            <!-- Image Management -->
+            <!-- Media Library -->
             <div class="panel-section">
                 <div class="panel-title">
-                    <span>🖼️ Media Library</span>
-                    <button class="btn btn-secondary btn-small" id="refreshMediaBtn" style="padding: 4px 8px; font-size: 11px; margin-left: auto;" title="Refresh Media Library">🔄</button>
-                </div>
-                <div class="form-group" style="margin-bottom: 12px;">
-                    <div style="display: flex; gap: 8px;">
-                        <input type="file" id="addImageFile" accept="image/*" multiple style="display: none;">
-                        <button type="button" class="btn btn-primary" style="flex: 1;" onclick="document.getElementById('addImageFile').click()">📤 Upload Images</button>
-                        <button type="button" class="btn btn-secondary" id="browseMediaBtn" style="flex: 1;">📁 Browse Library</button>
+                    <span>🖼️ Media</span>
+                    <div style="display: flex; gap: 4px;">
+                        <input type="file" id="addImageFile" accept="image/*" class="hidden" multiple>
+                        <button class="btn btn-secondary btn-small" onclick="document.getElementById('addImageFile').click()">➕ Upload</button>
+                        <button class="btn btn-secondary btn-small" id="browseMediaBtn">📂 Browse</button>
+                        <button class="btn btn-secondary btn-small" id="refreshMediaBtn">🔄</button>
                     </div>
                 </div>
-                <div id="imageManagement">
+                
+                <div class="form-group">
+                    <label class="form-label">Images on Slide</label>
+                    <div id="imageList" class="item-list"></div>
+                </div>
+                
+                <div class="form-group">
+                    <input type="file" id="addImageBtn" accept="image/*" class="hidden">
+                    <button class="btn btn-secondary btn-small" style="width: 100%;" onclick="document.getElementById('addImageBtn').click()">
+                        Add Image to Slide
+                    </button>
+                </div>
+
+                <div id="imageEditor" class="advanced-section">
                     <div class="form-group">
-                        <label class="form-label">Add Image</label>
-                        <div style="display: flex; gap: 8px;">
-                            <input type="file" id="addImageBtn" accept="image/*" style="display: none;">
-                            <button type="button" class="btn btn-secondary btn-small" onclick="document.getElementById('addImageBtn').click()" style="flex: 1;">Upload & Add</button>
+                        <label class="form-label">Image URL</label>
+                        <input type="text" id="imageUrl" class="form-input">
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                        <div class="form-group">
+                            <label class="form-label">X (%)</label>
+                            <input type="number" id="imageX" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Y (%)</label>
+                            <input type="number" id="imageY" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Width (%)</label>
+                            <input type="number" id="imageWidth" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Height (%)</label>
+                            <input type="number" id="imageHeight" class="form-input">
                         </div>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Images on This Slide</label>
-                        <div id="imageList" class="item-list"></div>
+                        <label class="form-label">Opacity</label>
+                        <input type="range" id="imageOpacity" min="0" max="100">
                     </div>
-                    <div id="imageEditor" style="display: none;">
+                    
+                    <div class="form-group">
+                        <label class="form-label">Cropping</label>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                            <input type="number" id="imageCropX" class="form-input" placeholder="Left %">
+                            <input type="number" id="imageCropY" class="form-input" placeholder="Top %">
+                            <input type="number" id="imageCropWidth" class="form-input" placeholder="Width %">
+                            <input type="number" id="imageCropHeight" class="form-input" placeholder="Height %">
+                        </div>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
                         <div class="form-group">
-                            <label class="form-label">Image URL</label>
-                            <input type="text" id="imageUrl" class="form-input" readonly>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label class="form-label">X Position (%)</label>
-                                <input type="number" id="imageX" class="form-input" value="50" min="0" max="100" step="1">
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Y Position (%)</label>
-                                <input type="number" id="imageY" class="form-input" value="50" min="0" max="100" step="1">
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label class="form-label">Width (%)</label>
-                                <input type="number" id="imageWidth" class="form-input" value="50" min="1" max="100" step="1">
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Height (%)</label>
-                                <input type="number" id="imageHeight" class="form-input" value="50" min="1" max="100" step="1">
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label class="form-label">Crop X (%)</label>
-                                <input type="number" id="imageCropX" class="form-input" value="0" min="0" max="100" step="1">
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Crop Y (%)</label>
-                                <input type="number" id="imageCropY" class="form-input" value="0" min="0" max="100" step="1">
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label class="form-label">Crop Width (%)</label>
-                                <input type="number" id="imageCropWidth" class="form-input" value="100" min="0" max="100" step="1">
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Crop Height (%)</label>
-                                <input type="number" id="imageCropHeight" class="form-input" value="100" min="0" max="100" step="1">
-                            </div>
+                            <label class="form-label">Radius</label>
+                            <input type="number" id="imageBorderRadius" class="form-input">
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Border Radius (px)</label>
-                            <input type="number" id="imageBorderRadius" class="form-input" value="0" min="0" step="1">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Object Fit</label>
+                            <label class="form-label">Fit</label>
                             <select id="imageObjectFit" class="form-select">
                                 <option value="contain">Contain</option>
                                 <option value="cover">Cover</option>
                                 <option value="fill">Fill</option>
-                                <option value="none">None</option>
-                                <option value="scale-down">Scale Down</option>
                             </select>
                         </div>
-                        <div class="form-group">
-                            <label class="form-label">Opacity (%)</label>
-                            <input type="number" id="imageOpacity" class="form-input" value="100" min="0" max="100" step="1">
-                        </div>
-                        <div style="display: flex; gap: 8px; margin-top: 12px;">
-                            <button class="btn btn-primary btn-small" id="updateImageBtn" style="flex: 1;">Update Image</button>
-                            <button class="btn btn-danger btn-small" id="removeImageBtn" style="flex: 1;">Remove</button>
-                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 8px; margin-top: 8px;">
+                        <button class="btn btn-primary btn-small" id="updateImageBtn" style="flex: 1;">Update</button>
+                        <button class="btn btn-danger btn-small" id="removeImageBtn" style="flex: 1;">Remove</button>
                     </div>
                 </div>
             </div>
@@ -1302,220 +853,141 @@ Create your presentation using Markdown or HTML
                 <div class="panel-title">
                     <span>🔷 Shapes</span>
                 </div>
-                <div id="shapesManagement">
+                
+                <div class="form-group" style="display: flex; gap: 8px;">
+                    <select id="shapeType" class="form-select">
+                        <option value="rectangle">Rectangle</option>
+                        <option value="circle">Circle</option>
+                        <option value="triangle">Triangle</option>
+                        <option value="ellipse">Ellipse</option>
+                    </select>
+                    <button class="btn btn-primary btn-small" id="addShapeBtn">Add</button>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Shapes on Slide</label>
+                    <div id="shapeList" class="item-list"></div>
+                </div>
+
+                <div id="shapeEditor" class="advanced-section">
+                    <!-- Hidden inputs for script compatibility -->
+                    <input type="hidden" id="shapeTypeDisplay">
+                    <input type="hidden" id="shapeImageUrl">
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                        <div class="form-group">
+                            <label class="form-label">X (%)</label>
+                            <input type="number" id="shapeX" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Y (%)</label>
+                            <input type="number" id="shapeY" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Width (%)</label>
+                            <input type="number" id="shapeWidth" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Height (%)</label>
+                            <input type="number" id="shapeHeight" class="form-input">
+                        </div>
+                    </div>
+                    
                     <div class="form-group">
-                        <label class="form-label">Add Shape</label>
-                        <select id="shapeType" class="form-select">
-                            <option value="rectangle">Rectangle</option>
-                            <option value="circle">Circle</option>
-                            <option value="triangle">Triangle</option>
-                            <option value="ellipse">Ellipse</option>
-                            <option value="polygon">Polygon</option>
-                            <option value="line">Line</option>
+                        <label class="form-label">Fill Type</label>
+                        <select id="shapeFillType" class="form-select">
+                            <option value="color">Color</option>
+                            <option value="gradient">Gradient</option>
+                            <option value="image">Image</option>
                         </select>
-                        <button type="button" class="btn btn-secondary btn-small" id="addShapeBtn" style="width: 100%; margin-top: 8px;">Add Shape</button>
                     </div>
-                    <div class="form-group">
-                        <label class="form-label">Shapes on This Slide</label>
-                        <div id="shapeList" class="item-list"></div>
+                    
+                    <div id="shapeFillColor">
+                        <div class="form-group">
+                            <label class="form-label">Color</label>
+                            <div class="color-input-group">
+                                <input type="color" id="shapeColor">
+                                <input type="number" id="shapeColorOpacity" class="form-input" placeholder="Opacity %" min="0" max="100">
+                            </div>
+                        </div>
                     </div>
-                    <div id="shapeEditor" style="display: none;">
+                    
+                    <div id="shapeFillGradient" class="hidden">
                         <div class="form-group">
-                            <label class="form-label">Shape Type</label>
-                            <input type="text" id="shapeTypeDisplay" class="form-input" readonly>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label class="form-label">X Position (%)</label>
-                                <input type="number" id="shapeX" class="form-input" value="50" min="0" max="100" step="1">
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Y Position (%)</label>
-                                <input type="number" id="shapeY" class="form-input" value="50" min="0" max="100" step="1">
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label class="form-label">Width (%)</label>
-                                <input type="number" id="shapeWidth" class="form-input" value="30" min="1" max="100" step="1">
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Height (%)</label>
-                                <input type="number" id="shapeHeight" class="form-input" value="30" min="1" max="100" step="1">
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Fill Type</label>
-                            <select id="shapeFillType" class="form-select">
-                                <option value="color">Color</option>
-                                <option value="image">Image</option>
-                                <option value="gradient">Gradient</option>
-                            </select>
-                        </div>
-                        <div id="shapeFillColor" class="form-group">
-                            <label class="form-label">Fill Color</label>
-                            <div style="display: flex; gap: 8px; align-items: center;">
-                                <input type="color" id="shapeColor" class="form-input" style="height: 40px; flex: 1;">
-                                <input type="number" id="shapeColorOpacity" class="form-input" value="100" min="0" max="100" step="1" style="width: 80px;">
-                                <span style="color: #aaa; font-size: 12px;">%</span>
-                            </div>
-                        </div>
-                        <div id="shapeFillImage" class="form-group" style="display: none;">
-                            <label class="form-label">Fill Image URL</label>
-                            <div style="display: flex; gap: 8px;">
-                                <input type="text" id="shapeImageUrl" class="form-input" placeholder="Image URL" style="flex: 1;">
-                                <input type="file" id="uploadShapeImageBtn" accept="image/*" style="display: none;">
-                                <button type="button" class="btn btn-secondary btn-small" onclick="document.getElementById('uploadShapeImageBtn').click()">Upload</button>
-                            </div>
-                        </div>
-                        <div id="shapeFillGradient" class="form-group" style="display: none;">
-                            <label class="form-label">Gradient Type</label>
+                            <label class="form-label">Type</label>
                             <select id="shapeGradientType" class="form-select">
                                 <option value="linear">Linear</option>
                                 <option value="radial">Radial</option>
                                 <option value="conic">Conic</option>
                             </select>
-                            <div class="form-group" style="margin-top: 12px;">
-                                <label class="form-label">Gradient Direction (for linear)</label>
-                                <select id="shapeGradientDirection" class="form-select">
-                                    <option value="to right">To Right</option>
-                                    <option value="to left">To Left</option>
-                                    <option value="to bottom">To Bottom</option>
-                                    <option value="to top">To Top</option>
-                                    <option value="to bottom right">To Bottom Right</option>
-                                    <option value="to bottom left">To Bottom Left</option>
-                                    <option value="to top right">To Top Right</option>
-                                    <option value="to top left">To Top Left</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Color 1</label>
-                                <div style="display: flex; gap: 8px; align-items: center;">
-                                    <input type="color" id="shapeGradientColor1" class="form-input" style="height: 40px; flex: 1;">
-                                    <input type="number" id="shapeGradientStop1" class="form-input" value="0" min="0" max="100" step="1" style="width: 80px;" placeholder="Stop %">
-                                    <span style="color: #aaa; font-size: 12px;">%</span>
-                                </div>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Color 2</label>
-                                <div style="display: flex; gap: 8px; align-items: center;">
-                                    <input type="color" id="shapeGradientColor2" class="form-input" style="height: 40px; flex: 1;">
-                                    <input type="number" id="shapeGradientStop2" class="form-input" value="100" min="0" max="100" step="1" style="width: 80px;" placeholder="Stop %">
-                                    <span style="color: #aaa; font-size: 12px;">%</span>
-                                </div>
-                            </div>
-                            <button type="button" class="btn btn-secondary btn-small" id="addGradientColorBtn" style="width: 100%; margin-top: 8px;">Add Color Stop</button>
-                            <div id="gradientColorStops" style="margin-top: 8px;"></div>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Border Width (px)</label>
-                            <input type="number" id="shapeBorderWidth" class="form-input" value="0" min="0" step="1">
+                            <label class="form-label">Direction</label>
+                            <input type="text" id="shapeGradientDirection" class="form-input" placeholder="to right">
                         </div>
+                        <div id="gradientColorStops"></div>
+                        <!-- Hidden inputs for script logic that manipulates these IDs directly -->
+                        <div class="hidden">
+                            <input id="shapeGradientColor1">
+                            <input id="shapeGradientStop1">
+                            <input id="shapeGradientColor2">
+                            <input id="shapeGradientStop2">
+                        </div>
+                        <button class="btn btn-secondary btn-small" id="addGradientColorBtn" style="width: 100%; margin-top: 8px;">Add Stop</button>
+                    </div>
+                    
+                    <div id="shapeFillImage" class="hidden">
                         <div class="form-group">
-                            <label class="form-label">Border Color</label>
-                            <div class="color-input-group">
-                                <div class="color-picker-wrapper">
-                                    <input type="color" id="shapeBorderColor" class="form-input" style="height: 40px;">
-                                </div>
-                                <div class="input-group" style="width: 120px;">
-                                    <input type="number" id="shapeBorderOpacity" class="form-input" value="100" min="0" max="100" step="1">
-                                    <span class="input-group-label">%</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Border Radius (px)</label>
-                            <input type="number" id="shapeBorderRadius" class="form-input" value="0" min="0" step="1">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Opacity (%)</label>
-                            <input type="number" id="shapeOpacity" class="form-input" value="100" min="0" max="100" step="1">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Rotation (degrees)</label>
-                            <input type="number" id="shapeRotation" class="form-input" value="0" min="0" max="360" step="1">
-                        </div>
-                        <div style="display: flex; gap: 8px; margin-top: 12px;">
-                            <button class="btn btn-primary btn-small" id="updateShapeBtn" style="flex: 1;">Update Shape</button>
-                            <button class="btn btn-danger btn-small" id="removeShapeBtn" style="flex: 1;">Remove</button>
+                            <input type="file" id="uploadShapeImageBtn" accept="image/*" class="hidden">
+                            <button class="btn btn-secondary btn-small" style="width: 100%;" onclick="document.getElementById('uploadShapeImageBtn').click()">
+                                Upload Image
+                            </button>
                         </div>
                     </div>
-                </div>
-            </div>
-
-            <!-- Fragments -->
-            <div class="panel-section">
-                <div class="panel-title">
-                    <span>🔀 Fragments</span>
-                </div>
-                <button class="advanced-toggle" onclick="toggleAdvanced('fragments')">
-                    <span>⚙️ Fragment Settings</span>
-                    <span id="fragmentsIcon">▼</span>
-                </button>
-                <div class="advanced-section" id="fragments">
+                    
                     <div class="form-group">
-                        <label class="form-label">Fragment Style</label>
-                        <select id="fragmentStyle" class="form-select">
-                            <option value="fade-in">Fade In</option>
-                            <option value="fade-out">Fade Out</option>
-                            <option value="fade-up">Fade Up</option>
-                            <option value="fade-down">Fade Down</option>
-                            <option value="fade-left">Fade Left</option>
-                            <option value="fade-right">Fade Right</option>
-                            <option value="zoom-in">Zoom In</option>
-                            <option value="zoom-out">Zoom Out</option>
-                            <option value="slide-in">Slide In</option>
-                            <option value="none">None</option>
-                        </select>
+                        <label class="form-label">Border</label>
+                        <div style="display: flex; gap: 8px;">
+                            <input type="number" id="shapeBorderWidth" class="form-input" placeholder="Width">
+                            <input type="color" id="shapeBorderColor">
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label class="form-label">Fragment Index (order)</label>
-                        <input type="number" id="fragmentIndex" class="form-input" value="0" min="0">
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                        <div class="form-group">
+                            <label class="form-label">Border Opacity</label>
+                            <input type="number" id="shapeBorderOpacity" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Radius</label>
+                            <input type="number" id="shapeBorderRadius" class="form-input">
+                        </div>
                     </div>
-                    <p style="font-size: 11px; color: #888; margin-top: 8px;">
-                        Use <code>&lt;span class="fragment"&gt;</code> in your content to create fragments
-                    </p>
-                    <div style="margin-top: 12px; padding: 10px; background: rgba(59, 130, 246, 0.1); border-radius: 6px; border-left: 3px solid #3b82f6;">
-                        <p style="font-size: 11px; color: #93c5fd; margin: 0 0 6px 0; font-weight: 600;">✨ Appearance Animations</p>
-                        <p style="font-size: 10px; color: #888; margin: 0;">
-                            Add <code>data-appearance="fade-in"</code> to elements for sequential animations. 
-                            Options: fade-in, fade-up, fade-down, zoom-in, slide-in
-                        </p>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                        <div class="form-group">
+                            <label class="form-label">Opacity</label>
+                            <input type="number" id="shapeOpacity" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Rotation</label>
+                            <input type="number" id="shapeRotation" class="form-input">
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 8px; margin-top: 8px;">
+                        <button class="btn btn-primary btn-small" id="updateShapeBtn" style="flex: 1;">Update</button>
+                        <button class="btn btn-danger btn-small" id="removeShapeBtn" style="flex: 1;">Remove</button>
                     </div>
                 </div>
             </div>
-
-            <!-- Presentations List -->
-            <div class="panel-section">
-                <div class="panel-title">Presentations</div>
-                <div class="presentation-list" id="presentationList"></div>
-            </div>
+            
+            <!-- Presentation List (Hidden used for logic) -->
+            <div id="presentationList" class="hidden"></div>
         </div>
     </div>
 
-    <!-- Quill.js WYSIWYG Editor -->
-    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-    <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
-    
-    <!-- Reveal.js JavaScript -->
-    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/plugin/markdown/markdown.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/plugin/notes/notes.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/plugin/highlight/highlight.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/plugin/zoom/zoom.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/plugin/search/search.js"></script>
-    
-    <!-- Appearance Plugin for Sequential Animations -->
-    <link rel="stylesheet" href="https://unpkg.com/reveal.js-appearance@1.3.0/plugin/appearance/appearance.css">
-    <script src="https://unpkg.com/reveal.js-appearance@1.3.0/plugin/appearance/appearance.js"></script>
-    
-    <!-- Chalkboard Plugin for Annotations -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rajgoel/reveal.js-plugins@master/chalkboard/plugin.css">
-    <script src="https://cdn.jsdelivr.net/gh/rajgoel/reveal.js-plugins@master/chalkboard/plugin.js"></script>
-    
-    <!-- Menu Plugin for Navigation -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rajgoel/reveal.js-plugins@master/menu/plugin.css">
-    <script src="https://cdn.jsdelivr.net/gh/rajgoel/reveal.js-plugins@master/menu/plugin.js"></script>
+    <!-- Script Logic -->
     <script>
         const API_BASE = window.location.origin;
         let reveal = null;
@@ -1540,9 +1012,15 @@ Create your presentation using Markdown or HTML
         // Toggle collapsible sections
         function toggleSection(sectionId) {
             const content = document.getElementById(sectionId);
-            const toggle = content.previousElementSibling.querySelector('.panel-toggle');
-            content.classList.toggle('expanded');
-            toggle.textContent = content.classList.contains('expanded') ? '▼' : '▶';
+            // Check if previous element exists and has the toggle class
+            const header = content.previousElementSibling;
+            if (header) {
+                const toggle = header.querySelector('.panel-toggle');
+                content.classList.toggle('expanded');
+                if (toggle) {
+                    toggle.textContent = content.classList.contains('expanded') ? '▼' : '▶';
+                }
+            }
         }
 
         function toggleAdvanced(sectionId) {
@@ -1705,7 +1183,7 @@ Create your presentation using Markdown or HTML
                 // Show Quill, hide textarea
                 quillEditorElement.style.display = 'block';
                 textarea.style.display = 'none';
-                toggleBtn.textContent = '📝 Markdown';
+                toggleBtn.textContent = '📝 Markdown Mode';
                 toggleBtn.title = 'Switch to Markdown Editor';
                 
                 // Sync textarea content to Quill
@@ -1718,7 +1196,7 @@ Create your presentation using Markdown or HTML
                 // Show textarea, hide Quill
                 quillEditorElement.style.display = 'none';
                 textarea.style.display = 'block';
-                toggleBtn.textContent = '✨ Visual';
+                toggleBtn.textContent = '✨ Visual Mode';
                 toggleBtn.title = 'Switch to Visual Editor';
                 
                 // Sync Quill content to textarea
@@ -1806,7 +1284,7 @@ Create your presentation using Markdown or HTML
             const pluginsArray = [ 
                 RevealMarkdown, 
                 RevealNotes, 
-                RevealHighlight,
+                RevealHighlight, 
                 RevealZoom,
                 RevealSearch
             ];
@@ -3555,7 +3033,7 @@ Create your presentation using Markdown or HTML
             }
 
             const saveBtn = document.getElementById('saveBtn');
-            const originalText = saveBtn.textContent;
+            const originalText = saveBtn.innerHTML;
             saveBtn.classList.add('loading');
             saveBtn.disabled = true;
 
@@ -3583,7 +3061,7 @@ Create your presentation using Markdown or HTML
             } finally {
                 saveBtn.classList.remove('loading');
                 saveBtn.disabled = false;
-                saveBtn.textContent = originalText;
+                saveBtn.innerHTML = originalText;
             }
         }
 
@@ -3595,7 +3073,7 @@ Create your presentation using Markdown or HTML
             }
 
             const exportBtn = document.getElementById('exportBtn');
-            const originalText = exportBtn.textContent;
+            const originalText = exportBtn.innerHTML;
             exportBtn.classList.add('loading');
             exportBtn.disabled = true;
 
@@ -3616,27 +3094,13 @@ Create your presentation using Markdown or HTML
             } finally {
                 exportBtn.classList.remove('loading');
                 exportBtn.disabled = false;
-                exportBtn.textContent = originalText;
+                exportBtn.innerHTML = originalText;
             }
         }
 
         // Update presentation list
         function updatePresentationList(presentations) {
-            const list = document.getElementById('presentationList');
-            list.innerHTML = '';
-            presentations.forEach(pres => {
-                const item = document.createElement('div');
-                item.className = 'presentation-item';
-                item.innerHTML = `
-                    <div class="presentation-item-name">${pres.name}</div>
-                    <div class="presentation-item-info">${pres.slides?.length || 0} slides</div>
-                `;
-                item.addEventListener('click', () => {
-                    document.getElementById('presentationSelect').value = pres.id;
-                    handlePresentationSelect({ target: { value: pres.id } });
-                });
-                list.appendChild(item);
-            });
+            // Logic merged into handling
         }
 
         // Show notification
@@ -3655,7 +3119,7 @@ Create your presentation using Markdown or HTML
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
             // Don't trigger shortcuts when typing in inputs
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.getAttribute('contenteditable') === 'true') {
                 return;
             }
             
