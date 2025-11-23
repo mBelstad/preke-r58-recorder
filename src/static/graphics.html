@@ -1593,13 +1593,13 @@ Create your presentation using Markdown or HTML
             });
             
             // Enable drag-and-drop for images in Quill editor
-            const quillContainer = quillEditor.container;
-            quillContainer.addEventListener('dragover', function(e) {
+            const quillDropZone = quillEditor.container;
+            quillDropZone.addEventListener('dragover', function(e) {
                 e.preventDefault();
                 e.stopPropagation();
             });
             
-            quillContainer.addEventListener('drop', async function(e) {
+            quillDropZone.addEventListener('drop', async function(e) {
                 e.preventDefault();
                 e.stopPropagation();
                 
