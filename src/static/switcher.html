@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>R58 Professional Switcher</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+            color: #fff;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .switcher-container {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            height: 100vh;
+            gap: 16px;
+            padding: 16px;
+        }
+
+        .main-view {
+            display: flex;
+            flex-direction: column;
+            background: rgba(20, 20, 20, 0.8);
+            border-radius: 16px;
+            padding: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .preview-area {
+            flex: 1;
+            background: #000;
+            border-radius: 12px;
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+
+        #previewVideo {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .preview-overlay {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .control-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            background: rgba(20, 20, 20, 0.8);
+            border-radius: 16px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            overflow-y: auto;
+        }
+
+        .section {
+            background: rgba(30, 30, 30, 0.6);
+            border-radius: 12px;
+            padding: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .section-title {
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #9ca3af;
+            margin-bottom: 12px;
+        }
+
+        .scene-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+
+        .scene-button {
+            background: rgba(59, 130, 246, 0.1);
+            border: 2px solid rgba(59, 130, 246, 0.3);
+            color: #60a5fa;
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            text-align: center;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .scene-button:hover {
+            background: rgba(59, 130, 246, 0.2);
+            border-color: rgba(59, 130, 246, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .scene-button.active {
+            background: rgba(59, 130, 246, 0.3);
+            border-color: #3b82f6;
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+        }
+
+        .scene-button .key-hint {
+            position: absolute;
+            top: 4px;
+            right: 6px;
+            font-size: 10px;
+            opacity: 0.6;
+        }
+
+        .control-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .btn {
+            padding: 14px;
+            border-radius: 8px;
+            border: none;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: rgba(30, 30, 30, 0.6);
+            border-radius: 8px;
+            font-size: 12px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #6b7280;
+        }
+
+        .status-dot.active {
+            background: #10b981;
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+        }
+
+        .status-dot.error {
+            background: #ef4444;
+            box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+        }
+
+        .controller-status {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .controller-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: rgba(30, 30, 30, 0.6);
+            border-radius: 8px;
+            font-size: 12px;
+        }
+
+        .controller-name {
+            font-weight: 600;
+        }
+
+        .controller-type {
+            font-size: 10px;
+            opacity: 0.6;
+        }
+
+        .camera-controls {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+
+        .camera-button {
+            background: rgba(107, 114, 128, 0.1);
+            border: 2px solid rgba(107, 114, 128, 0.3);
+            color: #9ca3af;
+            padding: 12px 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 600;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .camera-button:hover {
+            background: rgba(107, 114, 128, 0.2);
+            border-color: rgba(107, 114, 128, 0.5);
+        }
+
+        .camera-button.active {
+            background: rgba(16, 185, 129, 0.2);
+            border-color: #10b981;
+            color: #10b981;
+        }
+
+        .info-text {
+            font-size: 11px;
+            color: #6b7280;
+            line-height: 1.5;
+        }
+
+        .keyboard-hints {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px;
+            font-size: 10px;
+            color: #6b7280;
+        }
+
+        .keyboard-hint {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .key {
+            background: rgba(107, 114, 128, 0.2);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 9px;
+        }
+
+        @media (max-width: 1400px) {
+            .switcher-container {
+                grid-template-columns: 1fr 350px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="switcher-container">
+        <div class="main-view">
+            <div class="preview-area">
+                <video id="previewVideo" autoplay muted playsinline></video>
+                <div class="preview-overlay" id="previewOverlay">PROGRAM</div>
+            </div>
+            <div class="section">
+                <div class="section-title">Mixer Status</div>
+                <div class="status-indicator">
+                    <div class="status-dot" id="statusDot"></div>
+                    <span id="statusText">Checking...</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="control-panel">
+            <div class="section">
+                <div class="section-title">Scenes</div>
+                <div class="scene-grid" id="sceneGrid"></div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Controls</div>
+                <div class="control-buttons">
+                    <button class="btn btn-primary" id="startBtn">Start Mixer</button>
+                    <button class="btn btn-danger" id="stopBtn">Stop Mixer</button>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Camera Selection</div>
+                <div class="camera-controls" id="cameraControls"></div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Controller Status</div>
+                <div class="controller-status" id="controllerStatus">
+                    <div class="info-text">No controllers detected. Press any button on your gamepad or connect a StreamDeck.</div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Keyboard Shortcuts</div>
+                <div class="keyboard-hints">
+                    <div class="keyboard-hint"><span>1-7</span><span class="key">Switch Scene</span></div>
+                    <div class="keyboard-hint"><span>Space</span><span class="key">Start/Stop</span></div>
+                    <div class="keyboard-hint"><span>Q/W/E/R</span><span class="key">Camera 1-4</span></div>
+                    <div class="keyboard-hint"><span>Arrow Keys</span><span class="key">Navigate</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+        let currentScene = null;
+        let mixerState = 'NULL';
+        let scenes = [];
+        let gamepads = [];
+        let streamdeckConnected = false;
+
+        // Initialize
+        async function init() {
+            await loadScenes();
+            await checkMixerStatus();
+            setupEventListeners();
+            setupGamepadSupport();
+            setupStreamDeckSupport();
+            setupKeyboardShortcuts();
+            startStatusPolling();
+        }
+
+        // Load available scenes
+        async function loadScenes() {
+            try {
+                const response = await fetch(`${API_BASE}/api/scenes`);
+                const data = await response.json();
+                scenes = data.scenes || [];
+                renderScenes();
+            } catch (error) {
+                console.error('Failed to load scenes:', error);
+            }
+        }
+
+        // Render scene buttons
+        function renderScenes() {
+            const grid = document.getElementById('sceneGrid');
+            grid.innerHTML = '';
+            
+            const sceneKeys = ['1', '2', '3', '4', '5', '6', '7'];
+            scenes.forEach((scene, index) => {
+                const btn = document.createElement('div');
+                btn.className = 'scene-button';
+                btn.textContent = scene.label;
+                btn.dataset.sceneId = scene.id;
+                if (index < sceneKeys.length) {
+                    btn.innerHTML = `<span class="key-hint">${sceneKeys[index]}</span>${scene.label}`;
+                }
+                btn.addEventListener('click', () => switchScene(scene.id));
+                grid.appendChild(btn);
+            });
+        }
+
+        // Check mixer status
+        async function checkMixerStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/api/mixer/status`);
+                const data = await response.json();
+                mixerState = data.state;
+                currentScene = data.current_scene;
+                
+                updateStatus(data);
+                updateSceneButtons();
+                updatePreview(data);
+            } catch (error) {
+                console.error('Failed to check mixer status:', error);
+                updateStatus({ state: 'ERROR', health: 'unhealthy' });
+            }
+        }
+
+        // Update status display
+        function updateStatus(data) {
+            const dot = document.getElementById('statusDot');
+            const text = document.getElementById('statusText');
+            
+            dot.className = 'status-dot';
+            if (data.state === 'PLAYING' && data.health === 'healthy') {
+                dot.classList.add('active');
+                text.textContent = `PLAYING - ${data.current_scene || 'No scene'}`;
+            } else if (data.state === 'NULL') {
+                text.textContent = 'STOPPED';
+            } else {
+                dot.classList.add('error');
+                text.textContent = `ERROR - ${data.last_error || 'Unknown error'}`;
+            }
+        }
+
+        // Update scene button states
+        function updateSceneButtons() {
+            document.querySelectorAll('.scene-button').forEach(btn => {
+                if (btn.dataset.sceneId === currentScene) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+        }
+
+        // Update preview video
+        function updatePreview(data) {
+            const video = document.getElementById('previewVideo');
+            const overlay = document.getElementById('previewOverlay');
+            
+            if (!video || !overlay) {
+                console.error('Video or overlay element not found');
+                return;
+            }
+            
+            if (data.state === 'PLAYING' && data.mediamtx_enabled) {
+                const hlsUrl = `${window.location.protocol}//${window.location.hostname}:8888/mixer_program/index.m3u8`;
+                
+                // Check if we need to update the source
+                const currentSrc = video.src || (video.srcObject ? 'srcObject' : '');
+                if (currentSrc !== hlsUrl && !video.srcObject) {
+                    // Clean up existing HLS instance if any
+                    if (video.hls) {
+                        video.hls.destroy();
+                        video.hls = null;
+                    }
+                    
+                    if (typeof Hls !== 'undefined' && Hls.isSupported()) {
+                        const hls = new Hls({
+                            enableWorker: true,
+                            lowLatencyMode: true,
+                            backBufferLength: 90
+                        });
+                        hls.loadSource(hlsUrl);
+                        hls.attachMedia(video);
+                        video.hls = hls; // Store reference for cleanup
+                        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                            video.play().catch(e => console.error('Play error:', e));
+                        });
+                        hls.on(Hls.Events.ERROR, (event, data) => {
+                            console.error('HLS error:', data);
+                        });
+                    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                        // Native HLS support (Safari)
+                        video.src = hlsUrl;
+                        video.play().catch(e => console.error('Play error:', e));
+                    } else {
+                        console.error('HLS not supported in this browser');
+                    }
+                }
+                
+                overlay.textContent = `PROGRAM - ${data.current_scene || 'Unknown'}`;
+            } else {
+                // Clean up HLS instance
+                if (video.hls) {
+                    video.hls.destroy();
+                    video.hls = null;
+                }
+                video.src = '';
+                video.srcObject = null;
+                overlay.textContent = 'STOPPED';
+            }
+        }
+
+        // Switch scene
+        async function switchScene(sceneId) {
+            try {
+                const response = await fetch(`${API_BASE}/api/mixer/set_scene`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: sceneId })
+                });
+                
+                if (response.ok) {
+                    currentScene = sceneId;
+                    updateSceneButtons();
+                    await checkMixerStatus();
+                }
+            } catch (error) {
+                console.error('Failed to switch scene:', error);
+            }
+        }
+
+        // Start mixer
+        async function startMixer() {
+            try {
+                const response = await fetch(`${API_BASE}/api/mixer/start`, {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    await checkMixerStatus();
+                } else {
+                    alert('Failed to start mixer');
+                }
+            } catch (error) {
+                console.error('Failed to start mixer:', error);
+                alert('Failed to start mixer: ' + error.message);
+            }
+        }
+
+        // Stop mixer
+        async function stopMixer() {
+            try {
+                const response = await fetch(`${API_BASE}/api/mixer/stop`, {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    await checkMixerStatus();
+                }
+            } catch (error) {
+                console.error('Failed to stop mixer:', error);
+            }
+        }
+
+        // Setup event listeners
+        function setupEventListeners() {
+            document.getElementById('startBtn').addEventListener('click', startMixer);
+            document.getElementById('stopBtn').addEventListener('click', stopMixer);
+        }
+
+        // Setup gamepad support
+        function setupGamepadSupport() {
+            window.addEventListener('gamepadconnected', (e) => {
+                console.log('Gamepad connected:', e.gamepad.id);
+                gamepads.push(e.gamepad);
+                updateControllerStatus();
+                startGamepadPolling();
+            });
+
+            window.addEventListener('gamepaddisconnected', (e) => {
+                console.log('Gamepad disconnected:', e.gamepad.id);
+                gamepads = gamepads.filter(g => g.index !== e.gamepad.index);
+                updateControllerStatus();
+            });
+
+            // Check for already connected gamepads
+            const connected = navigator.getGamepads();
+            for (let i = 0; i < connected.length; i++) {
+                if (connected[i]) {
+                    gamepads.push(connected[i]);
+                }
+            }
+            if (gamepads.length > 0) {
+                updateControllerStatus();
+                startGamepadPolling();
+            }
+        }
+
+        // Gamepad button mapping
+        const GAMEPAD_MAP = {
+            // Scene switching (D-pad or face buttons)
+            0: () => switchSceneByIndex(0), // A button
+            1: () => switchSceneByIndex(1), // B button
+            2: () => switchSceneByIndex(2), // X button
+            3: () => switchSceneByIndex(3), // Y button
+            12: () => switchSceneByIndex(4), // D-pad up
+            13: () => switchSceneByIndex(5), // D-pad down
+            14: () => switchSceneByIndex(6), // D-pad left
+            15: () => switchSceneByIndex(7), // D-pad right
+            // Control buttons
+            8: () => startMixer(), // Select/Back
+            9: () => stopMixer(), // Start/Menu
+        };
+
+        let gamepadButtonStates = {};
+
+        // Poll gamepad inputs
+        function startGamepadPolling() {
+            function pollGamepads() {
+                const gamepads = navigator.getGamepads();
+                
+                for (let i = 0; i < gamepads.length; i++) {
+                    const gamepad = gamepads[i];
+                    if (!gamepad) continue;
+
+                    // Handle button presses
+                    gamepad.buttons.forEach((button, index) => {
+                        const wasPressed = gamepadButtonStates[`${gamepad.index}-${index}`] || false;
+                        const isPressed = button.pressed;
+
+                        if (isPressed && !wasPressed) {
+                            // Button just pressed
+                            if (GAMEPAD_MAP[index]) {
+                                GAMEPAD_MAP[index]();
+                            }
+                        }
+
+                        gamepadButtonStates[`${gamepad.index}-${index}`] = isPressed;
+                    });
+                }
+
+                requestAnimationFrame(pollGamepads);
+            }
+
+            pollGamepads();
+        }
+
+        // Switch scene by index
+        function switchSceneByIndex(index) {
+            if (index < scenes.length) {
+                switchScene(scenes[index].id);
+            }
+        }
+
+        // Setup StreamDeck support
+        function setupStreamDeckSupport() {
+            // StreamDeck can make HTTP requests to our API endpoints
+            // We'll poll for StreamDeck activity via a dedicated endpoint
+            // StreamDeck plugins can call: POST /api/switcher/action
+            
+            // Check for StreamDeck via WebSocket (if plugin available)
+            try {
+                const ws = new WebSocket(`ws://${window.location.hostname}:8000/ws/switcher`);
+                ws.onopen = () => {
+                    streamdeckConnected = true;
+                    updateControllerStatus();
+                };
+                ws.onclose = () => {
+                    streamdeckConnected = false;
+                    updateControllerStatus();
+                };
+                ws.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    handleStreamDeckAction(data);
+                };
+            } catch (e) {
+                // WebSocket not available, StreamDeck will use HTTP
+                console.log('WebSocket not available, StreamDeck will use HTTP API');
+            }
+        }
+
+        // Handle StreamDeck actions
+        function handleStreamDeckAction(data) {
+            switch (data.action) {
+                case 'switch_scene':
+                    if (data.scene_id) {
+                        switchScene(data.scene_id);
+                    }
+                    break;
+                case 'start':
+                    startMixer();
+                    break;
+                case 'stop':
+                    stopMixer();
+                    break;
+                case 'toggle':
+                    if (mixerState === 'PLAYING') {
+                        stopMixer();
+                    } else {
+                        startMixer();
+                    }
+                    break;
+            }
+        }
+
+        // Update controller status display
+        function updateControllerStatus() {
+            const container = document.getElementById('controllerStatus');
+            container.innerHTML = '';
+
+            if (gamepads.length === 0 && !streamdeckConnected) {
+                container.innerHTML = '<div class="info-text">No controllers detected. Press any button on your gamepad or connect a StreamDeck.</div>';
+                return;
+            }
+
+            gamepads.forEach((gamepad, index) => {
+                const item = document.createElement('div');
+                item.className = 'controller-item';
+                item.innerHTML = `
+                    <div>
+                        <div class="controller-name">${gamepad.id}</div>
+                        <div class="controller-type">Gamepad</div>
+                    </div>
+                    <div class="status-dot active"></div>
+                `;
+                container.appendChild(item);
+            });
+
+            if (streamdeckConnected) {
+                const item = document.createElement('div');
+                item.className = 'controller-item';
+                item.innerHTML = `
+                    <div>
+                        <div class="controller-name">Elgato StreamDeck</div>
+                        <div class="controller-type">StreamDeck</div>
+                    </div>
+                    <div class="status-dot active"></div>
+                `;
+                container.appendChild(item);
+            }
+        }
+
+        // Setup keyboard shortcuts
+        function setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Number keys 1-7 for scenes
+                const num = parseInt(e.key);
+                if (num >= 1 && num <= 7) {
+                    const index = num - 1;
+                    if (index < scenes.length) {
+                        switchScene(scenes[index].id);
+                    }
+                }
+
+                // Space for start/stop
+                if (e.key === ' ') {
+                    e.preventDefault();
+                    if (mixerState === 'PLAYING') {
+                        stopMixer();
+                    } else {
+                        startMixer();
+                    }
+                }
+
+                // Q/W/E/R for camera selection (future feature)
+                if (e.key === 'q' || e.key === 'Q') {
+                    // Camera 1
+                }
+                if (e.key === 'w' || e.key === 'W') {
+                    // Camera 2
+                }
+                if (e.key === 'e' || e.key === 'E') {
+                    // Camera 3
+                }
+                if (e.key === 'r' || e.key === 'R') {
+                    // Camera 4
+                }
+            });
+        }
+
+        // Start status polling
+        function startStatusPolling() {
+            setInterval(checkMixerStatus, 2000);
+        }
+
+        // Initialize camera controls
+        function initCameraControls() {
+            const container = document.getElementById('cameraControls');
+            for (let i = 0; i < 4; i++) {
+                const btn = document.createElement('div');
+                btn.className = 'camera-button';
+                btn.textContent = `CAM ${i + 1}`;
+                btn.dataset.cameraId = `cam${i}`;
+                container.appendChild(btn);
+            }
+        }
+
+        // Initialize on load
+        window.addEventListener('load', () => {
+            init();
+            initCameraControls();
+        });
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <script>
+        // Ensure HLS is available before using it
+        if (typeof Hls === 'undefined') {
+            console.warn('HLS.js not loaded, HLS playback may not work');
+        }
+    </script>
+</body>
+</html>
+

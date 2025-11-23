@@ -74,6 +74,24 @@ async def root():
     return "<h1>R58 Recorder API</h1><p>Frontend not found. API is available at /docs</p>"
 
 
+@app.get("/switcher", response_class=HTMLResponse)
+async def switcher():
+    """Serve the professional switcher interface."""
+    switcher_path = Path(__file__).parent / "static" / "switcher.html"
+    if switcher_path.exists():
+        return switcher_path.read_text()
+    return "<h1>Switcher Interface</h1><p>Switcher interface not found.</p>"
+
+
+@app.get("/control", response_class=HTMLResponse)
+async def control():
+    """Serve the comprehensive device control interface."""
+    control_path = Path(__file__).parent / "static" / "control.html"
+    if control_path.exists():
+        return control_path.read_text()
+    return "<h1>Control Interface</h1><p>Control interface not found.</p>"
+
+
 @app.get("/health")
 async def health() -> Dict[str, str]:
     """Health check endpoint."""
@@ -302,6 +320,61 @@ async def get_mixer_status() -> Dict[str, Any]:
         raise HTTPException(status_code=503, detail="Mixer not enabled")
     
     return mixer_core.get_status()
+
+
+# Switcher/Controller API endpoints
+@app.post("/api/switcher/action")
+async def switcher_action(request: Dict[str, Any]) -> Dict[str, str]:
+    """Handle actions from physical controllers (StreamDeck, gamepad, etc.)."""
+    action = request.get("action")
+    
+    if not action:
+        raise HTTPException(status_code=400, detail="Action required")
+    
+    if action == "switch_scene":
+        scene_id = request.get("scene_id")
+        if not scene_id:
+            raise HTTPException(status_code=400, detail="scene_id required for switch_scene")
+        if not mixer_core:
+            raise HTTPException(status_code=503, detail="Mixer not enabled")
+        success = mixer_core.apply_scene(scene_id)
+        if not success:
+            raise HTTPException(status_code=500, detail=f"Failed to apply scene {scene_id}")
+        return {"status": "applied", "scene_id": scene_id}
+    
+    elif action == "start":
+        if not mixer_core:
+            raise HTTPException(status_code=503, detail="Mixer not enabled")
+        success = mixer_core.start()
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to start mixer")
+        return {"status": "started"}
+    
+    elif action == "stop":
+        if not mixer_core:
+            raise HTTPException(status_code=503, detail="Mixer not enabled")
+        success = mixer_core.stop()
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to stop mixer")
+        return {"status": "stopped"}
+    
+    elif action == "toggle":
+        if not mixer_core:
+            raise HTTPException(status_code=503, detail="Mixer not enabled")
+        status = mixer_core.get_status()
+        if status["state"] == "PLAYING":
+            success = mixer_core.stop()
+            if not success:
+                raise HTTPException(status_code=500, detail="Failed to stop mixer")
+            return {"status": "stopped"}
+        else:
+            success = mixer_core.start()
+            if not success:
+                raise HTTPException(status_code=500, detail="Failed to start mixer")
+            return {"status": "started"}
+    
+    else:
+        raise HTTPException(status_code=400, detail=f"Unknown action: {action}")
 
 
 if __name__ == "__main__":
