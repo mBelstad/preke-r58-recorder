@@ -197,7 +197,41 @@ class MixerCore:
                 logger.info(f"Scene stored (will apply on start): {scene_id}")
                 return True
 
-            # Apply scene to running pipeline
+            # Check if scene requires different sources (need pipeline rebuild)
+            current_sources = {slot.source for slot in self.current_scene.slots} if self.current_scene else set()
+            new_sources = {slot.source for slot in scene.slots}
+            
+            if current_sources != new_sources:
+                # Different sources - need to rebuild pipeline
+                logger.info(f"Scene {scene_id} uses different sources, rebuilding pipeline")
+                was_playing = (self.state == "PLAYING")
+                
+                # Stop current pipeline
+                self._stop_pipeline_internal()
+                time.sleep(0.5)  # Give device time to release
+                
+                # Set new scene and rebuild
+                self.current_scene = scene
+                self.pipeline = self._build_pipeline()
+                
+                if not self.pipeline:
+                    logger.error("Failed to rebuild pipeline for new scene")
+                    return False
+                
+                # Restart pipeline
+                bus = self.pipeline.get_bus()
+                bus.add_signal_watch()
+                bus.connect("message", self._on_bus_message)
+                
+                if self._set_state_with_timeout(Gst.State.PLAYING):
+                    self.state = "PLAYING"
+                    logger.info(f"Pipeline rebuilt and started with scene: {scene_id}")
+                    return True
+                else:
+                    logger.error("Failed to restart pipeline after scene change")
+                    return False
+
+            # Same sources - just update pad properties
             try:
                 compositor = self.pipeline.get_by_name("compositor")
                 if not compositor:
