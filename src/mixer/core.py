@@ -130,13 +130,22 @@ class MixerCore:
                     if msg:
                         if msg.type == Gst.MessageType.ERROR:
                             err, debug = msg.parse_error()
-                            logger.error(f"Pipeline error during start: {err.message} - {debug}")
-                            self.last_error = f"{err.message} - {debug}"
+                            error_msg = f"{err.message} - {debug}"
+                            logger.error(f"Pipeline error during start: {error_msg}")
+                            
+                            # Provide user-friendly error message for common issues
+                            if "no supported format" in error_msg.lower() or "TRY_FMT failed" in error_msg:
+                                if "video60" in error_msg:
+                                    self.last_error = "HDMI input (/dev/video60) cannot negotiate format. Check if HDMI cable is connected and source is active."
+                                else:
+                                    self.last_error = f"Video device format negotiation failed: {error_msg}"
+                            else:
+                                self.last_error = error_msg
                         elif msg.type == Gst.MessageType.WARNING:
                             warn, debug = msg.parse_warning()
                             logger.warning(f"Pipeline warning during start: {warn.message} - {debug}")
                     
-                    logger.error("Failed to start mixer pipeline (timeout)")
+                    logger.error("Failed to start mixer pipeline (timeout or format negotiation failure)")
                     self._stop_pipeline_internal()
                     return False
 
@@ -350,6 +359,8 @@ class MixerCore:
                 # Match the working pipeline exactly: format=NV24,width={width},height={height},framerate=60/1
                 # Then convert to NV12 and scale to match compositor input requirements
                 # Add explicit caps after queue to prevent compositor from negotiating upstream
+                # Note: If no HDMI signal is present, this will fail at format negotiation
+                # The error will be caught and the source will be skipped
                 source_str = (
                     f"v4l2src device={device} io-mode=mmap ! "
                     f"video/x-raw,format=NV24,width={width},height={height},framerate=60/1 ! "
@@ -377,7 +388,8 @@ class MixerCore:
             logger.info(f"Added source branch for {cam_id} ({device})")
 
         if not source_branches:
-            logger.error("No valid source branches to build")
+            logger.warning("No valid source branches to build - all cameras are unavailable or not configured")
+            logger.info("Mixer cannot start without at least one valid video source")
             return None
         
         logger.info(f"Building mixer pipeline with {len(source_branches)} valid source(s) out of {len(scene.slots)} scene slot(s)")
