@@ -316,27 +316,33 @@ class MixerCore:
         for i, slot in enumerate(scene.slots):
             cam_id = slot.source
             if cam_id not in self.camera_devices:
-                logger.warning(f"Camera {cam_id} not found in config, skipping")
+                logger.debug(f"Camera {cam_id} not found in config, skipping")
                 continue
 
             device = self.camera_devices[cam_id]
+            logger.debug(f"Processing camera {cam_id} with device {device}")
             
             # Skip if device doesn't exist (for non-connected cameras)
             if not Path(device).exists():
-                logger.warning(f"Device {device} for {cam_id} does not exist, skipping")
+                logger.debug(f"Device {device} for {cam_id} does not exist, skipping")
                 continue
             
             # Check if device is busy (being used by another process)
-            # Only check for non-video60 devices (video60 is the main HDMI input)
-            if "video60" not in device:
-                try:
-                    import fcntl
-                    with open(device, 'r') as f:
-                        fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                        fcntl.flock(f, fcntl.LOCK_UN)
-                except (IOError, OSError):
-                    logger.warning(f"Device {device} for {cam_id} is busy or not accessible, skipping")
+            # For video60, we still check but don't skip - we'll let the pipeline fail if it's busy
+            # This allows cleanup to work, but we still verify the device is accessible
+            try:
+                import fcntl
+                test_file = open(device, 'r')
+                fcntl.flock(test_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                fcntl.flock(test_file, fcntl.LOCK_UN)
+                test_file.close()
+            except (IOError, OSError) as e:
+                if "video60" not in device:
+                    logger.warning(f"Device {device} for {cam_id} is busy or not accessible, skipping: {e}")
                     continue
+                else:
+                    logger.warning(f"Device {device} for {cam_id} appears busy, but continuing (will fail if actually in use): {e}")
+                    # For video60, we continue but the pipeline will fail if it's actually busy
             
             # Build source pipeline (similar to existing R58 pipeline)
             if "video60" in device or "hdmirx" in device.lower():
@@ -368,10 +374,13 @@ class MixerCore:
                 )
 
             source_branches.append((i, source_str, slot))
+            logger.info(f"Added source branch for {cam_id} ({device})")
 
         if not source_branches:
             logger.error("No valid source branches to build")
             return None
+        
+        logger.info(f"Building mixer pipeline with {len(source_branches)} valid source(s) out of {len(scene.slots)} scene slot(s)")
 
         # Encoder
         if self.output_codec == "h265":
