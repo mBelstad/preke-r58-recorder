@@ -83,6 +83,15 @@ async def switcher():
     return "<h1>Switcher Interface</h1><p>Switcher interface not found.</p>"
 
 
+@app.get("/editor", response_class=HTMLResponse)
+async def scene_editor():
+    """Serve the scene editor interface."""
+    editor_path = Path(__file__).parent / "static" / "editor.html"
+    if editor_path.exists():
+        return editor_path.read_text()
+    return "<h1>Scene Editor</h1><p>Scene editor not found.</p>"
+
+
 @app.get("/control", response_class=HTMLResponse)
 async def control():
     """Serve the comprehensive device control interface."""
@@ -268,6 +277,57 @@ async def get_scene(scene_id: str) -> Dict[str, Any]:
         raise HTTPException(status_code=404, detail=f"Scene {scene_id} not found")
     
     return scene.to_dict()
+
+
+@app.post("/api/scenes")
+async def create_scene(scene_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Create or update a scene."""
+    if not scene_manager:
+        raise HTTPException(status_code=503, detail="Mixer not enabled")
+    
+    try:
+        from .mixer.scenes import Scene
+        scene = Scene.from_dict(scene_data)
+        success = scene_manager.create_scene(scene)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to create scene")
+        return {"status": "created", "scene_id": scene.id}
+    except Exception as e:
+        logger.error(f"Failed to create scene: {e}")
+        raise HTTPException(status_code=400, detail=f"Invalid scene data: {str(e)}")
+
+
+@app.put("/api/scenes/{scene_id}")
+async def update_scene(scene_id: str, scene_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Update a scene."""
+    if not scene_manager:
+        raise HTTPException(status_code=503, detail="Mixer not enabled")
+    
+    try:
+        from .mixer.scenes import Scene
+        # Ensure scene_id matches
+        scene_data["id"] = scene_id
+        scene = Scene.from_dict(scene_data)
+        success = scene_manager.create_scene(scene)  # create_scene also updates
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to update scene")
+        return {"status": "updated", "scene_id": scene_id}
+    except Exception as e:
+        logger.error(f"Failed to update scene: {e}")
+        raise HTTPException(status_code=400, detail=f"Invalid scene data: {str(e)}")
+
+
+@app.delete("/api/scenes/{scene_id}")
+async def delete_scene(scene_id: str) -> Dict[str, str]:
+    """Delete a scene."""
+    if not scene_manager:
+        raise HTTPException(status_code=503, detail="Mixer not enabled")
+    
+    success = scene_manager.delete_scene(scene_id)
+    if not success:
+        raise HTTPException(status_code=404, detail=f"Scene {scene_id} not found")
+    
+    return {"status": "deleted", "scene_id": scene_id}
 
 
 @app.post("/api/mixer/set_scene")

@@ -3,7 +3,7 @@ import json
 import logging
 from pathlib import Path
 from typing import Dict, List, Optional, Any
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 
 logger = logging.getLogger(__name__)
 
@@ -11,13 +11,25 @@ logger = logging.getLogger(__name__)
 @dataclass
 class SceneSlot:
     """A single source slot in a scene."""
-    source: str  # e.g., "cam0", "cam1"
+    source: str  # e.g., "cam0", "cam1", "presentation:1", "image:logo.png", "lower_third:name"
+    source_type: str = "video"  # "video", "image", "presentation", "graphics", "lower_third"
     x_rel: float  # 0.0-1.0
     y_rel: float  # 0.0-1.0
     w_rel: float  # 0.0-1.0
     h_rel: float  # 0.0-1.0
     z: int = 0  # z-order (higher = on top)
     alpha: float = 1.0  # 0.0-1.0
+    # Styling options
+    border_width: int = 0  # pixels
+    border_color: str = "#000000"  # hex color
+    border_radius: int = 0  # pixels
+    # Crop (relative to source, 0.0-1.0)
+    crop_x: float = 0.0
+    crop_y: float = 0.0
+    crop_w: float = 1.0
+    crop_h: float = 1.0
+    # Source-specific data (for presentations, images, etc.)
+    source_data: Optional[Dict[str, Any]] = field(default=None)  # Additional data for source type
 
 
 @dataclass
@@ -40,7 +52,28 @@ class Scene:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Scene":
         """Create scene from dictionary."""
-        slots = [SceneSlot(**slot_data) for slot_data in data.get("slots", [])]
+        slots = []
+        for slot_data in data.get("slots", []):
+            # Handle backward compatibility - old scenes don't have new fields
+            slot = SceneSlot(
+                source=slot_data.get("source", ""),
+                source_type=slot_data.get("source_type", "video"),
+                x_rel=slot_data.get("x_rel", 0.0),
+                y_rel=slot_data.get("y_rel", 0.0),
+                w_rel=slot_data.get("w_rel", 1.0),
+                h_rel=slot_data.get("h_rel", 1.0),
+                z=slot_data.get("z", 0),
+                alpha=slot_data.get("alpha", 1.0),
+                border_width=slot_data.get("border_width", 0),
+                border_color=slot_data.get("border_color", "#000000"),
+                border_radius=slot_data.get("border_radius", 0),
+                crop_x=slot_data.get("crop_x", 0.0),
+                crop_y=slot_data.get("crop_y", 0.0),
+                crop_w=slot_data.get("crop_w", 1.0),
+                crop_h=slot_data.get("crop_h", 1.0),
+                source_data=slot_data.get("source_data")
+            )
+            slots.append(slot)
         return cls(
             id=data["id"],
             label=data["label"],

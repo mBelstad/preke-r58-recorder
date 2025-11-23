@@ -13,6 +13,7 @@ from gi.repository import Gst, GLib
 
 from .scenes import SceneManager, Scene
 from .watchdog import MixerWatchdog, HealthStatus
+from .graphics import GraphicsRenderer
 
 logger = logging.getLogger(__name__)
 
@@ -320,9 +321,36 @@ class MixerCore:
         width, height = self.output_resolution.split("x")
         scene = self.current_scene
 
-        # Build source branches for each camera
+        # Build source branches for each slot
         source_branches = []
         for i, slot in enumerate(scene.slots):
+            # Handle graphics sources (image, presentation, lower_third, graphics)
+            if slot.source_type != "video":
+                graphics_pipeline = self.graphics_renderer.get_source_pipeline(slot.source)
+                if graphics_pipeline:
+                    # Apply crop if specified
+                    if slot.crop_w < 1.0 or slot.crop_h < 1.0 or slot.crop_x > 0.0 or slot.crop_y > 0.0:
+                        # Add videocrop element
+                        crop_x = int(slot.crop_x * int(width))
+                        crop_y = int(slot.crop_y * int(height))
+                        crop_w = int(slot.crop_w * int(width))
+                        crop_h = int(slot.crop_h * int(height))
+                        source_str = f"{graphics_pipeline} ! videocrop left={crop_x} top={crop_y} right={int(width) - crop_x - crop_w} bottom={int(height) - crop_y - crop_h} ! "
+                    else:
+                        source_str = f"{graphics_pipeline} ! "
+                    
+                    source_str += (
+                        f"videoscale ! "
+                        f"video/x-raw,width={width},height={height} ! "
+                        f"queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream"
+                    )
+                    source_branches.append((i, source_str, slot))
+                    logger.info(f"Added graphics source branch: {slot.source} (type: {slot.source_type})")
+                else:
+                    logger.warning(f"Failed to create graphics source for {slot.source}")
+                continue
+            
+            # Handle video sources
             cam_id = slot.source
             if cam_id not in self.camera_devices:
                 logger.debug(f"Camera {cam_id} not found in config, skipping")
@@ -383,6 +411,21 @@ class MixerCore:
                     f"video/x-raw,width={width},height={height} ! "
                     f"queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream"
                 )
+            
+            # Apply crop if specified (for video sources)
+            if slot.crop_w < 1.0 or slot.crop_h < 1.0 or slot.crop_x > 0.0 or slot.crop_y > 0.0:
+                # Calculate crop values in pixels
+                source_width = int(width)
+                source_height = int(height)
+                crop_left = int(slot.crop_x * source_width)
+                crop_top = int(slot.crop_y * source_height)
+                crop_right = int((1.0 - slot.crop_x - slot.crop_w) * source_width)
+                crop_bottom = int((1.0 - slot.crop_y - slot.crop_h) * source_height)
+                # Insert videocrop before the final queue
+                source_str = source_str.replace(
+                    f"queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream",
+                    f"videocrop left={crop_left} top={crop_top} right={crop_right} bottom={crop_bottom} ! queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream"
+                )
 
             source_branches.append((i, source_str, slot))
             logger.info(f"Added source branch for {cam_id} ({device})")
@@ -441,14 +484,22 @@ class MixerCore:
         compositor_pad_props = []
         for i, (_, _, slot) in enumerate(source_branches):
             coords = scene.get_absolute_coords(slot)
-            compositor_pad_props.append(
-                f"sink_{i}::xpos={coords['x']} "
-                f"sink_{i}::ypos={coords['y']} "
-                f"sink_{i}::width={coords['w']} "
-                f"sink_{i}::height={coords['h']} "
-                f"sink_{i}::zorder={slot.z} "
+            # Build pad properties with styling support
+            pad_props = [
+                f"sink_{i}::xpos={coords['x']}",
+                f"sink_{i}::ypos={coords['y']}",
+                f"sink_{i}::width={coords['w']}",
+                f"sink_{i}::height={coords['h']}",
+                f"sink_{i}::zorder={slot.z}",
                 f"sink_{i}::alpha={slot.alpha}"
-            )
+            ]
+            
+            # Note: GStreamer compositor doesn't natively support borders/border-radius
+            # These would need to be applied via a separate overlay element or cairooverlay
+            # For now, we store the values but don't apply them in the pipeline
+            # TODO: Add cairooverlay or similar for border/border-radius rendering
+            
+            compositor_pad_props.append(" ".join(pad_props))
 
         # Build complete pipeline
         pipeline_str = (

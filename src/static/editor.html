@@ -1,0 +1,1130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scene Editor - R58 Mixer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #0a0a0a;
+            color: #fff;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: #1a1a1a;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: none;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .main-container {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 0;
+            overflow: hidden;
+        }
+
+        .editor-area {
+            display: flex;
+            flex-direction: column;
+            background: #000;
+            position: relative;
+        }
+
+        .toolbar {
+            background: #1a1a1a;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 12px 16px;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .toolbar-group {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            padding: 0 12px;
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .toolbar-group:last-child {
+            border-right: none;
+        }
+
+        .toolbar-label {
+            font-size: 12px;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-right: 8px;
+        }
+
+        .toolbar-select,
+        .toolbar-input {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            color: white;
+            padding: 6px 12px;
+            font-size: 14px;
+        }
+
+        .toolbar-input {
+            width: 80px;
+        }
+
+        .canvas-container {
+            flex: 1;
+            position: relative;
+            overflow: auto;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .canvas {
+            position: relative;
+            background: #1a1a1a;
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
+            margin: 20px;
+        }
+
+        .canvas-grid {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+            background-size: 20px 20px;
+            pointer-events: none;
+        }
+
+        .source-element {
+            position: absolute;
+            border: 2px dashed rgba(59, 130, 246, 0.5);
+            background: rgba(59, 130, 246, 0.1);
+            cursor: move;
+            transition: border-color 0.2s;
+        }
+
+        .source-element.selected {
+            border-color: #3b82f6;
+            border-style: solid;
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+        }
+
+        .source-element:hover {
+            border-color: #60a5fa;
+        }
+
+        .source-handle {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background: #3b82f6;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            cursor: nwse-resize;
+        }
+
+        .source-handle.nw { top: -6px; left: -6px; cursor: nwse-resize; }
+        .source-handle.ne { top: -6px; right: -6px; cursor: nesw-resize; }
+        .source-handle.sw { bottom: -6px; left: -6px; cursor: nesw-resize; }
+        .source-handle.se { bottom: -6px; right: -6px; cursor: nwse-resize; }
+        .source-handle.n { top: -6px; left: 50%; transform: translateX(-50%); cursor: ns-resize; }
+        .source-handle.s { bottom: -6px; left: 50%; transform: translateX(-50%); cursor: ns-resize; }
+        .source-handle.w { left: -6px; top: 50%; transform: translateY(-50%); cursor: ew-resize; }
+        .source-handle.e { right: -6px; top: 50%; transform: translateY(-50%); cursor: ew-resize; }
+
+        .source-label {
+            position: absolute;
+            top: -24px;
+            left: 0;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 2px 8px;
+            font-size: 11px;
+            border-radius: 4px;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+
+        .sidebar {
+            background: #1a1a1a;
+            border-left: 2px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .sidebar-section {
+            padding: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .sidebar-title {
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #888;
+            margin-bottom: 16px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 12px;
+            color: #aaa;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-input,
+        .form-select {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            color: white;
+            padding: 10px;
+            font-size: 14px;
+        }
+
+        .form-input:focus,
+        .form-select:focus {
+            outline: none;
+            border-color: #3b82f6;
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .color-input {
+            width: 100%;
+            height: 40px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .sources-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .source-item {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .source-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: #3b82f6;
+        }
+
+        .source-item.active {
+            background: rgba(59, 130, 246, 0.2);
+            border-color: #3b82f6;
+        }
+
+        .source-item-name {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .source-item-type {
+            font-size: 11px;
+            color: #888;
+            text-transform: uppercase;
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .btn-icon {
+            padding: 8px;
+            min-width: 36px;
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .slider {
+            flex: 1;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            background: #3b82f6;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .slider-value {
+            min-width: 50px;
+            text-align: right;
+            font-size: 12px;
+            color: #aaa;
+        }
+
+        .z-order-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .z-order-btn {
+            flex: 1;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            color: white;
+            cursor: pointer;
+            font-size: 18px;
+        }
+
+        .z-order-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .crop-preview {
+            margin-top: 12px;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .crop-preview-label {
+            font-size: 11px;
+            color: #888;
+            margin-bottom: 8px;
+        }
+
+        .crop-preview-box {
+            width: 100%;
+            height: 100px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px dashed rgba(255, 255, 255, 0.3);
+            border-radius: 4px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .crop-overlay {
+            position: absolute;
+            background: rgba(59, 130, 246, 0.3);
+            border: 2px solid #3b82f6;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #10b981;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            z-index: 10000;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Scene Editor</h1>
+        <div class="header-actions">
+            <select id="sceneSelect" class="toolbar-select">
+                <option value="">New Scene...</option>
+            </select>
+            <button class="btn btn-secondary" id="saveBtn">Save Scene</button>
+            <button class="btn btn-danger" id="deleteBtn">Delete</button>
+            <button class="btn btn-secondary" onclick="window.location.href='/switcher'">Back to Switcher</button>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="editor-area">
+            <div class="toolbar">
+                <div class="toolbar-group">
+                    <span class="toolbar-label">Add Source:</span>
+                    <select id="sourceTypeSelect" class="toolbar-select">
+                        <option value="video">Video Camera</option>
+                        <option value="image">Image</option>
+                        <option value="presentation">Presentation</option>
+                        <option value="lower_third">Lower Third</option>
+                        <option value="graphics">Graphics</option>
+                    </select>
+                    <select id="sourceSelect" class="toolbar-select">
+                        <option value="cam0">CAM 1</option>
+                        <option value="cam1">CAM 2</option>
+                        <option value="cam2">CAM 3</option>
+                        <option value="cam3">CAM 4</option>
+                    </select>
+                    <button class="btn btn-primary btn-small" id="addSourceBtn">Add</button>
+                </div>
+                <div class="toolbar-group">
+                    <span class="toolbar-label">Canvas:</span>
+                    <input type="number" id="canvasWidth" class="toolbar-input" value="1920" min="640" max="3840">
+                    <span style="color: #888;">×</span>
+                    <input type="number" id="canvasHeight" class="toolbar-input" value="1080" min="360" max="2160">
+                    <button class="btn btn-secondary btn-small" id="resizeCanvasBtn">Resize</button>
+                </div>
+            </div>
+            <div class="canvas-container">
+                <div class="canvas" id="canvas">
+                    <div class="canvas-grid"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="sidebar">
+            <div class="sidebar-section">
+                <div class="sidebar-title">Scene Properties</div>
+                <div class="form-group">
+                    <label class="form-label">Scene Name</label>
+                    <input type="text" id="sceneName" class="form-input" placeholder="My Scene">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Scene ID</label>
+                    <input type="text" id="sceneId" class="form-input" placeholder="my_scene">
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-title">Sources</div>
+                <div class="sources-list" id="sourcesList"></div>
+            </div>
+
+            <div class="sidebar-section" id="sourceProperties" style="display: none;">
+                <div class="sidebar-title">Source Properties</div>
+                
+                <div class="form-group">
+                    <label class="form-label">Source Type</label>
+                    <select id="propSourceType" class="form-select">
+                        <option value="video">Video</option>
+                        <option value="image">Image</option>
+                        <option value="presentation">Presentation</option>
+                        <option value="lower_third">Lower Third</option>
+                        <option value="graphics">Graphics</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Source</label>
+                    <select id="propSource" class="form-select"></select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Position</label>
+                    <div class="form-row">
+                        <div>
+                            <label class="form-label">X (%)</label>
+                            <input type="number" id="propX" class="form-input" min="0" max="100" step="0.1">
+                        </div>
+                        <div>
+                            <label class="form-label">Y (%)</label>
+                            <input type="number" id="propY" class="form-input" min="0" max="100" step="0.1">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Size</label>
+                    <div class="form-row">
+                        <div>
+                            <label class="form-label">Width (%)</label>
+                            <input type="number" id="propW" class="form-input" min="0" max="100" step="0.1">
+                        </div>
+                        <div>
+                            <label class="form-label">Height (%)</label>
+                            <input type="number" id="propH" class="form-input" min="0" max="100" step="0.1">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Z-Order</label>
+                    <div class="z-order-controls">
+                        <button class="z-order-btn" id="zDownBtn">↓</button>
+                        <input type="number" id="propZ" class="form-input" value="0" style="text-align: center;">
+                        <button class="z-order-btn" id="zUpBtn">↑</button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Opacity</label>
+                    <div class="slider-container">
+                        <input type="range" id="propAlpha" class="slider" min="0" max="100" value="100">
+                        <span class="slider-value" id="alphaValue">100%</span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Border</label>
+                    <div class="form-row">
+                        <div>
+                            <label class="form-label">Width (px)</label>
+                            <input type="number" id="propBorderWidth" class="form-input" min="0" max="50" value="0">
+                        </div>
+                        <div>
+                            <label class="form-label">Color</label>
+                            <input type="color" id="propBorderColor" class="color-input" value="#000000">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Border Radius (px)</label>
+                    <input type="number" id="propBorderRadius" class="form-input" min="0" max="100" value="0">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Crop</label>
+                    <div class="form-row">
+                        <div>
+                            <label class="form-label">X (%)</label>
+                            <input type="number" id="propCropX" class="form-input" min="0" max="100" step="0.1" value="0">
+                        </div>
+                        <div>
+                            <label class="form-label">Y (%)</label>
+                            <input type="number" id="propCropY" class="form-input" min="0" max="100" step="0.1" value="0">
+                        </div>
+                    </div>
+                    <div class="form-row" style="margin-top: 8px;">
+                        <div>
+                            <label class="form-label">Width (%)</label>
+                            <input type="number" id="propCropW" class="form-input" min="0" max="100" step="0.1" value="100">
+                        </div>
+                        <div>
+                            <label class="form-label">Height (%)</label>
+                            <input type="number" id="propCropH" class="form-input" min="0" max="100" step="0.1" value="100">
+                        </div>
+                    </div>
+                    <div class="crop-preview">
+                        <div class="crop-preview-label">Crop Preview</div>
+                        <div class="crop-preview-box" id="cropPreview"></div>
+                    </div>
+                </div>
+
+                <div class="form-group" id="sourceDataGroup" style="display: none;">
+                    <label class="form-label">Source Data</label>
+                    <textarea id="propSourceData" class="form-input" rows="4" placeholder='{"key": "value"}'></textarea>
+                </div>
+
+                <button class="btn btn-danger btn-small" id="removeSourceBtn" style="width: 100%; margin-top: 12px;">Remove Source</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+        let currentScene = {
+            id: '',
+            label: '',
+            resolution: { width: 1920, height: 1080 },
+            slots: []
+        };
+        let selectedSlotIndex = -1;
+        let isDragging = false;
+        let isResizing = false;
+        let dragStart = { x: 0, y: 0 };
+        let resizeHandle = null;
+
+        // Initialize
+        async function init() {
+            await loadScenes();
+            setupEventListeners();
+            updateCanvas();
+        }
+
+        // Load available scenes
+        async function loadScenes() {
+            try {
+                const response = await fetch(`${API_BASE}/api/scenes`);
+                const data = await response.json();
+                const select = document.getElementById('sceneSelect');
+                select.innerHTML = '<option value="">New Scene...</option>';
+                data.scenes.forEach(scene => {
+                    const option = document.createElement('option');
+                    option.value = scene.id;
+                    option.textContent = scene.label;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Failed to load scenes:', error);
+            }
+        }
+
+        // Setup event listeners
+        function setupEventListeners() {
+            document.getElementById('sceneSelect').addEventListener('change', handleSceneSelect);
+            document.getElementById('saveBtn').addEventListener('click', saveScene);
+            document.getElementById('deleteBtn').addEventListener('click', deleteScene);
+            document.getElementById('addSourceBtn').addEventListener('click', addSource);
+            document.getElementById('resizeCanvasBtn').addEventListener('click', resizeCanvas);
+            document.getElementById('removeSourceBtn').addEventListener('click', removeSource);
+            document.getElementById('zUpBtn').addEventListener('click', () => changeZOrder(1));
+            document.getElementById('zDownBtn').addEventListener('click', () => changeZOrder(-1));
+
+            // Property inputs
+            ['propX', 'propY', 'propW', 'propH', 'propZ', 'propAlpha', 'propBorderWidth', 
+             'propBorderColor', 'propBorderRadius', 'propCropX', 'propCropY', 'propCropW', 'propCropH',
+             'propSourceType', 'propSource'].forEach(id => {
+                document.getElementById(id).addEventListener('input', updateSelectedSource);
+            });
+
+            document.getElementById('propAlpha').addEventListener('input', (e) => {
+                document.getElementById('alphaValue').textContent = e.target.value + '%';
+                updateSelectedSource();
+            });
+
+            // Canvas interactions
+            setupCanvasInteractions();
+        }
+
+        // Setup canvas drag and resize
+        function setupCanvasInteractions() {
+            const canvas = document.getElementById('canvas');
+            
+            canvas.addEventListener('mousedown', handleCanvasMouseDown);
+            document.addEventListener('mousemove', handleCanvasMouseMove);
+            document.addEventListener('mouseup', handleCanvasMouseUp);
+        }
+
+        function handleCanvasMouseDown(e) {
+            const target = e.target.closest('.source-element');
+            if (!target) {
+                selectSource(-1);
+                return;
+            }
+
+            const handle = e.target.closest('.source-handle');
+            if (handle) {
+                isResizing = true;
+                resizeHandle = handle.classList[1]; // nw, ne, sw, se, etc.
+                selectedSlotIndex = parseInt(target.dataset.index);
+            } else {
+                isDragging = true;
+                selectedSlotIndex = parseInt(target.dataset.index);
+                selectSource(selectedSlotIndex);
+            }
+
+            dragStart = { x: e.clientX, y: e.clientY };
+            e.preventDefault();
+        }
+
+        function handleCanvasMouseMove(e) {
+            if (!isDragging && !isResizing) return;
+
+            const canvas = document.getElementById('canvas');
+            const canvasRect = canvas.getBoundingClientRect();
+            const deltaX = (e.clientX - dragStart.x) / canvasRect.width;
+            const deltaY = (e.clientY - dragStart.y) / canvasRect.height;
+
+            if (isDragging && selectedSlotIndex >= 0) {
+                const slot = currentScene.slots[selectedSlotIndex];
+                slot.x_rel = Math.max(0, Math.min(1 - slot.w_rel, slot.x_rel + deltaX));
+                slot.y_rel = Math.max(0, Math.min(1 - slot.h_rel, slot.y_rel + deltaY));
+                updateCanvas();
+                updatePropertyPanel();
+            } else if (isResizing && selectedSlotIndex >= 0) {
+                const slot = currentScene.slots[selectedSlotIndex];
+                // Handle resize based on handle
+                // This is simplified - full implementation would handle all 8 handles
+                if (resizeHandle === 'se') {
+                    slot.w_rel = Math.max(0.01, Math.min(1 - slot.x_rel, slot.w_rel + deltaX));
+                    slot.h_rel = Math.max(0.01, Math.min(1 - slot.y_rel, slot.h_rel + deltaY));
+                }
+                // Add other handle cases...
+                updateCanvas();
+                updatePropertyPanel();
+            }
+
+            dragStart = { x: e.clientX, y: e.clientY };
+        }
+
+        function handleCanvasMouseUp() {
+            isDragging = false;
+            isResizing = false;
+            resizeHandle = null;
+        }
+
+        // Update canvas display
+        function updateCanvas() {
+            const canvas = document.getElementById('canvas');
+            const width = currentScene.resolution.width;
+            const height = currentScene.resolution.height;
+            
+            // Scale canvas to fit viewport (maintain aspect ratio)
+            const container = canvas.parentElement;
+            const scale = Math.min(
+                (container.clientWidth - 40) / width,
+                (container.clientHeight - 40) / height
+            );
+            
+            canvas.style.width = (width * scale) + 'px';
+            canvas.style.height = (height * scale) + 'px';
+
+            // Clear and redraw sources
+            canvas.innerHTML = '<div class="canvas-grid"></div>';
+            
+            // Sort by z-order for proper layering
+            const sortedSlots = [...currentScene.slots].sort((a, b) => a.z - b.z);
+            
+            sortedSlots.forEach((slot, index) => {
+                const actualIndex = currentScene.slots.indexOf(slot);
+                const element = createSourceElement(slot, actualIndex, scale);
+                canvas.appendChild(element);
+            });
+        }
+
+        // Create source element
+        function createSourceElement(slot, index, scale) {
+            const div = document.createElement('div');
+            div.className = 'source-element';
+            if (index === selectedSlotIndex) {
+                div.classList.add('selected');
+            }
+            div.dataset.index = index;
+
+            const width = currentScene.resolution.width * scale;
+            const height = currentScene.resolution.height * scale;
+
+            div.style.left = (slot.x_rel * width) + 'px';
+            div.style.top = (slot.y_rel * height) + 'px';
+            div.style.width = (slot.w_rel * width) + 'px';
+            div.style.height = (slot.h_rel * height) + 'px';
+            div.style.zIndex = slot.z;
+            div.style.opacity = slot.alpha;
+            div.style.borderWidth = (slot.border_width * scale) + 'px';
+            div.style.borderColor = slot.border_color;
+            div.style.borderRadius = (slot.border_radius * scale) + 'px';
+
+            // Add label
+            const label = document.createElement('div');
+            label.className = 'source-label';
+            label.textContent = `${slot.source} (${slot.source_type})`;
+            div.appendChild(label);
+
+            // Add resize handles
+            ['nw', 'ne', 'sw', 'se', 'n', 's', 'w', 'e'].forEach(handle => {
+                const handleEl = document.createElement('div');
+                handleEl.className = `source-handle ${handle}`;
+                div.appendChild(handleEl);
+            });
+
+            return div;
+        }
+
+        // Add source
+        function addSource() {
+            const sourceType = document.getElementById('sourceTypeSelect').value;
+            let source = document.getElementById('sourceSelect').value;
+            
+            if (sourceType !== 'video') {
+                source = `${sourceType}:${source}`;
+            }
+
+            const slot = {
+                source: source,
+                source_type: sourceType,
+                x_rel: 0.1,
+                y_rel: 0.1,
+                w_rel: 0.3,
+                h_rel: 0.3,
+                z: currentScene.slots.length,
+                alpha: 1.0,
+                border_width: 0,
+                border_color: '#000000',
+                border_radius: 0,
+                crop_x: 0.0,
+                crop_y: 0.0,
+                crop_w: 1.0,
+                crop_h: 1.0,
+                source_data: null
+            };
+
+            currentScene.slots.push(slot);
+            updateCanvas();
+            updateSourcesList();
+            selectSource(currentScene.slots.length - 1);
+        }
+
+        // Remove source
+        function removeSource() {
+            if (selectedSlotIndex < 0) return;
+            currentScene.slots.splice(selectedSlotIndex, 1);
+            selectedSlotIndex = -1;
+            updateCanvas();
+            updateSourcesList();
+            document.getElementById('sourceProperties').style.display = 'none';
+        }
+
+        // Select source
+        function selectSource(index) {
+            selectedSlotIndex = index;
+            updateCanvas();
+            updateSourcesList();
+            updatePropertyPanel();
+        }
+
+        // Update sources list
+        function updateSourcesList() {
+            const list = document.getElementById('sourcesList');
+            list.innerHTML = '';
+            currentScene.slots.forEach((slot, index) => {
+                const item = document.createElement('div');
+                item.className = 'source-item';
+                if (index === selectedSlotIndex) {
+                    item.classList.add('active');
+                }
+                item.innerHTML = `
+                    <div class="source-item-name">${slot.source}</div>
+                    <div class="source-item-type">${slot.source_type}</div>
+                `;
+                item.addEventListener('click', () => selectSource(index));
+                list.appendChild(item);
+            });
+        }
+
+        // Update property panel
+        function updatePropertyPanel() {
+            const panel = document.getElementById('sourceProperties');
+            if (selectedSlotIndex < 0) {
+                panel.style.display = 'none';
+                return;
+            }
+
+            panel.style.display = 'block';
+            const slot = currentScene.slots[selectedSlotIndex];
+
+            document.getElementById('propSourceType').value = slot.source_type;
+            document.getElementById('propSource').value = slot.source;
+            document.getElementById('propX').value = (slot.x_rel * 100).toFixed(1);
+            document.getElementById('propY').value = (slot.y_rel * 100).toFixed(1);
+            document.getElementById('propW').value = (slot.w_rel * 100).toFixed(1);
+            document.getElementById('propH').value = (slot.h_rel * 100).toFixed(1);
+            document.getElementById('propZ').value = slot.z;
+            document.getElementById('propAlpha').value = slot.alpha * 100;
+            document.getElementById('alphaValue').textContent = (slot.alpha * 100) + '%';
+            document.getElementById('propBorderWidth').value = slot.border_width;
+            document.getElementById('propBorderColor').value = slot.border_color;
+            document.getElementById('propBorderRadius').value = slot.border_radius;
+            document.getElementById('propCropX').value = (slot.crop_x * 100).toFixed(1);
+            document.getElementById('propCropY').value = (slot.crop_y * 100).toFixed(1);
+            document.getElementById('propCropW').value = (slot.crop_w * 100).toFixed(1);
+            document.getElementById('propCropH').value = (slot.crop_h * 100).toFixed(1);
+
+            if (slot.source_data) {
+                document.getElementById('propSourceData').value = JSON.stringify(slot.source_data, null, 2);
+                document.getElementById('sourceDataGroup').style.display = 'block';
+            } else {
+                document.getElementById('sourceDataGroup').style.display = 'none';
+            }
+
+            updateCropPreview();
+        }
+
+        // Update selected source from property panel
+        function updateSelectedSource() {
+            if (selectedSlotIndex < 0) return;
+            const slot = currentScene.slots[selectedSlotIndex];
+
+            slot.source_type = document.getElementById('propSourceType').value;
+            slot.source = document.getElementById('propSource').value;
+            slot.x_rel = parseFloat(document.getElementById('propX').value) / 100;
+            slot.y_rel = parseFloat(document.getElementById('propY').value) / 100;
+            slot.w_rel = parseFloat(document.getElementById('propW').value) / 100;
+            slot.h_rel = parseFloat(document.getElementById('propH').value) / 100;
+            slot.z = parseInt(document.getElementById('propZ').value);
+            slot.alpha = parseFloat(document.getElementById('propAlpha').value) / 100;
+            slot.border_width = parseInt(document.getElementById('propBorderWidth').value);
+            slot.border_color = document.getElementById('propBorderColor').value;
+            slot.border_radius = parseInt(document.getElementById('propBorderRadius').value);
+            slot.crop_x = parseFloat(document.getElementById('propCropX').value) / 100;
+            slot.crop_y = parseFloat(document.getElementById('propCropY').value) / 100;
+            slot.crop_w = parseFloat(document.getElementById('propCropW').value) / 100;
+            slot.crop_h = parseFloat(document.getElementById('propCropH').value) / 100;
+
+            try {
+                const sourceData = document.getElementById('propSourceData').value;
+                if (sourceData.trim()) {
+                    slot.source_data = JSON.parse(sourceData);
+                } else {
+                    slot.source_data = null;
+                }
+            } catch (e) {
+                console.error('Invalid JSON in source data:', e);
+            }
+
+            updateCanvas();
+            updateCropPreview();
+        }
+
+        // Update crop preview
+        function updateCropPreview() {
+            if (selectedSlotIndex < 0) return;
+            const slot = currentScene.slots[selectedSlotIndex];
+            const preview = document.getElementById('cropPreview');
+            preview.innerHTML = '';
+
+            const overlay = document.createElement('div');
+            overlay.className = 'crop-overlay';
+            overlay.style.left = (slot.crop_x * 100) + '%';
+            overlay.style.top = (slot.crop_y * 100) + '%';
+            overlay.style.width = (slot.crop_w * 100) + '%';
+            overlay.style.height = (slot.crop_h * 100) + '%';
+            preview.appendChild(overlay);
+        }
+
+        // Change Z-order
+        function changeZOrder(delta) {
+            if (selectedSlotIndex < 0) return;
+            currentScene.slots[selectedSlotIndex].z += delta;
+            document.getElementById('propZ').value = currentScene.slots[selectedSlotIndex].z;
+            updateCanvas();
+        }
+
+        // Resize canvas
+        function resizeCanvas() {
+            const width = parseInt(document.getElementById('canvasWidth').value);
+            const height = parseInt(document.getElementById('canvasHeight').value);
+            currentScene.resolution = { width, height };
+            updateCanvas();
+        }
+
+        // Handle scene select
+        async function handleSceneSelect(e) {
+            const sceneId = e.target.value;
+            if (!sceneId) {
+                // New scene
+                currentScene = {
+                    id: '',
+                    label: '',
+                    resolution: { width: 1920, height: 1080 },
+                    slots: []
+                };
+                document.getElementById('sceneName').value = '';
+                document.getElementById('sceneId').value = '';
+                selectedSlotIndex = -1;
+                updateCanvas();
+                updateSourcesList();
+                document.getElementById('sourceProperties').style.display = 'none';
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/scenes/${sceneId}`);
+                const scene = await response.json();
+                currentScene = scene;
+                document.getElementById('sceneName').value = scene.label;
+                document.getElementById('sceneId').value = scene.id;
+                document.getElementById('canvasWidth').value = scene.resolution.width;
+                document.getElementById('canvasHeight').value = scene.resolution.height;
+                selectedSlotIndex = -1;
+                updateCanvas();
+                updateSourcesList();
+                document.getElementById('sourceProperties').style.display = 'none';
+            } catch (error) {
+                console.error('Failed to load scene:', error);
+                showNotification('Failed to load scene', 'error');
+            }
+        }
+
+        // Save scene
+        async function saveScene() {
+            const name = document.getElementById('sceneName').value;
+            const id = document.getElementById('sceneId').value;
+
+            if (!name || !id) {
+                showNotification('Scene name and ID are required', 'error');
+                return;
+            }
+
+            currentScene.label = name;
+            currentScene.id = id;
+
+            try {
+                const response = await fetch(`${API_BASE}/api/scenes`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(currentScene)
+                });
+
+                if (response.ok) {
+                    showNotification('Scene saved successfully');
+                    await loadScenes();
+                    document.getElementById('sceneSelect').value = id;
+                } else {
+                    const error = await response.text();
+                    showNotification('Failed to save scene: ' + error, 'error');
+                }
+            } catch (error) {
+                console.error('Failed to save scene:', error);
+                showNotification('Failed to save scene', 'error');
+            }
+        }
+
+        // Delete scene
+        async function deleteScene() {
+            const sceneId = currentScene.id;
+            if (!sceneId) {
+                showNotification('No scene selected', 'error');
+                return;
+            }
+
+            if (!confirm(`Delete scene "${currentScene.label}"?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/scenes/${sceneId}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    showNotification('Scene deleted');
+                    await loadScenes();
+                    handleSceneSelect({ target: { value: '' } });
+                } else {
+                    showNotification('Failed to delete scene', 'error');
+                }
+            } catch (error) {
+                console.error('Failed to delete scene:', error);
+                showNotification('Failed to delete scene', 'error');
+            }
+        }
+
+        // Show notification
+        function showNotification(message, type = 'success') {
+            const notification = document.createElement('div');
+            notification.className = 'notification';
+            notification.style.background = type === 'error' ? '#ef4444' : '#10b981';
+            notification.textContent = message;
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+
+        // Initialize on load
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
+
