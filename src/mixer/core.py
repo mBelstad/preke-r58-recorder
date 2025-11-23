@@ -2,6 +2,7 @@
 import logging
 import time
 import threading
+import subprocess
 from typing import Dict, Optional, Any
 from pathlib import Path
 from datetime import datetime
@@ -68,6 +69,10 @@ class MixerCore:
         self.watchdog = MixerWatchdog(
             on_unhealthy=self._handle_unhealthy
         )
+        
+        # Health check thread
+        self._health_check_thread: Optional[threading.Thread] = None
+        self._health_check_running = False
 
         # Initialize GStreamer if not already done
         if not Gst.is_initialized():
@@ -107,13 +112,27 @@ class MixerCore:
                 if not self.pipeline:
                     return False
 
-                # Set up bus message handler
+                # Set up bus message handler BEFORE state change
                 bus = self.pipeline.get_bus()
                 bus.add_signal_watch()
                 bus.connect("message", self._on_bus_message)
 
-                # Start pipeline with timeout
+                # Start pipeline with timeout (will check bus for errors)
                 if not self._set_state_with_timeout(Gst.State.PLAYING):
+                    # Check bus for error messages
+                    msg = bus.timed_pop_filtered(
+                        int(0.5 * Gst.SECOND),
+                        Gst.MessageType.ERROR | Gst.MessageType.WARNING
+                    )
+                    if msg:
+                        if msg.type == Gst.MessageType.ERROR:
+                            err, debug = msg.parse_error()
+                            logger.error(f"Pipeline error during start: {err.message} - {debug}")
+                            self.last_error = f"{err.message} - {debug}"
+                        elif msg.type == Gst.MessageType.WARNING:
+                            warn, debug = msg.parse_warning()
+                            logger.warning(f"Pipeline warning during start: {warn.message} - {debug}")
+                    
                     logger.error("Failed to start mixer pipeline (timeout)")
                     self._stop_pipeline_internal()
                     return False
@@ -299,12 +318,18 @@ class MixerCore:
 
             device = self.camera_devices[cam_id]
             
+            # Skip if device doesn't exist (for non-connected cameras)
+            if not Path(device).exists():
+                logger.warning(f"Device {device} for {cam_id} does not exist, skipping")
+                continue
+            
             # Build source pipeline (similar to existing R58 pipeline)
             if "video60" in device or "hdmirx" in device.lower():
-                # HDMI input (NV24 format)
+                # HDMI input (NV24 format) - use EXACT same approach as working recorder pipeline
+                # Match the working pipeline exactly: format=NV24,width={width},height={height},framerate=60/1
                 source_str = (
                     f"v4l2src device={device} io-mode=mmap ! "
-                    f"video/x-raw,format=NV24,width=1920,height=1080,framerate=60/1 ! "
+                    f"video/x-raw,format=NV24,width={width},height={height},framerate=60/1 ! "
                     f"videoconvert ! "
                     f"video/x-raw,format=NV12 ! "
                     f"videoscale ! "
@@ -312,7 +337,10 @@ class MixerCore:
                     f"queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream"
                 )
             else:
-                # Other video devices
+                # Other video devices - check if they exist first
+                if not Path(device).exists():
+                    logger.warning(f"Device {device} does not exist, skipping")
+                    continue
                 source_str = (
                     f"v4l2src device={device} ! "
                     f"videoconvert ! "
@@ -365,24 +393,28 @@ class MixerCore:
             # Add fakesink as fallback
             output_branches.append("fakesink")
 
-        # Build source branches connecting to compositor with pad properties
+        # Build source branches connecting to compositor
         source_parts = []
         for i, (_, source_str, slot) in enumerate(source_branches):
+            source_parts.append(f"{source_str} ! compositor.sink_{i}")
+
+        # Build compositor with pad properties
+        compositor_pad_props = []
+        for i, (_, _, slot) in enumerate(source_branches):
             coords = scene.get_absolute_coords(slot)
-            # Set pad properties inline
-            pad_props = (
-                f"xpos={coords['x']} ypos={coords['y']} "
-                f"width={coords['w']} height={coords['h']} "
-                f"zorder={slot.z} alpha={slot.alpha}"
-            )
-            source_parts.append(
-                f"{source_str} ! compositor.sink_{i}::{pad_props}"
+            compositor_pad_props.append(
+                f"sink_{i}::xpos={coords['x']} "
+                f"sink_{i}::ypos={coords['y']} "
+                f"sink_{i}::width={coords['w']} "
+                f"sink_{i}::height={coords['h']} "
+                f"sink_{i}::zorder={slot.z} "
+                f"sink_{i}::alpha={slot.alpha}"
             )
 
         # Build complete pipeline
         pipeline_str = (
             " ".join(source_parts) + " "
-            f"compositor name=compositor ! "
+            f"compositor name=compositor {' '.join(compositor_pad_props)} ! "
             f"video/x-raw,width={width},height={height} ! "
             f"timeoverlay ! "
             f"{encoder_str} ! "
@@ -425,8 +457,22 @@ class MixerCore:
             return True
 
         # Async state change - wait for completion
+        # Also check bus for errors during state change
+        bus = self.pipeline.get_bus() if self.pipeline else None
         start_time = time.time()
         while time.time() - start_time < STATE_CHANGE_TIMEOUT:
+            # Check for bus messages (errors)
+            if bus:
+                msg = bus.pop_filtered(Gst.MessageType.ERROR | Gst.MessageType.WARNING)
+                if msg:
+                    if msg.type == Gst.MessageType.ERROR:
+                        err, debug = msg.parse_error()
+                        logger.error(f"Pipeline error during state change: {err.message} - {debug}")
+                        return False
+                    elif msg.type == Gst.MessageType.WARNING:
+                        warn, debug = msg.parse_warning()
+                        logger.warning(f"Pipeline warning during state change: {warn.message} - {debug}")
+            
             ret = self.pipeline.get_state(Gst.CLOCK_TIME_NONE)
             if ret[0] == Gst.StateChangeReturn.SUCCESS:
                 return True
@@ -536,6 +582,30 @@ class MixerCore:
             except Exception as e:
                 logger.error(f"Recovery failed: {e}")
                 self.last_error = f"Recovery failed: {e}"
+
+    def _cleanup_stuck_pipelines(self) -> None:
+        """Kill any stuck GStreamer processes that might be holding video devices."""
+        try:
+            # Find any gst-launch or python processes using video devices
+            result = subprocess.run(
+                ["pgrep", "-f", "gst.*video60|gst.*video[0-9]"],
+                capture_output=True,
+                text=True,
+                timeout=2
+            )
+            if result.returncode == 0:
+                pids = result.stdout.strip().split("\n")
+                for pid in pids:
+                    if pid:
+                        try:
+                            logger.warning(f"Killing stuck GStreamer process: {pid}")
+                            subprocess.run(["kill", "-9", pid], timeout=1, check=False)
+                        except Exception as e:
+                            logger.debug(f"Failed to kill process {pid}: {e}")
+                if pids:
+                    time.sleep(0.5)  # Give device time to release
+        except Exception as e:
+            logger.debug(f"Error cleaning up stuck pipelines: {e}")
 
     def _handle_unhealthy(self) -> None:
         """Handle unhealthy pipeline (called by watchdog)."""
