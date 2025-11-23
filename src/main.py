@@ -2,7 +2,7 @@
 import logging
 import os
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse, FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -10,6 +10,8 @@ from fastapi.staticfiles import StaticFiles
 from .config import AppConfig
 from .recorder import Recorder
 from .preview import PreviewManager
+from .mixer.scenes import SceneManager
+from .mixer.core import MixerCore
 
 # Configure logging
 logging.basicConfig(
@@ -29,6 +31,26 @@ except FileNotFoundError:
 # Initialize recorder and preview manager
 recorder = Recorder(config)
 preview_manager = PreviewManager(config)
+
+# Initialize mixer (if enabled)
+mixer_core: Optional[MixerCore] = None
+scene_manager: Optional[SceneManager] = None
+if config.mixer.enabled:
+    scene_manager = SceneManager(scenes_dir=config.mixer.scenes_dir)
+    mixer_core = MixerCore(
+        config=config,
+        scene_manager=scene_manager,
+        output_resolution=config.mixer.output_resolution,
+        output_bitrate=config.mixer.output_bitrate,
+        output_codec=config.mixer.output_codec,
+        recording_enabled=config.mixer.recording_enabled,
+        recording_path=config.mixer.recording_path,
+        mediamtx_enabled=config.mixer.mediamtx_enabled,
+        mediamtx_path=config.mixer.mediamtx_path,
+    )
+    logger.info("Mixer Core initialized")
+else:
+    logger.info("Mixer Core disabled in configuration")
 
 # Create FastAPI app
 app = FastAPI(
@@ -204,6 +226,82 @@ async def get_recording(cam_id: str, filename: str) -> FileResponse:
         filename=filename,
         media_type="video/mp4",
     )
+
+
+# Mixer API endpoints
+@app.get("/api/scenes")
+async def list_scenes() -> Dict[str, Any]:
+    """List all available scenes."""
+    if not scene_manager:
+        raise HTTPException(status_code=503, detail="Mixer not enabled")
+    
+    scenes = scene_manager.list_scenes()
+    return {"scenes": scenes}
+
+
+@app.get("/api/scenes/{scene_id}")
+async def get_scene(scene_id: str) -> Dict[str, Any]:
+    """Get a specific scene definition."""
+    if not scene_manager:
+        raise HTTPException(status_code=503, detail="Mixer not enabled")
+    
+    scene = scene_manager.get_scene(scene_id)
+    if not scene:
+        raise HTTPException(status_code=404, detail=f"Scene {scene_id} not found")
+    
+    return scene.to_dict()
+
+
+@app.post("/api/mixer/set_scene")
+async def set_scene(request: Dict[str, str]) -> Dict[str, str]:
+    """Apply a scene to the mixer."""
+    if not mixer_core:
+        raise HTTPException(status_code=503, detail="Mixer not enabled")
+    
+    scene_id = request.get("id")
+    if not scene_id:
+        raise HTTPException(status_code=400, detail="Scene ID required")
+    
+    success = mixer_core.apply_scene(scene_id)
+    if not success:
+        raise HTTPException(status_code=500, detail=f"Failed to apply scene {scene_id}")
+    
+    return {"status": "applied", "scene_id": scene_id}
+
+
+@app.post("/api/mixer/start")
+async def start_mixer() -> Dict[str, str]:
+    """Start the mixer pipeline."""
+    if not mixer_core:
+        raise HTTPException(status_code=503, detail="Mixer not enabled")
+    
+    success = mixer_core.start()
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to start mixer")
+    
+    return {"status": "started"}
+
+
+@app.post("/api/mixer/stop")
+async def stop_mixer() -> Dict[str, str]:
+    """Stop the mixer pipeline."""
+    if not mixer_core:
+        raise HTTPException(status_code=503, detail="Mixer not enabled")
+    
+    success = mixer_core.stop()
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to stop mixer")
+    
+    return {"status": "stopped"}
+
+
+@app.get("/api/mixer/status")
+async def get_mixer_status() -> Dict[str, Any]:
+    """Get mixer status."""
+    if not mixer_core:
+        raise HTTPException(status_code=503, detail="Mixer not enabled")
+    
+    return mixer_core.get_status()
 
 
 if __name__ == "__main__":

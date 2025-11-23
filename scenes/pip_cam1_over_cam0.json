@@ -1,0 +1,28 @@
+{
+  "id": "pip_cam1_over_cam0",
+  "label": "PiP: CAM 2 over CAM 1",
+  "resolution": {
+    "width": 1920,
+    "height": 1080
+  },
+  "slots": [
+    {
+      "source": "cam0",
+      "x_rel": 0.0,
+      "y_rel": 0.0,
+      "w_rel": 1.0,
+      "h_rel": 1.0,
+      "z": 0,
+      "alpha": 1.0
+    },
+    {
+      "source": "cam1",
+      "x_rel": 0.7,
+      "y_rel": 0.7,
+      "w_rel": 0.3,
+      "h_rel": 0.3,
+      "z": 1,
+      "alpha": 1.0
+    }
+  ]
+}

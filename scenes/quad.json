@@ -1,0 +1,46 @@
+{
+  "id": "quad",
+  "label": "4-up grid",
+  "resolution": {
+    "width": 1920,
+    "height": 1080
+  },
+  "slots": [
+    {
+      "source": "cam0",
+      "x_rel": 0.0,
+      "y_rel": 0.0,
+      "w_rel": 0.5,
+      "h_rel": 0.5,
+      "z": 0,
+      "alpha": 1.0
+    },
+    {
+      "source": "cam1",
+      "x_rel": 0.5,
+      "y_rel": 0.0,
+      "w_rel": 0.5,
+      "h_rel": 0.5,
+      "z": 0,
+      "alpha": 1.0
+    },
+    {
+      "source": "cam2",
+      "x_rel": 0.0,
+      "y_rel": 0.5,
+      "w_rel": 0.5,
+      "h_rel": 0.5,
+      "z": 0,
+      "alpha": 1.0
+    },
+    {
+      "source": "cam3",
+      "x_rel": 0.5,
+      "y_rel": 0.5,
+      "w_rel": 0.5,
+      "h_rel": 0.5,
+      "z": 0,
+      "alpha": 1.0
+    }
+  ]
+}

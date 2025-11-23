@@ -16,6 +16,18 @@ mediamtx:
   rtmp_port: 1935
   srt_port: 8890
 
+# Mixer configuration (optional)
+mixer:
+  enabled: false  # Set to true to enable mixer
+  output_resolution: 1920x1080
+  output_bitrate: 8000  # kbps
+  output_codec: h264  # h264 or h265
+  recording_enabled: false  # Enable program output recording
+  recording_path: /var/recordings/mixer/program_%Y%m%d_%H%M%S.mp4
+  mediamtx_enabled: true  # Stream mixer output to MediaMTX
+  mediamtx_path: mixer_program  # MediaMTX path for mixer output
+  scenes_dir: scenes  # Directory for scene JSON files
+
 # Camera configurations
 cameras:
   cam0:

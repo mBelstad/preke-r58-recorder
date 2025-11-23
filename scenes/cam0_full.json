@@ -1,0 +1,19 @@
+{
+  "id": "cam0_full",
+  "label": "CAM 1 fullscreen",
+  "resolution": {
+    "width": 1920,
+    "height": 1080
+  },
+  "slots": [
+    {
+      "source": "cam0",
+      "x_rel": 0.0,
+      "y_rel": 0.0,
+      "w_rel": 1.0,
+      "h_rel": 1.0,
+      "z": 0,
+      "alpha": 1.0
+    }
+  ]
+}
