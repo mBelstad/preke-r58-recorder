@@ -35,28 +35,118 @@ class GraphicsRenderer:
         self._lock = threading.Lock()
         
     def create_presentation_source(self, source_id: str, presentation_data: Dict[str, Any]) -> Optional[str]:
-        """Create a video source from a presentation.
+        """Create a video source from a Reveal.js presentation.
         
         Args:
             source_id: Unique identifier for this source
             presentation_data: Presentation configuration
-                - slides: List of slide content (HTML/Markdown)
-                - current_slide: Current slide index
-                - theme: Presentation theme
+                - id: Presentation ID
+                - name: Presentation name
+                - theme: Reveal.js theme (black, white, league, etc.)
+                - slides: List of slide content (Markdown/HTML)
+                - current_slide: Current slide index (optional)
         
         Returns:
             GStreamer pipeline string or None if failed
         """
-        # For now, use a simple HTML renderer approach
-        # In production, this would use Reveal.js or similar
         logger.info(f"Creating presentation source: {source_id}")
         
-        # This is a placeholder - full implementation would:
-        # 1. Render HTML slides to images/video
-        # 2. Create a GStreamer pipeline using textoverlay or cairooverlay
-        # 3. Return pipeline string for mixer integration
+        # Store presentation data for later rendering
+        graphics_source = GraphicsSource(
+            source_id=source_id,
+            source_type="presentation",
+            data=presentation_data
+        )
         
-        return None
+        with self._lock:
+            self.active_sources[source_id] = graphics_source
+        
+        # Generate HTML file for Reveal.js presentation
+        html_path = self._generate_reveal_html(source_id, presentation_data)
+        if not html_path:
+            logger.error(f"Failed to generate HTML for presentation {source_id}")
+            return None
+        
+        # For now, use a simple approach: serve HTML via HTTP and capture with gst-launch
+        # In production, this would use headless browser (Chromium) or similar
+        # to render Reveal.js to video frames
+        
+        # Placeholder pipeline - full implementation would:
+        # 1. Start a local web server serving the Reveal.js HTML
+        # 2. Use gst-launch with souphttpsrc or similar to capture the rendered HTML
+        # 3. Or use a headless browser (Chromium) with screen capture
+        # 4. Return a proper GStreamer pipeline string
+        
+        # For now, return a test pattern that can be replaced later
+        logger.warning(f"Presentation rendering not fully implemented - using placeholder for {source_id}")
+        pipeline = (
+            f"videotestsrc pattern=smpte ! "
+            f"video/x-raw,width=1920,height=1080,framerate=30/1 ! "
+            f"textoverlay text=\"Presentation: {presentation_data.get('name', source_id)}\" "
+            f"valign=top halign=left font-desc=\"Sans 24\" color=0xFFFFFFFF ! "
+            f"videoconvert ! "
+            f"video/x-raw,format=NV12"
+        )
+        
+        return pipeline
+    
+    def _generate_reveal_html(self, source_id: str, presentation_data: Dict[str, Any]) -> Optional[Path]:
+        """Generate Reveal.js HTML file from presentation data.
+        
+        Args:
+            source_id: Source identifier
+            presentation_data: Presentation configuration
+        
+        Returns:
+            Path to generated HTML file or None if failed
+        """
+        try:
+            html_path = self.output_dir / f"{source_id}.html"
+            
+            theme = presentation_data.get("theme", "black")
+            slides = presentation_data.get("slides", [])
+            
+            # Generate Reveal.js HTML
+            html_content = f"""<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{presentation_data.get('name', 'Presentation')}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/theme/{theme}.css" id="theme">
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+"""
+            
+            for slide in slides:
+                content = slide.get("content", "")
+                html_content += f"            <section data-markdown>\n"
+                html_content += f"                <script type=\"text/template\">\n{content}\n                </script>\n"
+                html_content += f"            </section>\n"
+            
+            html_content += """        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/plugin/markdown/markdown.js"></script>
+    <script>
+        Reveal.initialize({
+            hash: true,
+            plugins: [ RevealMarkdown ]
+        });
+    </script>
+</body>
+</html>"""
+            
+            html_path.write_text(html_content)
+            logger.info(f"Generated Reveal.js HTML: {html_path}")
+            return html_path
+            
+        except Exception as e:
+            logger.error(f"Failed to generate Reveal.js HTML for {source_id}: {e}")
+            return None
     
     def create_image_source(self, source_id: str, image_path: str) -> Optional[str]:
         """Create a video source from an image.
