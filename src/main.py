@@ -3,9 +3,11 @@ import logging
 import os
 from pathlib import Path
 from typing import Dict, Any, List, Optional
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.responses import JSONResponse, FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
+import shutil
+import uuid
 
 from .config import AppConfig
 from .recorder import Recorder
@@ -66,6 +68,17 @@ app = FastAPI(
 static_path = Path(__file__).parent / "static"
 if static_path.exists():
     app.mount("/static", StaticFiles(directory=str(static_path)), name="static")
+
+# Create uploads directory for graphics
+uploads_dir = Path(__file__).parent.parent / "uploads"
+uploads_dir.mkdir(exist_ok=True)
+images_dir = uploads_dir / "images"
+images_dir.mkdir(exist_ok=True)
+videos_dir = uploads_dir / "videos"
+videos_dir.mkdir(exist_ok=True)
+
+# Mount uploads directory for serving files
+app.mount("/uploads", StaticFiles(directory=str(uploads_dir)), name="uploads")
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -509,6 +522,56 @@ async def export_presentation_to_mixer(pres_id: str) -> Dict[str, str]:
     except Exception as e:
         logger.error(f"Failed to export presentation {pres_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to export presentation: {e}")
+
+
+@app.post("/api/graphics/upload/image")
+async def upload_image(file: UploadFile = File(...)) -> Dict[str, str]:
+    """Upload an image file for use in presentations."""
+    if not file.content_type or not file.content_type.startswith('image/'):
+        raise HTTPException(status_code=400, detail="File must be an image")
+    
+    # Generate unique filename
+    file_ext = Path(file.filename).suffix if file.filename else '.jpg'
+    unique_filename = f"{uuid.uuid4()}{file_ext}"
+    file_path = images_dir / unique_filename
+    
+    try:
+        # Save file
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        # Return URL
+        url = f"/uploads/images/{unique_filename}"
+        logger.info(f"Uploaded image: {unique_filename}")
+        return {"status": "uploaded", "filename": unique_filename, "url": url}
+    except Exception as e:
+        logger.error(f"Failed to upload image: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to upload image: {e}")
+
+
+@app.post("/api/graphics/upload/video")
+async def upload_video(file: UploadFile = File(...)) -> Dict[str, str]:
+    """Upload a video file for use in presentations."""
+    if not file.content_type or not file.content_type.startswith('video/'):
+        raise HTTPException(status_code=400, detail="File must be a video")
+    
+    # Generate unique filename
+    file_ext = Path(file.filename).suffix if file.filename else '.mp4'
+    unique_filename = f"{uuid.uuid4()}{file_ext}"
+    file_path = videos_dir / unique_filename
+    
+    try:
+        # Save file
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        # Return URL
+        url = f"/uploads/videos/{unique_filename}"
+        logger.info(f"Uploaded video: {unique_filename}")
+        return {"status": "uploaded", "filename": unique_filename, "url": url}
+    except Exception as e:
+        logger.error(f"Failed to upload video: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to upload video: {e}")
 
 
 # Switcher/Controller API endpoints

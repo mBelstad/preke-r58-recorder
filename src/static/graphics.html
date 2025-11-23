@@ -522,11 +522,19 @@ Create your presentation using Markdown or HTML
                     </div>
                     <div class="form-group">
                         <label class="form-label">Background Image URL</label>
-                        <input type="text" id="slideBgImage" class="form-input" placeholder="https://example.com/image.jpg">
+                        <div style="display: flex; gap: 8px;">
+                            <input type="text" id="slideBgImage" class="form-input" placeholder="https://example.com/image.jpg" style="flex: 1;">
+                            <input type="file" id="uploadImageBtn" accept="image/*" style="display: none;">
+                            <button type="button" class="btn btn-secondary btn-small" onclick="document.getElementById('uploadImageBtn').click()">Upload</button>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Background Video URL</label>
-                        <input type="text" id="slideBgVideo" class="form-input" placeholder="https://example.com/video.mp4">
+                        <div style="display: flex; gap: 8px;">
+                            <input type="text" id="slideBgVideo" class="form-input" placeholder="https://example.com/video.mp4" style="flex: 1;">
+                            <input type="file" id="uploadVideoBtn" accept="video/*" style="display: none;">
+                            <button type="button" class="btn btn-secondary btn-small" onclick="document.getElementById('uploadVideoBtn').click()">Upload</button>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Background Size</label>
@@ -623,8 +631,6 @@ Create your presentation using Markdown or HTML
     <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/plugin/highlight/highlight.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/plugin/zoom/zoom.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/plugin/search/search.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/plugin/math/mathjax2.js"></script>
-
     <script>
         const API_BASE = window.location.origin;
         let reveal = null;
@@ -727,8 +733,7 @@ Create your presentation using Markdown or HTML
                     RevealNotes, 
                     RevealHighlight,
                     RevealZoom,
-                    RevealSearch,
-                    RevealMathJax2
+                    RevealSearch
                 ]
             });
 
@@ -820,6 +825,84 @@ Create your presentation using Markdown or HTML
             document.getElementById('enableFragments').addEventListener('change', updateGlobalSettings);
             document.getElementById('enableAutoAnimate').addEventListener('change', updateGlobalSettings);
             document.getElementById('autoSlide').addEventListener('change', updateGlobalSettings);
+            document.getElementById('uploadImageBtn').addEventListener('change', handleImageUpload);
+            document.getElementById('uploadVideoBtn').addEventListener('change', handleVideoUpload);
+        }
+
+        // Handle image upload
+        async function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (!file.type.startsWith('image/')) {
+                showNotification('Please select an image file', 'error');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                showNotification('Uploading image...');
+                const response = await fetch(`${API_BASE}/api/graphics/upload/image`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const imageUrl = `${API_BASE}${data.url}`;
+                    document.getElementById('slideBgImage').value = imageUrl;
+                    showNotification('Image uploaded successfully');
+                } else {
+                    const error = await response.text();
+                    showNotification('Failed to upload image: ' + error, 'error');
+                }
+            } catch (error) {
+                console.error('Failed to upload image:', error);
+                showNotification('Failed to upload image', 'error');
+            }
+
+            // Reset file input
+            event.target.value = '';
+        }
+
+        // Handle video upload
+        async function handleVideoUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (!file.type.startsWith('video/')) {
+                showNotification('Please select a video file', 'error');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                showNotification('Uploading video...');
+                const response = await fetch(`${API_BASE}/api/graphics/upload/video`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const videoUrl = `${API_BASE}${data.url}`;
+                    document.getElementById('slideBgVideo').value = videoUrl;
+                    showNotification('Video uploaded successfully');
+                } else {
+                    const error = await response.text();
+                    showNotification('Failed to upload video: ' + error, 'error');
+                }
+            } catch (error) {
+                console.error('Failed to upload video:', error);
+                showNotification('Failed to upload video', 'error');
+            }
+
+            // Reset file input
+            event.target.value = '';
         }
 
         // Update global settings
