@@ -1071,7 +1071,7 @@
         .sidebar-toggle.left {
             left: 0;
             border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-        }
+            }
 
         .sidebar-toggle.right {
             right: 0;
@@ -1088,14 +1088,14 @@
                     <div class="status-dot" id="statusDot"></div>
                     <span id="statusText">STOPPED</span>
                 </div>
-            </div>
+                </div>
             <div class="quick-access-toolbar">
                 <button class="toolbar-btn" id="queueBtn" title="Queue (Q)">📋</button>
                 <button class="toolbar-btn" id="mediaBtn" title="Media Library (M)">🎬</button>
                 <button class="toolbar-btn" id="graphicsBtn" title="Graphics (G)">🎨</button>
                 <button class="toolbar-btn" id="audioBtn" title="Audio Mixer (A)">🔊</button>
                 <button class="toolbar-btn" id="settingsBtn" title="Settings">⚙️</button>
-            </div>
+                    </div>
             <div class="system-status">
                 <div class="status-compact">
                     <div class="status-dot" id="healthDot"></div>
@@ -1104,8 +1104,8 @@
             </div>
             <div class="compact-input-grid" id="compactInputGrid">
                 <!-- Inputs will be dynamically generated -->
+                </div>
             </div>
-        </div>
 
         <!-- Center Area -->
         <div class="center-area">
@@ -1127,7 +1127,7 @@
             <div class="scene-buttons-section">
                 <div class="scene-grid" id="sceneGrid">
                     <!-- Scenes will be dynamically generated -->
-                </div>
+        </div>
             </div>
         </div>
 
@@ -1138,11 +1138,11 @@
                     <button class="btn-transition cut" id="cutBtn">CUT</button>
                     <button class="btn-transition" id="autoBtn">AUTO</button>
                     <button class="btn-transition" id="mixBtn">MIX</button>
-                </div>
+            </div>
                 <div class="mix-slider" id="mixSlider">
                     <div class="mix-slider-handle" id="mixHandle"></div>
-                </div>
-            </div>
+                    </div>
+                        </div>
             <div class="system-controls">
                 <div class="status-indicator">
                     <div class="status-dot" id="statusDotRight"></div>
@@ -1150,9 +1150,9 @@
                 </div>
                 <button class="btn-system start" id="startBtn">START</button>
                 <button class="btn-system stop" id="stopBtn">STOP</button>
+                    </div>
+                </div>
             </div>
-        </div>
-    </div>
 
     <!-- Backdrop -->
     <div class="backdrop" id="backdrop"></div>
@@ -1163,52 +1163,52 @@
         <div class="panel-header">
             <div class="panel-title">QUEUE</div>
             <button class="close-panel-btn" onclick="closePanel()">×</button>
-        </div>
+                        </div>
         <div class="panel-content">
             <div class="queue-list" id="queueList">
                 <!-- Queue items will be dynamically generated -->
-            </div>
+                            </div>
             <div style="margin-top: var(--spacing-md); padding-top: var(--spacing-md); border-top: 1px solid var(--border-light);">
                 <label style="display: flex; align-items: center; gap: var(--spacing-sm); cursor: pointer;">
                     <input type="checkbox" id="autoAdvanceToggle">
                     <span style="font-size: 12px;">Auto Advance</span>
                 </label>
-            </div>
-        </div>
-    </div>
+                                </div>
+                            </div>
+                                    </div>
 
     <!-- Scene Editor Panel -->
     <div class="off-canvas-panel wide" id="sceneEditorPanel">
         <div class="panel-header">
             <div class="panel-title">SCENE EDITOR</div>
             <button class="close-panel-btn" onclick="closePanel()">×</button>
-        </div>
+                                    </div>
         <div class="panel-content">
             <div style="margin-bottom: var(--spacing-md); display: flex; gap: var(--spacing-sm);">
                 <button class="btn btn-primary" id="newSceneBtn">New Scene</button>
                 <button class="btn btn-success" id="saveSceneBtn" style="display: none;">Save</button>
                 <button class="btn btn-danger" id="cancelSceneBtn" style="display: none;">Cancel</button>
-            </div>
+                                </div>
             <div class="scene-canvas-container" id="sceneCanvasContainer">
                 <canvas class="scene-canvas" id="sceneCanvas"></canvas>
-            </div>
+                                    </div>
             <div style="margin-top: var(--spacing-md);">
                 <div style="font-size: 11px; font-weight: 600; margin-bottom: var(--spacing-sm); text-transform: uppercase;">Presets</div>
                 <div class="preset-tabs" style="display: flex; gap: var(--spacing-xs); margin-bottom: var(--spacing-md);">
                     <div class="preset-tab active" data-tab="presets" onclick="switchPresetTab('presets')">Presets</div>
                     <div class="preset-tab" data-tab="art" onclick="switchPresetTab('art')">Art</div>
                     <div class="preset-tab" data-tab="copy" onclick="switchPresetTab('copy')">Copy</div>
-                </div>
+                                        </div>
                 <div class="preset-grid" id="presetGrid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--spacing-sm); margin-bottom: var(--spacing-md);">
                     <!-- Presets will be dynamically generated -->
-                </div>
+                                    </div>
                 <div style="font-size: 11px; font-weight: 600; margin-bottom: var(--spacing-sm); text-transform: uppercase;">Box Selection</div>
                 <div class="box-selector" id="boxSelector">
                     <button class="box-selector-btn active" data-box="1" onclick="selectBox(1)">BOX 1</button>
                     <button class="box-selector-btn" data-box="2" onclick="selectBox(2)">BOX 2</button>
                     <button class="box-selector-btn" data-box="3" onclick="selectBox(3)">BOX 3</button>
                     <button class="box-selector-btn" data-box="4" onclick="selectBox(4)">BOX 4</button>
-                </div>
+                                </div>
                 <div style="font-size: 11px; font-weight: 600; margin: var(--spacing-md) 0 var(--spacing-sm); text-transform: uppercase;">Assign Input</div>
                 <div class="input-selector" id="inputSelector">
                     <button class="input-selector-btn" data-input="none" onclick="assignInput('none')">None</button>
@@ -1216,53 +1216,53 @@
                     <button class="input-selector-btn" data-input="cam1" onclick="assignInput('cam1')">Input 2</button>
                     <button class="input-selector-btn" data-input="cam2" onclick="assignInput('cam2')">Input 3</button>
                     <button class="input-selector-btn" data-input="cam3" onclick="assignInput('cam3')">Input 4</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </div>
-    </div>
 
     <!-- Media Library Panel -->
     <div class="off-canvas-panel" id="mediaPanel">
         <div class="panel-header">
             <div class="panel-title">MEDIA LIBRARY</div>
             <button class="close-panel-btn" onclick="closePanel()">×</button>
-        </div>
+                        </div>
         <div class="panel-content">
             <div class="drop-zone" id="fileDropZone" style="padding: var(--spacing-lg); text-align: center; border: 2px dashed var(--border-light); border-radius: var(--radius-sm); margin-bottom: var(--spacing-md); cursor: pointer;">
                 <div style="margin-bottom: var(--spacing-sm);">Drag & Drop Files Here</div>
                 <input type="file" id="fileInput" multiple accept="video/*,image/*" style="display: none;">
                 <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">Browse Files</button>
-            </div>
+                            </div>
             <div class="file-grid" id="filesList">
-                <!-- Files will be dynamically generated -->
-            </div>
-        </div>
-    </div>
+                                <!-- Files will be dynamically generated -->
+                            </div>
+                        </div>
+                    </div>
 
     <!-- Audio Mixer Panel -->
     <div class="audio-mixer-panel" id="audioPanel">
         <div class="panel-header">
             <div class="panel-title">AUDIO MIXER</div>
             <button class="close-panel-btn" onclick="closePanel()">×</button>
-        </div>
+                </div>
         <div class="audio-channels" id="audioChannels">
             <!-- Audio channels will be dynamically generated -->
+            </div>
         </div>
-    </div>
 
     <!-- Graphics Panel -->
     <div class="off-canvas-panel" id="graphicsPanel">
         <div class="panel-header">
             <div class="panel-title">GRAPHICS</div>
             <button class="close-panel-btn" onclick="closePanel()">×</button>
-        </div>
+            </div>
         <div class="panel-content">
             <div style="margin-bottom: var(--spacing-md);">
                 <div style="font-size: 11px; font-weight: 600; margin-bottom: var(--spacing-sm); text-transform: uppercase;">Lower Thirds</div>
                 <input type="text" id="lowerThirdLine1" placeholder="Line 1" style="width: 100%; padding: var(--spacing-sm); background: var(--bg-element); border: 1px solid var(--border-light); border-radius: var(--radius-sm); color: var(--text-primary); margin-bottom: var(--spacing-sm);">
                 <input type="text" id="lowerThirdLine2" placeholder="Line 2 (optional)" style="width: 100%; padding: var(--spacing-sm); background: var(--bg-element); border: 1px solid var(--border-light); border-radius: var(--radius-sm); color: var(--text-primary); margin-bottom: var(--spacing-sm);">
                 <button class="btn btn-primary" style="width: 100%;" onclick="createLowerThird()">Create Lower Third</button>
-            </div>
+                </div>
             <div>
                 <div style="font-size: 11px; font-weight: 600; margin-bottom: var(--spacing-sm); text-transform: uppercase;">Templates</div>
                 <div class="graphics-templates" id="graphicsTemplates">
@@ -1275,15 +1275,15 @@
                     <!-- Active graphics will be dynamically generated -->
                 </div>
             </div>
-        </div>
-    </div>
+                </div>
+            </div>
 
     <!-- Settings Panel -->
     <div class="off-canvas-panel" id="settingsPanel">
         <div class="panel-header">
             <div class="panel-title">SETTINGS</div>
             <button class="close-panel-btn" onclick="closePanel()">×</button>
-        </div>
+                </div>
         <div class="panel-content">
             <div style="margin-bottom: var(--spacing-md);">
                 <div style="font-size: 11px; font-weight: 600; margin-bottom: var(--spacing-sm); text-transform: uppercase;">Keyboard Shortcuts</div>
@@ -1295,7 +1295,7 @@
                     <div>G: Graphics panel</div>
                     <div>A: Audio mixer</div>
                     <div>Esc: Close panels</div>
-                </div>
+            </div>
             </div>
             <div style="margin-bottom: var(--spacing-md); padding-top: var(--spacing-md); border-top: 1px solid var(--border-light);">
                 <div style="font-size: 11px; font-weight: 600; margin-bottom: var(--spacing-sm); text-transform: uppercase;">Display Preferences</div>
@@ -1682,7 +1682,7 @@
                     const isInProgram = currentSceneDetails.slots.some(slot => slot.source === camId);
                     if (isInProgram && currentProgramScene) {
                         input.classList.add('tally-pgm');
-                    }
+            }
                 }
             });
         }
@@ -1710,28 +1710,28 @@
                     </div>
                 `;
                 container.appendChild(channel);
-                
+
                 // Initialize slider
                 const slider = document.getElementById(`audio-slider-${i}`);
                 const handle = document.getElementById(`audio-handle-${i}`);
-                if (slider && handle) {
-                    let isDragging = false;
+            if (slider && handle) {
+                let isDragging = false;
                     const updateVolume = (e) => {
-                        const rect = slider.getBoundingClientRect();
+                    const rect = slider.getBoundingClientRect();
                         const y = Math.max(0, Math.min(1, 1 - (e.clientY - rect.top) / rect.height));
                         handle.style.bottom = `${y * 100}%`;
-                    };
-                    slider.addEventListener('mousedown', (e) => {
-                        isDragging = true;
+                };
+                slider.addEventListener('mousedown', (e) => {
+                    isDragging = true;
                         updateVolume(e);
-                    });
-                    document.addEventListener('mousemove', (e) => {
+                });
+                document.addEventListener('mousemove', (e) => {
                         if (isDragging) updateVolume(e);
-                    });
-                    document.addEventListener('mouseup', () => {
-                        isDragging = false;
-                    });
-                }
+                });
+                document.addEventListener('mouseup', () => {
+                    isDragging = false;
+                });
+            }
             }
         }
 
@@ -1748,7 +1748,7 @@
                 updateStatus(data);
             } catch (error) {
                 if (error.message && !error.message.includes('Failed to fetch')) {
-                    console.error('Failed to check mixer status:', error);
+                console.error('Failed to check mixer status:', error);
                 }
                 updateStatus({ state: 'ERROR', health: 'unhealthy' });
             }
@@ -1763,9 +1763,9 @@
             const texts = document.querySelectorAll('#statusText, #statusTextRight');
             
             dots.forEach(dot => {
-                dot.className = 'status-dot';
-                if (data.state === 'PLAYING' && data.health === 'healthy') {
-                    dot.classList.add('active');
+            dot.className = 'status-dot';
+            if (data.state === 'PLAYING' && data.health === 'healthy') {
+                dot.classList.add('active');
                 } else if (data.state === 'DISABLED' || data.health === 'unhealthy') {
                     dot.classList.add('error');
                 }
@@ -1773,13 +1773,13 @@
             
             texts.forEach(text => {
                 if (data.state === 'PLAYING' && data.health === 'healthy') {
-                    text.textContent = 'PLAYING';
-                } else if (data.state === 'NULL') {
-                    text.textContent = 'STOPPED';
-                } else if (data.state === 'DISABLED') {
-                    text.textContent = 'DISABLED';
-                } else {
-                    text.textContent = 'ERROR';
+                text.textContent = 'PLAYING';
+            } else if (data.state === 'NULL') {
+                text.textContent = 'STOPPED';
+            } else if (data.state === 'DISABLED') {
+                text.textContent = 'DISABLED';
+            } else {
+                text.textContent = 'ERROR';
                 }
             });
 
@@ -1794,7 +1794,7 @@
             if (currentScene && currentScene !== currentProgramScene) {
                 fetchSceneDetails(currentScene);
                 currentProgramScene = currentScene;
-            }
+                }
         }
 
         // Update program output
@@ -1830,9 +1830,9 @@
                 }
                 const hls = new Hls();
                 hls.loadSource(url);
-                hls.attachMedia(video);
+                        hls.attachMedia(video);
                 hlsInstances[id] = hls;
-            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
                 video.src = url;
             }
         }
@@ -1843,7 +1843,7 @@
                 const response = await fetch(`${API_BASE}/api/scenes/${sceneId}`);
                 if (response.ok) {
                     currentSceneDetails = await response.json();
-                    renderBoxOverlays();
+                renderBoxOverlays();
                     updateTallyLights();
                 }
             } catch (error) {
@@ -1879,7 +1879,7 @@
                     box.appendChild(number);
                     
                     if (slot.source) {
-                        const label = document.createElement('div');
+                const label = document.createElement('div');
                         label.className = 'box-input-label';
                         label.textContent = slot.source.toUpperCase();
                         box.appendChild(label);
@@ -1888,7 +1888,7 @@
                     container.appendChild(box);
                 });
             });
-        }
+                }
 
         // Start mixer
         async function startMixer() {
@@ -1934,8 +1934,8 @@
             if (queueList) {
                 queueList.addEventListener('dragover', handleQueueDragOver);
                 queueList.addEventListener('drop', handleQueueDrop);
-            }
-            
+                    }
+                    
             // File drop zone
             const dropZone = document.getElementById('fileDropZone');
             if (dropZone) {
@@ -1962,7 +1962,7 @@
             e.dataTransfer.effectAllowed = 'move';
             e.dataTransfer.setData('text/plain', e.target.dataset.dragData || '');
             e.target.classList.add('dragging');
-        }
+                    }
 
         function handleDragEnd(e) {
             e.target.classList.remove('dragging');
@@ -1984,7 +1984,7 @@
                     item.classList.add('drag-over-bottom');
                 } else {
                     item.classList.add('drag-over-top');
-                }
+        }
             }
         }
 
@@ -2013,7 +2013,7 @@
                             body: JSON.stringify({ indices: [sourceIndex, targetIndex] })
                         });
                         if (response.ok) await loadQueue();
-                    } catch (error) {
+            } catch (error) {
                         console.error('Failed to reorder queue:', error);
                     }
                 }
@@ -2034,12 +2034,12 @@
             
             const files = Array.from(e.dataTransfer.files);
             files.forEach(file => uploadFile(file));
-        }
+            }
 
         function handleFileSelect(e) {
             const files = Array.from(e.target.files);
             files.forEach(file => uploadFile(file));
-        }
+            }
 
         async function uploadFile(file) {
             const formData = new FormData();
@@ -2079,9 +2079,9 @@
             
             if (queue.length === 0) {
                 list.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: var(--spacing-lg);">Queue is empty</div>';
-                return;
-            }
-            
+                    return;
+                }
+                
             queue.forEach((item, index) => {
                 const queueItem = document.createElement('div');
                 queueItem.className = 'queue-item';
@@ -2089,10 +2089,10 @@
                 queueItem.dataset.queueIndex = index;
                 queueItem.dataset.dragData = JSON.stringify({ type: 'queue-item', index });
                 queueItem.innerHTML = `
-                    <div class="queue-item-info">
+                        <div class="queue-item-info">
                         <div class="queue-item-name">${item.scene_id}</div>
                         <div class="queue-item-meta">${item.duration}s • ${item.transition}</div>
-                    </div>
+                        </div>
                     <button class="btn btn-danger btn-sm" onclick="removeFromQueue(${index})" style="padding: 4px 8px; font-size: 10px;">×</button>
                 `;
                 queueItem.addEventListener('dragstart', (e) => {
@@ -2151,9 +2151,9 @@
             
             if (files.length === 0) {
                 grid.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: var(--spacing-lg); grid-column: 1 / -1;">No files uploaded</div>';
-                return;
-            }
-            
+                    return;
+                }
+                
             files.forEach(file => {
                 const item = document.createElement('div');
                 item.className = 'file-item draggable';
@@ -2165,9 +2165,9 @@
                         ${file.file_path.split('/').pop()}
                         <div style="font-size: 9px; color: var(--text-muted); margin-top: 4px;">
                             ${file.file_type}
+                            </div>
                         </div>
-                    </div>
-                `;
+                    `;
                 item.addEventListener('dragstart', handleDragStart);
                 item.addEventListener('dragend', handleDragEnd);
                 item.addEventListener('click', () => {
@@ -2285,21 +2285,21 @@
 
         async function saveScene() {
             if (!editingScene) return;
-            try {
+                try {
                 const response = await fetch(`${API_BASE}/api/scenes`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                        headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(editingScene)
-                });
-                if (response.ok) {
+                    });
+                    if (response.ok) {
                     await loadScenes();
                     editingScene = null;
                     document.getElementById('saveSceneBtn').style.display = 'none';
                     document.getElementById('cancelSceneBtn').style.display = 'none';
-                }
-            } catch (error) {
+                    }
+                } catch (error) {
                 console.error('Failed to save scene:', error);
-            }
+                }
         }
 
         // Audio functions
@@ -2317,8 +2317,8 @@
         async function loadGraphicsTemplates() {
             try {
                 const response = await fetch(`${API_BASE}/api/graphics/templates?template_type=lower_third`);
-                if (response.ok) {
-                    const data = await response.json();
+                    if (response.ok) {
+                        const data = await response.json();
                     renderGraphicsTemplates(data.templates || []);
                 }
             } catch (error) {
