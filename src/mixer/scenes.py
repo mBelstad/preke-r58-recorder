@@ -11,13 +11,16 @@ logger = logging.getLogger(__name__)
 @dataclass
 class SceneSlot:
     """A single source slot in a scene."""
-    source: str  # e.g., "cam0", "cam1", "presentation:1", "image:logo.png", "lower_third:name"
+    source: str  # e.g., "cam0", "cam1", or file_id for files
     x_rel: float  # 0.0-1.0
     y_rel: float  # 0.0-1.0
     w_rel: float  # 0.0-1.0
     h_rel: float  # 0.0-1.0
     # Optional fields with defaults (must come after required fields)
-    source_type: str = "video"  # "video", "image", "presentation", "graphics", "lower_third"
+    source_type: str = "camera"  # "camera", "file", "image"
+    file_path: Optional[str] = None  # Path to uploaded file (for file/image sources)
+    loop: bool = False  # Whether video file should loop
+    duration: Optional[float] = None  # Display duration for images (seconds)
     z: int = 0  # z-order (higher = on top)
     alpha: float = 1.0  # 0.0-1.0
     # Styling options
@@ -55,10 +58,23 @@ class Scene:
         """Create scene from dictionary."""
         slots = []
         for slot_data in data.get("slots", []):
+            # Determine source_type from source if not explicitly set
+            source = slot_data.get("source", "")
+            source_type = slot_data.get("source_type")
+            if not source_type:
+                # Backward compatibility: if source starts with "cam", it's a camera
+                if source.startswith("cam"):
+                    source_type = "camera"
+                else:
+                    source_type = "camera"  # Default
+            
             # Handle backward compatibility - old scenes don't have new fields
             slot = SceneSlot(
-                source=slot_data.get("source", ""),
-                source_type=slot_data.get("source_type", "video"),
+                source=source,
+                source_type=source_type,
+                file_path=slot_data.get("file_path"),
+                loop=slot_data.get("loop", False),
+                duration=slot_data.get("duration"),
                 x_rel=slot_data.get("x_rel", 0.0),
                 y_rel=slot_data.get("y_rel", 0.0),
                 w_rel=slot_data.get("w_rel", 1.0),

@@ -28,11 +28,12 @@ The R58 Video Recorder & Mixer is a professional-grade video capture and streami
    - Automatic camera availability detection
 
 4. **Web Interface**
-   - Modern, responsive UI
-   - Real-time status monitoring
-   - One-click recording control
-   - Camera status indicators
-   - Professional broadcaster-style layout
+   - Modern, responsive UI with dark mode
+   - Drag-and-drop Scene Editor & Queue management
+   - Integrated Media Library for file playback
+   - Real-time status monitoring and audio levels
+   - Professional broadcaster-style layout with multiview
+   - Touch-friendly controls for tablets
 
 ## Technology Stack
 

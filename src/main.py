@@ -1016,12 +1016,43 @@ async def add_to_queue(request: Dict[str, Any]) -> Dict[str, str]:
     
     duration = request.get("duration")
     transition = request.get("transition", "cut")
+    auto_advance = request.get("auto_advance", False)
     
-    success = scene_queue.add(scene_id, duration, transition)
+    success = scene_queue.add(scene_id, duration, transition, auto_advance)
     if not success:
         raise HTTPException(status_code=500, detail="Failed to add to queue")
     
     return {"status": "added", "scene_id": scene_id}
+
+
+@app.put("/api/queue/{index}")
+async def update_queue_item(index: int, request: Dict[str, Any]) -> Dict[str, str]:
+    """Update queue item."""
+    if not scene_queue:
+        raise HTTPException(status_code=503, detail="Mixer not enabled")
+    
+    success = scene_queue.update(index, request)
+    if not success:
+        raise HTTPException(status_code=404, detail=f"Queue item at index {index} not found")
+    
+    return {"status": "updated", "index": index}
+
+
+@app.post("/api/queue/jump/{index}")
+async def jump_queue(index: int) -> Dict[str, Any]:
+    """Jump to specific queue position."""
+    if not scene_queue:
+        raise HTTPException(status_code=503, detail="Mixer not enabled")
+    
+    scene_id = scene_queue.jump(index)
+    if not scene_id:
+        raise HTTPException(status_code=404, detail=f"Queue item at index {index} not found or failed to play")
+    
+    # Apply scene immediately
+    if mixer_core:
+        mixer_core.apply_scene(scene_id)
+        
+    return {"status": "jumped", "scene_id": scene_id}
 
 
 @app.delete("/api/queue/{index}")

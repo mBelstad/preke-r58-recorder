@@ -324,8 +324,97 @@ class MixerCore:
         # Build source branches for each slot
         source_branches = []
         for i, slot in enumerate(scene.slots):
+            # Handle file sources (uploaded videos)
+            if slot.source_type == "file" and slot.file_path:
+                file_path = Path(slot.file_path)
+                if not file_path.exists():
+                    logger.warning(f"File source not found: {file_path}, skipping")
+                    continue
+                
+                # Build file source pipeline
+                if slot.loop:
+                    # Looping video
+                    source_str = (
+                        f"filesrc location={file_path} loop=true ! "
+                        f"decodebin ! "
+                        f"videoconvert ! "
+                        f"videoscale ! "
+                        f"video/x-raw,width={width},height={height} ! "
+                        f"queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream"
+                    )
+                else:
+                    # Play once
+                    source_str = (
+                        f"filesrc location={file_path} ! "
+                        f"decodebin ! "
+                        f"videoconvert ! "
+                        f"videoscale ! "
+                        f"video/x-raw,width={width},height={height} ! "
+                        f"queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream"
+                    )
+                
+                # Apply crop if specified
+                if slot.crop_w < 1.0 or slot.crop_h < 1.0 or slot.crop_x > 0.0 or slot.crop_y > 0.0:
+                    crop_left = int(slot.crop_x * int(width))
+                    crop_top = int(slot.crop_y * int(height))
+                    crop_right = int((1.0 - slot.crop_x - slot.crop_w) * int(width))
+                    crop_bottom = int((1.0 - slot.crop_y - slot.crop_h) * int(height))
+                    source_str = source_str.replace(
+                        f"queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream",
+                        f"videocrop left={crop_left} top={crop_top} right={crop_right} bottom={crop_bottom} ! queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream"
+                    )
+                
+                source_branches.append((i, source_str, slot))
+                logger.info(f"Added file source branch: {file_path}")
+                continue
+            
+            # Handle image sources (uploaded images)
+            if slot.source_type == "image" and slot.file_path:
+                file_path = Path(slot.file_path)
+                if not file_path.exists():
+                    logger.warning(f"Image source not found: {file_path}, skipping")
+                    continue
+                
+                # Determine image decoder based on extension
+                ext = file_path.suffix.lower()
+                if ext in [".png"]:
+                    decoder = "pngdec"
+                elif ext in [".jpg", ".jpeg"]:
+                    decoder = "jpegdec"
+                else:
+                    decoder = "decodebin"  # Fallback
+                
+                # Duration for image (default 10 seconds if not specified)
+                duration = slot.duration if slot.duration else 10
+                
+                # Build image source pipeline
+                source_str = (
+                    f"filesrc location={file_path} ! "
+                    f"{decoder} ! "
+                    f"imagefreeze duration={duration} ! "
+                    f"videoconvert ! "
+                    f"videoscale ! "
+                    f"video/x-raw,width={width},height={height} ! "
+                    f"queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream"
+                )
+                
+                # Apply crop if specified
+                if slot.crop_w < 1.0 or slot.crop_h < 1.0 or slot.crop_x > 0.0 or slot.crop_y > 0.0:
+                    crop_left = int(slot.crop_x * int(width))
+                    crop_top = int(slot.crop_y * int(height))
+                    crop_right = int((1.0 - slot.crop_x - slot.crop_w) * int(width))
+                    crop_bottom = int((1.0 - slot.crop_y - slot.crop_h) * int(height))
+                    source_str = source_str.replace(
+                        f"queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream",
+                        f"videocrop left={crop_left} top={crop_top} right={crop_right} bottom={crop_bottom} ! queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream"
+                    )
+                
+                source_branches.append((i, source_str, slot))
+                logger.info(f"Added image source branch: {file_path}")
+                continue
+            
             # Handle graphics sources (image, presentation, lower_third, graphics)
-            if slot.source_type != "video":
+            if slot.source_type not in ["camera", "file", "image"]:
                 graphics_pipeline = self.graphics_renderer.get_source_pipeline(slot.source)
                 if graphics_pipeline:
                     # Apply crop if specified
@@ -350,7 +439,11 @@ class MixerCore:
                     logger.warning(f"Failed to create graphics source for {slot.source}")
                 continue
             
-            # Handle video sources
+            # Handle camera sources
+            if slot.source_type != "camera":
+                logger.warning(f"Unknown source type: {slot.source_type}, skipping")
+                continue
+            
             cam_id = slot.source
             if cam_id not in self.camera_devices:
                 logger.debug(f"Camera {cam_id} not found in config, skipping")

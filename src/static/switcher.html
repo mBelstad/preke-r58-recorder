@@ -5,6 +5,43 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>R58 Professional Switcher</title>
     <style>
+        :root {
+            /* Colors */
+            --bg-dark: #0a0a0a;
+            --bg-panel: #141414;
+            --bg-element: #1f1f1f;
+            --bg-hover: #2a2a2a;
+            
+            --text-primary: #ffffff;
+            --text-secondary: rgba(255, 255, 255, 0.7);
+            --text-muted: rgba(255, 255, 255, 0.4);
+            
+            --accent-primary: #3b82f6;
+            --accent-primary-hover: #2563eb;
+            --accent-danger: #ef4444;
+            --accent-success: #10b981;
+            --accent-warning: #f59e0b;
+            
+            --border-light: rgba(255, 255, 255, 0.1);
+            --border-focus: rgba(255, 255, 255, 0.25);
+            
+            /* Spacing */
+            --spacing-xs: 4px;
+            --spacing-sm: 8px;
+            --spacing-md: 10px;
+            --spacing-lg: 16px;
+            
+            /* UI Elements */
+            --radius-sm: 4px;
+            --radius-md: 6px;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+            
+            /* Transitions */
+            --transition-fast: 0.15s ease;
+            --transition-panel: 0.3s ease-out;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -14,358 +51,1262 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: #000;
-            color: #fff;
-            min-height: 100vh;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            height: 100vh;
             overflow: hidden;
             touch-action: manipulation;
         }
 
         .switcher-container {
             display: grid;
-            grid-template-columns: 1fr 320px;
+            grid-template-columns: 180px 1fr 180px;
             height: 100vh;
-            gap: 0;
+            width: 100vw;
+            overflow: hidden;
         }
 
-        .main-view {
+        /* Left Sidebar */
+        .left-sidebar {
+            background: var(--bg-panel);
+            border-right: 1px solid var(--border-light);
             display: flex;
             flex-direction: column;
-            background: #000;
-            position: relative;
+            overflow: hidden;
         }
 
-        .preview-area {
-            flex: 1;
-            background: #000;
-            position: relative;
-            overflow: hidden;
+        .sidebar-header {
+            padding: var(--spacing-md);
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .quick-access-toolbar {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-xs);
+            padding: var(--spacing-md);
+        }
+
+        .toolbar-btn {
+            width: 44px;
+            height: 44px;
+            background: var(--bg-element);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-sm);
+            color: var(--text-secondary);
+            cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-        }
-
-        #previewVideo {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-        }
-
-        .preview-overlay {
-            position: absolute;
-            top: 24px;
-            left: 24px;
-            background: rgba(0, 0, 0, 0.85);
-            padding: 12px 24px;
-            border-radius: 8px;
             font-size: 18px;
-            font-weight: 700;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            border: 2px solid rgba(255, 255, 255, 0.3);
+            transition: all var(--transition-fast);
         }
 
-        .control-panel {
+        .toolbar-btn:hover {
+            background: var(--bg-hover);
+            border-color: var(--border-focus);
+            color: var(--text-primary);
+        }
+
+        .toolbar-btn.active {
+            background: rgba(59, 130, 246, 0.15);
+            border-color: var(--accent-primary);
+            color: var(--accent-primary);
+        }
+
+        .system-status {
+            padding: var(--spacing-sm) var(--spacing-md);
+            border-top: 1px solid var(--border-light);
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .status-compact {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #6b7280;
+        }
+
+        .status-dot.active {
+            background: var(--accent-success);
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+        }
+
+        .status-dot.error {
+            background: var(--accent-danger);
+            box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+        }
+
+        .compact-input-grid {
+            flex: 1;
             display: flex;
             flex-direction: column;
-            background: #0a0a0a;
-            border-left: 2px solid rgba(255, 255, 255, 0.1);
+            gap: var(--spacing-sm);
+            padding: var(--spacing-md);
             overflow-y: auto;
         }
 
-        .section {
-            padding: 24px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        .compact-input {
+            position: relative;
+            background: #000;
+            border: 2px solid var(--border-light);
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            aspect-ratio: 16/9;
+            cursor: pointer;
+            transition: all var(--transition-fast);
         }
 
-        .section-title {
+        .compact-input:hover {
+            border-color: var(--border-focus);
+        }
+
+        .compact-input.tally-pgm {
+            border-color: var(--accent-danger);
+            box-shadow: 0 0 0 2px var(--accent-danger);
+        }
+
+        .compact-input video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .compact-input-label {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.9), transparent);
+            padding: 2px 4px;
+            font-size: 9px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Center Area */
+        .center-area {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: #000;
+        }
+
+        .preview-program-section {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: var(--spacing-md);
+            padding: var(--spacing-md);
+            align-items: center;
+            min-height: 0;
+        }
+
+        .preview-output, .program-output {
+            position: relative;
+            background: #000;
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            border: 2px solid;
+            aspect-ratio: 16/9;
+            width: 100%;
+            max-height: 100%;
+        }
+
+        .preview-output {
+            border-color: var(--accent-success);
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.2);
+        }
+
+        .program-output {
+            border-color: var(--accent-danger);
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.2);
+        }
+
+        .output-label {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 4px 8px;
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            z-index: 10;
+            border-left: 3px solid currentColor;
+        }
+
+        .preview-output .output-label {
+            color: var(--accent-success);
+        }
+
+        .program-output .output-label {
+            color: var(--accent-danger);
+        }
+
+        .output-video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+
+        .output-placeholder {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 5;
+        }
+
+        .output-placeholder::before {
+            content: '📹';
+            font-size: 48px;
+            opacity: 0.3;
+            margin-bottom: 16px;
+        }
+
+        .output-placeholder::after {
+            content: 'NO SIGNAL';
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-muted);
+            letter-spacing: 2px;
+        }
+
+        .box-overlays {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        .box-overlay {
+            position: absolute;
+            border: 2px solid;
+            border-radius: var(--radius-sm);
+            z-index: 6;
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 24px;
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(2px);
+            box-sizing: border-box;
+        }
+
+        .box-overlay.has-input {
+            background: rgba(0, 0, 0, 0.1);
+        }
+
+        .box-overlay.box-1 { border-color: var(--accent-primary); color: var(--accent-primary); }
+        .box-overlay.box-2 { border-color: var(--accent-danger); color: var(--accent-danger); }
+        .box-overlay.box-3 { border-color: var(--accent-success); color: var(--accent-success); }
+        .box-overlay.box-4 { border-color: var(--accent-warning); color: var(--accent-warning); }
+
+        .box-number {
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .box-input-label {
+            position: absolute;
+            bottom: 4px;
+            left: 4px;
+            right: 4px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: 600;
+            text-align: center;
+            text-transform: uppercase;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .take-button {
+            width: 80px;
+            height: 60px;
+            background: var(--accent-danger);
+            border: none;
+            border-radius: var(--radius-md);
+            color: #fff;
             font-size: 16px;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 2px;
-            color: #888;
-            margin-bottom: 20px;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+        }
+
+        .take-button:hover {
+            background: #dc2626;
+            transform: scale(1.05);
+            box-shadow: 0 6px 16px rgba(239, 68, 68, 0.6);
+        }
+
+        .take-button:active {
+            transform: scale(0.95);
+        }
+
+        .scene-buttons-section {
+            padding: var(--spacing-md);
+            border-top: 1px solid var(--border-light);
+            overflow-y: auto;
+            max-height: 40vh;
         }
 
         .scene-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 16px;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: var(--spacing-md);
         }
 
-        .scene-button {
-            background: rgba(255, 255, 255, 0.05);
-            border: 3px solid rgba(255, 255, 255, 0.2);
-            color: #fff;
-            padding: 0;
-            border-radius: 12px;
-            cursor: pointer;
-            font-size: 20px;
+        .scene-button-large {
+            padding: var(--spacing-lg);
+            border: 2px solid var(--border-light);
+            background: var(--bg-element);
+            color: var(--text-primary);
+            border-radius: var(--radius-md);
+            font-size: 14px;
             font-weight: 700;
+            cursor: pointer;
+            transition: all var(--transition-fast);
             text-align: center;
-            transition: all 0.15s;
-            position: relative;
-            min-height: 80px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            min-height: 90px;
             display: flex;
             align-items: center;
             justify-content: center;
-            touch-action: manipulation;
+            position: relative;
         }
 
-        .scene-button:active {
-            transform: scale(0.95);
-            background: rgba(255, 255, 255, 0.1);
+        .scene-button-large:hover {
+            background: var(--bg-hover);
+            border-color: var(--border-focus);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
         }
 
-        .scene-button.active {
-            background: rgba(59, 130, 246, 0.3);
-            border-color: #3b82f6;
-            box-shadow: 0 0 30px rgba(59, 130, 246, 0.6);
-            color: #60a5fa;
+        .scene-button-large:active {
+            transform: translateY(0) scale(0.98);
         }
 
-        .scene-button .key-hint {
-            position: absolute;
-            top: 8px;
-            right: 10px;
-            font-size: 14px;
-            opacity: 0.5;
-            font-weight: 600;
+        .scene-button-large.active {
+            background: rgba(59, 130, 246, 0.15);
+            border-color: var(--accent-primary);
+            color: var(--accent-primary);
+            box-shadow: 0 0 0 2px var(--accent-primary);
         }
 
-        .control-buttons {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 16px;
+        .scene-button-large.preview {
+            opacity: 0.7;
+            border-color: var(--accent-success);
         }
 
-        .btn {
-            padding: 20px;
-            border-radius: 12px;
-            border: none;
-            font-size: 18px;
+        /* Right Sidebar */
+        .right-sidebar {
+            background: var(--bg-panel);
+            border-left: 1px solid var(--border-light);
+            display: flex;
+            flex-direction: column;
+            padding: var(--spacing-md);
+            gap: var(--spacing-md);
+            overflow-y: auto;
+        }
+
+        .transition-controls {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-sm);
+        }
+
+        .transition-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-sm);
+        }
+
+        .btn-transition {
+            padding: 12px;
+            border: 2px solid var(--border-light);
+            background: var(--bg-element);
+            color: var(--text-primary);
+            border-radius: var(--radius-md);
+            font-size: 12px;
             font-weight: 700;
             cursor: pointer;
-            transition: all 0.15s;
+            transition: all var(--transition-fast);
             text-transform: uppercase;
             letter-spacing: 1px;
-            min-height: 64px;
-            touch-action: manipulation;
+            min-height: 50px;
         }
 
-        .btn:active {
-            transform: scale(0.95);
+        .btn-transition:hover {
+            background: var(--bg-hover);
+            border-color: var(--border-focus);
         }
 
-        .btn-primary {
-            background: #3b82f6;
-            color: white;
+        .btn-transition.active {
+            background: var(--accent-primary);
+            border-color: var(--accent-primary);
+            box-shadow: var(--shadow-md);
         }
 
-        .btn-primary:active {
-            background: #2563eb;
+        .btn-transition.cut {
+            border-color: var(--accent-danger);
+            color: var(--accent-danger);
+            background: rgba(239, 68, 68, 0.1);
         }
 
-        .btn-danger {
-            background: #ef4444;
-            color: white;
+        .btn-transition.cut:hover {
+            background: rgba(239, 68, 68, 0.2);
         }
 
-        .btn-danger:active {
-            background: #dc2626;
+        .btn-transition.cut:active {
+            background: var(--accent-danger);
+            color: #fff;
+        }
+
+        .mix-slider {
+            width: 100%;
+            height: 4px;
+            background: var(--bg-element);
+            border-radius: 2px;
+            position: relative;
+            cursor: pointer;
+            margin-top: var(--spacing-sm);
+        }
+
+        .mix-slider-handle {
+            width: 16px;
+            height: 16px;
+            background: #fff;
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 0;
+            transform: translate(-50%, -50%);
+            box-shadow: var(--shadow-sm);
+            transition: transform 0.1s;
+        }
+
+        .mix-slider-handle:active {
+            transform: translate(-50%, -50%) scale(1.2);
+        }
+
+        .system-controls {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-sm);
         }
 
         .status-indicator {
             display: flex;
             align-items: center;
-            gap: 12px;
-            padding: 16px;
+            gap: var(--spacing-sm);
+            padding: var(--spacing-sm);
             background: rgba(255, 255, 255, 0.05);
-            border-radius: 12px;
-            font-size: 16px;
-            font-weight: 600;
-        }
-
-        .status-dot {
-            width: 16px;
-            height: 16px;
-            border-radius: 50%;
-            background: #6b7280;
-            flex-shrink: 0;
-        }
-
-        .status-dot.active {
-            background: #10b981;
-            box-shadow: 0 0 12px rgba(16, 185, 129, 0.8);
-        }
-
-        .status-dot.error {
-            background: #ef4444;
-            box-shadow: 0 0 12px rgba(239, 68, 68, 0.8);
-        }
-
-        .controller-status {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .controller-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 16px;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 8px;
-            font-size: 14px;
-        }
-
-        .controller-name {
-            font-weight: 600;
-            font-size: 16px;
-        }
-
-        .controller-type {
+            border-radius: var(--radius-sm);
             font-size: 12px;
-            opacity: 0.6;
+            font-weight: 600;
+            text-transform: uppercase;
         }
 
-        .camera-controls {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
-        }
-
-        .camera-button {
-            background: rgba(255, 255, 255, 0.05);
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            color: #fff;
-            padding: 16px;
-            border-radius: 12px;
-            cursor: pointer;
-            font-size: 16px;
+        .btn-system {
+            padding: 12px 24px;
+            border: none;
+            border-radius: var(--radius-md);
+            font-size: 14px;
             font-weight: 700;
-            text-align: center;
-            transition: all 0.15s;
-            min-height: 64px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            touch-action: manipulation;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
-        .camera-button:active {
+        .btn-system.start {
+            background: var(--accent-success);
+            color: #fff;
+        }
+
+        .btn-system.start:hover {
+            background: #059669;
+        }
+
+        .btn-system.stop {
+            background: var(--accent-danger);
+            color: #fff;
+        }
+
+        .btn-system.stop:hover {
+            background: #dc2626;
+        }
+
+        .btn-system:active {
             transform: scale(0.95);
         }
 
-        .camera-button.active {
-            background: rgba(16, 185, 129, 0.2);
-            border-color: #10b981;
-            color: #10b981;
+        /* Off-Canvas Panels */
+        .backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
         }
 
-        .info-text {
-            font-size: 14px;
-            color: #888;
-            line-height: 1.6;
+        .backdrop.active {
+            opacity: 1;
+            pointer-events: all;
         }
 
-        .keyboard-hints {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 8px;
-            font-size: 14px;
-            color: #888;
+        .off-canvas-panel {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 420px;
+            max-width: 90vw;
+            height: 100%;
+            background: var(--bg-panel);
+            border-left: 1px solid var(--border-light);
+            z-index: 1001;
+            transform: translateX(100%);
+            transition: transform var(--transition-panel);
+            display: flex;
+            flex-direction: column;
+            box-shadow: -4px 0 12px rgba(0, 0, 0, 0.5);
         }
 
-        .keyboard-hint {
+        .off-canvas-panel.active {
+            transform: translateX(0);
+        }
+
+        .off-canvas-panel.wide {
+            width: 520px;
+        }
+
+        .panel-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 8px 0;
+            padding: var(--spacing-md);
+            border-bottom: 1px solid var(--border-light);
         }
 
-        .key {
+        .panel-title {
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .close-panel-btn {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 20px;
+            cursor: pointer;
+            padding: 4px;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--radius-sm);
+            transition: background var(--transition-fast);
+        }
+
+        .close-panel-btn:hover {
             background: rgba(255, 255, 255, 0.1);
-            padding: 4px 12px;
-            border-radius: 6px;
-            font-family: monospace;
+            color: var(--text-primary);
+        }
+
+        .panel-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: var(--spacing-md);
+        }
+
+        /* Queue Panel */
+        .queue-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-sm);
+        }
+
+        .queue-item {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            padding: var(--spacing-md);
+            background: var(--bg-element);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-sm);
+            cursor: grab;
+            transition: all 0.2s;
+        }
+
+        .queue-item:hover {
+            background: var(--bg-hover);
+            border-color: var(--border-focus);
+        }
+
+        .queue-item.dragging {
+            opacity: 0.5;
+        }
+
+        .queue-item.drag-over-top {
+            border-top: 2px solid var(--accent-primary);
+        }
+
+        .queue-item.drag-over-bottom {
+            border-bottom: 2px solid var(--accent-primary);
+        }
+
+        .queue-item-info {
+            flex: 1;
+        }
+
+        .queue-item-name {
             font-size: 12px;
             font-weight: 600;
         }
 
-        /* Hide scrollbar but keep functionality */
-        .control-panel::-webkit-scrollbar {
+        .queue-item-meta {
+            font-size: 10px;
+            color: var(--text-secondary);
+        }
+
+        /* Scene Editor Panel */
+        .scene-canvas-container {
+            position: relative;
+            width: 100%;
+            background: #000;
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-sm);
+            margin-bottom: var(--spacing-md);
+            overflow: hidden;
+            aspect-ratio: 16/9;
+        }
+
+        .scene-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            cursor: default;
+        }
+
+        .scene-slot-box {
+            position: absolute;
+            border: 1px solid;
+            background: rgba(59, 130, 246, 0.2);
+            cursor: move;
+            user-select: none;
+            transition: border-color 0.2s;
+        }
+
+        .scene-slot-box.selected {
+            border-width: 2px;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 1px var(--accent-primary);
+            z-index: 100;
+        }
+
+        .box-selector {
+            display: flex;
+            gap: var(--spacing-sm);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .box-selector-btn {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid var(--border-light);
+            background: var(--bg-element);
+            color: var(--text-primary);
+            border-radius: var(--radius-sm);
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            text-transform: uppercase;
+        }
+
+        .box-selector-btn.active {
+            background: var(--accent-primary);
+            border-color: var(--accent-primary);
+        }
+
+        .input-selector {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--spacing-sm);
+        }
+
+        .input-selector-btn {
+            padding: 10px;
+            border: 2px solid var(--border-light);
+            background: var(--bg-element);
+            color: var(--text-primary);
+            border-radius: var(--radius-sm);
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+
+        .input-selector-btn.active {
+            background: var(--accent-primary);
+            border-color: var(--accent-primary);
+        }
+
+        .preset-tabs {
+            display: flex;
+            gap: var(--spacing-xs);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .preset-tab {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid var(--border-light);
+            background: var(--bg-element);
+            color: var(--text-secondary);
+            border-radius: var(--radius-sm);
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            text-align: center;
+            text-transform: uppercase;
+        }
+
+        .preset-tab:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        .preset-tab.active {
+            background: var(--accent-primary);
+            border-color: var(--accent-primary);
+            color: #fff;
+        }
+
+        .preset-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--spacing-sm);
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .preset-thumbnail {
+            aspect-ratio: 16/9;
+            background: var(--bg-element);
+            border: 2px solid var(--border-light);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .preset-thumbnail:hover {
+            border-color: var(--accent-primary);
+        }
+
+        .preset-thumbnail-label {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 4px;
+            font-size: 10px;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        /* Media Library Panel */
+        .file-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: var(--spacing-sm);
+        }
+
+        .file-item {
+            aspect-ratio: 16/9;
+            background: var(--bg-element);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .file-item:hover {
+            border-color: var(--border-focus);
+        }
+
+        /* Audio Mixer Panel */
+        .audio-mixer-panel {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 320px;
+            background: var(--bg-panel);
+            border-top: 1px solid var(--border-light);
+            z-index: 1001;
+            transform: translateY(100%);
+            transition: transform var(--transition-panel);
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.5);
+        }
+
+        .audio-mixer-panel.active {
+            transform: translateY(0);
+        }
+
+        .audio-channels {
+            display: flex;
+            gap: var(--spacing-md);
+            padding: var(--spacing-md);
+            align-items: flex-end;
+        }
+
+        .audio-channel {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: var(--spacing-sm);
+            min-width: 60px;
+        }
+
+        .audio-label {
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .audio-meter {
             width: 8px;
+            height: 120px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            position: relative;
+            overflow: hidden;
         }
 
-        .control-panel::-webkit-scrollbar-track {
-            background: transparent;
-        }
-
-        .control-panel::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.2);
+        .audio-level {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            background: linear-gradient(to top, var(--accent-success) 0%, var(--accent-warning) 70%, var(--accent-danger) 100%);
+            transition: height 0.1s;
             border-radius: 4px;
         }
 
-        @media (max-width: 1400px) {
+        .audio-slider {
+            width: 100%;
+            height: 120px;
+            background: var(--bg-element);
+            border-radius: 4px;
+            cursor: pointer;
+            position: relative;
+            margin: var(--spacing-sm) 0;
+        }
+
+        .audio-slider-handle {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 24px;
+            height: 8px;
+            background: var(--accent-primary);
+            border-radius: 2px;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+
+        .audio-slider-handle:active {
+            transform: translateX(-50%) scale(1.2);
+        }
+
+        .audio-controls {
+            display: flex;
+            gap: var(--spacing-xs);
+            margin-top: var(--spacing-xs);
+        }
+
+        .audio-btn {
+            flex: 1;
+            padding: 4px 8px;
+            background: var(--bg-element);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-size: 9px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            text-transform: uppercase;
+        }
+
+        .audio-btn:hover {
+            background: var(--bg-hover);
+        }
+
+        .audio-btn.active {
+            background: var(--accent-primary);
+            border-color: var(--accent-primary);
+        }
+
+        .audio-btn.mute.active {
+            background: var(--accent-danger);
+            border-color: var(--accent-danger);
+        }
+
+        /* Graphics Panel */
+        .graphics-templates {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--spacing-sm);
+        }
+
+        .template-item {
+            aspect-ratio: 16/9;
+            background: var(--bg-element);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+
+        .template-item:hover {
+            border-color: var(--accent-primary);
+        }
+
+        /* Responsive */
+        @media (max-width: 1366px) {
             .switcher-container {
-                grid-template-columns: 1fr 280px;
+                grid-template-columns: 160px 1fr 160px;
             }
         }
 
-        @media (min-width: 1200px) {
-            .scene-button {
-                min-height: 100px;
-                font-size: 24px;
-            }
-            
-            .btn {
-                min-height: 72px;
-                font-size: 20px;
-            }
-            
-            .camera-button {
-                min-height: 72px;
-                font-size: 18px;
-            }
+        /* Collapsible Sidebars */
+        .sidebar-collapsed {
+            width: 0;
+            overflow: hidden;
+            border: none;
+            padding: 0;
+        }
+
+        .sidebar-toggle {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 24px;
+            height: 48px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border-light);
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            transition: all var(--transition-fast);
+        }
+
+        .sidebar-toggle:hover {
+            background: var(--bg-hover);
+        }
+
+        .sidebar-toggle.left {
+            left: 0;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+        }
+
+        .sidebar-toggle.right {
+            right: 0;
+            border-radius: var(--radius-sm) 0 0 var(--radius-sm);
         }
     </style>
 </head>
 <body>
     <div class="switcher-container">
-        <div class="main-view">
-            <div class="preview-area">
-                <video id="previewVideo" autoplay muted playsinline></video>
-                <div class="preview-overlay" id="previewOverlay">PROGRAM</div>
+        <!-- Left Sidebar -->
+        <div class="left-sidebar" id="leftSidebar">
+            <div class="sidebar-header">
+                <div class="status-compact">
+                    <div class="status-dot" id="statusDot"></div>
+                    <span id="statusText">STOPPED</span>
+                </div>
+            </div>
+            <div class="quick-access-toolbar">
+                <button class="toolbar-btn" id="queueBtn" title="Queue (Q)">📋</button>
+                <button class="toolbar-btn" id="mediaBtn" title="Media Library (M)">🎬</button>
+                <button class="toolbar-btn" id="graphicsBtn" title="Graphics (G)">🎨</button>
+                <button class="toolbar-btn" id="audioBtn" title="Audio Mixer (A)">🔊</button>
+                <button class="toolbar-btn" id="settingsBtn" title="Settings">⚙️</button>
+            </div>
+            <div class="system-status">
+                <div class="status-compact">
+                    <div class="status-dot" id="healthDot"></div>
+                    <span id="healthText">HEALTHY</span>
+                </div>
+            </div>
+            <div class="compact-input-grid" id="compactInputGrid">
+                <!-- Inputs will be dynamically generated -->
             </div>
         </div>
 
-        <div class="control-panel">
-            <div class="section">
-                <div class="section-title">Scenes</div>
-                <div class="scene-grid" id="sceneGrid"></div>
-            </div>
-
-            <div class="section">
-                <div class="section-title">Mixer Control</div>
-                <div class="control-buttons">
-                    <button class="btn btn-primary" id="startBtn">Start</button>
-                    <button class="btn btn-danger" id="stopBtn">Stop</button>
+        <!-- Center Area -->
+        <div class="center-area">
+            <div class="preview-program-section">
+                <div class="preview-output" id="previewOutput">
+                    <div class="output-label">PVW</div>
+                    <video id="previewVideo" class="output-video" autoplay muted playsinline></video>
+                    <div class="output-placeholder" id="previewPlaceholder"></div>
+                    <div class="box-overlays" id="previewBoxOverlays"></div>
+                </div>
+                <button class="take-button" id="takeButton">TAKE</button>
+                <div class="program-output" id="programOutput">
+                    <div class="output-label">PGM</div>
+                    <video id="programVideo" class="output-video" autoplay muted playsinline></video>
+                    <div class="output-placeholder" id="programPlaceholder"></div>
+                    <div class="box-overlays" id="programBoxOverlays"></div>
                 </div>
             </div>
+            <div class="scene-buttons-section">
+                <div class="scene-grid" id="sceneGrid">
+                    <!-- Scenes will be dynamically generated -->
+                </div>
+            </div>
+        </div>
 
-            <div class="section">
-                <div class="section-title">Status</div>
+        <!-- Right Sidebar -->
+        <div class="right-sidebar" id="rightSidebar">
+            <div class="transition-controls">
+                <div class="transition-buttons">
+                    <button class="btn-transition cut" id="cutBtn">CUT</button>
+                    <button class="btn-transition" id="autoBtn">AUTO</button>
+                    <button class="btn-transition" id="mixBtn">MIX</button>
+                </div>
+                <div class="mix-slider" id="mixSlider">
+                    <div class="mix-slider-handle" id="mixHandle"></div>
+                </div>
+            </div>
+            <div class="system-controls">
                 <div class="status-indicator">
-                    <div class="status-dot" id="statusDot"></div>
-                    <span id="statusText">Checking...</span>
+                    <div class="status-dot" id="statusDotRight"></div>
+                    <span id="statusTextRight">STOPPED</span>
+                </div>
+                <button class="btn-system start" id="startBtn">START</button>
+                <button class="btn-system stop" id="stopBtn">STOP</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Backdrop -->
+    <div class="backdrop" id="backdrop"></div>
+
+    <!-- Off-Canvas Panels -->
+    <!-- Queue Panel -->
+    <div class="off-canvas-panel" id="queuePanel">
+        <div class="panel-header">
+            <div class="panel-title">QUEUE</div>
+            <button class="close-panel-btn" onclick="closePanel()">×</button>
+        </div>
+        <div class="panel-content">
+            <div class="queue-list" id="queueList">
+                <!-- Queue items will be dynamically generated -->
+            </div>
+            <div style="margin-top: var(--spacing-md); padding-top: var(--spacing-md); border-top: 1px solid var(--border-light);">
+                <label style="display: flex; align-items: center; gap: var(--spacing-sm); cursor: pointer;">
+                    <input type="checkbox" id="autoAdvanceToggle">
+                    <span style="font-size: 12px;">Auto Advance</span>
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scene Editor Panel -->
+    <div class="off-canvas-panel wide" id="sceneEditorPanel">
+        <div class="panel-header">
+            <div class="panel-title">SCENE EDITOR</div>
+            <button class="close-panel-btn" onclick="closePanel()">×</button>
+        </div>
+        <div class="panel-content">
+            <div style="margin-bottom: var(--spacing-md); display: flex; gap: var(--spacing-sm);">
+                <button class="btn btn-primary" id="newSceneBtn">New Scene</button>
+                <button class="btn btn-success" id="saveSceneBtn" style="display: none;">Save</button>
+                <button class="btn btn-danger" id="cancelSceneBtn" style="display: none;">Cancel</button>
+            </div>
+            <div class="scene-canvas-container" id="sceneCanvasContainer">
+                <canvas class="scene-canvas" id="sceneCanvas"></canvas>
+            </div>
+            <div style="margin-top: var(--spacing-md);">
+                <div style="font-size: 11px; font-weight: 600; margin-bottom: var(--spacing-sm); text-transform: uppercase;">Presets</div>
+                <div class="preset-tabs" style="display: flex; gap: var(--spacing-xs); margin-bottom: var(--spacing-md);">
+                    <div class="preset-tab active" data-tab="presets" onclick="switchPresetTab('presets')">Presets</div>
+                    <div class="preset-tab" data-tab="art" onclick="switchPresetTab('art')">Art</div>
+                    <div class="preset-tab" data-tab="copy" onclick="switchPresetTab('copy')">Copy</div>
+                </div>
+                <div class="preset-grid" id="presetGrid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--spacing-sm); margin-bottom: var(--spacing-md);">
+                    <!-- Presets will be dynamically generated -->
+                </div>
+                <div style="font-size: 11px; font-weight: 600; margin-bottom: var(--spacing-sm); text-transform: uppercase;">Box Selection</div>
+                <div class="box-selector" id="boxSelector">
+                    <button class="box-selector-btn active" data-box="1" onclick="selectBox(1)">BOX 1</button>
+                    <button class="box-selector-btn" data-box="2" onclick="selectBox(2)">BOX 2</button>
+                    <button class="box-selector-btn" data-box="3" onclick="selectBox(3)">BOX 3</button>
+                    <button class="box-selector-btn" data-box="4" onclick="selectBox(4)">BOX 4</button>
+                </div>
+                <div style="font-size: 11px; font-weight: 600; margin: var(--spacing-md) 0 var(--spacing-sm); text-transform: uppercase;">Assign Input</div>
+                <div class="input-selector" id="inputSelector">
+                    <button class="input-selector-btn" data-input="none" onclick="assignInput('none')">None</button>
+                    <button class="input-selector-btn" data-input="cam0" onclick="assignInput('cam0')">Input 1</button>
+                    <button class="input-selector-btn" data-input="cam1" onclick="assignInput('cam1')">Input 2</button>
+                    <button class="input-selector-btn" data-input="cam2" onclick="assignInput('cam2')">Input 3</button>
+                    <button class="input-selector-btn" data-input="cam3" onclick="assignInput('cam3')">Input 4</button>
                 </div>
             </div>
+        </div>
+    </div>
 
-            <div class="section">
-                <div class="section-title">Cameras</div>
-                <div class="camera-controls" id="cameraControls"></div>
+    <!-- Media Library Panel -->
+    <div class="off-canvas-panel" id="mediaPanel">
+        <div class="panel-header">
+            <div class="panel-title">MEDIA LIBRARY</div>
+            <button class="close-panel-btn" onclick="closePanel()">×</button>
+        </div>
+        <div class="panel-content">
+            <div class="drop-zone" id="fileDropZone" style="padding: var(--spacing-lg); text-align: center; border: 2px dashed var(--border-light); border-radius: var(--radius-sm); margin-bottom: var(--spacing-md); cursor: pointer;">
+                <div style="margin-bottom: var(--spacing-sm);">Drag & Drop Files Here</div>
+                <input type="file" id="fileInput" multiple accept="video/*,image/*" style="display: none;">
+                <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">Browse Files</button>
+            </div>
+            <div class="file-grid" id="filesList">
+                <!-- Files will be dynamically generated -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Audio Mixer Panel -->
+    <div class="audio-mixer-panel" id="audioPanel">
+        <div class="panel-header">
+            <div class="panel-title">AUDIO MIXER</div>
+            <button class="close-panel-btn" onclick="closePanel()">×</button>
+        </div>
+        <div class="audio-channels" id="audioChannels">
+            <!-- Audio channels will be dynamically generated -->
+        </div>
+    </div>
+
+    <!-- Graphics Panel -->
+    <div class="off-canvas-panel" id="graphicsPanel">
+        <div class="panel-header">
+            <div class="panel-title">GRAPHICS</div>
+            <button class="close-panel-btn" onclick="closePanel()">×</button>
+        </div>
+        <div class="panel-content">
+            <div style="margin-bottom: var(--spacing-md);">
+                <div style="font-size: 11px; font-weight: 600; margin-bottom: var(--spacing-sm); text-transform: uppercase;">Lower Thirds</div>
+                <input type="text" id="lowerThirdLine1" placeholder="Line 1" style="width: 100%; padding: var(--spacing-sm); background: var(--bg-element); border: 1px solid var(--border-light); border-radius: var(--radius-sm); color: var(--text-primary); margin-bottom: var(--spacing-sm);">
+                <input type="text" id="lowerThirdLine2" placeholder="Line 2 (optional)" style="width: 100%; padding: var(--spacing-sm); background: var(--bg-element); border: 1px solid var(--border-light); border-radius: var(--radius-sm); color: var(--text-primary); margin-bottom: var(--spacing-sm);">
+                <button class="btn btn-primary" style="width: 100%;" onclick="createLowerThird()">Create Lower Third</button>
+            </div>
+            <div>
+                <div style="font-size: 11px; font-weight: 600; margin-bottom: var(--spacing-sm); text-transform: uppercase;">Templates</div>
+                <div class="graphics-templates" id="graphicsTemplates">
+                    <!-- Templates will be dynamically generated -->
+                </div>
+            </div>
+            <div style="margin-top: var(--spacing-md); padding-top: var(--spacing-md); border-top: 1px solid var(--border-light);">
+                <div style="font-size: 11px; font-weight: 600; margin-bottom: var(--spacing-sm); text-transform: uppercase;">Active Graphics</div>
+                <div id="activeGraphicsList">
+                    <!-- Active graphics will be dynamically generated -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Panel -->
+    <div class="off-canvas-panel" id="settingsPanel">
+        <div class="panel-header">
+            <div class="panel-title">SETTINGS</div>
+            <button class="close-panel-btn" onclick="closePanel()">×</button>
+        </div>
+        <div class="panel-content">
+            <div style="margin-bottom: var(--spacing-md);">
+                <div style="font-size: 11px; font-weight: 600; margin-bottom: var(--spacing-sm); text-transform: uppercase;">Keyboard Shortcuts</div>
+                <div style="font-size: 11px; color: var(--text-secondary); line-height: 1.6;">
+                    <div>1-8: Select scenes</div>
+                    <div>Space: Take (preview to program)</div>
+                    <div>Q: Queue panel</div>
+                    <div>M: Media library</div>
+                    <div>G: Graphics panel</div>
+                    <div>A: Audio mixer</div>
+                    <div>Esc: Close panels</div>
+                </div>
+            </div>
+            <div style="margin-bottom: var(--spacing-md); padding-top: var(--spacing-md); border-top: 1px solid var(--border-light);">
+                <div style="font-size: 11px; font-weight: 600; margin-bottom: var(--spacing-sm); text-transform: uppercase;">Display Preferences</div>
+                <label style="display: flex; align-items: center; gap: var(--spacing-sm); cursor: pointer; margin-bottom: var(--spacing-sm);">
+                    <input type="checkbox" id="showTallyLights" checked>
+                    <span style="font-size: 12px;">Show Tally Lights</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: var(--spacing-sm); cursor: pointer;">
+                    <input type="checkbox" id="showBoxOverlays" checked>
+                    <span style="font-size: 12px;">Show Box Overlays</span>
+                </label>
             </div>
         </div>
     </div>
@@ -376,72 +1317,422 @@
         let currentScene = null;
         let mixerState = 'NULL';
         let scenes = [];
-        let gamepads = [];
-        let streamdeckConnected = false;
+        let currentProgramScene = null;
+        let currentPreviewScene = null;
+        let hlsInstances = {};
+        let currentSceneDetails = null;
+        let boxMappings = { 1: null, 2: null, 3: null, 4: null };
+        let selectedBox = 1;
+        let activePanel = null;
+        let editingScene = null;
 
         // Initialize
         async function init() {
             await loadScenes();
             await checkMixerStatus();
-            setupEventListeners();
-            setupGamepadSupport();
-            setupStreamDeckSupport();
-            setupKeyboardShortcuts();
+            initCompactInputs();
+            initAudioChannels();
+            initEventListeners();
+            initKeyboardShortcuts();
+            initDragAndDrop();
             startStatusPolling();
+            loadQueue();
+            loadFiles();
+            loadGraphicsTemplates();
+            loadPresets('presets');
         }
 
-        // Load available scenes
+        // Panel Management
+        function openPanel(panelId) {
+            if (activePanel === panelId) {
+                closePanel();
+                return;
+            }
+            closePanel();
+            activePanel = panelId;
+            const panel = document.getElementById(panelId);
+            const backdrop = document.getElementById('backdrop');
+            if (panel) {
+                panel.classList.add('active');
+                backdrop.classList.add('active');
+                // Update toolbar button state
+                document.querySelectorAll('.toolbar-btn').forEach(btn => btn.classList.remove('active'));
+                const btnMap = {
+                    'queuePanel': 'queueBtn',
+                    'mediaPanel': 'mediaBtn',
+                    'graphicsPanel': 'graphicsBtn',
+                    'audioPanel': 'audioBtn',
+                    'settingsPanel': 'settingsBtn'
+                };
+                if (btnMap[panelId]) {
+                    document.getElementById(btnMap[panelId])?.classList.add('active');
+                }
+            }
+        }
+
+        function closePanel() {
+            if (activePanel) {
+                const panel = document.getElementById(activePanel);
+                const backdrop = document.getElementById('backdrop');
+                if (panel) panel.classList.remove('active');
+                if (backdrop) backdrop.classList.remove('active');
+                activePanel = null;
+                document.querySelectorAll('.toolbar-btn').forEach(btn => btn.classList.remove('active'));
+            }
+        }
+
+        // Keyboard Shortcuts
+        function initKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Don't trigger if typing in input
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+                
+                // Number keys 1-8 for scenes
+                if (e.key >= '1' && e.key <= '8') {
+                    const index = parseInt(e.key) - 1;
+                    if (scenes[index]) {
+                        applyToPreview(scenes[index].id);
+                    }
+                }
+                
+                // Space for TAKE
+                if (e.key === ' ') {
+                    e.preventDefault();
+                    takePreview();
+                }
+                
+                // Panel shortcuts
+                if (e.key === 'q' || e.key === 'Q') {
+                    e.preventDefault();
+                    openPanel('queuePanel');
+                }
+                if (e.key === 'm' || e.key === 'M') {
+                    e.preventDefault();
+                    openPanel('mediaPanel');
+                }
+                if (e.key === 'g' || e.key === 'G') {
+                    e.preventDefault();
+                    openPanel('graphicsPanel');
+                }
+                if (e.key === 'a' || e.key === 'A') {
+                    e.preventDefault();
+                    openPanel('audioPanel');
+                }
+                
+                // Escape to close panels
+                if (e.key === 'Escape') {
+                    closePanel();
+                }
+            });
+        }
+
+        // Event Listeners
+        function initEventListeners() {
+            // Panel buttons
+            document.getElementById('queueBtn')?.addEventListener('click', () => openPanel('queuePanel'));
+            document.getElementById('mediaBtn')?.addEventListener('click', () => openPanel('mediaPanel'));
+            document.getElementById('graphicsBtn')?.addEventListener('click', () => openPanel('graphicsPanel'));
+            document.getElementById('audioBtn')?.addEventListener('click', () => openPanel('audioPanel'));
+            document.getElementById('settingsBtn')?.addEventListener('click', () => openPanel('settingsPanel'));
+            
+            // Scene editor buttons
+            document.getElementById('newSceneBtn')?.addEventListener('click', () => {
+                editingScene = { id: `scene_${Date.now()}`, label: 'New Scene', slots: [] };
+                document.getElementById('saveSceneBtn').style.display = 'inline-block';
+                document.getElementById('cancelSceneBtn').style.display = 'inline-block';
+            });
+            document.getElementById('saveSceneBtn')?.addEventListener('click', saveScene);
+            document.getElementById('cancelSceneBtn')?.addEventListener('click', () => {
+                editingScene = null;
+                document.getElementById('saveSceneBtn').style.display = 'none';
+                document.getElementById('cancelSceneBtn').style.display = 'none';
+            });
+            
+            // Backdrop closes panel
+            document.getElementById('backdrop')?.addEventListener('click', closePanel);
+            
+            // System controls
+            document.getElementById('startBtn')?.addEventListener('click', startMixer);
+            document.getElementById('stopBtn')?.addEventListener('click', stopMixer);
+            document.getElementById('takeButton')?.addEventListener('click', takePreview);
+            
+            // Transition buttons
+            document.getElementById('cutBtn')?.addEventListener('click', () => performTransition('cut'));
+            document.getElementById('autoBtn')?.addEventListener('click', () => performTransition('auto'));
+            document.getElementById('mixBtn')?.addEventListener('click', () => performTransition('mix'));
+            
+            // Mix slider
+            const slider = document.getElementById('mixSlider');
+            const handle = document.getElementById('mixHandle');
+            if (slider && handle) {
+                let isDragging = false;
+                const updateMix = (e) => {
+                    const rect = slider.getBoundingClientRect();
+                    const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+                    handle.style.left = `${x * 100}%`;
+                };
+                slider.addEventListener('mousedown', (e) => {
+                    isDragging = true;
+                    updateMix(e);
+                });
+                document.addEventListener('mousemove', (e) => {
+                    if (isDragging) updateMix(e);
+                });
+                document.addEventListener('mouseup', () => {
+                    isDragging = false;
+                });
+            }
+            
+            // Auto advance toggle
+            document.getElementById('autoAdvanceToggle')?.addEventListener('change', async (e) => {
+                try {
+                    if (e.target.checked) {
+                        await fetch(`${API_BASE}/api/queue/start`, { method: 'POST' });
+                    } else {
+                        await fetch(`${API_BASE}/api/queue/stop`, { method: 'POST' });
+                    }
+                    loadQueue();
+                } catch (error) {
+                    console.error('Failed to toggle auto-advance:', error);
+                }
+            });
+        }
+
+        // Load scenes
         async function loadScenes() {
             try {
                 const response = await fetch(`${API_BASE}/api/scenes`);
                 if (response.status === 503) {
-                    const errorData = await response.json();
-                    showErrorMessage('Mixer is not enabled. Please enable it in config.yml');
+                    showError('Mixer is not enabled. Please enable it in config.yml');
                     return;
                 }
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const data = await response.json();
                 scenes = data.scenes || [];
                 renderScenes();
             } catch (error) {
                 console.error('Failed to load scenes:', error);
-                showErrorMessage('Failed to load scenes: ' + error.message);
+                showError('Failed to load scenes: ' + error.message);
             }
         }
 
         // Render scene buttons
         function renderScenes() {
             const grid = document.getElementById('sceneGrid');
-            if (!grid) {
-                console.error("Element with ID 'sceneGrid' not found.");
-                return;
-            }
+            if (!grid) return;
             grid.innerHTML = '';
             
-            const sceneKeys = ['1', '2', '3', '4', '5', '6', '7'];
             scenes.forEach((scene, index) => {
-                const btn = document.createElement('div');
-                btn.className = 'scene-button';
+                const btn = document.createElement('button');
+                btn.className = 'scene-button-large draggable';
+                btn.draggable = true;
                 btn.dataset.sceneId = scene.id;
-                if (index < sceneKeys.length) {
-                    btn.innerHTML = `<span class="key-hint">${sceneKeys[index]}</span><span>${scene.label}</span>`;
-                } else {
-                    btn.innerHTML = `<span>${scene.label}</span>`;
-                }
-                btn.addEventListener('click', () => switchScene(scene.id));
-                btn.addEventListener('touchstart', (e) => {
-                    e.preventDefault();
-                    btn.style.transform = 'scale(0.95)';
-                });
-                btn.addEventListener('touchend', (e) => {
-                    e.preventDefault();
-                    btn.style.transform = '';
-                    switchScene(scene.id);
-                });
+                btn.dataset.dragType = 'scene';
+                btn.dataset.dragData = JSON.stringify({ type: 'scene', sceneId: scene.id, label: scene.label || scene.id });
+                btn.textContent = scene.label || scene.id;
+                btn.addEventListener('click', () => applyToPreview(scene.id));
+                btn.addEventListener('dblclick', () => applyToProgram(scene.id));
+                btn.addEventListener('dragstart', handleDragStart);
+                btn.addEventListener('dragend', handleDragEnd);
                 grid.appendChild(btn);
             });
+            updateSceneButtons();
+        }
+
+        // Update scene button states
+        function updateSceneButtons() {
+            document.querySelectorAll('.scene-button-large').forEach(btn => {
+                btn.classList.remove('active', 'preview');
+                if (btn.dataset.sceneId === currentProgramScene) {
+                    btn.classList.add('active');
+                } else if (btn.dataset.sceneId === currentPreviewScene) {
+                    btn.classList.add('preview');
+                }
+            });
+        }
+
+        // Apply scene to preview
+        async function applyToPreview(sceneId) {
+            try {
+                const response = await fetch(`${API_BASE}/api/mixer/set_scene`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: sceneId })
+                });
+                if (response.ok) {
+                    currentPreviewScene = sceneId;
+                    updateSceneButtons();
+                    await fetchSceneDetails(sceneId);
+                    await checkMixerStatus();
+                }
+            } catch (error) {
+                console.error('Failed to apply scene to preview:', error);
+            }
+        }
+
+        // Apply scene directly to program (cut)
+        async function applyToProgram(sceneId) {
+            try {
+                await applyToPreview(sceneId);
+                await takePreview();
+            } catch (error) {
+                console.error('Failed to apply scene to program:', error);
+            }
+        }
+
+        // Take preview to program
+        async function takePreview() {
+            if (!currentPreviewScene) return;
+            try {
+                // Apply preview scene to program
+                const response = await fetch(`${API_BASE}/api/mixer/set_scene`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: currentPreviewScene })
+                });
+                if (response.ok) {
+                    currentProgramScene = currentPreviewScene;
+                    updateSceneButtons();
+                    updateTallyLights();
+                    await checkMixerStatus();
+                }
+            } catch (error) {
+                console.error('Failed to take preview:', error);
+            }
+        }
+
+        // Initialize compact inputs
+        function initCompactInputs() {
+            const grid = document.getElementById('compactInputGrid');
+            if (!grid) return;
+            grid.innerHTML = '';
+
+            for (let i = 0; i < 4; i++) {
+                const input = document.createElement('div');
+                input.className = 'compact-input';
+                input.dataset.cameraId = `cam${i}`;
+                input.innerHTML = `
+                    <video id="compact-input-${i}-video" muted playsinline></video>
+                    <div class="compact-input-label">Input ${i + 1}</div>
+                `;
+                input.addEventListener('click', () => selectInput(i));
+                grid.appendChild(input);
+                
+                // Load preview stream
+                const video = input.querySelector('video');
+                if (video) {
+                    const hlsUrl = `${window.location.protocol}//${window.location.hostname}:8888/cam${i}/index.m3u8`;
+                    loadHLS(video, hlsUrl, `compact-input-${i}`);
+                }
+            }
+        }
+
+        // Load preview stream
+        async function loadPreviewStream() {
+            if (currentPreviewScene && mixerState === 'PLAYING') {
+                // Preview is handled by mixer, but we can show preview scene overlays
+                fetchSceneDetails(currentPreviewScene).then(() => {
+                    if (currentSceneDetails) {
+                        renderPreviewBoxOverlays();
+                    }
+                });
+            }
+        }
+
+        function renderPreviewBoxOverlays() {
+            if (!currentSceneDetails || !currentSceneDetails.slots) return;
+            const previewOverlays = document.getElementById('previewBoxOverlays');
+            if (!previewOverlays) return;
+            
+            previewOverlays.innerHTML = '';
+            currentSceneDetails.slots.forEach((slot, index) => {
+                const box = document.createElement('div');
+                box.className = `box-overlay box-${index + 1}`;
+                if (slot.source) {
+                    box.classList.add('has-input');
+                }
+                box.style.left = `${slot.x * 100}%`;
+                box.style.top = `${slot.y * 100}%`;
+                box.style.width = `${slot.w * 100}%`;
+                box.style.height = `${slot.h * 100}%`;
+                
+                const number = document.createElement('div');
+                number.className = 'box-number';
+                number.textContent = index + 1;
+                box.appendChild(number);
+                
+                if (slot.source) {
+                    const label = document.createElement('div');
+                    label.className = 'box-input-label';
+                    label.textContent = slot.source.toUpperCase();
+                    box.appendChild(label);
+                }
+                
+                previewOverlays.appendChild(box);
+            });
+        }
+
+        // Update tally lights
+        function updateTallyLights() {
+            document.querySelectorAll('.compact-input').forEach(input => {
+                input.classList.remove('tally-pgm', 'tally-pvw');
+                const camId = input.dataset.cameraId;
+                // Check if this camera is in the current program scene
+                if (currentSceneDetails && currentSceneDetails.slots) {
+                    const isInProgram = currentSceneDetails.slots.some(slot => slot.source === camId);
+                    if (isInProgram && currentProgramScene) {
+                        input.classList.add('tally-pgm');
+                    }
+                }
+            });
+        }
+
+        // Initialize audio channels
+        function initAudioChannels() {
+            const container = document.getElementById('audioChannels');
+            if (!container) return;
+            container.innerHTML = '';
+
+            for (let i = 0; i < 4; i++) {
+                const channel = document.createElement('div');
+                channel.className = 'audio-channel';
+                channel.innerHTML = `
+                    <div class="audio-label">Input ${i + 1}</div>
+                    <div class="audio-meter">
+                        <div class="audio-level" id="audio-${i}-level" style="height: 0%"></div>
+                    </div>
+                    <div class="audio-slider" id="audio-slider-${i}">
+                        <div class="audio-slider-handle" id="audio-handle-${i}" style="bottom: 50%;"></div>
+                    </div>
+                    <div class="audio-controls">
+                        <button class="audio-btn mute" id="audio-mute-${i}" onclick="toggleMute(${i})">M</button>
+                        <button class="audio-btn solo" id="audio-solo-${i}" onclick="toggleSolo(${i})">S</button>
+                    </div>
+                `;
+                container.appendChild(channel);
+                
+                // Initialize slider
+                const slider = document.getElementById(`audio-slider-${i}`);
+                const handle = document.getElementById(`audio-handle-${i}`);
+                if (slider && handle) {
+                    let isDragging = false;
+                    const updateVolume = (e) => {
+                        const rect = slider.getBoundingClientRect();
+                        const y = Math.max(0, Math.min(1, 1 - (e.clientY - rect.top) / rect.height));
+                        handle.style.bottom = `${y * 100}%`;
+                    };
+                    slider.addEventListener('mousedown', (e) => {
+                        isDragging = true;
+                        updateVolume(e);
+                    });
+                    document.addEventListener('mousemove', (e) => {
+                        if (isDragging) updateVolume(e);
+                    });
+                    document.addEventListener('mouseup', () => {
+                        isDragging = false;
+                    });
+                }
+            }
         }
 
         // Check mixer status
@@ -449,204 +1740,172 @@
             try {
                 const response = await fetch(`${API_BASE}/api/mixer/status`);
                 if (response.status === 503) {
-                    const errorData = await response.json();
-                    showErrorMessage('Mixer is not enabled. Please enable it in config.yml');
                     updateStatus({ state: 'DISABLED', health: 'unhealthy' });
                     return;
                 }
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const data = await response.json();
-                mixerState = data.state;
-                currentScene = data.current_scene;
-                
                 updateStatus(data);
-                updateSceneButtons();
-                updatePreview(data);
-                clearErrorMessage();
             } catch (error) {
-                console.error('Failed to check mixer status:', error);
+                if (error.message && !error.message.includes('Failed to fetch')) {
+                    console.error('Failed to check mixer status:', error);
+                }
                 updateStatus({ state: 'ERROR', health: 'unhealthy' });
             }
         }
 
-        // Update status display
+        // Update status
         function updateStatus(data) {
-            const dot = document.getElementById('statusDot');
-            const text = document.getElementById('statusText');
-            
-            if (!dot || !text) {
-                console.error('Status elements not found');
-                return;
-            }
-            
-            dot.className = 'status-dot';
-            if (data.state === 'PLAYING' && data.health === 'healthy') {
-                dot.classList.add('active');
-                text.textContent = `PLAYING - ${data.current_scene || 'No scene'}`;
-            } else if (data.state === 'NULL') {
-                text.textContent = 'STOPPED';
-            } else if (data.state === 'DISABLED') {
-                dot.classList.add('error');
-                text.textContent = 'MIXER DISABLED';
-            } else {
-                dot.classList.add('error');
-                text.textContent = `ERROR - ${data.last_error || 'Unknown error'}`;
-            }
-        }
-        
-        // Show error message
-        function showErrorMessage(message) {
-            let errorDiv = document.getElementById('errorMessage');
-            if (!errorDiv) {
-                errorDiv = document.createElement('div');
-                errorDiv.id = 'errorMessage';
-                errorDiv.style.cssText = 'position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #ef4444; color: white; padding: 16px 24px; border-radius: 8px; z-index: 10000; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.3);';
-                document.body.appendChild(errorDiv);
-            }
-            errorDiv.textContent = message;
-            errorDiv.style.display = 'block';
-        }
-        
-        // Clear error message
-        function clearErrorMessage() {
-            const errorDiv = document.getElementById('errorMessage');
-            if (errorDiv) {
-                errorDiv.style.display = 'none';
-            }
-        }
+            mixerState = data.state || 'NULL';
+            currentScene = data.current_scene || null;
 
-        // Update scene button states
-        function updateSceneButtons() {
-            document.querySelectorAll('.scene-button').forEach(btn => {
-                if (btn.dataset.sceneId === currentScene) {
-                    btn.classList.add('active');
-                } else {
-                    btn.classList.remove('active');
+            const dots = document.querySelectorAll('.status-dot');
+            const texts = document.querySelectorAll('#statusText, #statusTextRight');
+            
+            dots.forEach(dot => {
+                dot.className = 'status-dot';
+                if (data.state === 'PLAYING' && data.health === 'healthy') {
+                    dot.classList.add('active');
+                } else if (data.state === 'DISABLED' || data.health === 'unhealthy') {
+                    dot.classList.add('error');
                 }
             });
+            
+            texts.forEach(text => {
+                if (data.state === 'PLAYING' && data.health === 'healthy') {
+                    text.textContent = 'PLAYING';
+                } else if (data.state === 'NULL') {
+                    text.textContent = 'STOPPED';
+                } else if (data.state === 'DISABLED') {
+                    text.textContent = 'DISABLED';
+                } else {
+                    text.textContent = 'ERROR';
+                }
+            });
+
+            if (data.state === 'PLAYING' && data.mediamtx_enabled) {
+                updateProgramOutput(data);
+            } else {
+                clearOutputs();
+            }
+
+            updateSceneButtons();
+            
+            if (currentScene && currentScene !== currentProgramScene) {
+                fetchSceneDetails(currentScene);
+                currentProgramScene = currentScene;
+            }
         }
 
-        // Update preview video
-        function updatePreview(data) {
-            const video = document.getElementById('previewVideo');
-            const overlay = document.getElementById('previewOverlay');
-            
-            if (!video || !overlay) {
-                console.error('Video or overlay element not found');
-                return;
-            }
-            
+        // Update program output
+        function updateProgramOutput(data) {
             if (data.state === 'PLAYING' && data.mediamtx_enabled) {
                 const hlsUrl = `${window.location.protocol}//${window.location.hostname}:8888/mixer_program/index.m3u8`;
+                const video = document.getElementById('programVideo');
+                const placeholder = document.getElementById('programPlaceholder');
                 
-                // Check if we need to update the source
-                const currentSrc = video.src || (video.srcObject ? 'srcObject' : '');
-                if (currentSrc !== hlsUrl && !video.srcObject) {
-                    // Clean up existing HLS instance if any
-                    if (video.hls) {
-                        video.hls.destroy();
-                        video.hls = null;
-                    }
-                    
-                    if (typeof Hls !== 'undefined' && Hls.isSupported()) {
-                        const hls = new Hls({
-                            enableWorker: true,
-                            lowLatencyMode: true,
-                            backBufferLength: 90
-                        });
-                        hls.loadSource(hlsUrl);
-                        hls.attachMedia(video);
-                        video.hls = hls; // Store reference for cleanup
-                        hls.on(Hls.Events.MANIFEST_PARSED, () => {
-                            video.play().catch(e => console.error('Play error:', e));
-                        });
-                        hls.on(Hls.Events.ERROR, (event, data) => {
-                            console.error('HLS error:', data);
-                        });
-                    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                        // Native HLS support (Safari)
-                        video.src = hlsUrl;
-                        video.play().catch(e => console.error('Play error:', e));
-                    } else {
-                        console.error('HLS not supported in this browser');
-                    }
+                if (video && placeholder) {
+                    placeholder.style.display = 'none';
+                    loadHLS(video, hlsUrl, 'program');
                 }
                 
-                overlay.textContent = `PROGRAM - ${data.current_scene || 'Unknown'}`;
-            } else {
-                // Clean up HLS instance
-                if (video.hls) {
-                    video.hls.destroy();
-                    video.hls = null;
+                // Also update preview if we have a preview scene
+                if (currentPreviewScene && currentPreviewScene !== currentProgramScene) {
+                    loadPreviewStream();
                 }
-                video.src = '';
-                video.srcObject = null;
-                overlay.textContent = 'STOPPED';
             }
         }
 
-        // Switch scene
-        async function switchScene(sceneId) {
-            try {
-                const response = await fetch(`${API_BASE}/api/mixer/set_scene`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id: sceneId })
-                });
-                
-                if (response.status === 503) {
-                    const errorData = await response.json();
-                    alert('Mixer is not enabled. Please enable it in config.yml and restart the service.');
-                    return;
+        // Clear outputs
+        function clearOutputs() {
+            const placeholders = document.querySelectorAll('.output-placeholder');
+            placeholders.forEach(p => p.style.display = 'flex');
+        }
+
+        // Load HLS stream
+        function loadHLS(video, url, id) {
+            if (Hls.isSupported()) {
+                if (hlsInstances[id]) {
+                    hlsInstances[id].destroy();
                 }
-                
+                const hls = new Hls();
+                hls.loadSource(url);
+                hls.attachMedia(video);
+                hlsInstances[id] = hls;
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                video.src = url;
+            }
+        }
+
+        // Fetch scene details
+        async function fetchSceneDetails(sceneId) {
+            try {
+                const response = await fetch(`${API_BASE}/api/scenes/${sceneId}`);
                 if (response.ok) {
-                    currentScene = sceneId;
-                    updateSceneButtons();
-                    await checkMixerStatus();
-                } else {
-                    const errorData = await response.json();
-                    console.error('Failed to switch scene:', errorData);
+                    currentSceneDetails = await response.json();
+                    renderBoxOverlays();
+                    updateTallyLights();
                 }
             } catch (error) {
-                console.error('Failed to switch scene:', error);
+                console.error('Failed to fetch scene details:', error);
             }
+        }
+
+        // Render box overlays
+        function renderBoxOverlays() {
+            if (!currentSceneDetails || !currentSceneDetails.slots) return;
+            
+            const programOverlays = document.getElementById('programBoxOverlays');
+            const previewOverlays = document.getElementById('previewBoxOverlays');
+            
+            [programOverlays, previewOverlays].forEach(container => {
+                if (!container) return;
+                container.innerHTML = '';
+                
+                currentSceneDetails.slots.forEach((slot, index) => {
+                    const box = document.createElement('div');
+                    box.className = `box-overlay box-${index + 1}`;
+                    if (slot.source) {
+                        box.classList.add('has-input');
+                    }
+                    box.style.left = `${slot.x * 100}%`;
+                    box.style.top = `${slot.y * 100}%`;
+                    box.style.width = `${slot.w * 100}%`;
+                    box.style.height = `${slot.h * 100}%`;
+                    
+                    const number = document.createElement('div');
+                    number.className = 'box-number';
+                    number.textContent = index + 1;
+                    box.appendChild(number);
+                    
+                    if (slot.source) {
+                        const label = document.createElement('div');
+                        label.className = 'box-input-label';
+                        label.textContent = slot.source.toUpperCase();
+                        box.appendChild(label);
+                    }
+                    
+                    container.appendChild(box);
+                });
+            });
         }
 
         // Start mixer
         async function startMixer() {
             try {
-                const response = await fetch(`${API_BASE}/api/mixer/start`, {
-                    method: 'POST'
-                });
-                
-                if (response.status === 503) {
-                    const errorData = await response.json();
-                    alert('Mixer is not enabled. Please enable it in config.yml and restart the service.');
-                    return;
-                }
-                
+                const response = await fetch(`${API_BASE}/api/mixer/start`, { method: 'POST' });
                 if (response.ok) {
                     await checkMixerStatus();
-                } else {
-                    const errorData = await response.json();
-                    alert('Failed to start mixer: ' + (errorData.detail || 'Unknown error'));
                 }
             } catch (error) {
                 console.error('Failed to start mixer:', error);
-                alert('Failed to start mixer: ' + error.message);
             }
         }
 
         // Stop mixer
         async function stopMixer() {
             try {
-                const response = await fetch(`${API_BASE}/api/mixer/stop`, {
-                    method: 'POST'
-                });
-                
+                const response = await fetch(`${API_BASE}/api/mixer/stop`, { method: 'POST' });
                 if (response.ok) {
                     await checkMixerStatus();
                 }
@@ -655,257 +1914,452 @@
             }
         }
 
-        // Setup event listeners
-        function setupEventListeners() {
-            const startBtn = document.getElementById('startBtn');
-            const stopBtn = document.getElementById('stopBtn');
-            
-            if (startBtn) {
-                startBtn.addEventListener('click', startMixer);
-                startBtn.addEventListener('touchstart', (e) => {
-                    e.preventDefault();
-                    startBtn.style.transform = 'scale(0.95)';
-                });
-                startBtn.addEventListener('touchend', (e) => {
-                    e.preventDefault();
-                    startBtn.style.transform = '';
-                    startMixer();
-                });
+        // Perform transition
+        function performTransition(type) {
+            // Transition logic here
+            document.querySelectorAll('.btn-transition').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`${type}Btn`)?.classList.add('active');
+        }
+
+        // Select input
+        function selectInput(index) {
+            // Input selection logic
+            console.log('Selected input:', index);
+        }
+
+        // Drag and Drop
+        function initDragAndDrop() {
+            // Initialize drag and drop for scenes and queue
+            const queueList = document.getElementById('queueList');
+            if (queueList) {
+                queueList.addEventListener('dragover', handleQueueDragOver);
+                queueList.addEventListener('drop', handleQueueDrop);
             }
             
-            if (stopBtn) {
-                stopBtn.addEventListener('click', stopMixer);
-                stopBtn.addEventListener('touchstart', (e) => {
+            // File drop zone
+            const dropZone = document.getElementById('fileDropZone');
+            if (dropZone) {
+                dropZone.addEventListener('dragover', (e) => {
                     e.preventDefault();
-                    stopBtn.style.transform = 'scale(0.95)';
+                    dropZone.style.borderColor = 'var(--accent-primary)';
+                    dropZone.style.background = 'rgba(59, 130, 246, 0.1)';
                 });
-                stopBtn.addEventListener('touchend', (e) => {
-                    e.preventDefault();
-                    stopBtn.style.transform = '';
-                    stopMixer();
+                dropZone.addEventListener('dragleave', (e) => {
+                    dropZone.style.borderColor = 'var(--border-light)';
+                    dropZone.style.background = 'transparent';
                 });
+                dropZone.addEventListener('drop', handleFileDrop);
+            }
+            
+            // File input
+            const fileInput = document.getElementById('fileInput');
+            if (fileInput) {
+                fileInput.addEventListener('change', handleFileSelect);
             }
         }
 
-        // Setup gamepad support
-        function setupGamepadSupport() {
-            window.addEventListener('gamepadconnected', (e) => {
-                console.log('Gamepad connected:', e.gamepad.id);
-                gamepads.push(e.gamepad);
-                updateControllerStatus();
-                startGamepadPolling();
-            });
+        function handleDragStart(e) {
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', e.target.dataset.dragData || '');
+            e.target.classList.add('dragging');
+        }
 
-            window.addEventListener('gamepaddisconnected', (e) => {
-                console.log('Gamepad disconnected:', e.gamepad.id);
-                gamepads = gamepads.filter(g => g.index !== e.gamepad.index);
-                updateControllerStatus();
+        function handleDragEnd(e) {
+            e.target.classList.remove('dragging');
+            document.querySelectorAll('.queue-item').forEach(item => {
+                item.classList.remove('drag-over-top', 'drag-over-bottom');
             });
+        }
 
-            // Check for already connected gamepads
-            const connected = navigator.getGamepads();
-            for (let i = 0; i < connected.length; i++) {
-                if (connected[i]) {
-                    gamepads.push(connected[i]);
+        function handleQueueDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            
+            const item = e.target.closest('.queue-item');
+            if (item) {
+                const rect = item.getBoundingClientRect();
+                const relY = e.clientY - rect.top;
+                item.classList.remove('drag-over-top', 'drag-over-bottom');
+                if (relY > rect.height / 2) {
+                    item.classList.add('drag-over-bottom');
+                } else {
+                    item.classList.add('drag-over-top');
                 }
             }
-            if (gamepads.length > 0) {
-                updateControllerStatus();
-                startGamepadPolling();
-            }
         }
 
-        // Gamepad button mapping
-        const GAMEPAD_MAP = {
-            // Scene switching (D-pad or face buttons)
-            0: () => switchSceneByIndex(0), // A button
-            1: () => switchSceneByIndex(1), // B button
-            2: () => switchSceneByIndex(2), // X button
-            3: () => switchSceneByIndex(3), // Y button
-            12: () => switchSceneByIndex(4), // D-pad up
-            13: () => switchSceneByIndex(5), // D-pad down
-            14: () => switchSceneByIndex(6), // D-pad left
-            15: () => switchSceneByIndex(7), // D-pad right
-            // Control buttons
-            8: () => startMixer(), // Select/Back
-            9: () => stopMixer(), // Start/Menu
-        };
-
-        let gamepadButtonStates = {};
-
-        // Poll gamepad inputs
-        function startGamepadPolling() {
-            function pollGamepads() {
-                const gamepads = navigator.getGamepads();
+        async function handleQueueDrop(e) {
+            e.preventDefault();
+            const targetItem = e.target.closest('.queue-item');
+            const dragDataStr = e.dataTransfer.getData('text/plain');
+            if (!dragDataStr) return;
+            const dragData = JSON.parse(dragDataStr);
+            
+            if (dragData.type === 'queue-item') {
+                // Reordering
+                const sourceIndex = dragData.index;
+                let targetIndex = parseInt(targetItem?.dataset.queueIndex || 0);
+                if (targetItem) {
+                    const rect = targetItem.getBoundingClientRect();
+                    const relY = e.clientY - rect.top;
+                    if (relY > rect.height / 2) targetIndex++;
+                }
                 
-                for (let i = 0; i < gamepads.length; i++) {
-                    const gamepad = gamepads[i];
-                    if (!gamepad) continue;
-
-                    // Handle button presses
-                    gamepad.buttons.forEach((button, index) => {
-                        const wasPressed = gamepadButtonStates[`${gamepad.index}-${index}`] || false;
-                        const isPressed = button.pressed;
-
-                        if (isPressed && !wasPressed) {
-                            // Button just pressed
-                            if (GAMEPAD_MAP[index]) {
-                                GAMEPAD_MAP[index]();
-                            }
-                        }
-
-                        gamepadButtonStates[`${gamepad.index}-${index}`] = isPressed;
-                    });
+                if (sourceIndex !== targetIndex) {
+                    try {
+                        const response = await fetch(`${API_BASE}/api/queue/reorder`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ indices: [sourceIndex, targetIndex] })
+                        });
+                        if (response.ok) await loadQueue();
+                    } catch (error) {
+                        console.error('Failed to reorder queue:', error);
+                    }
                 }
-
-                requestAnimationFrame(pollGamepads);
+            } else if (dragData.type === 'scene') {
+                await addToQueue(dragData.sceneId, 10, 'cut');
             }
-
-            pollGamepads();
-        }
-
-        // Switch scene by index
-        function switchSceneByIndex(index) {
-            if (index < scenes.length) {
-                switchScene(scenes[index].id);
-            }
-        }
-
-        // Setup StreamDeck support
-        function setupStreamDeckSupport() {
-            // StreamDeck can make HTTP requests to our API endpoints
-            // We'll poll for StreamDeck activity via a dedicated endpoint
-            // StreamDeck plugins can call: POST /api/switcher/action
             
-            // Check for StreamDeck via WebSocket (if plugin available)
-            try {
-                const ws = new WebSocket(`ws://${window.location.hostname}:8000/ws/switcher`);
-                ws.onopen = () => {
-                    streamdeckConnected = true;
-                    updateControllerStatus();
-                };
-                ws.onclose = () => {
-                    streamdeckConnected = false;
-                    updateControllerStatus();
-                };
-                ws.onmessage = (event) => {
-                    const data = JSON.parse(event.data);
-                    handleStreamDeckAction(data);
-                };
-            } catch (e) {
-                // WebSocket not available, StreamDeck will use HTTP
-                console.log('WebSocket not available, StreamDeck will use HTTP API');
-            }
-        }
-
-        // Handle StreamDeck actions
-        function handleStreamDeckAction(data) {
-            switch (data.action) {
-                case 'switch_scene':
-                    if (data.scene_id) {
-                        switchScene(data.scene_id);
-                    }
-                    break;
-                case 'start':
-                    startMixer();
-                    break;
-                case 'stop':
-                    stopMixer();
-                    break;
-                case 'toggle':
-                    if (mixerState === 'PLAYING') {
-                        stopMixer();
-                    } else {
-                        startMixer();
-                    }
-                    break;
-            }
-        }
-
-        // Update controller status display (removed from UI but keeping function for future use)
-        function updateControllerStatus() {
-            // Controller status section removed from UI for cleaner design
-            // Function kept for potential future use
-        }
-
-        // Setup keyboard shortcuts
-        function setupKeyboardShortcuts() {
-            document.addEventListener('keydown', (e) => {
-                // Number keys 1-7 for scenes
-                const num = parseInt(e.key);
-                if (num >= 1 && num <= 7) {
-                    const index = num - 1;
-                    if (index < scenes.length) {
-                        switchScene(scenes[index].id);
-                    }
-                }
-
-                // Space for start/stop
-                if (e.key === ' ') {
-                    e.preventDefault();
-                    if (mixerState === 'PLAYING') {
-                        stopMixer();
-                    } else {
-                        startMixer();
-                    }
-                }
-
-                // Q/W/E/R for camera selection (future feature)
-                if (e.key === 'q' || e.key === 'Q') {
-                    // Camera 1
-                }
-                if (e.key === 'w' || e.key === 'W') {
-                    // Camera 2
-                }
-                if (e.key === 'e' || e.key === 'E') {
-                    // Camera 3
-                }
-                if (e.key === 'r' || e.key === 'R') {
-                    // Camera 4
-                }
+            document.querySelectorAll('.queue-item').forEach(item => {
+                item.classList.remove('drag-over-top', 'drag-over-bottom');
             });
         }
 
-        // Start status polling
-        function startStatusPolling() {
-            setInterval(checkMixerStatus, 2000);
+        function handleFileDrop(e) {
+            e.preventDefault();
+            const dropZone = document.getElementById('fileDropZone');
+            dropZone.style.borderColor = 'var(--border-light)';
+            dropZone.style.background = 'transparent';
+            
+            const files = Array.from(e.dataTransfer.files);
+            files.forEach(file => uploadFile(file));
         }
 
-        // Initialize camera controls
-        function initCameraControls() {
-            const container = document.getElementById('cameraControls');
-            if (!container) {
-                console.error("Element with ID 'cameraControls' not found.");
+        function handleFileSelect(e) {
+            const files = Array.from(e.target.files);
+            files.forEach(file => uploadFile(file));
+        }
+
+        async function uploadFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('loop', false);
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/files/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+                if (response.ok) {
+                    await loadFiles();
+                }
+            } catch (error) {
+                console.error('Failed to upload file:', error);
+            }
+        }
+
+        // Queue functions
+        async function loadQueue() {
+            try {
+                const response = await fetch(`${API_BASE}/api/queue`);
+                if (response.ok) {
+                    const data = await response.json();
+                    renderQueue(data.queue || []);
+                }
+            } catch (error) {
+                console.error('Failed to load queue:', error);
+            }
+        }
+
+        function renderQueue(queue) {
+            const list = document.getElementById('queueList');
+            if (!list) return;
+            list.innerHTML = '';
+            
+            if (queue.length === 0) {
+                list.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: var(--spacing-lg);">Queue is empty</div>';
                 return;
             }
-            for (let i = 0; i < 4; i++) {
-                const btn = document.createElement('div');
-                btn.className = 'camera-button';
-                btn.textContent = `CAM ${i + 1}`;
-                btn.dataset.cameraId = `cam${i}`;
-                btn.addEventListener('touchstart', (e) => {
-                    e.preventDefault();
-                    btn.style.transform = 'scale(0.95)';
+            
+            queue.forEach((item, index) => {
+                const queueItem = document.createElement('div');
+                queueItem.className = 'queue-item';
+                queueItem.draggable = true;
+                queueItem.dataset.queueIndex = index;
+                queueItem.dataset.dragData = JSON.stringify({ type: 'queue-item', index });
+                queueItem.innerHTML = `
+                    <div class="queue-item-info">
+                        <div class="queue-item-name">${item.scene_id}</div>
+                        <div class="queue-item-meta">${item.duration}s • ${item.transition}</div>
+                    </div>
+                    <button class="btn btn-danger btn-sm" onclick="removeFromQueue(${index})" style="padding: 4px 8px; font-size: 10px;">×</button>
+                `;
+                queueItem.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', queueItem.dataset.dragData);
+                    queueItem.classList.add('dragging');
                 });
-                btn.addEventListener('touchend', (e) => {
-                    e.preventDefault();
-                    btn.style.transform = '';
-                });
-                container.appendChild(btn);
+                queueItem.addEventListener('dragend', handleDragEnd);
+                list.appendChild(queueItem);
+            });
+        }
+
+        async function removeFromQueue(index) {
+            try {
+                const response = await fetch(`${API_BASE}/api/queue/${index}`, { method: 'DELETE' });
+                if (response.ok) {
+                    await loadQueue();
+                }
+            } catch (error) {
+                console.error('Failed to remove from queue:', error);
             }
         }
 
-        // Initialize on load
-        window.addEventListener('load', () => {
-            init();
-            initCameraControls();
-        });
-        
-        // Ensure HLS is available
-        if (typeof Hls === 'undefined') {
-            console.warn('HLS.js not loaded, HLS playback may not work');
+        async function addToQueue(sceneId, duration, transition) {
+            try {
+                const response = await fetch(`${API_BASE}/api/queue`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ scene_id: sceneId, duration, transition })
+                });
+                if (response.ok) {
+                    await loadQueue();
+                }
+            } catch (error) {
+                console.error('Failed to add to queue:', error);
+            }
         }
+
+        // File management
+        async function loadFiles() {
+            try {
+                const response = await fetch(`${API_BASE}/api/files`);
+                if (response.ok) {
+                    const data = await response.json();
+                    renderFiles(data.files || []);
+                }
+            } catch (error) {
+                console.error('Failed to load files:', error);
+            }
+        }
+
+        function renderFiles(files) {
+            const grid = document.getElementById('filesList');
+            if (!grid) return;
+            grid.innerHTML = '';
+            
+            if (files.length === 0) {
+                grid.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: var(--spacing-lg); grid-column: 1 / -1;">No files uploaded</div>';
+                return;
+            }
+            
+            files.forEach(file => {
+                const item = document.createElement('div');
+                item.className = 'file-item draggable';
+                item.draggable = true;
+                item.dataset.fileId = file.id;
+                item.dataset.dragData = JSON.stringify({ type: 'file', fileId: file.id, fileName: file.file_path.split('/').pop() });
+                item.innerHTML = `
+                    <div style="font-size: 10px; padding: var(--spacing-sm); text-align: center;">
+                        ${file.file_path.split('/').pop()}
+                        <div style="font-size: 9px; color: var(--text-muted); margin-top: 4px;">
+                            ${file.file_type}
+                        </div>
+                    </div>
+                `;
+                item.addEventListener('dragstart', handleDragStart);
+                item.addEventListener('dragend', handleDragEnd);
+                item.addEventListener('click', () => {
+                    if (confirm('Delete this file?')) {
+                        deleteFile(file.id);
+                    }
+                });
+                grid.appendChild(item);
+            });
+        }
+
+        async function deleteFile(fileId) {
+            try {
+                const response = await fetch(`${API_BASE}/api/files/${fileId}`, { method: 'DELETE' });
+                if (response.ok) {
+                    await loadFiles();
+                }
+            } catch (error) {
+                console.error('Failed to delete file:', error);
+            }
+        }
+
+        // Lower third creation
+        async function createLowerThird() {
+            const line1 = document.getElementById('lowerThirdLine1').value;
+            const line2 = document.getElementById('lowerThirdLine2').value;
+            if (!line1) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/graphics/lower_third`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        source_id: `lower_third_${Date.now()}`,
+                        line1,
+                        line2
+                    })
+                });
+                if (response.ok) {
+                    alert('Lower third created');
+                }
+            } catch (error) {
+                console.error('Failed to create lower third:', error);
+            }
+        }
+
+        // Status polling
+        function startStatusPolling() {
+            setInterval(checkMixerStatus, 2000);
+            setInterval(updateAudioLevels, 100);
+        }
+
+        function updateAudioLevels() {
+            // Simulate audio levels
+            for (let i = 0; i < 4; i++) {
+                const level = document.getElementById(`audio-${i}-level`);
+                if (level) {
+                    const height = Math.random() * 80;
+                    level.style.height = `${height}%`;
+                }
+            }
+        }
+
+        function showError(message) {
+            console.error(message);
+            // Could show a toast notification here
+        }
+
+        // Scene Editor Functions
+        function selectBox(boxNumber) {
+            selectedBox = boxNumber;
+            document.querySelectorAll('.box-selector-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelector(`[data-box="${boxNumber}"]`)?.classList.add('active');
+        }
+
+        function assignInput(inputId) {
+            boxMappings[selectedBox] = inputId === 'none' ? null : inputId;
+            document.querySelectorAll('.input-selector-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelector(`[data-input="${inputId}"]`)?.classList.add('active');
+        }
+
+        function switchPresetTab(tab) {
+            document.querySelectorAll('.preset-tab').forEach(t => t.classList.remove('active'));
+            document.querySelector(`[data-tab="${tab}"]`)?.classList.add('active');
+            loadPresets(tab);
+        }
+
+        async function loadPresets(type) {
+            const grid = document.getElementById('presetGrid');
+            if (!grid) return;
+            grid.innerHTML = '';
+            
+            // Load preset scenes based on type
+            const presetScenes = {
+                presets: ['quad', 'two_up', 'cam0_full', 'cam1_full'],
+                art: [],
+                copy: []
+            };
+            
+            const scenesToShow = presetScenes[type] || [];
+            scenesToShow.forEach(sceneId => {
+                const scene = scenes.find(s => s.id === sceneId);
+                if (scene) {
+                    const thumb = document.createElement('div');
+                    thumb.className = 'preset-thumbnail';
+                    thumb.innerHTML = `<div class="preset-thumbnail-label">${scene.label || scene.id}</div>`;
+                    thumb.addEventListener('click', () => {
+                        applyToPreview(sceneId);
+                        closePanel();
+                    });
+                    grid.appendChild(thumb);
+                }
+            });
+        }
+
+        async function saveScene() {
+            if (!editingScene) return;
+            try {
+                const response = await fetch(`${API_BASE}/api/scenes`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(editingScene)
+                });
+                if (response.ok) {
+                    await loadScenes();
+                    editingScene = null;
+                    document.getElementById('saveSceneBtn').style.display = 'none';
+                    document.getElementById('cancelSceneBtn').style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Failed to save scene:', error);
+            }
+        }
+
+        // Audio functions
+        function toggleMute(channel) {
+            const btn = document.getElementById(`audio-mute-${channel}`);
+            btn.classList.toggle('active');
+        }
+
+        function toggleSolo(channel) {
+            const btn = document.getElementById(`audio-solo-${channel}`);
+            btn.classList.toggle('active');
+        }
+
+        // Graphics templates
+        async function loadGraphicsTemplates() {
+            try {
+                const response = await fetch(`${API_BASE}/api/graphics/templates?template_type=lower_third`);
+                if (response.ok) {
+                    const data = await response.json();
+                    renderGraphicsTemplates(data.templates || []);
+                }
+            } catch (error) {
+                console.error('Failed to load graphics templates:', error);
+            }
+        }
+
+        function renderGraphicsTemplates(templates) {
+            const grid = document.getElementById('graphicsTemplates');
+            if (!grid) return;
+            grid.innerHTML = '';
+            
+            templates.forEach(template => {
+                const item = document.createElement('div');
+                item.className = 'template-item';
+                item.innerHTML = `<div style="padding: var(--spacing-sm); font-size: 10px; text-align: center;">${template.name}</div>`;
+                item.addEventListener('click', () => {
+                    // Apply template
+                    console.log('Apply template:', template.id);
+                });
+                grid.appendChild(item);
+            });
+        }
+
+        // Make functions globally accessible
+        window.removeFromQueue = removeFromQueue;
+        window.selectBox = selectBox;
+        window.assignInput = assignInput;
+        window.switchPresetTab = switchPresetTab;
+        window.toggleMute = toggleMute;
+        window.toggleSolo = toggleSolo;
+
+        // Initialize on load
+        window.addEventListener('load', init);
+        
+        // Cleanup on unload
+        window.addEventListener('beforeunload', () => {
+            Object.values(hlsInstances).forEach(hls => {
+                if (hls && hls.destroy) hls.destroy();
+            });
+        });
     </script>
 </body>
 </html>
-
