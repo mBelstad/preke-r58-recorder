@@ -1,12 +1,14 @@
 #!/bin/bash
 # Deployment script for R58 recorder
 # Usage: ./deploy.sh [r58_host] [r58_user]
+# Optional: export R58_PASSWORD='your-password' to force sshpass-based auth
 
 set -e
 
 # Configuration
 R58_HOST="${1:-r58.local}"
 R58_USER="${2:-root}"
+R58_PASSWORD="${R58_PASSWORD:-}"
 REMOTE_DIR="/opt/preke-r58-recorder"
 SERVICE_NAME="preke-recorder.service"
 
@@ -22,7 +24,16 @@ fi
 
 # Deploy to R58
 echo "Connecting to ${R58_USER}@${R58_HOST}..."
-ssh "${R58_USER}@${R58_HOST}" << EOF
+SSH_CMD=(ssh)
+if [ -n "${R58_PASSWORD}" ]; then
+    if ! command -v sshpass >/dev/null 2>&1; then
+        echo "Error: sshpass is required for password deployments. Install it or set up SSH keys."
+        exit 1
+    fi
+    SSH_CMD=(sshpass -p "${R58_PASSWORD}" ssh -o StrictHostKeyChecking=no)
+fi
+
+"${SSH_CMD[@]}" "${R58_USER}@${R58_HOST}" << EOF
     set -e
     
     # Create directory if it doesn't exist

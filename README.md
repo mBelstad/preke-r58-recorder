@@ -119,6 +119,8 @@ cameras:
 Use the `deploy.sh` script to deploy from macOS to R58:
 
 ```bash
+# if the device requires password auth, export it once per shell
+export R58_PASSWORD=linaro
 ./deploy.sh [r58_host] [r58_user]
 ```
 
