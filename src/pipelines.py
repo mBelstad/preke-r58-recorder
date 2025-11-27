@@ -152,21 +152,44 @@ def build_r58_pipeline(
         stream_path = mediamtx_path.split("/")[-1] if "/" in mediamtx_path else cam_id
         rtmp_url = f"rtmp://127.0.0.1:1935/{stream_path}"
         
-        pipeline_str = (
-            f"{source_str} ! "
-            f"timeoverlay ! "
-            f"{encoder_str} ! "
-            f"{caps_str} ! "
-            f"tee name=t ! "
-            f"queue max-size-buffers=0 max-size-time=0 max-size-bytes=0 ! "
-            f"{parse_str} ! "
-            f"{mux_str} ! "
-            f"filesink location={output_path} "
-            f"t. ! "
-            f"queue max-size-buffers=0 max-size-time=0 max-size-bytes=0 ! "
-            f"flvmux streamable=true ! "
-            f"rtmpsink location={rtmp_url}"
-        )
+        if codec == "h265":
+            # H.265 recording but H.264 streaming (flvmux doesn't support H.265)
+            # Use tee after source, encode separately for recording and streaming
+            pipeline_str = (
+                f"{source_str} ! "
+                f"timeoverlay ! "
+                f"tee name=source_tee ! "
+                f"queue max-size-buffers=0 max-size-time=0 max-size-bytes=0 ! "
+                f"{encoder_str} ! "
+                f"{caps_str} ! "
+                f"{parse_str} ! "
+                f"{mux_str} ! "
+                f"filesink location={output_path} "
+                f"source_tee. ! "
+                f"queue max-size-buffers=0 max-size-time=0 max-size-bytes=0 ! "
+                f"x264enc tune=zerolatency bitrate={bitrate} speed-preset=superfast ! "
+                f"video/x-h264 ! "
+                f"h264parse ! "
+                f"flvmux streamable=true ! "
+                f"rtmpsink location={rtmp_url}"
+            )
+        else:
+            # H.264 for both recording and streaming
+            pipeline_str = (
+                f"{source_str} ! "
+                f"timeoverlay ! "
+                f"{encoder_str} ! "
+                f"{caps_str} ! "
+                f"tee name=t ! "
+                f"queue max-size-buffers=0 max-size-time=0 max-size-bytes=0 ! "
+                f"{parse_str} ! "
+                f"{mux_str} ! "
+                f"filesink location={output_path} "
+                f"t. ! "
+                f"queue max-size-buffers=0 max-size-time=0 max-size-bytes=0 ! "
+                f"flvmux streamable=true ! "
+                f"rtmpsink location={rtmp_url}"
+            )
     else:
         # Recording only - no streaming
         pipeline_str = (
