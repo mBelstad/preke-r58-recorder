@@ -10,8 +10,8 @@
   - When encountering “No signal,” check `sudo lsof /dev/video60`, `journalctl -u preke-recorder.service`, and MediaMTX logs for `TRY_FMT` or “no one is publishing” hints.
   - Cameras under test: 3× Blackmagic Design Studio Camera 4K Plus G2/Pro over HDMI (HD format). Ensure they output supported modes (1080p59.94/60).
 - **Verification**:
-  - `curl http://192.168.1.25:8000/preview/start-all` — all cameras report `preview`.
-  - `curl http://192.168.1.25:8888/cam0_preview/index.m3u8` (and cam1–3) — manifests now served.
-  - Manual gst-launch NV16 test confirmed MediaMTX logging `is publishing to path 'cam0_preview'`.
+  - `curl http://192.168.1.25:8000/preview/start-all` — API reports every camera in `preview`; only HDMI `/dev/video60` (cam0) currently has an active signal because the other inputs aren’t populated yet.
+  - `curl http://192.168.1.25:8888/cam0_preview/index.m3u8` returns HTTP 200 and a multi-variant playlist.
+  - Manual `gst-launch-1.0 … format=NV16 … rtmpsink … cam0_preview` confirmed MediaMTX logging `is publishing to path 'cam0_preview'`.
 
 
