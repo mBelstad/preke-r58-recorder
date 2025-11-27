@@ -61,6 +61,7 @@
 - **Documentation**:
   - Updated `docs/environment.md` with correct HDMI port mappings and architecture
   - Updated `docs/fix-log.md` with corrected findings
+  - Created `docs/hdmi-port-mapping.md` with comprehensive port mapping reference
   - All four HDMI inputs now documented and supported
 
 
