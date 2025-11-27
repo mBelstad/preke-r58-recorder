@@ -54,6 +54,33 @@ class PreviewManager:
 
         cam_config: CameraConfig = self.config.cameras[cam_id]
 
+        # Check if device has an active signal before starting preview
+        # This prevents starting pipelines that won't produce any frames
+        try:
+            import subprocess
+            result = subprocess.run(
+                ["v4l2-ctl", "-d", cam_config.device, "--get-fmt-video"],
+                capture_output=True,
+                text=True,
+                timeout=2
+            )
+            # Check if resolution is non-zero (has signal)
+            if result.returncode == 0:
+                output = result.stdout
+                # Look for width/height in output
+                if "Width/Height" in output:
+                    import re
+                    match = re.search(r'Width/Height\s+:\s+(\d+)/(\d+)', output)
+                    if match:
+                        width, height = int(match.group(1)), int(match.group(2))
+                        if width == 0 or height == 0:
+                            logger.warning(f"Camera {cam_id} ({cam_config.device}) has no signal (0x0 resolution), skipping preview")
+                            self.preview_states[cam_id] = "no_signal"
+                            return False
+        except Exception as e:
+            logger.debug(f"Could not check signal for {cam_id}: {e}")
+            # Continue anyway - device might not support the query
+
         # Build MediaMTX path for preview
         preview_path = None
         if self.config.mediamtx.enabled:
