@@ -142,12 +142,28 @@ class PreviewManager:
             err, debug = message.parse_error()
             logger.error(f"Preview pipeline error for {cam_id}: {err.message} - {debug}")
             self.preview_states[cam_id] = "error"
+            # Try to clean up the failed pipeline
+            if cam_id in self.preview_pipelines:
+                try:
+                    pipeline = self.preview_pipelines[cam_id]
+                    pipeline.set_state(Gst.State.NULL)
+                    del self.preview_pipelines[cam_id]
+                except:
+                    pass
+        elif message.type == Gst.MessageType.WARNING:
+            warn, debug = message.parse_warning()
+            logger.warning(f"Preview pipeline warning for {cam_id}: {warn.message} - {debug}")
         elif message.type == Gst.MessageType.STATE_CHANGED:
             if message.src == self.preview_pipelines.get(cam_id):
                 old_state, new_state, pending_state = message.parse_state_changed()
                 logger.debug(
                     f"Preview state changed for {cam_id}: {old_state.value_nick} -> {new_state.value_nick}"
                 )
+                # If pipeline failed to start, mark as error
+                if new_state == Gst.State.NULL and old_state != Gst.State.NULL:
+                    if self.preview_states.get(cam_id) == "preview":
+                        logger.warning(f"Preview pipeline for {cam_id} stopped unexpectedly")
+                        self.preview_states[cam_id] = "error"
 
     def get_preview_status(self) -> Dict[str, str]:
         """Get preview status for all cameras."""
