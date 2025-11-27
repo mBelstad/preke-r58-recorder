@@ -22,36 +22,42 @@ sudo apt-get install -y python3-gi gobject-introspection libgirepository1.0-dev
 
 ### HDMI Inputs
 
-**CRITICAL FINDING**: The RK3588 SoC has only **ONE** HDMI RX controller in hardware.
+**R58 4x4 3S has FOUR dedicated HDMI input ports**, each labeled on the device:
+- **HDMI N0** → `/dev/video0` (rkcif-mipi-lvds via LT6911 bridge)
+- **HDMI N60** → `/dev/video60` (hdmirx direct controller)
+- **HDMI N11** → `/dev/video11` (rkcif-mipi-lvds1 via LT6911 bridge)
+- **HDMI N21** → `/dev/video21` (rkcif-mipi-lvds1 via LT6911 bridge)
 
-- **Single HDMI RX Controller**: `/dev/video60`
-  - Device name: `stream_hdmirx`
-  - Controller: `fdee0000.hdmirx-controller`
+**Hardware Architecture**:
+- The RK3588 SoC has **ONE** direct HDMI RX controller (`fdee0000.hdmirx-controller` → `/dev/video60`)
+- **Three additional HDMI inputs** use **LT6911UXE HDMI-to-MIPI bridge chips** that convert HDMI signals to MIPI CSI and feed into `rkcif` capture devices
+- LT6911 bridges are on I2C buses: `2-002b`, `4-002b`, `7-002b`
+- All four HDMI inputs support up to 4K@60Hz as advertised
+
+**Device Details**:
+- **HDMI N60** (`/dev/video60`):
+  - Direct hdmirx controller
   - Format: NV16 (4:2:2) at 1080p 60fps
+  - Device name: `stream_hdmirx`
   - Symlink: `/dev/v4l/by-path/platform-fdee0000.hdmirx-controller-video-index0`
-  - **This is the ONLY built-in HDMI input available**
 
-**Important**: The "4x 4K 60p" marketing claim does NOT mean 4 separate HDMI inputs. It likely refers to:
-- 4K 60p recording capability (not 4 inputs)
-- 4 simultaneous recording streams (requires external capture devices)
-- 4K resolution support (not 4 inputs)
+- **HDMI N0, N11, N21** (`/dev/video0`, `/dev/video11`, `/dev/video21`):
+  - rkcif devices receiving HDMI via LT6911 bridges
+  - Format: NV16 (4:2:2) for video0 and video11, format negotiation for video21
+  - Device names: `stream_cif_mipi_id0` (video0), `rkcif` (video11/video21)
+  - Support same resolutions as direct hdmirx
+
+**Configuration**:
+- All four HDMI inputs are configured in `config.yml`:
+  - `cam0`: `/dev/video0` (HDMI N0)
+  - `cam1`: `/dev/video60` (HDMI N60)
+  - `cam2`: `/dev/video11` (HDMI N11)
+  - `cam3`: `/dev/video21` (HDMI N21)
 
 ### Other Video Devices
 
-- `/dev/video0-32`: `rkcif-mipi-lvds*` capture blocks (CSI/MIPI). They are unused until sensors are connected, so referencing them in config will not yield a signal.
+- `/dev/video1-10, video12-20, video22-32`: Additional `rkcif-mipi-lvds*` capture blocks (CSI/MIPI). Available for MIPI camera modules if needed.
 - `/dev/video33-59`: ISP virtual paths; not required for HDMI ingest unless we later chain through rkisp processing.
-
-### USB Capture Devices (For Additional HDMI Inputs)
-
-To achieve 4 simultaneous HDMI inputs, you need **USB 3.0 HDMI capture devices**:
-- Connect USB capture devices (e.g., Elgato Cam Link, Magewell USB Capture)
-- They will appear as additional `/dev/video*` devices
-- Use `src/device_detection.py` to identify USB capture devices
-- The pipeline code automatically handles USB devices differently from hdmirx
-
-**Limitations**:
-- USB 3.0 bandwidth may limit to 4K 30p or 1080p 60p per device
-- For true 4K 60p, consider PCIe capture cards (if PCIe slots available)
 
 ## Deployment Considerations
 

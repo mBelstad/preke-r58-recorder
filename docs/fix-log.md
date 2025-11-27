@@ -28,32 +28,39 @@
 ## 2025-11-27 — Hardware Investigation: Four Camera Support
 
 - **Investigation**: Attempted to enable all four HDMI inputs as advertised in "4x 4K 60p" marketing.
-- **Finding**: The RK3588 SoC has only **ONE** HDMI RX controller in hardware (`fdee0000.hdmirx-controller` → `/dev/video60`). The "4x 4K 60p" claim does NOT mean 4 separate HDMI inputs.
-- **Hardware Reality**:
-  - Single HDMI RX: `/dev/video60` (rk_hdmirx) - only built-in HDMI input
-  - HDMI TX: `fde80000.hdmi` (display output, not capture)
-  - MIPI/CSI: `/dev/video0-32` (require camera modules, not HDMI)
-  - ISP virtual: `/dev/video33-59` (image processing, not capture)
+- **Finding**: The R58 4x4 3S **DOES have four dedicated HDMI input ports**, but uses a hybrid architecture:
+  - **One direct HDMI RX controller**: `fdee0000.hdmirx-controller` → `/dev/video60` (HDMI N60)
+  - **Three HDMI inputs via LT6911UXE bridges**: HDMI-to-MIPI converters feeding into rkcif devices
+    - HDMI N0 → `/dev/video0` (rkcif-mipi-lvds via LT6911 bridge on I2C 7-002b)
+    - HDMI N11 → `/dev/video11` (rkcif-mipi-lvds1 via LT6911 bridge on I2C 4-002b)
+    - HDMI N21 → `/dev/video21` (rkcif-mipi-lvds1 via LT6911 bridge on I2C 2-002b)
+- **Hardware Architecture**:
+  - RK3588 SoC has one direct HDMI RX controller in silicon
+  - Three LT6911UXE HDMI-to-MIPI bridge chips convert HDMI signals to MIPI CSI
+  - Bridge outputs feed into Rockchip CIF (Camera Interface) devices
+  - All four inputs support up to 4K@60Hz as advertised
 - **Solution Implemented**:
-  - Created `src/device_detection.py` to identify device types (hdmirx, usb, mipi, isp)
-  - Updated `src/pipelines.py` to handle USB capture devices differently from hdmirx
-  - USB devices use format negotiation (let v4l2src auto-detect) vs. hdmirx which requires NV16
-  - Added device detection utilities for automatic camera mapping
-- **Recommendations for 4-Camera Setup**:
-  - **Option 1 (Recommended)**: Use USB 3.0 HDMI capture devices for cam1-3
-    - Connect 3 additional USB capture devices
-    - They will appear as `/dev/video*` devices
-    - Code automatically detects and handles USB devices
-    - Limitations: USB 3.0 may limit to 4K 30p or 1080p 60p per device
-  - **Option 2**: Use PCIe HDMI capture cards (if slots available)
-    - Higher bandwidth than USB
-    - Requires kernel drivers for specific cards
-  - **Option 3**: Use MIPI camera modules (if HDMI not required)
-    - Connect to CSI interfaces
-    - Use `/dev/video0-32` for MIPI cameras
+  - Created `src/device_detection.py` with `hdmi_rkcif` device type for HDMI inputs via bridges
+  - Added `get_hdmi_port_mapping()` function mapping port labels to device nodes
+  - Updated `src/pipelines.py` to handle `hdmi_rkcif` devices with NV16 format (like hdmirx)
+  - Updated `config.yml` with correct device mappings for all four HDMI ports:
+    - cam0: `/dev/video0` (HDMI N0)
+    - cam1: `/dev/video60` (HDMI N60)
+    - cam2: `/dev/video11` (HDMI N11)
+    - cam3: `/dev/video21` (HDMI N21)
+  - All four cameras now configured and ready for simultaneous recording
+- **Format Handling**:
+  - Direct hdmirx (`/dev/video60`): NV16 format at 60fps
+  - rkcif via bridges (`/dev/video0`, `/dev/video11`): NV16 format at 30fps
+  - rkcif via bridges (`/dev/video21`): Format negotiation (may differ)
+  - All converted to NV12 for encoding
+- **Verification**:
+  - Device detection correctly identifies all four HDMI inputs
+  - Pipeline code handles both hdmirx and hdmi_rkcif device types
+  - Configuration updated and service restarted successfully
 - **Documentation**:
-  - Created `docs/hardware-investigation.md` with detailed findings
-  - Updated `docs/environment.md` with hardware limitations
-  - Device detection utilities ready for USB device testing
+  - Updated `docs/environment.md` with correct HDMI port mappings and architecture
+  - Updated `docs/fix-log.md` with corrected findings
+  - All four HDMI inputs now documented and supported
 
 
