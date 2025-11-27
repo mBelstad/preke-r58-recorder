@@ -96,15 +96,27 @@ def build_r58_pipeline(
                 f"video/x-raw,width={width},height={height},format=NV12"
             )
         else:
-            # video0 and video11: Try NV16 first, but allow negotiation if no signal
+            # video0 and video11: Handle format negotiation
+            # video0 may have issues with io-mode=mmap, try without it first
             # Use do-timestamp=false to avoid issues when no frames are available
-            source_str = (
-                f"v4l2src device={device} io-mode=mmap do-timestamp=false ! "
-                f"video/x-raw ! "  # Let v4l2src negotiate format (handles no-signal case)
-                f"videoconvert ! "
-                f"videoscale ! "
-                f"video/x-raw,width={width},height={height},format=NV12"
-            )
+            if "video0" in device:
+                # video0: Don't force io-mode=mmap, let v4l2src choose
+                source_str = (
+                    f"v4l2src device={device} do-timestamp=false ! "
+                    f"video/x-raw ! "  # Let v4l2src negotiate format
+                    f"videoconvert ! "
+                    f"videoscale ! "
+                    f"video/x-raw,width={width},height={height},format=NV12"
+                )
+            else:
+                # video11: Use io-mode=mmap for better performance
+                source_str = (
+                    f"v4l2src device={device} io-mode=mmap do-timestamp=false ! "
+                    f"video/x-raw ! "  # Let v4l2src negotiate format (handles no-signal case)
+                    f"videoconvert ! "
+                    f"videoscale ! "
+                    f"video/x-raw,width={width},height={height},format=NV12"
+                )
     elif device_type == "usb":
         # USB capture devices: typically use different formats, let v4l2src negotiate
         # USB devices may have different framerates, so we use videorate to normalize
@@ -283,15 +295,28 @@ def build_r58_preview_pipeline(
                 f"video/x-raw,width={width},height={height},format=NV12"
             )
         else:
-            # video0 and video11: Try NV16 first, but allow negotiation if no signal
-            source_str = (
-                f"v4l2src device={device} io-mode=mmap do-timestamp=false ! "
-                f"video/x-raw ! "  # Let v4l2src negotiate format (handles no-signal case)
-                f"videorate ! video/x-raw,framerate=30/1 ! "
-                f"videoconvert ! "
-                f"videoscale ! "
-                f"video/x-raw,width={width},height={height},format=NV12"
-            )
+            # video0 and video11: Handle format negotiation for preview
+            # video0 may have issues with io-mode=mmap, try without it first
+            if "video0" in device:
+                # video0: Don't force io-mode=mmap, let v4l2src choose
+                source_str = (
+                    f"v4l2src device={device} do-timestamp=false ! "
+                    f"video/x-raw ! "  # Let v4l2src negotiate format
+                    f"videorate ! video/x-raw,framerate=30/1 ! "
+                    f"videoconvert ! "
+                    f"videoscale ! "
+                    f"video/x-raw,width={width},height={height},format=NV12"
+                )
+            else:
+                # video11: Use io-mode=mmap for better performance
+                source_str = (
+                    f"v4l2src device={device} io-mode=mmap do-timestamp=false ! "
+                    f"video/x-raw ! "  # Let v4l2src negotiate format (handles no-signal case)
+                    f"videorate ! video/x-raw,framerate=30/1 ! "
+                    f"videoconvert ! "
+                    f"videoscale ! "
+                    f"video/x-raw,width={width},height={height},format=NV12"
+                )
     elif device_type == "usb":
         # USB capture devices: let v4l2src negotiate format, then normalize framerate
         source_str = (
