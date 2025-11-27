@@ -25,4 +25,35 @@
 - **Manual gst-launch leftovers**: Any foreground `gst-launch-1.0 v4l2src device=/dev/video60 …` holds the device and causes `TRY_FMT` failures for the recorder. Always Ctrl+C such tests.
 - **Passworded SSH deploys**: `deploy.sh` now respects `R58_PASSWORD`, but deployments will still fail unless `sshpass` is available locally or SSH keys are configured.
 
+## 2025-11-27 — Hardware Investigation: Four Camera Support
+
+- **Investigation**: Attempted to enable all four HDMI inputs as advertised in "4x 4K 60p" marketing.
+- **Finding**: The RK3588 SoC has only **ONE** HDMI RX controller in hardware (`fdee0000.hdmirx-controller` → `/dev/video60`). The "4x 4K 60p" claim does NOT mean 4 separate HDMI inputs.
+- **Hardware Reality**:
+  - Single HDMI RX: `/dev/video60` (rk_hdmirx) - only built-in HDMI input
+  - HDMI TX: `fde80000.hdmi` (display output, not capture)
+  - MIPI/CSI: `/dev/video0-32` (require camera modules, not HDMI)
+  - ISP virtual: `/dev/video33-59` (image processing, not capture)
+- **Solution Implemented**:
+  - Created `src/device_detection.py` to identify device types (hdmirx, usb, mipi, isp)
+  - Updated `src/pipelines.py` to handle USB capture devices differently from hdmirx
+  - USB devices use format negotiation (let v4l2src auto-detect) vs. hdmirx which requires NV16
+  - Added device detection utilities for automatic camera mapping
+- **Recommendations for 4-Camera Setup**:
+  - **Option 1 (Recommended)**: Use USB 3.0 HDMI capture devices for cam1-3
+    - Connect 3 additional USB capture devices
+    - They will appear as `/dev/video*` devices
+    - Code automatically detects and handles USB devices
+    - Limitations: USB 3.0 may limit to 4K 30p or 1080p 60p per device
+  - **Option 2**: Use PCIe HDMI capture cards (if slots available)
+    - Higher bandwidth than USB
+    - Requires kernel drivers for specific cards
+  - **Option 3**: Use MIPI camera modules (if HDMI not required)
+    - Connect to CSI interfaces
+    - Use `/dev/video0-32` for MIPI cameras
+- **Documentation**:
+  - Created `docs/hardware-investigation.md` with detailed findings
+  - Updated `docs/environment.md` with hardware limitations
+  - Device detection utilities ready for USB device testing
+
 

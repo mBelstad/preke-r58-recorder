@@ -20,9 +20,38 @@ sudo apt-get install -y python3-gi gobject-introspection libgirepository1.0-dev
 
 ## Video Device Overview
 
-- HDMI receiver: `/dev/video60`, symlinked from `/dev/v4l/by-path/platform-fdee0000.hdmirx-controller-video-index0`. This is currently the only tested HDMI input (cam0).
+### HDMI Inputs
+
+**CRITICAL FINDING**: The RK3588 SoC has only **ONE** HDMI RX controller in hardware.
+
+- **Single HDMI RX Controller**: `/dev/video60`
+  - Device name: `stream_hdmirx`
+  - Controller: `fdee0000.hdmirx-controller`
+  - Format: NV16 (4:2:2) at 1080p 60fps
+  - Symlink: `/dev/v4l/by-path/platform-fdee0000.hdmirx-controller-video-index0`
+  - **This is the ONLY built-in HDMI input available**
+
+**Important**: The "4x 4K 60p" marketing claim does NOT mean 4 separate HDMI inputs. It likely refers to:
+- 4K 60p recording capability (not 4 inputs)
+- 4 simultaneous recording streams (requires external capture devices)
+- 4K resolution support (not 4 inputs)
+
+### Other Video Devices
+
 - `/dev/video0-32`: `rkcif-mipi-lvds*` capture blocks (CSI/MIPI). They are unused until sensors are connected, so referencing them in config will not yield a signal.
 - `/dev/video33-59`: ISP virtual paths; not required for HDMI ingest unless we later chain through rkisp processing.
+
+### USB Capture Devices (For Additional HDMI Inputs)
+
+To achieve 4 simultaneous HDMI inputs, you need **USB 3.0 HDMI capture devices**:
+- Connect USB capture devices (e.g., Elgato Cam Link, Magewell USB Capture)
+- They will appear as additional `/dev/video*` devices
+- Use `src/device_detection.py` to identify USB capture devices
+- The pipeline code automatically handles USB devices differently from hdmirx
+
+**Limitations**:
+- USB 3.0 bandwidth may limit to 4K 30p or 1080p 60p per device
+- For true 4K 60p, consider PCIe capture cards (if PCIe slots available)
 
 ## Deployment Considerations
 

@@ -62,20 +62,45 @@ def build_r58_pipeline(
     """Build a real hardware-accelerated pipeline for R58."""
     width, height = resolution.split("x")
 
-    # Video source for HDMI (rk_hdmirx) - must use io-mode=mmap and handle NV24 format
-    # HDMI device is /dev/video60 with NV24 format (YUV 4:4:4)
-    # Must convert NV24 before encoding - always use videoconvert
-    if "video60" in device or "hdmirx" in device.lower():
+    # Video source detection and pipeline setup
+    # Import device detection (lazy import to avoid circular dependencies)
+    try:
+        from .device_detection import detect_device_type
+        device_type = detect_device_type(device)
+    except ImportError:
+        # Fallback to simple detection
+        device_type = "hdmirx" if ("video60" in device or "hdmirx" in device.lower()) else "unknown"
+    
+    if device_type == "hdmirx":
         # HDMI input: RK hdmirx currently exposes NV16 (4:2:2); convert to NV12 for encoders
+        # Must use io-mode=mmap for hdmirx
         source_str = (
             f"v4l2src device={device} io-mode=mmap ! "
             f"video/x-raw,format=NV16,width={width},height={height},framerate=60/1 ! "
             f"videoconvert ! "
             f"video/x-raw,format=NV12"
         )
+    elif device_type == "usb":
+        # USB capture devices: typically use different formats, let v4l2src negotiate
+        # USB devices may have different framerates, so we use videorate to normalize
+        source_str = (
+            f"v4l2src device={device} ! "
+            f"video/x-raw ! "
+            f"videorate ! video/x-raw,framerate=30/1 ! "
+            f"videoconvert ! "
+            f"videoscale ! "
+            f"video/x-raw,width={width},height={height},format=NV12"
+        )
     else:
         # For other video devices (MIPI cameras, etc.)
-        source_str = f"v4l2src device={device} ! videoconvert ! videoscale ! video/x-raw,width={width},height={height}"
+        # Let v4l2src negotiate format, then convert and scale
+        source_str = (
+            f"v4l2src device={device} ! "
+            f"video/x-raw ! "
+            f"videoconvert ! "
+            f"videoscale ! "
+            f"video/x-raw,width={width},height={height},format=NV12"
+        )
 
     # Hardware encoder selection
     if codec == "h265":
@@ -179,7 +204,15 @@ def build_r58_preview_pipeline(
     width, height = resolution.split("x")
 
     # Video source - use 30fps for preview to reduce encoding latency
-    if "video60" in device or "hdmirx" in device.lower():
+    # Import device detection (lazy import to avoid circular dependencies)
+    try:
+        from .device_detection import detect_device_type
+        device_type = detect_device_type(device)
+    except ImportError:
+        # Fallback to simple detection
+        device_type = "hdmirx" if ("video60" in device or "hdmirx" in device.lower()) else "unknown"
+    
+    if device_type == "hdmirx":
         source_str = (
             f"v4l2src device={device} io-mode=mmap ! "
             f"video/x-raw,format=NV16,width={width},height={height},framerate=60/1 ! "
@@ -187,8 +220,24 @@ def build_r58_preview_pipeline(
             f"videoconvert ! "
             f"video/x-raw,format=NV12"
         )
+    elif device_type == "usb":
+        # USB capture devices: let v4l2src negotiate format, then normalize framerate
+        source_str = (
+            f"v4l2src device={device} ! "
+            f"video/x-raw ! "
+            f"videorate ! video/x-raw,framerate=30/1 ! "
+            f"videoconvert ! "
+            f"videoscale ! "
+            f"video/x-raw,width={width},height={height},format=NV12"
+        )
     else:
-        source_str = f"v4l2src device={device} ! videoconvert ! videoscale ! video/x-raw,width={width},height={height},framerate=30/1"
+        source_str = (
+            f"v4l2src device={device} ! "
+            f"video/x-raw ! "
+            f"videoconvert ! "
+            f"videoscale ! "
+            f"video/x-raw,width={width},height={height},framerate=30/1,format=NV12"
+        )
 
     # Encoder - ALWAYS use H.264 for preview (flvmux doesn't support H.265)
     # Balanced settings: higher bitrate for quality, veryfast preset, optimized keyframes
