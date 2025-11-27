@@ -9,9 +9,20 @@
   - If you run manual `gst-launch` tests, stop them afterwards so `/dev/video60` isn’t held by a stray process.
   - When encountering “No signal,” check `sudo lsof /dev/video60`, `journalctl -u preke-recorder.service`, and MediaMTX logs for `TRY_FMT` or “no one is publishing” hints.
   - Cameras under test: 3× Blackmagic Design Studio Camera 4K Plus G2/Pro over HDMI (HD format). Ensure they output supported modes (1080p59.94/60).
+- **Current device map** (Debian 12 / kernel 6.1.99 on Mekotronics R58 4x4 3S):
+  - `/dev/video60` (`/dev/v4l/by-path/platform-fdee0000.hdmirx-controller-video-index0`) is the only active HDMI input (rk_hdmirx). This feeds `cam0`.
+  - `/dev/video0-32` belong to three `rkcif-mipi-lvds*` capture blocks. Nothing is presently wired there, so our `cam1-3` previews stay idle until hardware is connected.
+  - Additional ISP virtual nodes `/dev/video33-59` exist but are not required unless we use the MIPI sensors.
 - **Verification**:
   - `curl http://192.168.1.25:8000/preview/start-all` — API reports every camera in `preview`; only HDMI `/dev/video60` (cam0) currently has an active signal because the other inputs aren’t populated yet.
   - `curl http://192.168.1.25:8888/cam0_preview/index.m3u8` returns HTTP 200 and a multi-variant playlist.
   - Manual `gst-launch-1.0 … format=NV16 … rtmpsink … cam0_preview` confirmed MediaMTX logging `is publishing to path 'cam0_preview'`.
+
+### Hard stops to watch
+
+- **Single HDMI receiver exposed as `/dev/video60`**: Without external switching, only one HDMI program feed is available. Additional `/dev/video*` nodes are MIPI CSI interfaces that currently lack connected sensors; requesting them in config will hang pipelines.
+- **PyGObject via pip fails**: `pip install PyGObject` errors because `girepository-2.0.pc` isn’t shipped in the vendor image. Use Debian packages instead (`sudo apt install python3-gi gobject-introspection libgirepository1.0-dev`) and skip PyPI installs on-device.
+- **Manual gst-launch leftovers**: Any foreground `gst-launch-1.0 v4l2src device=/dev/video60 …` holds the device and causes `TRY_FMT` failures for the recorder. Always Ctrl+C such tests.
+- **Passworded SSH deploys**: `deploy.sh` now respects `R58_PASSWORD`, but deployments will still fail unless `sshpass` is available locally or SSH keys are configured.
 
 
