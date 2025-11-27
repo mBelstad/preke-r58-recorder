@@ -29,9 +29,14 @@ mixer:
   scenes_dir: scenes  # Directory for scene JSON files
 
 # Camera configurations
+# R58 4x4 3S HDMI port mappings:
+#   HDMI N0  → /dev/video0  (rkcif-mipi-lvds via LT6911 bridge)
+#   HDMI N60 → /dev/video60 (hdmirx direct)
+#   HDMI N11 → /dev/video11 (rkcif-mipi-lvds1 via LT6911 bridge)
+#   HDMI N21 → /dev/video21 (rkcif-mipi-lvds1 via LT6911 bridge)
 cameras:
   cam0:
-    device: /dev/video60  # HDMI-IN (rk_hdmirx)
+    device: /dev/video0  # HDMI N0 (rkcif via LT6911 bridge)
     resolution: 1920x1080
     bitrate: 5000
     codec: h264
@@ -40,29 +45,29 @@ cameras:
     mediamtx_path: null  # Auto-generated if null: rtsp://localhost:8554/cam0
 
   cam1:
-    device: /dev/video1
+    device: /dev/video60  # HDMI N60 (hdmirx direct)
     resolution: 1920x1080
     bitrate: 5000
     codec: h264
     output_path: /var/recordings/cam1/recording_%Y%m%d_%H%M%S.mp4
-    mediamtx_enabled: false
+    mediamtx_enabled: true
     mediamtx_path: null
 
   cam2:
-    device: /dev/video2
+    device: /dev/video11  # HDMI N11 (rkcif via LT6911 bridge)
     resolution: 1920x1080
     bitrate: 5000
     codec: h264
     output_path: /var/recordings/cam2/recording_%Y%m%d_%H%M%S.mp4
-    mediamtx_enabled: false
+    mediamtx_enabled: true
     mediamtx_path: null
 
   cam3:
-    device: /dev/video3
+    device: /dev/video21  # HDMI N21 (rkcif via LT6911 bridge)
     resolution: 1920x1080
     bitrate: 5000
     codec: h265
     output_path: /var/recordings/cam3/recording_%Y%m%d_%H%M%S.mp4
-    mediamtx_enabled: false
+    mediamtx_enabled: true
     mediamtx_path: null
 
