@@ -66,10 +66,10 @@ def build_r58_pipeline(
     # HDMI device is /dev/video60 with NV24 format (YUV 4:4:4)
     # Must convert NV24 before encoding - always use videoconvert
     if "video60" in device or "hdmirx" in device.lower():
-        # HDMI input: use NV24 format explicitly with framerate, then convert to NV12
+        # HDMI input: RK hdmirx currently exposes NV16 (4:2:2); convert to NV12 for encoders
         source_str = (
             f"v4l2src device={device} io-mode=mmap ! "
-            f"video/x-raw,format=NV24,width={width},height={height},framerate=60/1 ! "
+            f"video/x-raw,format=NV16,width={width},height={height},framerate=60/1 ! "
             f"videoconvert ! "
             f"video/x-raw,format=NV12"
         )
@@ -182,7 +182,7 @@ def build_r58_preview_pipeline(
     if "video60" in device or "hdmirx" in device.lower():
         source_str = (
             f"v4l2src device={device} io-mode=mmap ! "
-            f"video/x-raw,format=NV24,width={width},height={height},framerate=60/1 ! "
+            f"video/x-raw,format=NV16,width={width},height={height},framerate=60/1 ! "
             f"videorate ! video/x-raw,framerate=30/1 ! "
             f"videoconvert ! "
             f"video/x-raw,format=NV12"
