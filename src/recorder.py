@@ -119,9 +119,18 @@ class Recorder:
             logger.error(f"Camera {cam_id} not found")
             return False
 
+        # If already idle, consider it successful (idempotent operation)
         if self.states.get(cam_id) != "recording":
-            logger.warning(f"Camera {cam_id} is not recording")
-            return False
+            logger.debug(f"Camera {cam_id} is not recording (already idle)")
+            # Clean up any orphaned pipeline references
+            if cam_id in self.pipelines:
+                try:
+                    pipeline = self.pipelines[cam_id]
+                    pipeline.set_state(Gst.State.NULL)
+                    del self.pipelines[cam_id]
+                except:
+                    pass
+            return True
 
         return self._stop_pipeline(cam_id)
 
