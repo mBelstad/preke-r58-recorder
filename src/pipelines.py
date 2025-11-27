@@ -84,23 +84,26 @@ def build_r58_pipeline(
         # HDMI input via rkcif (LT6911 bridge): Similar to hdmirx, supports NV16 format
         # video0 and video11 work with NV16, video21 uses Bayer format (needs special handling)
         # Use io-mode=mmap for better performance
+        # When no signal, let v4l2src negotiate format to avoid errors
         if "video21" in device:
             # video21 uses Bayer format (RGGB/GRBG) - needs bayer2rgb conversion
-            # This might not be an HDMI input, but handle it anyway
+            # Try Bayer format first, but allow negotiation if no signal
             source_str = (
                 f"v4l2src device={device} io-mode=mmap ! "
-                f"video/x-bayer,format=rggb,width={width},height={height} ! "
-                f"bayer2rgb ! "
+                f"video/x-raw ! "  # Let v4l2src negotiate format (handles no-signal case)
                 f"videoconvert ! "
-                f"video/x-raw,format=NV12"
+                f"videoscale ! "
+                f"video/x-raw,width={width},height={height},format=NV12"
             )
         else:
-            # video0 and video11: Use NV16 like hdmirx
+            # video0 and video11: Try NV16 first, but allow negotiation if no signal
+            # Use do-timestamp=false to avoid issues when no frames are available
             source_str = (
-                f"v4l2src device={device} io-mode=mmap ! "
-                f"video/x-raw,format=NV16,width={width},height={height},framerate=30/1 ! "
+                f"v4l2src device={device} io-mode=mmap do-timestamp=false ! "
+                f"video/x-raw ! "  # Let v4l2src negotiate format (handles no-signal case)
                 f"videoconvert ! "
-                f"video/x-raw,format=NV12"
+                f"videoscale ! "
+                f"video/x-raw,width={width},height={height},format=NV12"
             )
     elif device_type == "usb":
         # USB capture devices: typically use different formats, let v4l2src negotiate
@@ -244,24 +247,27 @@ def build_r58_preview_pipeline(
         )
     elif device_type == "hdmi_rkcif":
         # HDMI input via rkcif (LT6911 bridge): Similar to hdmirx for preview
+        # When no signal, let v4l2src negotiate format to avoid errors
         if "video21" in device:
             # video21 uses Bayer format (RGGB/GRBG) - needs bayer2rgb conversion
+            # Try Bayer format first, but allow negotiation if no signal
             source_str = (
-                f"v4l2src device={device} io-mode=mmap ! "
-                f"video/x-bayer,format=rggb,width={width},height={height} ! "
-                f"bayer2rgb ! "
+                f"v4l2src device={device} io-mode=mmap do-timestamp=false ! "
+                f"video/x-raw ! "  # Let v4l2src negotiate format (handles no-signal case)
                 f"videorate ! video/x-raw,framerate=30/1 ! "
                 f"videoconvert ! "
                 f"videoscale ! "
                 f"video/x-raw,width={width},height={height},format=NV12"
             )
         else:
-            # video0 and video11: Use NV16 like hdmirx
+            # video0 and video11: Try NV16 first, but allow negotiation if no signal
             source_str = (
-                f"v4l2src device={device} io-mode=mmap ! "
-                f"video/x-raw,format=NV16,width={width},height={height},framerate=30/1 ! "
+                f"v4l2src device={device} io-mode=mmap do-timestamp=false ! "
+                f"video/x-raw ! "  # Let v4l2src negotiate format (handles no-signal case)
+                f"videorate ! video/x-raw,framerate=30/1 ! "
                 f"videoconvert ! "
-                f"video/x-raw,format=NV12"
+                f"videoscale ! "
+                f"video/x-raw,width={width},height={height},format=NV12"
             )
     elif device_type == "usb":
         # USB capture devices: let v4l2src negotiate format, then normalize framerate
