@@ -6,14 +6,11 @@ import subprocess
 from typing import Dict, Optional, Any
 from pathlib import Path
 from datetime import datetime
-import gi
-
-gi.require_version("Gst", "1.0")
-from gi.repository import Gst, GLib
 
 from .scenes import SceneManager, Scene
 from .watchdog import MixerWatchdog, HealthStatus
 from .graphics import GraphicsRenderer
+from ..gst_utils import ensure_gst_initialized, get_gst, get_glib
 
 logger = logging.getLogger(__name__)
 
@@ -60,11 +57,12 @@ class MixerCore:
         self.mediamtx_path = mediamtx_path or "mixer_program"
 
         # Pipeline state
-        self.pipeline: Optional[Gst.Pipeline] = None
+        self.pipeline = None  # self.Gst.Pipeline
         self.current_scene: Optional[Scene] = None
         self.state: str = "NULL"
         self.last_error: Optional[str] = None
         self._lock = threading.Lock()
+        self._gst_ready = False
         
         # Watchdog
         self.watchdog = MixerWatchdog(
@@ -75,9 +73,8 @@ class MixerCore:
         self._health_check_thread: Optional[threading.Thread] = None
         self._health_check_running = False
 
-        # Initialize GStreamer if not already done
-        if not Gst.is_initialized():
-            Gst.init(None)
+        # Don't initialize GStreamer here - lazy load when needed
+        self._Gst = None  # Will be set by _ensure_gst
 
         # Get camera devices from config
         self.camera_devices = {}
@@ -86,9 +83,33 @@ class MixerCore:
 
         logger.info(f"MixerCore initialized: {len(self.camera_devices)} cameras, "
                    f"output={output_resolution}, bitrate={output_bitrate}kbps")
+    
+    @property
+    def Gst(self):
+        """Get GStreamer module (lazy initialization)."""
+        if self._Gst is None:
+            self._Gst = get_gst()
+        return self._Gst
+    
+    def _ensure_gst(self) -> bool:
+        """Ensure GStreamer is initialized before use."""
+        if self._gst_ready:
+            return True
+        
+        if ensure_gst_initialized():
+            self._gst_ready = True
+            self._Gst = get_gst()
+            return True
+        
+        logger.error("GStreamer initialization failed - mixer not available")
+        return False
 
     def start(self) -> bool:
         """Start the mixer pipeline."""
+        if not self._ensure_gst():
+            logger.error("Cannot start mixer - GStreamer not available")
+            return False
+        
         with self._lock:
             if self.pipeline and self.state == "PLAYING":
                 logger.warning("Mixer pipeline already running")
@@ -122,14 +143,14 @@ class MixerCore:
                 bus.connect("message", self._on_bus_message)
 
                 # Start pipeline with timeout (will check bus for errors)
-                if not self._set_state_with_timeout(Gst.State.PLAYING):
+                if not self._set_state_with_timeout(self.Gst.State.PLAYING):
                     # Check bus for error messages
                     msg = bus.timed_pop_filtered(
-                        int(0.5 * Gst.SECOND),
-                        Gst.MessageType.ERROR | Gst.MessageType.WARNING
+                        int(0.5 * self.Gst.SECOND),
+                        self.Gst.MessageType.ERROR | self.Gst.MessageType.WARNING
                     )
                     if msg:
-                        if msg.type == Gst.MessageType.ERROR:
+                        if msg.type == self.Gst.MessageType.ERROR:
                             err, debug = msg.parse_error()
                             error_msg = f"{err.message} - {debug}"
                             logger.error(f"Pipeline error during start: {error_msg}")
@@ -142,7 +163,7 @@ class MixerCore:
                                     self.last_error = f"Video device format negotiation failed: {error_msg}"
                             else:
                                 self.last_error = error_msg
-                        elif msg.type == Gst.MessageType.WARNING:
+                        elif msg.type == self.Gst.MessageType.WARNING:
                             warn, debug = msg.parse_warning()
                             logger.warning(f"Pipeline warning during start: {warn.message} - {debug}")
                     
@@ -177,17 +198,17 @@ class MixerCore:
 
         try:
             # Send EOS
-            self.pipeline.send_event(Gst.Event.new_eos())
+            self.pipeline.send_event(self.Gst.Event.new_eos())
             
             # Wait for EOS with timeout
             bus = self.pipeline.get_bus()
             msg = bus.timed_pop_filtered(
-                int(STATE_CHANGE_TIMEOUT * Gst.SECOND),
-                Gst.MessageType.EOS | Gst.MessageType.ERROR
+                int(STATE_CHANGE_TIMEOUT * self.Gst.SECOND),
+                self.Gst.MessageType.EOS | self.Gst.MessageType.ERROR
             )
 
             # Set to NULL state with timeout
-            self._set_state_with_timeout(Gst.State.NULL)
+            self._set_state_with_timeout(self.Gst.State.NULL)
             
             # Clean up
             if self.pipeline:
@@ -201,7 +222,7 @@ class MixerCore:
             # Force cleanup
             try:
                 if self.pipeline:
-                    self.pipeline.set_state(Gst.State.NULL)
+                    self.pipeline.set_state(self.Gst.State.NULL)
                     self.pipeline = None
             except:
                 pass
@@ -255,7 +276,7 @@ class MixerCore:
                 bus.add_signal_watch()
                 bus.connect("message", self._on_bus_message)
                 
-                if self._set_state_with_timeout(Gst.State.PLAYING):
+                if self._set_state_with_timeout(self.Gst.State.PLAYING):
                     self.state = "PLAYING"
                     logger.info(f"Pipeline rebuilt and started with scene: {scene_id}")
                     return True
@@ -316,7 +337,7 @@ class MixerCore:
                 "mediamtx_enabled": self.mediamtx_enabled,
             }
 
-    def _build_pipeline(self) -> Optional[Gst.Pipeline]:
+    def _build_pipeline(self):
         """Build the GStreamer compositor pipeline."""
         width, height = self.output_resolution.split("x")
         scene = self.current_scene
@@ -613,13 +634,13 @@ class MixerCore:
         logger.debug(f"Pipeline string: {pipeline_str[:500]}...")
 
         try:
-            pipeline = Gst.parse_launch(pipeline_str)
+            pipeline = self.Gst.parse_launch(pipeline_str)
             return pipeline
         except Exception as e:
             logger.error(f"Failed to parse pipeline: {e}")
             return None
 
-    def _set_state_with_timeout(self, state: Gst.State) -> bool:
+    def _set_state_with_timeout(self, state) -> bool:
         """Set pipeline state with timeout.
         
         Args:
@@ -632,11 +653,11 @@ class MixerCore:
             return False
 
         ret = self.pipeline.set_state(state)
-        if ret == Gst.StateChangeReturn.FAILURE:
+        if ret == self.Gst.StateChangeReturn.FAILURE:
             logger.error(f"Failed to set pipeline state to {state.value_nick}")
             return False
 
-        if ret == Gst.StateChangeReturn.SUCCESS:
+        if ret == self.Gst.StateChangeReturn.SUCCESS:
             return True
 
         # Async state change - wait for completion
@@ -646,20 +667,20 @@ class MixerCore:
         while time.time() - start_time < STATE_CHANGE_TIMEOUT:
             # Check for bus messages (errors)
             if bus:
-                msg = bus.pop_filtered(Gst.MessageType.ERROR | Gst.MessageType.WARNING)
+                msg = bus.pop_filtered(self.Gst.MessageType.ERROR | self.Gst.MessageType.WARNING)
                 if msg:
-                    if msg.type == Gst.MessageType.ERROR:
+                    if msg.type == self.Gst.MessageType.ERROR:
                         err, debug = msg.parse_error()
                         logger.error(f"Pipeline error during state change: {err.message} - {debug}")
                         return False
-                    elif msg.type == Gst.MessageType.WARNING:
+                    elif msg.type == self.Gst.MessageType.WARNING:
                         warn, debug = msg.parse_warning()
                         logger.warning(f"Pipeline warning during state change: {warn.message} - {debug}")
             
-            ret = self.pipeline.get_state(Gst.CLOCK_TIME_NONE)
-            if ret[0] == Gst.StateChangeReturn.SUCCESS:
+            ret = self.pipeline.get_state(self.Gst.CLOCK_TIME_NONE)
+            if ret[0] == self.Gst.StateChangeReturn.SUCCESS:
                 return True
-            elif ret[0] == Gst.StateChangeReturn.FAILURE:
+            elif ret[0] == self.Gst.StateChangeReturn.FAILURE:
                 logger.error(f"State change to {state.value_nick} failed")
                 return False
             time.sleep(0.1)
@@ -667,9 +688,9 @@ class MixerCore:
         logger.error(f"State change to {state.value_nick} timed out")
         return False
 
-    def _on_bus_message(self, bus: Gst.Bus, message: Gst.Message) -> None:
+    def _on_bus_message(self, bus, message) -> None:
         """Handle GStreamer bus messages."""
-        if message.type == Gst.MessageType.ERROR:
+        if message.type == self.Gst.MessageType.ERROR:
             err, debug = message.parse_error()
             error_msg = f"{err.message} - {debug}"
             logger.error(f"Mixer pipeline error: {error_msg}")
@@ -681,20 +702,20 @@ class MixerCore:
             if health == HealthStatus.UNHEALTHY:
                 logger.warning("Pipeline unhealthy, may need recovery")
 
-        elif message.type == Gst.MessageType.WARNING:
+        elif message.type == self.Gst.MessageType.WARNING:
             warn, debug = message.parse_warning()
             logger.warning(f"Mixer pipeline warning: {warn.message} - {debug}")
 
-        elif message.type == Gst.MessageType.STATE_CHANGED:
+        elif message.type == self.Gst.MessageType.STATE_CHANGED:
             if message.src == self.pipeline:
                 old_state, new_state, pending_state = message.parse_state_changed()
                 logger.info(f"Mixer state changed: {old_state.value_nick} -> {new_state.value_nick}")
                 self.state = new_state.value_nick
 
-        elif message.type == Gst.MessageType.EOS:
+        elif message.type == self.Gst.MessageType.EOS:
             logger.info("Mixer pipeline EOS")
 
-        elif message.type == Gst.MessageType.BUFFER:
+        elif message.type == self.Gst.MessageType.BUFFER:
             # Record buffer activity for health monitoring
             self.watchdog.record_buffer()
 
@@ -757,7 +778,7 @@ class MixerCore:
                 bus.add_signal_watch()
                 bus.connect("message", self._on_bus_message)
                 
-                if self._set_state_with_timeout(Gst.State.PLAYING):
+                if self._set_state_with_timeout(self.Gst.State.PLAYING):
                     self.state = "PLAYING"
                     logger.info("Pipeline recovered successfully")
                 else:

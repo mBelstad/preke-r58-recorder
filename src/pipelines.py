@@ -1,10 +1,8 @@
 """GStreamer pipeline builders for macOS and R58."""
 import logging
 from typing import Optional
-import gi
 
-gi.require_version("Gst", "1.0")
-from gi.repository import Gst
+from .gst_utils import get_gst, ensure_gst_initialized
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +13,7 @@ def build_mock_pipeline(
     resolution: str = "1920x1080",
     bitrate: int = 5000,
     mediamtx_path: Optional[str] = None,
-) -> Gst.Pipeline:
+):
     """Build a mock pipeline for macOS development using videotestsrc."""
     pipeline_str = (
         f"videotestsrc pattern=ball is-live=true ! "
@@ -46,6 +44,7 @@ def build_mock_pipeline(
         )
 
     logger.info(f"Building mock pipeline for {cam_id}: {pipeline_str}")
+    Gst = get_gst()
     pipeline = Gst.parse_launch(pipeline_str)
     return pipeline
 
@@ -58,7 +57,7 @@ def build_r58_pipeline(
     bitrate: int = 5000,
     codec: str = "h264",
     mediamtx_path: Optional[str] = None,
-) -> Gst.Pipeline:
+):
     """Build a real hardware-accelerated pipeline for R58."""
     width, height = resolution.split("x")
 
@@ -216,6 +215,7 @@ def build_r58_pipeline(
         )
 
     logger.info(f"Building R58 pipeline for {cam_id} from {device}: {pipeline_str}")
+    Gst = get_gst()
     pipeline = Gst.parse_launch(pipeline_str)
     return pipeline
 
@@ -228,7 +228,7 @@ def build_preview_pipeline(
     bitrate: int = 5000,
     codec: str = "h264",
     mediamtx_path: Optional[str] = None,
-) -> Gst.Pipeline:
+):
     """Build preview-only pipeline (streaming, no recording) for multiview."""
     if platform == "macos":
         # Mock preview pipeline
@@ -241,6 +241,7 @@ def build_preview_pipeline(
             f"flvmux streamable=true ! "
             f"rtmpsink location={mediamtx_path or f'rtmp://127.0.0.1:1935/{cam_id}_preview'}"
         )
+        Gst = get_gst()
         return Gst.parse_launch(pipeline_str)
     else:  # r58
         return build_r58_preview_pipeline(
@@ -260,7 +261,7 @@ def build_r58_preview_pipeline(
     bitrate: int = 5000,
     codec: str = "h264",
     mediamtx_path: Optional[str] = None,
-) -> Gst.Pipeline:
+):
     """Build preview-only pipeline for R58 (streaming to MediaMTX, no recording)."""
     width, height = resolution.split("x")
 
@@ -368,6 +369,7 @@ def build_r58_preview_pipeline(
     )
 
     logger.info(f"Building preview pipeline for {cam_id}: {pipeline_str}")
+    Gst = get_gst()
     pipeline = Gst.parse_launch(pipeline_str)
     return pipeline
 
@@ -381,7 +383,7 @@ def build_pipeline(
     bitrate: int = 5000,
     codec: str = "h264",
     mediamtx_path: Optional[str] = None,
-) -> Gst.Pipeline:
+):
     """Build pipeline based on platform."""
     if platform == "macos":
         return build_mock_pipeline(

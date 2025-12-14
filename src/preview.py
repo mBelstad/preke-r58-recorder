@@ -1,13 +1,10 @@
 """Preview pipeline manager for live multiview."""
 import logging
-from typing import Dict, Optional
-import gi
-
-gi.require_version("Gst", "1.0")
-from gi.repository import Gst, GLib
+from typing import Dict, Optional, Any
 
 from .config import AppConfig, CameraConfig
 from .pipelines import build_preview_pipeline
+from .gst_utils import ensure_gst_initialized, get_gst
 
 logger = logging.getLogger(__name__)
 
@@ -18,18 +15,32 @@ class PreviewManager:
     def __init__(self, config: AppConfig):
         """Initialize preview manager."""
         self.config = config
-        self.preview_pipelines: Dict[str, Gst.Pipeline] = {}
+        self.preview_pipelines: Dict[str, Any] = {}  # Gst.Pipeline objects
         self.preview_states: Dict[str, str] = {}  # 'idle', 'preview', 'error'
+        self._gst_ready = False
 
-        # Initialize GStreamer
-        Gst.init(None)
-
-        # Initialize states
+        # Initialize states (don't init GStreamer yet - lazy load)
         for cam_id in config.cameras.keys():
             self.preview_states[cam_id] = "idle"
+    
+    def _ensure_gst(self) -> bool:
+        """Ensure GStreamer is initialized before use."""
+        if self._gst_ready:
+            return True
+        
+        if ensure_gst_initialized():
+            self._gst_ready = True
+            return True
+        
+        logger.error("GStreamer initialization failed - preview not available")
+        return False
 
     def start_preview(self, cam_id: str) -> bool:
         """Start preview stream for a camera (no recording)."""
+        if not self._ensure_gst():
+            logger.error("Cannot start preview - GStreamer not available")
+            return False
+        
         if cam_id not in self.config.cameras:
             logger.error(f"Camera {cam_id} not found in configuration")
             return False
@@ -82,6 +93,7 @@ class PreviewManager:
             bus.connect("message", self._on_bus_message, cam_id)
 
             # Start pipeline
+            Gst = get_gst()
             pipeline.set_state(Gst.State.PLAYING)
             self.preview_pipelines[cam_id] = pipeline
             self.preview_states[cam_id] = "preview"
@@ -107,6 +119,11 @@ class PreviewManager:
     def _stop_preview(self, cam_id: str) -> bool:
         """Internal method to stop a preview pipeline."""
         if cam_id not in self.preview_pipelines:
+            return False
+
+        Gst = get_gst()
+        if not Gst:
+            logger.error("GStreamer not available for stopping preview")
             return False
 
         pipeline = self.preview_pipelines[cam_id]
@@ -141,8 +158,12 @@ class PreviewManager:
             results[cam_id] = self.stop_preview(cam_id)
         return results
 
-    def _on_bus_message(self, bus: Gst.Bus, message: Gst.Message, cam_id: str) -> None:
+    def _on_bus_message(self, bus, message, cam_id: str) -> None:
         """Handle GStreamer bus messages."""
+        Gst = get_gst()
+        if not Gst:
+            return
+        
         if message.type == Gst.MessageType.ERROR:
             err, debug = message.parse_error()
             logger.error(f"Preview pipeline error for {cam_id}: {err.message} - {debug}")

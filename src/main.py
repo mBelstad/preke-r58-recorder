@@ -171,9 +171,19 @@ async def control():
 
 
 @app.get("/health")
-async def health() -> Dict[str, str]:
-    """Health check endpoint."""
-    return {"status": "healthy", "platform": config.platform}
+async def health() -> Dict[str, Any]:
+    """Health check endpoint - always responds even if GStreamer fails."""
+    from .gst_utils import is_gst_initialized, get_gst_init_error
+    
+    gst_status = "initialized" if is_gst_initialized() else "not_initialized"
+    gst_error = get_gst_init_error()
+    
+    return {
+        "status": "healthy",
+        "platform": config.platform,
+        "gstreamer": gst_status,
+        "gstreamer_error": gst_error
+    }
 
 
 @app.post("/record/start/{cam_id}")

@@ -2,15 +2,12 @@
 import logging
 import subprocess
 from datetime import datetime
-from typing import Dict, Optional
+from typing import Dict, Optional, Any
 from pathlib import Path
-import gi
-
-gi.require_version("Gst", "1.0")
-from gi.repository import Gst, GLib
 
 from .config import AppConfig, CameraConfig
 from .pipelines import build_pipeline
+from .gst_utils import ensure_gst_initialized, get_gst, get_glib
 
 logger = logging.getLogger(__name__)
 
@@ -21,22 +18,35 @@ class Recorder:
     def __init__(self, config: AppConfig):
         """Initialize recorder with configuration."""
         self.config = config
-        self.pipelines: Dict[str, Gst.Pipeline] = {}
+        self.pipelines: Dict[str, Any] = {}  # Gst.Pipeline objects
         self.states: Dict[str, str] = {}  # 'idle', 'recording', 'error'
-        self.loop: Optional[GLib.MainLoop] = None
+        self.loop = None
+        self._gst_ready = False
 
-        # Initialize GStreamer
-        Gst.init(None)
-
-        # Clean up any stuck GStreamer processes that might be holding video devices
-        self._cleanup_stuck_pipelines()
-
-        # Initialize states
+        # Initialize states (don't init GStreamer yet - lazy load)
         for cam_id in config.cameras.keys():
             self.states[cam_id] = "idle"
+    
+    def _ensure_gst(self) -> bool:
+        """Ensure GStreamer is initialized before use."""
+        if self._gst_ready:
+            return True
+        
+        if ensure_gst_initialized():
+            self._gst_ready = True
+            # Clean up any stuck GStreamer processes
+            self._cleanup_stuck_pipelines()
+            return True
+        
+        logger.error("GStreamer initialization failed - recording not available")
+        return False
 
     def start_recording(self, cam_id: str) -> bool:
         """Start recording for a specific camera."""
+        if not self._ensure_gst():
+            logger.error("Cannot start recording - GStreamer not available")
+            return False
+        
         if cam_id not in self.config.cameras:
             logger.error(f"Camera {cam_id} not found in configuration")
             return False
@@ -98,6 +108,7 @@ class Recorder:
             bus.connect("message", self._on_bus_message, cam_id)
 
             # Start pipeline
+            Gst = get_gst()
             pipeline.set_state(Gst.State.PLAYING)
             self.pipelines[cam_id] = pipeline
             self.states[cam_id] = "recording"
@@ -125,8 +136,10 @@ class Recorder:
             # Clean up any orphaned pipeline references
             if cam_id in self.pipelines:
                 try:
-                    pipeline = self.pipelines[cam_id]
-                    pipeline.set_state(Gst.State.NULL)
+                    Gst = get_gst()
+                    if Gst:
+                        pipeline = self.pipelines[cam_id]
+                        pipeline.set_state(Gst.State.NULL)
                     del self.pipelines[cam_id]
                 except:
                     pass
@@ -137,6 +150,11 @@ class Recorder:
     def _stop_pipeline(self, cam_id: str) -> bool:
         """Internal method to stop a pipeline."""
         if cam_id not in self.pipelines:
+            return False
+
+        Gst = get_gst()
+        if not Gst:
+            logger.error("GStreamer not available for stopping pipeline")
             return False
 
         pipeline = self.pipelines[cam_id]
@@ -184,8 +202,12 @@ class Recorder:
             self.states[cam_id] = "error"
             return False
 
-    def _on_bus_message(self, bus: Gst.Bus, message: Gst.Message, cam_id: str) -> None:
+    def _on_bus_message(self, bus, message, cam_id: str) -> None:
         """Handle GStreamer bus messages."""
+        Gst = get_gst()
+        if not Gst:
+            return
+        
         if message.type == Gst.MessageType.ERROR:
             err, debug = message.parse_error()
             logger.error(f"Pipeline error for {cam_id}: {err.message} - {debug}")

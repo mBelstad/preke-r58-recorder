@@ -8,12 +8,23 @@ User=root
 WorkingDirectory=/opt/preke-r58-recorder
 Environment="PATH=/opt/preke-r58-recorder/venv/bin:/usr/local/bin:/usr/bin:/bin"
 Environment="PYTHONPATH=/opt/preke-r58-recorder"
+# Disable GStreamer plugin scanning at startup (use cached registry)
+Environment="GST_REGISTRY_UPDATE=no"
+# Clean up stuck GStreamer processes before starting
+ExecStartPre=/bin/bash -c 'pkill -9 gst-plugin-scanner 2>/dev/null || true'
+ExecStartPre=/bin/bash -c 'pkill -9 -f "uvicorn.*preke-r58-recorder" 2>/dev/null || true'
+ExecStartPre=/bin/bash -c 'sleep 1'
 ExecStart=/opt/preke-r58-recorder/venv/bin/uvicorn src.main:app --host 0.0.0.0 --port 8000
 Restart=always
 RestartSec=10
+# Timeout for startup - if service doesn't start in 60s, consider it failed
+TimeoutStartSec=60
+# Shorter stop timeout to avoid long waits
+TimeoutStopSec=30
+# Kill entire process group on stop
+KillMode=control-group
 StandardOutput=journal
 StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
-
