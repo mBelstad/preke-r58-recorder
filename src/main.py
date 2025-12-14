@@ -246,6 +246,33 @@ async def get_preview_status() -> Dict[str, Dict[str, Any]]:
     }
 
 
+@app.get("/api/preview/status")
+async def get_preview_status_api() -> Dict[str, Any]:
+    """Get detailed preview status for all cameras (API version)."""
+    statuses = preview_manager.get_preview_status()
+    camera_details = {}
+    
+    for cam_id, status in statuses.items():
+        cam_config = config.cameras.get(cam_id)
+        camera_details[cam_id] = {
+            "status": status,
+            "config": cam_id in config.cameras,
+            "device": cam_config.device if cam_config else None,
+            "resolution": cam_config.resolution if cam_config else None,
+            "hls_url": f"/hls/{cam_id}_preview/index.m3u8" if status == "preview" else None
+        }
+    
+    return {
+        "cameras": camera_details,
+        "summary": {
+            "total": len(statuses),
+            "preview": sum(1 for s in statuses.values() if s == "preview"),
+            "idle": sum(1 for s in statuses.values() if s == "idle"),
+            "error": sum(1 for s in statuses.values() if s == "error")
+        }
+    }
+
+
 # HLS Proxy endpoints - allows remote access through Cloudflare Tunnel
 MEDIAMTX_HLS_BASE = "http://localhost:8888"
 
@@ -324,6 +351,56 @@ async def list_available_streams() -> Dict[str, Any]:
         "hls_base": "/hls",
         "note": "List based on configured cameras, actual streams may vary"
     }
+
+
+@app.get("/api/mediamtx/status")
+async def get_mediamtx_status() -> Dict[str, Any]:
+    """Check MediaMTX connectivity and status."""
+    status = {
+        "mediamtx_enabled": config.mediamtx.enabled,
+        "hls_port": 8888,
+        "rtsp_port": config.mediamtx.rtsp_port if config.mediamtx.enabled else None,
+        "rtmp_port": config.mediamtx.rtmp_port if config.mediamtx.enabled else None,
+        "connectivity": {}
+    }
+    
+    if not config.mediamtx.enabled:
+        return {**status, "message": "MediaMTX is disabled in configuration"}
+    
+    # Test HLS endpoint
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(f"{MEDIAMTX_HLS_BASE}/", timeout=2.0)
+            status["connectivity"]["hls"] = {
+                "reachable": True,
+                "status_code": response.status_code
+            }
+    except httpx.ConnectError:
+        status["connectivity"]["hls"] = {
+            "reachable": False,
+            "error": "Connection refused - MediaMTX may not be running"
+        }
+    except Exception as e:
+        status["connectivity"]["hls"] = {
+            "reachable": False,
+            "error": str(e)
+        }
+    
+    # Test RTSP endpoint
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(f"http://localhost:{config.mediamtx.rtsp_port}/", timeout=2.0)
+            status["connectivity"]["rtsp"] = {
+                "reachable": True,
+                "status_code": response.status_code
+            }
+    except Exception as e:
+        status["connectivity"]["rtsp"] = {
+            "reachable": False,
+            "error": str(e)
+        }
+    
+    return status
 
 
 @app.get("/status")
