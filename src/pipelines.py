@@ -100,10 +100,11 @@ def build_r58_pipeline(
             # video0 may have issues with io-mode=mmap, try without it first
             # Use do-timestamp=false to avoid issues when no frames are available
             if "video0" in device:
-                # video0: Don't force io-mode=mmap, let v4l2src choose
+                # video0: Accept device's native resolution and scale
+                # Device may report unusual resolutions, accept and scale to target
                 source_str = (
                     f"v4l2src device={device} do-timestamp=false ! "
-                    f"video/x-raw ! "  # Let v4l2src negotiate format
+                    f"video/x-raw ! "  # Accept whatever format/resolution device provides
                     f"videoconvert ! "
                     f"videoscale ! "
                     f"video/x-raw,width={width},height={height},format=NV12"
@@ -298,10 +299,11 @@ def build_r58_preview_pipeline(
             # video0 and video11: Handle format negotiation for preview
             # video0 may have issues with io-mode=mmap, try without it first
             if "video0" in device:
-                # video0: Don't force io-mode=mmap, let v4l2src choose
+                # video0: Accept device's native resolution and scale
+                # Device may report unusual resolutions, accept and scale to target
                 source_str = (
                     f"v4l2src device={device} do-timestamp=false ! "
-                    f"video/x-raw ! "  # Let v4l2src negotiate format
+                    f"video/x-raw ! "  # Accept whatever format/resolution device provides
                     f"videorate ! video/x-raw,framerate=30/1 ! "
                     f"videoconvert ! "
                     f"videoscale ! "

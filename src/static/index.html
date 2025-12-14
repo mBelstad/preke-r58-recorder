@@ -659,6 +659,33 @@
     <script>
         const API_BASE = window.location.origin;
         const HOSTNAME = window.location.hostname;
+        
+        // Detect if accessing remotely via Cloudflare Tunnel
+        const IS_REMOTE = window.location.hostname.includes('itagenten.no');
+        
+        // MediaMTX streaming URLs
+        // For remote access: use HLS proxy through FastAPI (/hls endpoint)
+        // For local access: use MediaMTX ports directly
+        // Note: WebRTC doesn't work through Cloudflare Tunnel, so we use HLS for remote
+        function getHLSUrl(streamPath) {
+            if (IS_REMOTE) {
+                // Use the HLS proxy endpoint through FastAPI
+                return `${API_BASE}/hls/${streamPath}/index.m3u8`;
+            } else {
+                // Direct access to MediaMTX HLS port
+                return `http://${HOSTNAME}:8888/${streamPath}/index.m3u8`;
+            }
+        }
+        
+        function getWebRTCUrl(streamPath) {
+            // WebRTC only works for local access
+            return `http://${HOSTNAME}:8889/${streamPath}/whep`;
+        }
+        
+        // Log access mode for debugging
+        console.log(`Access mode: ${IS_REMOTE ? 'REMOTE (using HLS proxy)' : 'LOCAL (using MediaMTX directly)'}`);
+        console.log(`HLS URL example: ${getHLSUrl('cam0_preview')}`);
+        
         let recordingState = false;
         let hlsPlayers = {};
         let webrtcConnections = {};
@@ -903,21 +930,20 @@
                     const isRecording = data.cameras[camId]?.status === 'recording';
                     const streamPath = isRecording ? camId : `${camId}_preview`;
                     
-                    // Try WebRTC first for ultra-low latency
-                    const webrtcUrl = `http://${HOSTNAME}:8889/${streamPath}/whep`;
-                    
-                    if (window.RTCPeerConnection) {
+                    // Try WebRTC first for ultra-low latency (local access only)
+                    if (window.RTCPeerConnection && !IS_REMOTE) {
+                        const webrtcUrl = getWebRTCUrl(streamPath);
                         startWebRTCPreview(video, webrtcUrl, camId, placeholder);
                     } else {
-                        // Fallback to HLS
+                        // Use HLS for remote access or no WebRTC support
                         startHLSPreview(video, camId, placeholder, streamPath);
                     }
                 })
                 .catch(err => {
                     console.error(`Failed to check status for ${camId}:`, err);
                     // Fallback to preview path
-                    const webrtcUrl = `http://${HOSTNAME}:8889/${camId}_preview/whep`;
-                    if (window.RTCPeerConnection) {
+                    if (window.RTCPeerConnection && !IS_REMOTE) {
+                        const webrtcUrl = getWebRTCUrl(`${camId}_preview`);
                         startWebRTCPreview(video, webrtcUrl, camId, placeholder);
                     } else {
                         startHLSPreview(video, camId, placeholder);
@@ -1279,16 +1305,16 @@
                     .then(data => {
                         const isRecording = data.cameras[camId]?.status === 'recording';
                         streamPath = isRecording ? camId : `${camId}_preview`;
-                        const hlsUrl = `http://${HOSTNAME}:8888/${streamPath}/index.m3u8`;
+                        const hlsUrl = getHLSUrl(streamPath);
                         startHLSWithUrl(video, camId, placeholder, hlsUrl);
                     })
                     .catch(() => {
-                        const hlsUrl = `http://${HOSTNAME}:8888/${camId}_preview/index.m3u8`;
+                        const hlsUrl = getHLSUrl(`${camId}_preview`);
                         startHLSWithUrl(video, camId, placeholder, hlsUrl);
                     });
                 return;
             }
-            const hlsUrl = `http://${HOSTNAME}:8888/${streamPath}/index.m3u8`;
+            const hlsUrl = getHLSUrl(streamPath);
             startHLSWithUrl(video, camId, placeholder, hlsUrl);
         }
 
@@ -1378,7 +1404,7 @@
                                     .then(statusData => {
                                         const isRecording = statusData.cameras[camId]?.status === 'recording';
                                         const streamPath = isRecording ? camId : `${camId}_preview`;
-                                        const newHlsUrl = `http://${HOSTNAME}:8888/${streamPath}/index.m3u8`;
+                                        const newHlsUrl = getHLSUrl(streamPath);
                                         console.log(`Retrying HLS for ${camId} with path: ${streamPath}`);
                                         hls.loadSource(newHlsUrl);
                                         hls.startLoad();

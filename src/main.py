@@ -3,11 +3,12 @@ import logging
 import os
 from pathlib import Path
 from typing import Dict, Any, List, Optional
-from fastapi import FastAPI, HTTPException, UploadFile, File
-from fastapi.responses import JSONResponse, FileResponse, HTMLResponse
+from fastapi import FastAPI, HTTPException, UploadFile, File, Response
+from fastapi.responses import JSONResponse, FileResponse, HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 import shutil
 import uuid
+import httpx
 
 from .config import AppConfig
 from .recorder import Recorder
@@ -242,6 +243,86 @@ async def get_preview_status() -> Dict[str, Dict[str, Any]]:
             cam_id: {"status": status, "config": cam_id in config.cameras}
             for cam_id, status in statuses.items()
         }
+    }
+
+
+# HLS Proxy endpoints - allows remote access through Cloudflare Tunnel
+MEDIAMTX_HLS_BASE = "http://localhost:8888"
+
+
+@app.get("/hls/{stream_path:path}")
+async def proxy_hls(stream_path: str):
+    """Proxy HLS streams from MediaMTX for remote access.
+    
+    This enables video streaming through Cloudflare Tunnel by proxying
+    the MediaMTX HLS streams through the FastAPI server.
+    
+    Example: /hls/cam0_preview/index.m3u8
+    """
+    try:
+        async with httpx.AsyncClient() as client:
+            url = f"{MEDIAMTX_HLS_BASE}/{stream_path}"
+            response = await client.get(url, timeout=10.0)
+            
+            if response.status_code == 404:
+                raise HTTPException(status_code=404, detail=f"Stream not found: {stream_path}")
+            
+            # Determine content type based on file extension
+            content_type = "application/vnd.apple.mpegurl"
+            if stream_path.endswith(".ts"):
+                content_type = "video/mp2t"
+            elif stream_path.endswith(".m3u8"):
+                content_type = "application/vnd.apple.mpegurl"
+            
+            # Rewrite m3u8 URLs to use our proxy
+            content = response.content
+            if stream_path.endswith(".m3u8"):
+                # Rewrite relative URLs in playlist to go through our proxy
+                text_content = content.decode('utf-8')
+                # Keep relative URLs as-is, they'll resolve correctly
+                content = text_content.encode('utf-8')
+            
+            return Response(
+                content=content,
+                status_code=response.status_code,
+                media_type=content_type,
+                headers={
+                    "Access-Control-Allow-Origin": "*",
+                    "Cache-Control": "no-cache, no-store, must-revalidate",
+                }
+            )
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=504, detail="Stream timeout - MediaMTX may not be running")
+    except httpx.ConnectError:
+        raise HTTPException(status_code=503, detail="Cannot connect to MediaMTX - service may be down")
+    except Exception as e:
+        logger.error(f"HLS proxy error for {stream_path}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/streams")
+async def list_available_streams() -> Dict[str, Any]:
+    """List available HLS streams from MediaMTX."""
+    try:
+        async with httpx.AsyncClient() as client:
+            # Try to get MediaMTX API info
+            response = await client.get(f"{MEDIAMTX_HLS_BASE.replace('8888', '9997')}/v3/paths/list", timeout=5.0)
+            if response.status_code == 200:
+                data = response.json()
+                return {
+                    "status": "ok",
+                    "streams": data.get("items", []),
+                    "hls_base": "/hls"
+                }
+    except Exception as e:
+        logger.debug(f"Could not get MediaMTX API: {e}")
+    
+    # Fallback - return configured camera streams
+    return {
+        "status": "ok",
+        "streams": [f"{cam_id}_preview" for cam_id in config.cameras.keys()],
+        "hls_base": "/hls",
+        "note": "List based on configured cameras, actual streams may vary"
     }
 
 

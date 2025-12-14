@@ -40,7 +40,7 @@ cameras:
     resolution: 1920x1080
     bitrate: 5000
     codec: h264
-    output_path: /var/recordings/cam0/recording_%Y%m%d_%H%M%S.mp4
+    output_path: /mnt/sdcard/recordings/cam0/recording_%Y%m%d_%H%M%S.mp4
     mediamtx_enabled: true
     mediamtx_path: null  # Auto-generated if null: rtsp://localhost:8554/cam0
 
@@ -49,7 +49,7 @@ cameras:
     resolution: 1920x1080
     bitrate: 5000
     codec: h264
-    output_path: /var/recordings/cam1/recording_%Y%m%d_%H%M%S.mp4
+    output_path: /mnt/sdcard/recordings/cam1/recording_%Y%m%d_%H%M%S.mp4
     mediamtx_enabled: true
     mediamtx_path: null
 
@@ -58,7 +58,7 @@ cameras:
     resolution: 1920x1080
     bitrate: 5000
     codec: h264
-    output_path: /var/recordings/cam2/recording_%Y%m%d_%H%M%S.mp4
+    output_path: /mnt/sdcard/recordings/cam2/recording_%Y%m%d_%H%M%S.mp4
     mediamtx_enabled: true
     mediamtx_path: null
 
@@ -67,7 +67,7 @@ cameras:
     resolution: 1920x1080
     bitrate: 5000
     codec: h265
-    output_path: /var/recordings/cam3/recording_%Y%m%d_%H%M%S.mp4
+    output_path: /mnt/sdcard/recordings/cam3/recording_%Y%m%d_%H%M%S.mp4
     mediamtx_enabled: true
     mediamtx_path: null
 

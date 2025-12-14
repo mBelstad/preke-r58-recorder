@@ -1320,6 +1320,20 @@
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <script>
         const API_BASE = window.location.origin;
+        const HOSTNAME = window.location.hostname;
+        
+        // Detect if accessing remotely via Cloudflare Tunnel
+        const IS_REMOTE = window.location.hostname.includes('itagenten.no');
+        
+        // HLS URL helper function
+        function getHLSUrl(streamPath) {
+            if (IS_REMOTE) {
+                return `${API_BASE}/hls/${streamPath}/index.m3u8`;
+            } else {
+                return `http://${HOSTNAME}:8888/${streamPath}/index.m3u8`;
+            }
+        }
+        
         let currentScene = null;
         let mixerState = 'NULL';
         let scenes = [];
@@ -1627,7 +1641,7 @@
                 // Load preview stream
                 const video = input.querySelector('video');
                 if (video) {
-                    const hlsUrl = `${window.location.protocol}//${window.location.hostname}:8888/cam${i}/index.m3u8`;
+                    const hlsUrl = getHLSUrl(`cam${i}`);
                     loadHLS(video, hlsUrl, `compact-input-${i}`);
                 }
             }
@@ -1806,7 +1820,7 @@
         // Update program output
         function updateProgramOutput(data) {
             if (data.state === 'PLAYING' && data.mediamtx_enabled) {
-                const hlsUrl = `${window.location.protocol}//${window.location.hostname}:8888/mixer_program/index.m3u8`;
+                const hlsUrl = getHLSUrl('mixer_program');
                 const video = document.getElementById('programVideo');
                 const placeholder = document.getElementById('programPlaceholder');
                 

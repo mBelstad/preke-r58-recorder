@@ -119,15 +119,30 @@ cameras:
 Use the `deploy.sh` script to deploy from macOS to R58:
 
 ```bash
-# if the device requires password auth, export it once per shell
+# Remote deployment via Cloudflare Tunnel (recommended)
+./deploy.sh r58.itagenten.no linaro
+
+# Or local network deployment
 export R58_PASSWORD=linaro
-./deploy.sh [r58_host] [r58_user]
+./deploy.sh 192.168.1.25 linaro
 ```
 
-Example:
+## Remote Access
+
+The R58 device is accessible remotely via Cloudflare Tunnel. See [docs/remote-access.md](docs/remote-access.md) for detailed instructions.
+
+**Quick connection:**
 ```bash
-./deploy.sh r58.local root
+# Use the helper script
+./connect-r58.sh
+
+# Or connect directly
+sshpass -p 'linaro' ssh -o StrictHostKeyChecking=no linaro@r58.itagenten.no
 ```
+
+**Web Interface:**
+- Remote: `https://recorder.itagenten.no`
+- Local: `http://192.168.1.25:8000`
 
 ## MediaMTX Integration
 

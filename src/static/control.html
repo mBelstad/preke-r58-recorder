@@ -592,6 +592,19 @@
     <script>
         const API_BASE = window.location.origin;
         const HOSTNAME = window.location.hostname;
+        
+        // Detect if accessing remotely via Cloudflare Tunnel
+        const IS_REMOTE = window.location.hostname.includes('itagenten.no');
+        
+        // HLS URL helper function
+        function getHLSUrl(streamPath) {
+            if (IS_REMOTE) {
+                return `${API_BASE}/hls/${streamPath}/index.m3u8`;
+            } else {
+                return `http://${HOSTNAME}:8888/${streamPath}/index.m3u8`;
+            }
+        }
+        
         let cameras = {};
         let mixerState = 'NULL';
         let currentScene = null;
@@ -951,7 +964,7 @@
 
         function updateMixerPreview() {
             const video = document.getElementById('mixerPreviewVideo');
-            const hlsUrl = `http://${HOSTNAME}:8888/mixer_program/index.m3u8`;
+            const hlsUrl = getHLSUrl('mixer_program');
             
             if (video.src === hlsUrl) return;
             

@@ -2,13 +2,17 @@
 # Deployment script for R58 recorder
 # Usage: ./deploy.sh [r58_host] [r58_user]
 # Optional: export R58_PASSWORD='your-password' to force sshpass-based auth
+# 
+# Remote access via Cloudflare Tunnel:
+#   ./deploy.sh r58.itagenten.no linaro
+#   Or use: ./connect-r58.sh
 
 set -e
 
 # Configuration
-R58_HOST="${1:-r58.local}"
-R58_USER="${2:-root}"
-R58_PASSWORD="${R58_PASSWORD:-}"
+R58_HOST="${1:-r58.itagenten.no}"
+R58_USER="${2:-linaro}"
+R58_PASSWORD="${R58_PASSWORD:-linaro}"
 REMOTE_DIR="/opt/preke-r58-recorder"
 SERVICE_NAME="preke-recorder.service"
 
