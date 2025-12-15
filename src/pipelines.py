@@ -286,12 +286,14 @@ def build_r58_preview_pipeline(
         else:
             # video0 and video11: Explicitly request NV16 format (like video60)
             # These devices support NV16, YVYU, and other formats
+            # Include videoscale to handle stride/resolution properly
             source_str = (
                 f"v4l2src device={device} ! "
                 f"video/x-raw,format=NV16 ! "  # Explicit NV16 format
                 f"videorate ! video/x-raw,framerate=30/1 ! "
                 f"videoconvert ! "
-                f"video/x-raw,format=NV12"
+                f"videoscale ! "
+                f"video/x-raw,width={width},height={height},format=NV12"
             )
     elif device_type == "usb":
         # USB capture devices: let v4l2src negotiate format, then normalize framerate
