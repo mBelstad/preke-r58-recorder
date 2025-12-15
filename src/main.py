@@ -449,6 +449,107 @@ async def get_camera_status(cam_id: str) -> Dict[str, str]:
     return {"camera": cam_id, "status": status}
 
 
+@app.get("/api/cameras/{cam_id}/signal")
+async def get_camera_signal(cam_id: str) -> Dict[str, Any]:
+    """Get detailed signal and pipeline information for a camera."""
+    if cam_id not in config.cameras:
+        raise HTTPException(status_code=404, detail=f"Camera {cam_id} not found")
+    
+    cam_config = config.cameras[cam_id]
+    device = cam_config.device
+    
+    # Get device capabilities
+    try:
+        from .device_detection import get_device_capabilities, detect_device_type
+        caps = get_device_capabilities(device)
+        device_type = detect_device_type(device)
+    except Exception as e:
+        logger.error(f"Error getting device capabilities for {cam_id}: {e}")
+        caps = {
+            'format': None,
+            'width': 0,
+            'height': 0,
+            'framerate': 0,
+            'has_signal': False,
+            'is_bayer': False,
+            'bayer_format': None
+        }
+        device_type = "unknown"
+    
+    # Get recording status
+    recording_status = recorder.get_camera_status(cam_id)
+    recording_info = {
+        "active": recording_status == "recording",
+        "file_path": None,  # TODO: Get actual file path from recorder
+        "bytes_written": 0,  # TODO: Get actual bytes from recorder
+        "duration_seconds": 0  # TODO: Get actual duration from recorder
+    }
+    
+    # Get preview status
+    preview_status = preview_manager.get_camera_preview_status(cam_id)
+    preview_info = {
+        "active": preview_status == "preview",
+        "mediamtx_path": f"{cam_id}_preview" if config.mediamtx.enabled else None,
+        "hls_segments_written": 0  # TODO: Get from MediaMTX API if needed
+    }
+    
+    # Determine hardware info based on device type
+    hardware_info = {
+        "device_type": device_type,
+        "bridge_type": None,
+        "i2c_bus": None,
+        "i2c_address": None
+    }
+    
+    if device_type == "hdmi_rkcif":
+        hardware_info["bridge_type"] = "LT6911UXE"
+        # Map device to I2C bus
+        if "video0" in device:
+            hardware_info["i2c_bus"] = 7
+        elif "video11" in device:
+            hardware_info["i2c_bus"] = 4
+        elif "video21" in device:
+            hardware_info["i2c_bus"] = 2
+        hardware_info["i2c_address"] = "0x2b"
+    
+    # Determine pipeline state and error
+    pipeline_state = "idle"
+    pipeline_error = None
+    
+    if recording_status == "recording":
+        pipeline_state = "recording"
+    elif preview_status == "preview":
+        pipeline_state = "preview"
+    elif preview_status == "error":
+        pipeline_state = "error"
+        pipeline_error = "Pipeline error - check logs"
+    
+    if not caps['has_signal']:
+        pipeline_error = "No HDMI signal detected"
+    
+    return {
+        "cam_id": cam_id,
+        "device": device,
+        "signal": {
+            "present": caps['has_signal'],
+            "resolution": f"{caps['width']}x{caps['height']}" if caps['has_signal'] else "0x0",
+            "frame_rate": caps['framerate'],
+            "pixel_format": caps['format'],
+            "colorspace": None  # TODO: Extract from v4l2-ctl if needed
+        },
+        "pipeline": {
+            "state": pipeline_state,
+            "frames_received": 0,  # TODO: Add frame counter to pipelines
+            "frames_dropped": 0,  # TODO: Add drop counter to pipelines
+            "last_frame_timestamp": None,  # TODO: Add timestamp tracking
+            "error": pipeline_error
+        },
+        "recording": recording_info,
+        "preview": preview_info,
+        "hardware": hardware_info
+    }
+
+
 @app.get("/recordings/{cam_id}")
 async def list_recordings(cam_id: str) -> Dict[str, Any]:
     """List recordings for a camera."""
