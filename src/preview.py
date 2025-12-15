@@ -1,5 +1,8 @@
 """Preview pipeline manager for live multiview."""
 import logging
+import threading
+import time
+import httpx
 from typing import Dict, Optional, Any
 
 from .config import AppConfig, CameraConfig
@@ -7,6 +10,11 @@ from .pipelines import build_preview_pipeline
 from .gst_utils import ensure_gst_initialized, get_gst
 
 logger = logging.getLogger(__name__)
+
+# Health check interval in seconds
+HEALTH_CHECK_INTERVAL = 10
+# Stale threshold - restart pipeline if no data for this many seconds
+STALE_THRESHOLD = 15
 
 
 class PreviewManager:
@@ -17,7 +25,11 @@ class PreviewManager:
         self.config = config
         self.preview_pipelines: Dict[str, Any] = {}  # Gst.Pipeline objects
         self.preview_states: Dict[str, str] = {}  # 'idle', 'preview', 'error'
+        self.pipeline_start_times: Dict[str, float] = {}  # Track when pipelines started
+        self.last_health_check: Dict[str, float] = {}  # Track last successful health check
         self._gst_ready = False
+        self._health_check_running = False
+        self._health_check_thread: Optional[threading.Thread] = None
 
         # Initialize states (don't init GStreamer yet - lazy load)
         for cam_id in config.cameras.keys():
@@ -124,8 +136,14 @@ class PreviewManager:
             
             self.preview_pipelines[cam_id] = pipeline
             self.preview_states[cam_id] = "preview"
+            self.pipeline_start_times[cam_id] = time.time()
+            self.last_health_check[cam_id] = time.time()
 
             logger.info(f"Started preview for camera {cam_id}")
+            
+            # Start health check thread if not running
+            self._start_health_check()
+            
             return True
 
         except Exception as e:
@@ -225,4 +243,131 @@ class PreviewManager:
     def get_camera_preview_status(self, cam_id: str) -> Optional[str]:
         """Get preview status for a specific camera."""
         return self.preview_states.get(cam_id)
+    
+    def _start_health_check(self):
+        """Start the health check thread if not already running."""
+        if self._health_check_running:
+            return
+        
+        self._health_check_running = True
+        self._health_check_thread = threading.Thread(
+            target=self._health_check_loop,
+            daemon=True,
+            name="preview-health-check"
+        )
+        self._health_check_thread.start()
+        logger.info("Started preview health check thread")
+    
+    def _stop_health_check(self):
+        """Stop the health check thread."""
+        self._health_check_running = False
+        if self._health_check_thread:
+            self._health_check_thread.join(timeout=2)
+            self._health_check_thread = None
+    
+    def _health_check_loop(self):
+        """Background thread that monitors pipeline health."""
+        while self._health_check_running:
+            try:
+                self._check_all_pipelines_health()
+            except Exception as e:
+                logger.error(f"Health check error: {e}")
+            
+            # Sleep in small increments to allow quick shutdown
+            for _ in range(int(HEALTH_CHECK_INTERVAL)):
+                if not self._health_check_running:
+                    break
+                time.sleep(1)
+    
+    def _check_all_pipelines_health(self):
+        """Check health of all active pipelines."""
+        for cam_id, state in list(self.preview_states.items()):
+            if state != "preview":
+                continue
+            
+            # Check if pipeline is actually producing data
+            is_healthy = self._is_pipeline_healthy(cam_id)
+            
+            if is_healthy:
+                self.last_health_check[cam_id] = time.time()
+            else:
+                # Check how long since last healthy check
+                last_good = self.last_health_check.get(cam_id, 0)
+                stale_time = time.time() - last_good
+                
+                if stale_time > STALE_THRESHOLD:
+                    logger.warning(
+                        f"Pipeline for {cam_id} appears stale (no data for {stale_time:.1f}s), restarting..."
+                    )
+                    self._restart_preview(cam_id)
+    
+    def _is_pipeline_healthy(self, cam_id: str) -> bool:
+        """Check if a pipeline is healthy by verifying MediaMTX stream is active."""
+        try:
+            # Check if pipeline object exists and is in PLAYING state
+            if cam_id not in self.preview_pipelines:
+                return False
+            
+            Gst = get_gst()
+            if not Gst:
+                return False
+            
+            pipeline = self.preview_pipelines[cam_id]
+            state_ret, current_state, pending_state = pipeline.get_state(0)
+            
+            if current_state != Gst.State.PLAYING:
+                logger.debug(f"{cam_id} pipeline not in PLAYING state: {current_state.value_nick}")
+                return False
+            
+            # Check MediaMTX for active stream
+            try:
+                with httpx.Client(timeout=2.0) as client:
+                    response = client.get(f"http://localhost:8888/{cam_id}_preview/index.m3u8")
+                    if response.status_code == 200:
+                        # Stream exists and has segments
+                        return True
+                    else:
+                        logger.debug(f"{cam_id} MediaMTX returned {response.status_code}")
+                        return False
+            except httpx.RequestError:
+                # MediaMTX not responding, but pipeline might still be starting
+                start_time = self.pipeline_start_times.get(cam_id, 0)
+                if time.time() - start_time < 10:
+                    # Give pipeline time to start
+                    return True
+                return False
+            
+        except Exception as e:
+            logger.debug(f"Health check error for {cam_id}: {e}")
+            return False
+    
+    def _restart_preview(self, cam_id: str):
+        """Restart a preview pipeline."""
+        logger.info(f"Restarting preview for {cam_id}")
+        
+        # First, force stop the pipeline and release device
+        try:
+            if cam_id in self.preview_pipelines:
+                Gst = get_gst()
+                if Gst:
+                    pipeline = self.preview_pipelines[cam_id]
+                    pipeline.set_state(Gst.State.NULL)
+                    # Wait for state change to complete
+                    pipeline.get_state(Gst.CLOCK_TIME_NONE)
+                del self.preview_pipelines[cam_id]
+        except Exception as e:
+            logger.error(f"Error stopping pipeline for restart {cam_id}: {e}")
+        
+        # Clear state to allow restart
+        self.preview_states[cam_id] = "idle"
+        
+        # Wait for device to be released
+        time.sleep(1)
+        
+        # Restart preview
+        success = self.start_preview(cam_id)
+        if success:
+            logger.info(f"Successfully restarted preview for {cam_id}")
+        else:
+            logger.error(f"Failed to restart preview for {cam_id}")
 

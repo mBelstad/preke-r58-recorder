@@ -201,6 +201,151 @@ def get_hdmi_port_mapping() -> Dict[str, str]:
     }
 
 
+def get_device_capabilities(device_path: str) -> Dict:
+    """Query device for current format, resolution, and framerate.
+    
+    Uses v4l2-ctl to get the actual device capabilities, allowing pipelines
+    to use explicit format specification instead of auto-negotiation.
+    
+    Returns:
+        Dictionary with device capabilities:
+        {
+            'format': 'NV16',  # GStreamer format name
+            'width': 1920,
+            'height': 1080,
+            'framerate': 60,
+            'has_signal': True,  # False if no signal or invalid resolution
+            'is_bayer': False,   # True if Bayer format (needs bayer2rgb)
+            'bayer_format': None  # 'rggb', 'grbg', etc. if Bayer
+        }
+    """
+    result = {
+        'format': None,
+        'width': 0,
+        'height': 0,
+        'framerate': 30,
+        'has_signal': False,
+        'is_bayer': False,
+        'bayer_format': None
+    }
+    
+    try:
+        # Query current format using v4l2-ctl
+        proc = subprocess.run(
+            ["v4l2-ctl", "-d", str(device_path), "--get-fmt-video"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        
+        if proc.returncode != 0:
+            logger.warning(f"v4l2-ctl failed for {device_path}: {proc.stderr}")
+            return result
+        
+        # Parse output for Width, Height, Pixel Format
+        for line in proc.stdout.splitlines():
+            line = line.strip()
+            if "Width/Height" in line:
+                # Format: "Width/Height      : 1920/1080"
+                parts = line.split(":")
+                if len(parts) >= 2:
+                    wh = parts[1].strip().split("/")
+                    if len(wh) >= 2:
+                        try:
+                            result['width'] = int(wh[0])
+                            result['height'] = int(wh[1])
+                        except ValueError:
+                            pass
+            elif "Pixel Format" in line:
+                # Format: "Pixel Format      : 'NV16' (Y/CbCr 4:2:2)"
+                # or: "Pixel Format      : 'RGGB' (8-bit Bayer RGRG/GBGB)"
+                parts = line.split(":")
+                if len(parts) >= 2:
+                    fmt_part = parts[1].strip()
+                    # Extract format from quotes
+                    if "'" in fmt_part:
+                        fmt = fmt_part.split("'")[1]
+                        result['format'] = _v4l2_to_gst_format(fmt)
+                        # Check for Bayer formats
+                        if fmt.upper() in ('RGGB', 'GRBG', 'BGGR', 'GBRG'):
+                            result['is_bayer'] = True
+                            result['bayer_format'] = fmt.lower()
+        
+        # Determine if we have a valid signal
+        # No signal typically shows as 0x0, 64x64, or very small resolution
+        if result['width'] >= 640 and result['height'] >= 480:
+            result['has_signal'] = True
+        else:
+            logger.info(f"{device_path}: No signal (resolution {result['width']}x{result['height']})")
+            result['has_signal'] = False
+        
+        # Try to get framerate
+        try:
+            parm_proc = subprocess.run(
+                ["v4l2-ctl", "-d", str(device_path), "--get-parm"],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            if parm_proc.returncode == 0:
+                for line in parm_proc.stdout.splitlines():
+                    if "Frames per second" in line:
+                        # Format: "Frames per second: 60.000 (60/1)"
+                        parts = line.split(":")
+                        if len(parts) >= 2:
+                            fps_str = parts[1].strip().split()[0]
+                            try:
+                                result['framerate'] = int(float(fps_str))
+                            except ValueError:
+                                pass
+        except Exception:
+            pass  # Framerate detection is optional
+        
+        logger.debug(f"{device_path} capabilities: {result}")
+        
+    except subprocess.TimeoutExpired:
+        logger.error(f"v4l2-ctl timed out for {device_path}")
+    except FileNotFoundError:
+        logger.warning("v4l2-ctl not found")
+    except Exception as e:
+        logger.error(f"Error getting capabilities for {device_path}: {e}")
+    
+    return result
+
+
+def _v4l2_to_gst_format(v4l2_format: str) -> str:
+    """Convert V4L2 pixel format name to GStreamer format name.
+    
+    Args:
+        v4l2_format: V4L2 format string (e.g., 'NV16', 'YUYV', 'RGGB')
+    
+    Returns:
+        GStreamer format string
+    """
+    # Mapping of V4L2 format codes to GStreamer format names
+    format_map = {
+        'NV16': 'NV16',
+        'NV61': 'NV61',
+        'NV12': 'NV12',
+        'NV21': 'NV21',
+        'YUYV': 'YUY2',
+        'YVYU': 'YVYU',
+        'UYVY': 'UYVY',
+        'VYUY': 'VYUY',
+        'BGR3': 'BGR',
+        'RGB3': 'RGB',
+        'NV24': 'NV24',
+        'I420': 'I420',
+        # Bayer formats - these need special handling
+        'RGGB': 'rggb',
+        'GRBG': 'grbg',
+        'BGGR': 'bggr',
+        'GBRG': 'gbrg',
+    }
+    
+    return format_map.get(v4l2_format.upper(), v4l2_format)
+
+
 def suggest_camera_mapping() -> Dict[str, Optional[str]]:
     """Suggest camera device mappings based on available hardware.
     

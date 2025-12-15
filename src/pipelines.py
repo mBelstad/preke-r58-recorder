@@ -64,11 +64,15 @@ def build_r58_pipeline(
     # Video source detection and pipeline setup
     # Import device detection (lazy import to avoid circular dependencies)
     try:
-        from .device_detection import detect_device_type
+        from .device_detection import detect_device_type, get_device_capabilities
         device_type = detect_device_type(device)
+        caps = get_device_capabilities(device)
     except ImportError:
         # Fallback to simple detection
         device_type = "hdmirx" if ("video60" in device or "hdmirx" in device.lower()) else "unknown"
+        caps = {'format': 'NV16', 'width': int(width), 'height': int(height), 'framerate': 60, 'has_signal': True, 'is_bayer': False, 'bayer_format': None}
+    
+    logger.info(f"Building recording pipeline for {cam_id}: device_type={device_type}, caps={caps}")
     
     if device_type == "hdmirx":
         # HDMI input: RK hdmirx currently exposes NV16 (4:2:2); convert to NV12 for encoders
@@ -80,28 +84,40 @@ def build_r58_pipeline(
             f"video/x-raw,format=NV12"
         )
     elif device_type == "hdmi_rkcif":
-        # HDMI input via rkcif (LT6911 bridge): Similar to hdmirx, supports NV16 format
-        # video0 and video11 work with NV16, video21 uses Bayer format (needs special handling)
-        # Use io-mode=mmap for better performance
-        # When no signal, let v4l2src negotiate format to avoid errors
-        if "video21" in device:
-            # video21 uses Bayer format (RGGB/GRBG) - needs bayer2rgb conversion
-            # Explicitly request Bayer format for proper color conversion
+        # HDMI input via rkcif (LT6911 bridge): Use explicit format like hdmirx
+        # Query actual device capabilities for reliable pipeline construction
+        if not caps['has_signal']:
+            # No signal - use test pattern fallback
+            logger.warning(f"{cam_id}: No HDMI signal on {device}, using test pattern")
             source_str = (
-                f"v4l2src device={device} ! "
-                f"video/x-bayer,format=rggb ! "  # Explicit Bayer format
+                f"videotestsrc pattern=black is-live=true ! "
+                f"video/x-raw,width={width},height={height},framerate=30/1,format=NV12"
+            )
+        elif caps['is_bayer']:
+            # Bayer format (video21) - needs bayer2rgb conversion
+            bayer_fmt = caps['bayer_format'] or 'rggb'
+            src_width = caps['width']
+            src_height = caps['height']
+            logger.info(f"{cam_id}: Using Bayer format {bayer_fmt} at {src_width}x{src_height}")
+            source_str = (
+                f"v4l2src device={device} io-mode=mmap ! "
+                f"video/x-bayer,format={bayer_fmt},width={src_width},height={src_height} ! "
                 f"bayer2rgb ! "
                 f"videoconvert ! "
                 f"videoscale ! "
                 f"video/x-raw,width={width},height={height},format=NV12"
             )
         else:
-            # video0 and video11: Auto-negotiate format/resolution from device
-            # This allows cameras to be switched between 1080p, 4K, etc.
-            # videoconvert and videoscale handle any input format/resolution
+            # NV16/YVYU format - use explicit format specification like hdmirx
+            src_format = caps['format'] or 'NV16'
+            src_width = caps['width']
+            src_height = caps['height']
+            src_fps = caps['framerate'] or 60
+            logger.info(f"{cam_id}: Using explicit format {src_format} at {src_width}x{src_height}@{src_fps}fps")
             source_str = (
-                f"v4l2src device={device} ! "
-                f"video/x-raw ! "  # Accept any format/resolution from device
+                f"v4l2src device={device} io-mode=mmap ! "
+                f"video/x-raw,format={src_format},width={src_width},height={src_height},framerate={src_fps}/1 ! "
+                f"videorate ! video/x-raw,framerate=30/1 ! "
                 f"videoconvert ! "
                 f"videoscale ! "
                 f"video/x-raw,width={width},height={height},format=NV12"
@@ -254,14 +270,18 @@ def build_r58_preview_pipeline(
     """Build preview-only pipeline for R58 (streaming to MediaMTX, no recording)."""
     width, height = resolution.split("x")
 
-    # Video source - use 30fps for preview to reduce encoding latency
+    # Video source - use explicit format specification for reliability
     # Import device detection (lazy import to avoid circular dependencies)
     try:
-        from .device_detection import detect_device_type
+        from .device_detection import detect_device_type, get_device_capabilities
         device_type = detect_device_type(device)
+        caps = get_device_capabilities(device)
     except ImportError:
         # Fallback to simple detection
         device_type = "hdmirx" if ("video60" in device or "hdmirx" in device.lower()) else "unknown"
+        caps = {'format': 'NV16', 'width': int(width), 'height': int(height), 'framerate': 60, 'has_signal': True, 'is_bayer': False, 'bayer_format': None}
+    
+    logger.info(f"Building preview pipeline for {cam_id}: device_type={device_type}, caps={caps}")
     
     if device_type == "hdmirx":
         source_str = (
@@ -272,25 +292,39 @@ def build_r58_preview_pipeline(
             f"video/x-raw,format=NV12"
         )
     elif device_type == "hdmi_rkcif":
-        # HDMI input via rkcif (LT6911 bridge): Similar to hdmirx for preview
-        if "video21" in device:
-            # video21 uses Bayer format (RGGB/GRBG) - needs bayer2rgb conversion
-            # Explicitly request Bayer format for proper color conversion
+        # HDMI input via rkcif (LT6911 bridge): Use explicit format like hdmirx
+        # Query actual device capabilities for reliable pipeline construction
+        if not caps['has_signal']:
+            # No signal - use test pattern fallback with "No Signal" indicator
+            logger.warning(f"{cam_id}: No HDMI signal on {device}, using test pattern")
             source_str = (
-                f"v4l2src device={device} ! "
-                f"video/x-bayer,format=rggb ! "  # Explicit Bayer format
+                f"videotestsrc pattern=black is-live=true ! "
+                f"video/x-raw,width={width},height={height},framerate=30/1,format=NV12"
+            )
+        elif caps['is_bayer']:
+            # Bayer format (video21) - needs bayer2rgb conversion
+            bayer_fmt = caps['bayer_format'] or 'rggb'
+            src_width = caps['width']
+            src_height = caps['height']
+            logger.info(f"{cam_id}: Using Bayer format {bayer_fmt} at {src_width}x{src_height}")
+            source_str = (
+                f"v4l2src device={device} io-mode=mmap ! "
+                f"video/x-bayer,format={bayer_fmt},width={src_width},height={src_height} ! "
                 f"bayer2rgb ! "
                 f"videoconvert ! "
                 f"videoscale ! "
                 f"video/x-raw,width={width},height={height},format=NV12"
             )
         else:
-            # video0 and video11: Auto-negotiate format/resolution from device
-            # This allows cameras to be switched between 1080p, 4K, etc.
-            # videoconvert and videoscale handle any input format/resolution
+            # NV16/YVYU format - use explicit format specification like hdmirx
+            src_format = caps['format'] or 'NV16'
+            src_width = caps['width']
+            src_height = caps['height']
+            src_fps = caps['framerate'] or 60
+            logger.info(f"{cam_id}: Using explicit format {src_format} at {src_width}x{src_height}@{src_fps}fps")
             source_str = (
-                f"v4l2src device={device} ! "
-                f"video/x-raw ! "  # Accept any format/resolution from device
+                f"v4l2src device={device} io-mode=mmap ! "
+                f"video/x-raw,format={src_format},width={src_width},height={src_height},framerate={src_fps}/1 ! "
                 f"videorate ! video/x-raw,framerate=30/1 ! "
                 f"videoconvert ! "
                 f"videoscale ! "
