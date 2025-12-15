@@ -24,10 +24,12 @@ class PreviewManager:
         """Initialize preview manager."""
         self.config = config
         self.preview_pipelines: Dict[str, Any] = {}  # Gst.Pipeline objects
-        self.preview_states: Dict[str, str] = {}  # 'idle', 'preview', 'error'
+        self.preview_states: Dict[str, str] = {}  # 'idle', 'preview', 'error', 'no_signal'
         self.pipeline_start_times: Dict[str, float] = {}  # Track when pipelines started
         self.last_health_check: Dict[str, float] = {}  # Track last successful health check
         self.current_resolutions: Dict[str, tuple[int, int]] = {}  # Track active resolutions for change detection
+        self.signal_states: Dict[str, bool] = {}  # Track if camera has HDMI signal
+        self.signal_loss_times: Dict[str, Optional[float]] = {}  # When signal was lost (None if has signal)
         self._gst_ready = False
         self._health_check_running = False
         self._health_check_thread: Optional[threading.Thread] = None
@@ -35,6 +37,8 @@ class PreviewManager:
         # Initialize states (don't init GStreamer yet - lazy load)
         for cam_id in config.cameras.keys():
             self.preview_states[cam_id] = "idle"
+            self.signal_states[cam_id] = True  # Assume signal present initially
+            self.signal_loss_times[cam_id] = None
     
     def _ensure_gst(self) -> bool:
         """Ensure GStreamer is initialized before use."""
@@ -167,8 +171,17 @@ class PreviewManager:
         if cam_id not in self.preview_states:
             return False
 
-        if self.preview_states.get(cam_id) != "preview":
+        state = self.preview_states.get(cam_id)
+        if state not in ("preview", "no_signal"):
             return False
+
+        # If in no_signal state, just update state to idle
+        if state == "no_signal":
+            self.preview_states[cam_id] = "idle"
+            self.signal_states[cam_id] = True
+            self.signal_loss_times[cam_id] = None
+            logger.info(f"Stopped monitoring for camera {cam_id} (was in no_signal state)")
+            return True
 
         return self._stop_preview(cam_id)
 
@@ -188,6 +201,11 @@ class PreviewManager:
             pipeline.get_state(Gst.CLOCK_TIME_NONE)
             del self.preview_pipelines[cam_id]
             self.preview_states[cam_id] = "idle"
+            
+            # Reset signal tracking on manual stop
+            self.signal_states[cam_id] = True
+            self.signal_loss_times[cam_id] = None
+            
             logger.info(f"Stopped preview for camera {cam_id}")
             return True
         except Exception as e:
@@ -291,31 +309,51 @@ class PreviewManager:
                 time.sleep(1)
     
     def _check_all_pipelines_health(self):
-        """Check health of all active pipelines."""
+        """Check health of all active pipelines and monitor signal status."""
         for cam_id, state in list(self.preview_states.items()):
-            if state != "preview":
+            # Check signal status for all cameras (even idle ones)
+            signal_res = self._check_signal_status(cam_id)
+            had_signal = self.signal_states.get(cam_id, True)
+            
+            if signal_res is None:
+                # No signal detected
+                if had_signal and state == "preview":
+                    # Signal was present and pipeline was running, now lost
+                    self._handle_signal_loss(cam_id)
+                # else: already in no_signal state or idle, do nothing
                 continue
             
-            # Check for resolution changes
-            if self._check_resolution_change(cam_id):
-                # Resolution changed, restart pipeline with new resolution
-                continue  # Skip other checks, restart will happen
-            
-            # Check if pipeline is actually producing data
-            is_healthy = self._is_pipeline_healthy(cam_id)
-            
-            if is_healthy:
-                self.last_health_check[cam_id] = time.time()
             else:
-                # Check how long since last healthy check
-                last_good = self.last_health_check.get(cam_id, 0)
-                stale_time = time.time() - last_good
+                # Signal is present
+                if not had_signal:
+                    # Signal was lost, now recovered
+                    self._handle_signal_recovery(cam_id, signal_res[0], signal_res[1])
+                    continue  # Skip other checks, recovery will start pipeline
                 
-                if stale_time > STALE_THRESHOLD:
-                    logger.warning(
-                        f"Pipeline for {cam_id} appears stale (no data for {stale_time:.1f}s), restarting..."
-                    )
-                    self._restart_preview(cam_id)
+                # Signal present and stable - check if we're in preview mode
+                if state != "preview":
+                    continue
+                
+                # Check for resolution changes
+                if self._check_resolution_change(cam_id):
+                    # Resolution changed, restart pipeline with new resolution
+                    continue  # Skip other checks, restart will happen
+                
+                # Check if pipeline is actually producing data
+                is_healthy = self._is_pipeline_healthy(cam_id)
+                
+                if is_healthy:
+                    self.last_health_check[cam_id] = time.time()
+                else:
+                    # Check how long since last healthy check
+                    last_good = self.last_health_check.get(cam_id, 0)
+                    stale_time = time.time() - last_good
+                    
+                    if stale_time > STALE_THRESHOLD:
+                        logger.warning(
+                            f"Pipeline for {cam_id} appears stale (no data for {stale_time:.1f}s), restarting..."
+                        )
+                        self._restart_preview(cam_id)
     
     def _is_pipeline_healthy(self, cam_id: str) -> bool:
         """Check if a pipeline is healthy by verifying MediaMTX stream is active."""
@@ -357,6 +395,35 @@ class PreviewManager:
             logger.debug(f"Health check error for {cam_id}: {e}")
             return False
     
+    def _check_signal_status(self, cam_id: str) -> Optional[tuple[int, int]]:
+        """Check if camera has HDMI signal and return resolution.
+        
+        Args:
+            cam_id: Camera identifier
+            
+        Returns:
+            (width, height) tuple if signal present, None if no signal or error
+        """
+        if cam_id not in self.config.cameras:
+            return None
+        
+        try:
+            from .device_detection import get_subdev_resolution
+            device = self.config.cameras[cam_id].device
+            resolution = get_subdev_resolution(device)
+            
+            # get_subdev_resolution returns None for no signal or (0, 0)
+            # It also returns None for resolutions < 640x480 (invalid signal)
+            if not resolution or resolution == (0, 0):
+                return None
+            
+            # Valid signal detected
+            return resolution
+            
+        except Exception as e:
+            logger.debug(f"Error checking signal status for {cam_id}: {e}")
+            return None
+    
     def _check_resolution_change(self, cam_id: str) -> bool:
         """Check if resolution changed for a camera.
         
@@ -396,6 +463,88 @@ class PreviewManager:
         except Exception as e:
             logger.debug(f"Error checking resolution change for {cam_id}: {e}")
             return False
+    
+    def _handle_signal_loss(self, cam_id: str):
+        """Handle HDMI signal loss gracefully.
+        
+        Stops the pipeline cleanly, clears resolution tracking, and sets state to no_signal.
+        
+        Args:
+            cam_id: Camera identifier
+        """
+        logger.warning(f"{cam_id}: HDMI signal lost, stopping preview")
+        
+        try:
+            # Stop current pipeline cleanly
+            if cam_id in self.preview_pipelines:
+                Gst = get_gst()
+                pipeline = self.preview_pipelines[cam_id]
+                pipeline.set_state(Gst.State.NULL)
+                del self.preview_pipelines[cam_id]
+            
+            # Update state tracking
+            self.preview_states[cam_id] = "no_signal"
+            self.signal_states[cam_id] = False
+            self.signal_loss_times[cam_id] = time.time()
+            
+            # Clear resolution tracking
+            if cam_id in self.current_resolutions:
+                del self.current_resolutions[cam_id]
+            
+            logger.info(f"{cam_id}: Preview stopped due to signal loss")
+            
+        except Exception as e:
+            logger.error(f"Error handling signal loss for {cam_id}: {e}")
+            self.preview_states[cam_id] = "error"
+    
+    def _handle_signal_recovery(self, cam_id: str, width: int, height: int):
+        """Handle HDMI signal return.
+        
+        Re-initializes the device and starts a new preview pipeline.
+        
+        Args:
+            cam_id: Camera identifier
+            width: Detected resolution width
+            height: Detected resolution height
+        """
+        signal_loss_duration = None
+        if self.signal_loss_times.get(cam_id):
+            signal_loss_duration = time.time() - self.signal_loss_times[cam_id]
+            logger.info(
+                f"{cam_id}: HDMI signal recovered after {signal_loss_duration:.1f}s, "
+                f"resolution {width}x{height}"
+            )
+        else:
+            logger.info(f"{cam_id}: HDMI signal detected, resolution {width}x{height}")
+        
+        try:
+            # Update signal state
+            self.signal_states[cam_id] = True
+            self.signal_loss_times[cam_id] = None
+            
+            # Wait a moment for signal to stabilize
+            time.sleep(0.5)
+            
+            # Re-initialize rkcif device if needed
+            cam_config = self.config.cameras[cam_id]
+            try:
+                from .device_detection import initialize_rkcif_device, detect_device_type
+                device_type = detect_device_type(cam_config.device)
+                
+                if device_type == "hdmi_rkcif":
+                    logger.info(f"Re-initializing rkcif device {cam_config.device}")
+                    initialize_rkcif_device(cam_config.device)
+            except Exception as e:
+                logger.warning(f"Could not re-initialize device {cam_config.device}: {e}")
+            
+            # Start new pipeline
+            self.start_preview(cam_id)
+            
+            logger.info(f"{cam_id}: Preview restarted successfully after signal recovery")
+            
+        except Exception as e:
+            logger.error(f"Error handling signal recovery for {cam_id}: {e}")
+            self.preview_states[cam_id] = "error"
     
     def _handle_resolution_change(self, cam_id: str, new_width: int, new_height: int):
         """Handle resolution change by gracefully restarting the preview pipeline.

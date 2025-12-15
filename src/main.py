@@ -275,12 +275,22 @@ async def get_preview_status_api() -> Dict[str, Any]:
                 "formatted": f"{current_res[0]}x{current_res[1]}"
             }
         
+        # Get signal status
+        has_signal = preview_manager.signal_states.get(cam_id, True)
+        signal_loss_time = preview_manager.signal_loss_times.get(cam_id)
+        signal_loss_duration = None
+        if signal_loss_time:
+            import time
+            signal_loss_duration = int(time.time() - signal_loss_time)
+        
         camera_details[cam_id] = {
             "status": status,
             "config": cam_id in config.cameras,
             "device": cam_config.device if cam_config else None,
             "configured_resolution": cam_config.resolution if cam_config else None,
             "current_resolution": resolution_info,  # Actual detected resolution
+            "has_signal": has_signal,  # HDMI signal present
+            "signal_loss_duration": signal_loss_duration,  # Seconds since signal lost (None if has signal)
             "hls_url": f"/hls/{cam_id}_preview/index.m3u8" if status == "preview" else None
         }
     
@@ -290,7 +300,8 @@ async def get_preview_status_api() -> Dict[str, Any]:
             "total": len(statuses),
             "preview": sum(1 for s in statuses.values() if s == "preview"),
             "idle": sum(1 for s in statuses.values() if s == "idle"),
-            "error": sum(1 for s in statuses.values() if s == "error")
+            "error": sum(1 for s in statuses.values() if s == "error"),
+            "no_signal": sum(1 for s in statuses.values() if s == "no_signal")
         }
     }
 
