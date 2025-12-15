@@ -346,7 +346,7 @@
             display: block !important;
             width: 100% !important;
             height: 100% !important;
-            object-fit: cover !important;
+            object-fit: contain !important;
             background: #000 !important;
             position: absolute;
             top: 0;
@@ -807,7 +807,7 @@
                     view.innerHTML = `
                         <div class="camera-label">CAM ${camNumber}</div>
                         <div class="camera-close" onclick="event.stopPropagation(); closeFullscreen()">[X] Close</div>
-                        <video id="video-${camId}" autoplay muted playsinline style="display: block; width: 100%; height: 100%; object-fit: cover; background: #000;"></video>
+                        <video id="video-${camId}" autoplay muted playsinline style="display: block; width: 100%; height: 100%; object-fit: contain; background: #000;"></video>
                         <div class="camera-placeholder" id="placeholder-${camId}">
                             <div class="icon">CAM</div>
                             <div class="text">Loading preview...</div>
