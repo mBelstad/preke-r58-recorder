@@ -9,6 +9,11 @@ platform: auto
 # Logging level: DEBUG, INFO, WARNING, ERROR
 log_level: INFO
 
+# Preview configuration
+preview:
+  health_check_interval: 10  # seconds between health checks
+  stale_threshold: 15  # seconds before restarting stale pipeline
+
 # MediaMTX configuration (optional)
 mediamtx:
   enabled: true

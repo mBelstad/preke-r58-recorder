@@ -27,6 +27,13 @@ class MediaMTXConfig:
 
 
 @dataclass
+class PreviewConfig:
+    """Preview configuration."""
+    health_check_interval: int = 10  # seconds
+    stale_threshold: int = 15  # seconds
+
+
+@dataclass
 class MixerConfig:
     """Mixer configuration."""
     enabled: bool = False
@@ -47,6 +54,7 @@ class AppConfig:
     cameras: dict[str, CameraConfig] = field(default_factory=dict)
     mediamtx: MediaMTXConfig = field(default_factory=MediaMTXConfig)
     mixer: MixerConfig = field(default_factory=MixerConfig)
+    preview: PreviewConfig = field(default_factory=PreviewConfig)
     log_level: str = "INFO"
 
     @classmethod
@@ -74,6 +82,13 @@ class AppConfig:
             rtsp_port=mediamtx_data.get("rtsp_port", 8554),
             rtmp_port=mediamtx_data.get("rtmp_port", 1935),
             srt_port=mediamtx_data.get("srt_port", 8890),
+        )
+
+        # Load Preview config
+        preview_data = data.get("preview", {})
+        preview = PreviewConfig(
+            health_check_interval=preview_data.get("health_check_interval", 10),
+            stale_threshold=preview_data.get("stale_threshold", 15),
         )
 
         # Load Mixer config
@@ -108,6 +123,7 @@ class AppConfig:
             cameras=cameras,
             mediamtx=mediamtx,
             mixer=mixer,
+            preview=preview,
             log_level=data.get("log_level", "INFO"),
         )
 

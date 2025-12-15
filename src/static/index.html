@@ -405,6 +405,164 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.3);
         }
 
+        .camera-info {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            right: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 10;
+            gap: 8px;
+        }
+
+        .camera-resolution {
+            background: linear-gradient(135deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.7) 100%);
+            color: #10b981;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            font-family: 'Courier New', monospace;
+        }
+
+        .camera-signal {
+            background: linear-gradient(135deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.7) 100%);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            border: 1px solid rgba(255,255,255,0.15);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .signal-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .signal-dot.connected {
+            background: #10b981;
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+            animation: pulse 2s infinite;
+        }
+
+        .signal-dot.no-signal {
+            background: #ef4444;
+            box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+        }
+
+        .signal-dot.idle {
+            background: #6b7280;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .toast-container {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 400px;
+        }
+
+        .toast {
+            background: linear-gradient(135deg, rgba(26, 26, 26, 0.98) 0%, rgba(42, 42, 42, 0.98) 100%);
+            border: 1px solid rgba(59, 130, 246, 0.5);
+            border-radius: 8px;
+            padding: 16px 20px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(59, 130, 246, 0.3);
+            backdrop-filter: blur(20px);
+            animation: slideIn 0.3s ease-out;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .toast.resolution-change {
+            border-color: rgba(16, 185, 129, 0.5);
+        }
+
+        .toast.signal-change {
+            border-color: rgba(251, 191, 36, 0.5);
+        }
+
+        .toast-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        .toast-icon.resolution {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+        }
+
+        .toast-icon.signal {
+            background: rgba(251, 191, 36, 0.2);
+            color: #fbbf24;
+        }
+
+        .toast-content {
+            flex: 1;
+        }
+
+        .toast-title {
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin-bottom: 4px;
+            color: #fff;
+        }
+
+        .toast-message {
+            font-size: 0.85rem;
+            color: #9ca3af;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+        }
+
         .camera-view.fullscreen .camera-label {
             top: 20px;
             left: 20px;
@@ -615,6 +773,7 @@
     </style>
 </head>
 <body>
+    <div class="toast-container" id="toastContainer"></div>
     <div class="container">
         <div class="main-content">
             <div class="header">
@@ -691,6 +850,8 @@
         let webrtcConnections = {};
         let fullscreenCamera = null;
         let recordingStartTime = null;
+        let previousResolutions = {};
+        let previousSignalStates = {};
         let recordingInterval = null;
         let cameraStreamStates = {}; // Track which cameras have active streams
 
@@ -751,6 +912,8 @@
             checkRecordingStatus();
             setInterval(checkRecordingStatus, 2000);
             updateStats();
+            updateCameraInfo();
+            setInterval(updateCameraInfo, 5000);
             
             // Periodically check video stream states
             setInterval(() => {
@@ -811,6 +974,13 @@
                         <div class="camera-placeholder" id="placeholder-${camId}">
                             <div class="icon">CAM</div>
                             <div class="text">Loading preview...</div>
+                        </div>
+                        <div class="camera-info">
+                            <div class="camera-resolution" id="resolution-${camId}">--</div>
+                            <div class="camera-signal" id="signal-${camId}">
+                                <span class="signal-dot idle"></span>
+                                <span>IDLE</span>
+                            </div>
                         </div>
                     `;
                     multiview.appendChild(view);
@@ -1615,6 +1785,124 @@
                 statusEl.className = 'recording-status idle';
                 recordBtn.classList.remove('recording');
                 recordBtnText.textContent = 'Start Recording';
+            }
+        }
+
+        function showToast(title, message, type = 'resolution') {
+            const container = document.getElementById('toastContainer');
+            if (!container) return;
+            
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}-change`;
+            toast.innerHTML = `
+                <div class="toast-icon ${type}">
+                    ${type === 'resolution' ? '📐' : '📡'}
+                </div>
+                <div class="toast-content">
+                    <div class="toast-title">${title}</div>
+                    <div class="toast-message">${message}</div>
+                </div>
+            `;
+            
+            container.appendChild(toast);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                toast.style.animation = 'slideOut 0.3s ease-out';
+                setTimeout(() => {
+                    if (toast.parentNode) {
+                        toast.parentNode.removeChild(toast);
+                    }
+                }, 300);
+            }, 5000);
+        }
+
+        async function updateCameraInfo() {
+            try {
+                const response = await fetch(`${API_BASE}/api/preview/status`);
+                const data = await response.json();
+                
+                for (const [camId, camData] of Object.entries(data.cameras)) {
+                    // Check for resolution changes
+                    const currentRes = camData.current_resolution?.formatted;
+                    const previousRes = previousResolutions[camId];
+                    if (currentRes && previousRes && currentRes !== previousRes) {
+                        const camNumber = parseInt(camId.replace('cam', '')) + 1;
+                        showToast(
+                            `CAM ${camNumber} Resolution Changed`,
+                            `${previousRes} → ${currentRes}`,
+                            'resolution'
+                        );
+                    }
+                    if (currentRes) {
+                        previousResolutions[camId] = currentRes;
+                    }
+                    
+                    // Check for signal changes
+                    const currentSignal = camData.has_signal;
+                    const previousSignal = previousSignalStates[camId];
+                    if (previousSignal !== undefined && currentSignal !== previousSignal) {
+                        const camNumber = parseInt(camId.replace('cam', '')) + 1;
+                        if (currentSignal) {
+                            showToast(
+                                `CAM ${camNumber} Signal Recovered`,
+                                'HDMI signal detected',
+                                'signal'
+                            );
+                        } else {
+                            showToast(
+                                `CAM ${camNumber} Signal Lost`,
+                                'HDMI disconnected',
+                                'signal'
+                            );
+                        }
+                    }
+                    previousSignalStates[camId] = currentSignal;
+                    
+                    // Update resolution display
+                    const resolutionEl = document.getElementById(`resolution-${camId}`);
+                    if (resolutionEl) {
+                        if (camData.current_resolution) {
+                            resolutionEl.textContent = camData.current_resolution.formatted;
+                            resolutionEl.style.color = '#10b981';
+                        } else {
+                            resolutionEl.textContent = '--';
+                            resolutionEl.style.color = '#6b7280';
+                        }
+                    }
+                    
+                    // Update signal status
+                    const signalEl = document.getElementById(`signal-${camId}`);
+                    if (signalEl) {
+                        const dot = signalEl.querySelector('.signal-dot');
+                        const text = signalEl.querySelector('span:last-child');
+                        
+                        if (camData.status === 'preview' && camData.has_signal) {
+                            dot.className = 'signal-dot connected';
+                            text.textContent = 'LIVE';
+                            text.style.color = '#10b981';
+                        } else if (camData.status === 'no_signal' || !camData.has_signal) {
+                            dot.className = 'signal-dot no-signal';
+                            if (camData.signal_loss_duration) {
+                                const duration = Math.floor(camData.signal_loss_duration);
+                                text.textContent = `NO SIGNAL (${duration}s)`;
+                            } else {
+                                text.textContent = 'NO SIGNAL';
+                            }
+                            text.style.color = '#ef4444';
+                        } else if (camData.status === 'error') {
+                            dot.className = 'signal-dot no-signal';
+                            text.textContent = 'ERROR';
+                            text.style.color = '#ef4444';
+                        } else {
+                            dot.className = 'signal-dot idle';
+                            text.textContent = 'IDLE';
+                            text.style.color = '#6b7280';
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to update camera info:', error);
             }
         }
 

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>R58 Professional Switcher</title>
     <style>
         :root {
@@ -40,6 +40,13 @@
             /* Transitions */
             --transition-fast: 0.15s ease;
             --transition-panel: 0.3s ease-out;
+            
+            /* Responsive & Touch */
+            --touch-target-min: 48px;
+            --mobile-spacing: 12px;
+            --bottom-bar-height: 64px;
+            --sidebar-width: 180px;
+            --header-height: 56px;
         }
 
         html {
@@ -62,6 +69,10 @@
             height: 100vh;
             overflow: hidden;
             touch-action: manipulation;
+            /* iOS safe area support */
+            padding-top: env(safe-area-inset-top);
+            padding-left: env(safe-area-inset-left);
+            padding-right: env(safe-area-inset-right);
         }
 
         .switcher-container {
@@ -199,6 +210,53 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
+        
+        .compact-input-status {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 14px;
+            font-weight: 700;
+            padding: 4px 8px;
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 5;
+            pointer-events: none;
+        }
+        
+        .compact-input-status.status-connecting {
+            color: var(--text-muted);
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        
+        .compact-input-status.status-reconnecting {
+            background: rgba(245, 158, 11, 0.3);
+            color: var(--accent-warning);
+            animation: pulse 1s ease-in-out infinite;
+        }
+        
+        .compact-input-status.status-error {
+            background: rgba(239, 68, 68, 0.3);
+            color: var(--accent-danger);
+        }
+        
+        .compact-input-status.status-failed {
+            background: rgba(239, 68, 68, 0.5);
+            color: #fff;
+        }
+        
+        .compact-input-status.status-unsupported {
+            background: rgba(107, 114, 128, 0.5);
+            color: var(--text-secondary);
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
 
         /* Center Area */
         .center-area {
@@ -283,19 +341,26 @@
             z-index: 5;
         }
 
-        .output-placeholder::before {
-            content: '📹';
+        .output-placeholder .placeholder-icon {
             font-size: 48px;
             opacity: 0.3;
             margin-bottom: 16px;
         }
 
-        .output-placeholder::after {
-            content: 'NO SIGNAL';
+        .output-placeholder .placeholder-text {
             font-size: 14px;
             font-weight: 700;
             color: var(--text-muted);
             letter-spacing: 2px;
+            text-align: center;
+        }
+        
+        .output-placeholder .placeholder-subtext {
+            font-size: 11px;
+            color: var(--text-muted);
+            opacity: 0.7;
+            margin-top: 8px;
+            text-align: center;
         }
 
         .box-overlays {
@@ -1038,19 +1103,338 @@
             border-color: var(--accent-primary);
         }
 
-        /* Responsive */
-        @media (max-width: 1366px) {
-            .switcher-container {
-                grid-template-columns: 160px 1fr 160px;
-            }
-        }
-
         /* Collapsible Sidebars */
         .sidebar-collapsed {
             width: 0;
             overflow: hidden;
             border: none;
             padding: 0;
+        }
+        
+        /* Mobile Header */
+        .mobile-header {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: var(--header-height);
+            background: var(--bg-panel);
+            border-bottom: 1px solid var(--border-light);
+            z-index: 100;
+            align-items: center;
+            padding: 0 var(--mobile-spacing);
+            padding-top: env(safe-area-inset-top);
+            padding-left: max(var(--mobile-spacing), env(safe-area-inset-left));
+            padding-right: max(var(--mobile-spacing), env(safe-area-inset-right));
+            gap: var(--mobile-spacing);
+        }
+        
+        .mobile-header-title {
+            flex: 1;
+            font-size: 16px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .hamburger-btn {
+            width: var(--touch-target-min);
+            height: var(--touch-target-min);
+            background: none;
+            border: none;
+            color: var(--text-primary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            padding: 0;
+        }
+        
+        /* Bottom Navigation Bar */
+        .bottom-nav {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: calc(var(--bottom-bar-height) + env(safe-area-inset-bottom));
+            background: var(--bg-panel);
+            border-top: 1px solid var(--border-light);
+            z-index: 100;
+            padding: var(--spacing-sm) var(--mobile-spacing);
+            padding-bottom: calc(var(--spacing-sm) + env(safe-area-inset-bottom));
+            padding-left: max(var(--mobile-spacing), env(safe-area-inset-left));
+            padding-right: max(var(--mobile-spacing), env(safe-area-inset-right));
+        }
+        
+        .bottom-nav-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: var(--spacing-xs);
+            height: 100%;
+        }
+        
+        .bottom-nav-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+            background: var(--bg-element);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-sm);
+            color: var(--text-secondary);
+            font-size: 20px;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            min-height: var(--touch-target-min);
+        }
+        
+        .bottom-nav-btn-label {
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+        
+        .bottom-nav-btn:active {
+            background: var(--bg-hover);
+            transform: scale(0.95);
+        }
+        
+        .bottom-nav-btn.active {
+            background: rgba(59, 130, 246, 0.15);
+            border-color: var(--accent-primary);
+            color: var(--accent-primary);
+        }
+        
+        .bottom-nav-btn.take {
+            background: var(--accent-danger);
+            color: #fff;
+            border-color: var(--accent-danger);
+            font-weight: 700;
+        }
+        
+        /* Responsive Breakpoints */
+        
+        /* Desktop - slight adjustment */
+        @media (max-width: 1366px) {
+            .switcher-container {
+                grid-template-columns: 160px 1fr 160px;
+            }
+        }
+        
+        /* Tablet Landscape (1024px and below) */
+        @media (max-width: 1024px) {
+            :root {
+                --sidebar-width: 280px;
+            }
+            
+            .switcher-container {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 1fr auto;
+            }
+            
+            .left-sidebar,
+            .right-sidebar {
+                position: fixed;
+                top: 0;
+                bottom: 0;
+                width: var(--sidebar-width);
+                z-index: 200;
+                transform: translateX(-100%);
+                transition: transform var(--transition-panel);
+            }
+            
+            .left-sidebar {
+                left: 0;
+            }
+            
+            .right-sidebar {
+                right: 0;
+                left: auto;
+                transform: translateX(100%);
+            }
+            
+            .left-sidebar.open {
+                transform: translateX(0);
+            }
+            
+            .right-sidebar.open {
+                transform: translateX(0);
+            }
+            
+            .center-area {
+                grid-column: 1;
+            }
+            
+            .preview-program-section {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto;
+                gap: var(--spacing-md);
+                padding: var(--spacing-lg);
+            }
+            
+            .take-button {
+                position: fixed;
+                bottom: calc(var(--bottom-bar-height) + env(safe-area-inset-bottom) + 80px);
+                right: max(20px, env(safe-area-inset-right));
+                width: 72px;
+                height: 72px;
+                border-radius: 50%;
+                z-index: 50;
+                box-shadow: 0 4px 16px rgba(239, 68, 68, 0.5);
+                font-size: 14px;
+            }
+            
+            .scene-buttons-section {
+                max-height: none;
+                padding: var(--spacing-md);
+            }
+            
+            .scene-grid {
+                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+                gap: var(--spacing-sm);
+            }
+            
+            .scene-button-large {
+                min-height: 80px;
+                font-size: 12px;
+                padding: var(--spacing-md);
+            }
+        }
+        
+        /* Mobile Landscape & Tablet Portrait (768px and below) */
+        @media (max-width: 768px) {
+            :root {
+                --sidebar-width: 280px;
+            }
+            
+            body {
+                padding-top: calc(var(--header-height) + env(safe-area-inset-top));
+                padding-bottom: calc(var(--bottom-bar-height) + env(safe-area-inset-bottom));
+            }
+            
+            .mobile-header {
+                display: flex;
+            }
+            
+            .bottom-nav {
+                display: block;
+            }
+            
+            .switcher-container {
+                height: calc(100vh - var(--header-height) - var(--bottom-bar-height) - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+            }
+            
+            .left-sidebar .quick-access-toolbar,
+            .right-sidebar .transition-controls {
+                display: none;
+            }
+            
+            .preview-program-section {
+                grid-template-columns: 1fr;
+                grid-template-rows: 1fr;
+                padding: var(--mobile-spacing);
+            }
+            
+            .preview-output {
+                display: none;
+            }
+            
+            .take-button {
+                display: none;
+            }
+            
+            .scene-grid {
+                grid-template-columns: repeat(3, 1fr);
+                gap: var(--spacing-sm);
+            }
+            
+            .scene-button-large {
+                min-height: 70px;
+                font-size: 11px;
+                padding: var(--spacing-sm);
+            }
+            
+            .compact-input-grid {
+                padding: var(--spacing-sm);
+                gap: var(--spacing-xs);
+            }
+        }
+        
+        /* Mobile Portrait (480px and below) */
+        @media (max-width: 480px) {
+            .scene-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .scene-button-large {
+                min-height: 64px;
+                font-size: 10px;
+            }
+            
+            .program-output {
+                aspect-ratio: 16/9;
+            }
+            
+            .output-label {
+                font-size: 10px;
+                padding: 3px 6px;
+            }
+            
+            .bottom-nav-btn {
+                font-size: 18px;
+            }
+            
+            .bottom-nav-btn-label {
+                font-size: 8px;
+            }
+        }
+        
+        /* Touch device optimizations */
+        @media (hover: none) and (pointer: coarse) {
+            .toolbar-btn,
+            .scene-button-large,
+            .btn-transition,
+            .btn-system {
+                min-height: var(--touch-target-min);
+                min-width: var(--touch-target-min);
+            }
+            
+            .toolbar-btn:hover,
+            .scene-button-large:hover,
+            .btn-transition:hover {
+                transform: none;
+            }
+            
+            .toolbar-btn:active,
+            .scene-button-large:active,
+            .btn-transition:active {
+                transform: scale(0.95);
+            }
+        }
+        
+        /* Landscape orientation adjustments */
+        @media (max-width: 768px) and (orientation: landscape) {
+            .preview-program-section {
+                padding: var(--spacing-sm);
+            }
+            
+            .scene-buttons-section {
+                padding: var(--spacing-sm);
+            }
+            
+            .scene-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+            
+            .scene-button-large {
+                min-height: 56px;
+                font-size: 10px;
+            }
         }
 
         .sidebar-toggle {
@@ -1083,9 +1467,104 @@
             right: 0;
             border-radius: var(--radius-sm) 0 0 var(--radius-sm);
         }
+        
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-sm);
+            pointer-events: none;
+        }
+        
+        .toast {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-md) var(--spacing-lg);
+            box-shadow: var(--shadow-md);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            animation: toastSlideIn 0.3s ease-out;
+            pointer-events: auto;
+            max-width: 400px;
+        }
+        
+        .toast.toast-error {
+            border-color: var(--accent-danger);
+            background: rgba(239, 68, 68, 0.1);
+        }
+        
+        .toast.toast-success {
+            border-color: var(--accent-success);
+            background: rgba(16, 185, 129, 0.1);
+        }
+        
+        .toast.toast-warning {
+            border-color: var(--accent-warning);
+            background: rgba(245, 158, 11, 0.1);
+        }
+        
+        .toast-icon {
+            font-size: 18px;
+        }
+        
+        .toast-message {
+            font-size: 13px;
+            flex: 1;
+        }
+        
+        .toast-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 4px;
+            font-size: 16px;
+        }
+        
+        .toast.toast-exit {
+            animation: toastSlideOut 0.2s ease-in forwards;
+        }
+        
+        @keyframes toastSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes toastSlideOut {
+            from {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+        }
     </style>
 </head>
 <body>
+    <!-- Mobile Header -->
+    <div class="mobile-header" id="mobileHeader">
+        <button class="hamburger-btn" id="hamburgerBtn">☰</button>
+        <div class="mobile-header-title">R58 Switcher</div>
+        <div class="status-compact">
+            <div class="status-dot" id="statusDotMobile"></div>
+        </div>
+    </div>
+    
     <div class="switcher-container">
         <!-- Left Sidebar -->
         <div class="left-sidebar" id="leftSidebar">
@@ -1101,7 +1580,8 @@
                 <button class="toolbar-btn" id="graphicsBtn" title="Graphics (G)">🎨</button>
                 <button class="toolbar-btn" id="audioBtn" title="Audio Mixer (A)">🔊</button>
                 <button class="toolbar-btn" id="settingsBtn" title="Settings">⚙️</button>
-                    </div>
+                <button class="toolbar-btn" id="refreshBtn" title="Refresh Streams (R)">🔄</button>
+            </div>
             <div class="system-status">
                 <div class="status-compact">
                     <div class="status-dot" id="healthDot"></div>
@@ -1119,14 +1599,22 @@
                 <div class="preview-output" id="previewOutput">
                     <div class="output-label">PVW</div>
                     <video id="previewVideo" class="output-video" autoplay muted playsinline></video>
-                    <div class="output-placeholder" id="previewPlaceholder"></div>
+                    <div class="output-placeholder" id="previewPlaceholder">
+                        <div class="placeholder-icon">📹</div>
+                        <div class="placeholder-text">PREVIEW</div>
+                        <div class="placeholder-subtext">Select a scene to preview</div>
+                    </div>
                     <div class="box-overlays" id="previewBoxOverlays"></div>
                 </div>
                 <button class="take-button" id="takeButton">TAKE</button>
                 <div class="program-output" id="programOutput">
                     <div class="output-label">PGM</div>
                     <video id="programVideo" class="output-video" autoplay muted playsinline></video>
-                    <div class="output-placeholder" id="programPlaceholder"></div>
+                    <div class="output-placeholder" id="programPlaceholder">
+                        <div class="placeholder-icon">📺</div>
+                        <div class="placeholder-text">NO OUTPUT</div>
+                        <div class="placeholder-subtext">Start mixer to begin</div>
+                    </div>
                     <div class="box-overlays" id="programBoxOverlays"></div>
                 </div>
             </div>
@@ -1162,6 +1650,34 @@
 
     <!-- Backdrop -->
     <div class="backdrop" id="backdrop"></div>
+    
+    <!-- Bottom Navigation Bar (Mobile) -->
+    <div class="bottom-nav" id="bottomNav">
+        <div class="bottom-nav-grid">
+            <button class="bottom-nav-btn" id="bottomQueueBtn">
+                <span>📋</span>
+                <span class="bottom-nav-btn-label">Queue</span>
+            </button>
+            <button class="bottom-nav-btn" id="bottomMediaBtn">
+                <span>🎬</span>
+                <span class="bottom-nav-btn-label">Media</span>
+            </button>
+            <button class="bottom-nav-btn take" id="bottomTakeBtn">
+                <span>TAKE</span>
+            </button>
+            <button class="bottom-nav-btn" id="bottomGraphicsBtn">
+                <span>🎨</span>
+                <span class="bottom-nav-btn-label">Graphics</span>
+            </button>
+            <button class="bottom-nav-btn" id="bottomSettingsBtn">
+                <span>⚙️</span>
+                <span class="bottom-nav-btn-label">Settings</span>
+            </button>
+        </div>
+    </div>
+    
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
 
     <!-- Off-Canvas Panels -->
     <!-- Queue Panel -->
@@ -1300,8 +1816,9 @@
                     <div>M: Media library</div>
                     <div>G: Graphics panel</div>
                     <div>A: Audio mixer</div>
+                    <div>R: Refresh streams</div>
                     <div>Esc: Close panels</div>
-            </div>
+                </div>
             </div>
             <div style="margin-bottom: var(--spacing-md); padding-top: var(--spacing-md); border-top: 1px solid var(--border-light);">
                 <div style="font-size: 11px; font-weight: 600; margin-bottom: var(--spacing-sm); text-transform: uppercase;">Display Preferences</div>
@@ -1345,6 +1862,96 @@
         let selectedBox = 1;
         let activePanel = null;
         let editingScene = null;
+        let isMobileMenuOpen = false;
+
+        // Mobile menu management
+        function toggleMobileMenu() {
+            const leftSidebar = document.getElementById('leftSidebar');
+            const backdrop = document.getElementById('backdrop');
+            
+            isMobileMenuOpen = !isMobileMenuOpen;
+            
+            if (isMobileMenuOpen) {
+                leftSidebar.classList.add('open');
+                backdrop.classList.add('active');
+            } else {
+                leftSidebar.classList.remove('open');
+                backdrop.classList.remove('active');
+            }
+        }
+        
+        function closeMobileMenu() {
+            const leftSidebar = document.getElementById('leftSidebar');
+            const backdrop = document.getElementById('backdrop');
+            
+            isMobileMenuOpen = false;
+            leftSidebar.classList.remove('open');
+            backdrop.classList.remove('active');
+        }
+        
+        // Detect if we're on a mobile device
+        function isMobileDevice() {
+            return window.innerWidth <= 768 || 
+                   ('ontouchstart' in window) || 
+                   (navigator.maxTouchPoints > 0);
+        }
+        
+        // Touch gesture detection
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let touchEndX = 0;
+        let touchEndY = 0;
+        const minSwipeDistance = 50;
+        
+        function initTouchGestures() {
+            const programOutput = document.getElementById('programOutput');
+            if (!programOutput) return;
+            
+            programOutput.addEventListener('touchstart', (e) => {
+                touchStartX = e.changedTouches[0].screenX;
+                touchStartY = e.changedTouches[0].screenY;
+            }, { passive: true });
+            
+            programOutput.addEventListener('touchend', (e) => {
+                touchEndX = e.changedTouches[0].screenX;
+                touchEndY = e.changedTouches[0].screenY;
+                handleSwipe();
+            }, { passive: true });
+        }
+        
+        function handleSwipe() {
+            const deltaX = touchEndX - touchStartX;
+            const deltaY = touchEndY - touchStartY;
+            
+            // Check if horizontal swipe is dominant
+            if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > minSwipeDistance) {
+                if (deltaX > 0) {
+                    // Swipe right - go to previous scene
+                    navigateScene(-1);
+                } else {
+                    // Swipe left - go to next scene
+                    navigateScene(1);
+                }
+            }
+        }
+        
+        function navigateScene(direction) {
+            if (!scenes || scenes.length === 0) return;
+            
+            // Find current scene index
+            let currentIndex = scenes.findIndex(s => s.id === currentPreviewScene || s.id === currentProgramScene);
+            if (currentIndex === -1) currentIndex = 0;
+            
+            // Calculate new index with wrapping
+            let newIndex = (currentIndex + direction + scenes.length) % scenes.length;
+            
+            // Apply the new scene
+            const newScene = scenes[newIndex];
+            if (newScene) {
+                applyToPreview(newScene.id);
+                showToast(`Scene: ${newScene.label}`, 'info', 2000);
+            }
+        }
 
         // Initialize
         async function init() {
@@ -1355,6 +1962,7 @@
             initEventListeners();
             initKeyboardShortcuts();
             initDragAndDrop();
+            initTouchGestures();
             startStatusPolling();
             loadQueue();
             loadFiles();
@@ -1439,6 +2047,12 @@
                     openPanel('audioPanel');
                 }
                 
+                // R to refresh streams
+                if (e.key === 'r' || e.key === 'R') {
+                    e.preventDefault();
+                    resetAllStreams();
+                }
+                
                 // Escape to close panels
                 if (e.key === 'Escape') {
                     closePanel();
@@ -1448,12 +2062,38 @@
 
         // Event Listeners
         function initEventListeners() {
-            // Panel buttons
+            // Hamburger menu
+            document.getElementById('hamburgerBtn')?.addEventListener('click', toggleMobileMenu);
+            
+            // Bottom navigation buttons
+            document.getElementById('bottomQueueBtn')?.addEventListener('click', () => {
+                closeMobileMenu();
+                openPanel('queuePanel');
+            });
+            document.getElementById('bottomMediaBtn')?.addEventListener('click', () => {
+                closeMobileMenu();
+                openPanel('mediaPanel');
+            });
+            document.getElementById('bottomGraphicsBtn')?.addEventListener('click', () => {
+                closeMobileMenu();
+                openPanel('graphicsPanel');
+            });
+            document.getElementById('bottomSettingsBtn')?.addEventListener('click', () => {
+                closeMobileMenu();
+                openPanel('settingsPanel');
+            });
+            document.getElementById('bottomTakeBtn')?.addEventListener('click', () => {
+                closeMobileMenu();
+                takePreview();
+            });
+            
+            // Panel buttons (desktop)
             document.getElementById('queueBtn')?.addEventListener('click', () => openPanel('queuePanel'));
             document.getElementById('mediaBtn')?.addEventListener('click', () => openPanel('mediaPanel'));
             document.getElementById('graphicsBtn')?.addEventListener('click', () => openPanel('graphicsPanel'));
             document.getElementById('audioBtn')?.addEventListener('click', () => openPanel('audioPanel'));
             document.getElementById('settingsBtn')?.addEventListener('click', () => openPanel('settingsPanel'));
+            document.getElementById('refreshBtn')?.addEventListener('click', resetAllStreams);
             
             // Scene editor buttons
             document.getElementById('newSceneBtn')?.addEventListener('click', () => {
@@ -1468,8 +2108,14 @@
                 document.getElementById('cancelSceneBtn').style.display = 'none';
             });
             
-            // Backdrop closes panel
-            document.getElementById('backdrop')?.addEventListener('click', closePanel);
+            // Backdrop closes panel or mobile menu
+            document.getElementById('backdrop')?.addEventListener('click', () => {
+                if (isMobileMenuOpen) {
+                    closeMobileMenu();
+                } else {
+                    closePanel();
+                }
+            });
             
             // System controls
             document.getElementById('startBtn')?.addEventListener('click', startMixer);
@@ -1584,9 +2230,13 @@
                     updateSceneButtons();
                     await fetchSceneDetails(sceneId);
                     await checkMixerStatus();
+                } else {
+                    const data = await response.json().catch(() => ({}));
+                    showError(data.detail || 'Failed to apply scene');
                 }
             } catch (error) {
                 console.error('Failed to apply scene to preview:', error);
+                showError('Failed to apply scene: ' + error.message);
             }
         }
 
@@ -1634,14 +2284,15 @@
                 input.innerHTML = `
                     <video id="compact-input-${i}-video" muted playsinline></video>
                     <div class="compact-input-label">Input ${i + 1}</div>
+                    <div class="compact-input-status" id="compact-input-${i}-status"></div>
                 `;
                 input.addEventListener('click', () => selectInput(i));
                 grid.appendChild(input);
                 
-                // Load preview stream
+                // Load preview stream (using correct path with _preview suffix)
                 const video = input.querySelector('video');
                 if (video) {
-                    const hlsUrl = getHLSUrl(`cam${i}`);
+                    const hlsUrl = getHLSUrl(`cam${i}_preview`);
                     loadHLS(video, hlsUrl, `compact-input-${i}`);
                 }
             }
@@ -1666,15 +2317,16 @@
             
             previewOverlays.innerHTML = '';
             currentSceneDetails.slots.forEach((slot, index) => {
+                const coords = getSlotCoords(slot);
                 const box = document.createElement('div');
                 box.className = `box-overlay box-${index + 1}`;
                 if (slot.source) {
                     box.classList.add('has-input');
                 }
-                box.style.left = `${slot.x * 100}%`;
-                box.style.top = `${slot.y * 100}%`;
-                box.style.width = `${slot.w * 100}%`;
-                box.style.height = `${slot.h * 100}%`;
+                box.style.left = `${coords.x * 100}%`;
+                box.style.top = `${coords.y * 100}%`;
+                box.style.width = `${coords.w * 100}%`;
+                box.style.height = `${coords.h * 100}%`;
                 
                 const number = document.createElement('div');
                 number.className = 'box-number';
@@ -1779,42 +2431,79 @@
             mixerState = data.state || 'NULL';
             currentScene = data.current_scene || null;
 
-            const dots = document.querySelectorAll('.status-dot');
-            const texts = document.querySelectorAll('#statusText, #statusTextRight');
+            // Update all status dots
+            const statusDot = document.getElementById('statusDot');
+            const statusDotRight = document.getElementById('statusDotRight');
+            const statusDotMobile = document.getElementById('statusDotMobile');
+            const healthDot = document.getElementById('healthDot');
             
-            dots.forEach(dot => {
-            dot.className = 'status-dot';
-            if (data.state === 'PLAYING' && data.health === 'healthy') {
-                dot.classList.add('active');
-                } else if (data.state === 'DISABLED' || data.health === 'unhealthy') {
+            [statusDot, statusDotRight, statusDotMobile].forEach(dot => {
+                if (!dot) return;
+                dot.className = 'status-dot';
+                if (data.state === 'PLAYING') {
+                    dot.classList.add('active');
+                } else if (data.state === 'DISABLED' || data.last_error) {
                     dot.classList.add('error');
                 }
             });
             
-            texts.forEach(text => {
-                if (data.state === 'PLAYING' && data.health === 'healthy') {
-                text.textContent = 'PLAYING';
-            } else if (data.state === 'NULL') {
-                text.textContent = 'STOPPED';
-            } else if (data.state === 'DISABLED') {
-                text.textContent = 'DISABLED';
-            } else {
-                text.textContent = 'ERROR';
+            // Update health dot separately
+            if (healthDot) {
+                healthDot.className = 'status-dot';
+                if (data.health === 'healthy') {
+                    healthDot.classList.add('active');
+                } else if (data.health === 'unhealthy') {
+                    healthDot.classList.add('error');
+                }
+            }
+            
+            // Update text labels
+            const statusText = document.getElementById('statusText');
+            const statusTextRight = document.getElementById('statusTextRight');
+            const healthText = document.getElementById('healthText');
+            
+            [statusText, statusTextRight].forEach(text => {
+                if (!text) return;
+                if (data.state === 'PLAYING') {
+                    text.textContent = 'PLAYING';
+                } else if (data.state === 'NULL') {
+                    text.textContent = 'STOPPED';
+                } else if (data.state === 'DISABLED') {
+                    text.textContent = 'DISABLED';
+                } else {
+                    text.textContent = data.state || 'UNKNOWN';
                 }
             });
+            
+            if (healthText) {
+                healthText.textContent = data.health === 'healthy' ? 'HEALTHY' : 'UNHEALTHY';
+            }
 
+            // Update program output
             if (data.state === 'PLAYING' && data.mediamtx_enabled) {
                 updateProgramOutput(data);
+                document.getElementById('programPlaceholder')?.style.setProperty('display', 'none');
             } else {
                 clearOutputs();
             }
 
             updateSceneButtons();
             
+            // Update current scene if changed
             if (currentScene && currentScene !== currentProgramScene) {
                 fetchSceneDetails(currentScene);
                 currentProgramScene = currentScene;
-                }
+            }
+            
+            // Update button states based on mixer state
+            const startBtn = document.getElementById('startBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            if (startBtn && stopBtn) {
+                startBtn.disabled = data.state === 'PLAYING';
+                stopBtn.disabled = data.state !== 'PLAYING';
+                startBtn.style.opacity = data.state === 'PLAYING' ? '0.5' : '1';
+                stopBtn.style.opacity = data.state !== 'PLAYING' ? '0.5' : '1';
+            }
         }
 
         // Update program output
@@ -1825,8 +2514,11 @@
                 const placeholder = document.getElementById('programPlaceholder');
                 
                 if (video && placeholder) {
-                    placeholder.style.display = 'none';
-                    loadHLS(video, hlsUrl, 'program');
+                    // Only load if not already loaded
+                    if (!hlsInstances['program'] || hlsInstances['program']._url !== hlsUrl) {
+                        placeholder.style.display = 'none';
+                        loadHLS(video, hlsUrl, 'program');
+                    }
                 }
                 
                 // Also update preview if we have a preview scene
@@ -1835,6 +2527,33 @@
                 }
             }
         }
+        
+        // Reset stream connections (useful for manual refresh)
+        function resetAllStreams() {
+            showToast('Refreshing streams...', 'info', 2000);
+            
+            // Clear all HLS instances
+            Object.keys(hlsInstances).forEach(id => {
+                if (hlsInstances[id] && hlsInstances[id].destroy) {
+                    hlsInstances[id].destroy();
+                }
+                delete hlsInstances[id];
+            });
+            
+            // Clear retry state
+            Object.keys(hlsRetryState).forEach(id => {
+                if (hlsRetryState[id].timeout) {
+                    clearTimeout(hlsRetryState[id].timeout);
+                }
+                delete hlsRetryState[id];
+            });
+            
+            // Reinitialize inputs
+            initCompactInputs();
+            
+            // Reload program output if mixer is playing
+            checkMixerStatus();
+        }
 
         // Clear outputs
         function clearOutputs() {
@@ -1842,18 +2561,163 @@
             placeholders.forEach(p => p.style.display = 'flex');
         }
 
-        // Load HLS stream
+        // HLS reconnection state
+        const hlsRetryState = {};
+        const HLS_MAX_RETRIES = 5;
+        const HLS_RETRY_DELAY_BASE = 2000; // 2 seconds base delay
+        
+        // Load HLS stream with robust error handling and reconnection
         function loadHLS(video, url, id) {
+            // Initialize retry state
+            if (!hlsRetryState[id]) {
+                hlsRetryState[id] = { retries: 0, timeout: null };
+            }
+            
+            // Update status indicator
+            updateStreamStatus(id, 'connecting');
+            
             if (Hls.isSupported()) {
                 if (hlsInstances[id]) {
                     hlsInstances[id].destroy();
                 }
-                const hls = new Hls();
+                
+                const hls = new Hls({
+                    manifestLoadingTimeOut: 10000,
+                    manifestLoadingMaxRetry: 3,
+                    levelLoadingTimeOut: 10000,
+                    fragLoadingTimeOut: 20000,
+                    enableWorker: true,
+                    lowLatencyMode: false,
+                    backBufferLength: 30,
+                });
+                
                 hls.loadSource(url);
-                        hls.attachMedia(video);
+                hls.attachMedia(video);
                 hlsInstances[id] = hls;
-                    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                
+                // Handle successful load
+                hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                    hlsRetryState[id].retries = 0;
+                    updateStreamStatus(id, 'connected');
+                    video.play().catch(e => console.debug('Autoplay blocked:', e));
+                });
+                
+                // Handle media attached
+                hls.on(Hls.Events.MEDIA_ATTACHED, () => {
+                    console.debug(`HLS media attached: ${id}`);
+                });
+                
+                // Handle fragment loaded
+                hls.on(Hls.Events.FRAG_LOADED, () => {
+                    hlsRetryState[id].retries = 0;
+                    updateStreamStatus(id, 'connected');
+                });
+                
+                // Handle errors with reconnection logic
+                hls.on(Hls.Events.ERROR, (event, data) => {
+                    console.warn(`HLS error on ${id}:`, data.type, data.details);
+                    
+                    if (data.fatal) {
+                        updateStreamStatus(id, 'error');
+                        
+                        switch (data.type) {
+                            case Hls.ErrorTypes.NETWORK_ERROR:
+                                console.warn(`HLS network error on ${id}, attempting recovery...`);
+                                scheduleHLSRetry(video, url, id);
+                                break;
+                            case Hls.ErrorTypes.MEDIA_ERROR:
+                                console.warn(`HLS media error on ${id}, attempting recovery...`);
+                                hls.recoverMediaError();
+                                break;
+                            default:
+                                console.error(`HLS fatal error on ${id}, scheduling retry...`);
+                                scheduleHLSRetry(video, url, id);
+                                break;
+                        }
+                    }
+                });
+                
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                // Native HLS support (Safari)
                 video.src = url;
+                video.addEventListener('loadeddata', () => {
+                    updateStreamStatus(id, 'connected');
+                });
+                video.addEventListener('error', () => {
+                    updateStreamStatus(id, 'error');
+                    scheduleHLSRetry(video, url, id);
+                });
+            } else {
+                console.error('HLS not supported on this browser');
+                updateStreamStatus(id, 'unsupported');
+            }
+        }
+        
+        // Schedule HLS retry with exponential backoff
+        function scheduleHLSRetry(video, url, id) {
+            const state = hlsRetryState[id];
+            
+            // Clear existing timeout
+            if (state.timeout) {
+                clearTimeout(state.timeout);
+            }
+            
+            // Check max retries
+            if (state.retries >= HLS_MAX_RETRIES) {
+                console.error(`HLS max retries reached for ${id}`);
+                updateStreamStatus(id, 'failed');
+                return;
+            }
+            
+            // Calculate delay with exponential backoff
+            const delay = HLS_RETRY_DELAY_BASE * Math.pow(2, state.retries);
+            state.retries++;
+            
+            console.log(`Scheduling HLS retry for ${id} in ${delay}ms (attempt ${state.retries}/${HLS_MAX_RETRIES})`);
+            updateStreamStatus(id, 'reconnecting', state.retries);
+            
+            state.timeout = setTimeout(() => {
+                loadHLS(video, url, id);
+            }, delay);
+        }
+        
+        // Update stream status indicator
+        function updateStreamStatus(id, status, retryCount) {
+            const statusEl = document.getElementById(`${id}-status`);
+            if (!statusEl) return;
+            
+            statusEl.className = 'compact-input-status';
+            
+            switch (status) {
+                case 'connecting':
+                    statusEl.classList.add('status-connecting');
+                    statusEl.textContent = '...';
+                    break;
+                case 'connected':
+                    statusEl.classList.add('status-connected');
+                    statusEl.textContent = '';
+                    statusEl.style.display = 'none';
+                    break;
+                case 'reconnecting':
+                    statusEl.style.display = 'flex';
+                    statusEl.classList.add('status-reconnecting');
+                    statusEl.textContent = `↻ ${retryCount || ''}`;
+                    break;
+                case 'error':
+                    statusEl.style.display = 'flex';
+                    statusEl.classList.add('status-error');
+                    statusEl.textContent = '⚠';
+                    break;
+                case 'failed':
+                    statusEl.style.display = 'flex';
+                    statusEl.classList.add('status-failed');
+                    statusEl.textContent = '✕';
+                    break;
+                case 'unsupported':
+                    statusEl.style.display = 'flex';
+                    statusEl.classList.add('status-unsupported');
+                    statusEl.textContent = '?';
+                    break;
             }
         }
 
@@ -1871,6 +2735,16 @@
             }
         }
 
+        // Helper to get slot coordinates (handles both x_rel/y_rel and x/y formats)
+        function getSlotCoords(slot) {
+            return {
+                x: slot.x_rel !== undefined ? slot.x_rel : (slot.x || 0),
+                y: slot.y_rel !== undefined ? slot.y_rel : (slot.y || 0),
+                w: slot.w_rel !== undefined ? slot.w_rel : (slot.w || 1),
+                h: slot.h_rel !== undefined ? slot.h_rel : (slot.h || 1)
+            };
+        }
+        
         // Render box overlays
         function renderBoxOverlays() {
             if (!currentSceneDetails || !currentSceneDetails.slots) return;
@@ -1883,15 +2757,16 @@
                 container.innerHTML = '';
                 
                 currentSceneDetails.slots.forEach((slot, index) => {
+                    const coords = getSlotCoords(slot);
                     const box = document.createElement('div');
                     box.className = `box-overlay box-${index + 1}`;
                     if (slot.source) {
                         box.classList.add('has-input');
                     }
-                    box.style.left = `${slot.x * 100}%`;
-                    box.style.top = `${slot.y * 100}%`;
-                    box.style.width = `${slot.w * 100}%`;
-                    box.style.height = `${slot.h * 100}%`;
+                    box.style.left = `${coords.x * 100}%`;
+                    box.style.top = `${coords.y * 100}%`;
+                    box.style.width = `${coords.w * 100}%`;
+                    box.style.height = `${coords.h * 100}%`;
                     
                     const number = document.createElement('div');
                     number.className = 'box-number';
@@ -1899,7 +2774,7 @@
                     box.appendChild(number);
                     
                     if (slot.source) {
-                const label = document.createElement('div');
+                        const label = document.createElement('div');
                         label.className = 'box-input-label';
                         label.textContent = slot.source.toUpperCase();
                         box.appendChild(label);
@@ -1908,17 +2783,22 @@
                     container.appendChild(box);
                 });
             });
-                }
+        }
 
         // Start mixer
         async function startMixer() {
             try {
                 const response = await fetch(`${API_BASE}/api/mixer/start`, { method: 'POST' });
                 if (response.ok) {
+                    showSuccess('Mixer started');
                     await checkMixerStatus();
+                } else {
+                    const data = await response.json().catch(() => ({}));
+                    showError(data.detail || 'Failed to start mixer');
                 }
             } catch (error) {
                 console.error('Failed to start mixer:', error);
+                showError('Failed to start mixer: ' + error.message);
             }
         }
 
@@ -1927,10 +2807,15 @@
             try {
                 const response = await fetch(`${API_BASE}/api/mixer/stop`, { method: 'POST' });
                 if (response.ok) {
+                    showSuccess('Mixer stopped');
                     await checkMixerStatus();
+                } else {
+                    const data = await response.json().catch(() => ({}));
+                    showError(data.detail || 'Failed to stop mixer');
                 }
             } catch (error) {
                 console.error('Failed to stop mixer:', error);
+                showError('Failed to stop mixer: ' + error.message);
             }
         }
 
@@ -2251,9 +3136,52 @@
             }
         }
 
+        // Toast notification system
+        function showToast(message, type = 'info', duration = 5000) {
+            const container = document.getElementById('toastContainer');
+            if (!container) return;
+            
+            const icons = {
+                error: '⚠️',
+                success: '✓',
+                warning: '⚡',
+                info: 'ℹ️'
+            };
+            
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.innerHTML = `
+                <span class="toast-icon">${icons[type] || icons.info}</span>
+                <span class="toast-message">${message}</span>
+                <button class="toast-close" onclick="this.parentElement.remove()">×</button>
+            `;
+            
+            container.appendChild(toast);
+            
+            // Auto-remove after duration
+            if (duration > 0) {
+                setTimeout(() => {
+                    toast.classList.add('toast-exit');
+                    setTimeout(() => toast.remove(), 200);
+                }, duration);
+            }
+            
+            return toast;
+        }
+        
         function showError(message) {
             console.error(message);
-            // Could show a toast notification here
+            showToast(message, 'error');
+        }
+        
+        function showSuccess(message) {
+            console.log(message);
+            showToast(message, 'success', 3000);
+        }
+        
+        function showWarning(message) {
+            console.warn(message);
+            showToast(message, 'warning', 4000);
         }
 
         // Scene Editor Functions

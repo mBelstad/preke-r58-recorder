@@ -11,10 +11,9 @@ from .gst_utils import ensure_gst_initialized, get_gst
 
 logger = logging.getLogger(__name__)
 
-# Health check interval in seconds
-HEALTH_CHECK_INTERVAL = 10
-# Stale threshold - restart pipeline if no data for this many seconds
-STALE_THRESHOLD = 15
+# Default health check interval (can be overridden by config)
+DEFAULT_HEALTH_CHECK_INTERVAL = 10
+DEFAULT_STALE_THRESHOLD = 15
 
 
 class PreviewManager:
@@ -296,6 +295,8 @@ class PreviewManager:
     
     def _health_check_loop(self):
         """Background thread that monitors pipeline health."""
+        check_interval = self.config.preview.health_check_interval
+        
         while self._health_check_running:
             try:
                 self._check_all_pipelines_health()
@@ -303,7 +304,7 @@ class PreviewManager:
                 logger.error(f"Health check error: {e}")
             
             # Sleep in small increments to allow quick shutdown
-            for _ in range(int(HEALTH_CHECK_INTERVAL)):
+            for _ in range(int(check_interval)):
                 if not self._health_check_running:
                     break
                 time.sleep(1)
@@ -348,8 +349,9 @@ class PreviewManager:
                     # Check how long since last healthy check
                     last_good = self.last_health_check.get(cam_id, 0)
                     stale_time = time.time() - last_good
+                    stale_threshold = self.config.preview.stale_threshold
                     
-                    if stale_time > STALE_THRESHOLD:
+                    if stale_time > stale_threshold:
                         logger.warning(
                             f"Pipeline for {cam_id} appears stale (no data for {stale_time:.1f}s), restarting..."
                         )
