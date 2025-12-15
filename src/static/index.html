@@ -1201,27 +1201,34 @@
                 
                 // Also check periodically if video dimensions become available
                 let dimensionCheckCount = 0;
+                let dimensionsDetected = false;
                 const checkDimensions = setInterval(() => {
                     dimensionCheckCount++;
                     // Check for valid dimensions (not 0x0 or placeholder 2x2)
                     if (video.videoWidth > 2 && video.videoHeight > 2) {
-                        console.log(`✅ Video dimensions detected: ${video.videoWidth}x${video.videoHeight}`);
+                        if (!dimensionsDetected) {
+                            console.log(`✅ Video dimensions detected: ${video.videoWidth}x${video.videoHeight}`);
+                            dimensionsDetected = true;
+                        }
                         cameraStreamStates[camId] = 'ready';
                         updatePlaceholderStatus(camId, 'ready');
                         placeholder.style.display = 'none';
                         placeholder.style.visibility = 'hidden';
                         placeholder.style.opacity = '0';
                         clearInterval(checkDimensions);
-                    } else if (dimensionCheckCount > 20) {
-                        // Stop checking after 2 seconds
+                    } else if (dimensionCheckCount > 50) {
+                        // Stop checking after 5 seconds (increased from 2s for slower streams)
                         clearInterval(checkDimensions);
-                        console.warn(`⚠️ Video dimensions still invalid (${video.videoWidth}x${video.videoHeight}) after 2 seconds for ${camId}`);
-                        cameraStreamStates[camId] = 'disconnected';
-                        updatePlaceholderStatus(camId, 'disconnected');
-                        // Try to reconnect
-                        setTimeout(() => {
-                            startCameraPreview(camId);
-                        }, 2000);
+                        console.warn(`⚠️ Video dimensions still invalid (${video.videoWidth}x${video.videoHeight}) after 5 seconds for ${camId}`);
+                        // Only reconnect if we never got valid dimensions
+                        // Don't reconnect if video is actively playing (currentTime increasing)
+                        if (!dimensionsDetected && video.currentTime === 0) {
+                            cameraStreamStates[camId] = 'disconnected';
+                            updatePlaceholderStatus(camId, 'disconnected');
+                            // Fall back to HLS instead of reconnecting WebRTC
+                            console.log(`Falling back to HLS for ${camId}`);
+                            startHLSPreview(video, camId, placeholder);
+                        }
                     }
                 }, 100);
             };
