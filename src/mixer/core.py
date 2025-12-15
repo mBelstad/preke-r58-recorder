@@ -473,58 +473,67 @@ class MixerCore:
             device = self.camera_devices[cam_id]
             logger.debug(f"Processing camera {cam_id} with device {device}")
             
-            # Skip if device doesn't exist (for non-connected cameras)
-            if not Path(device).exists():
-                logger.debug(f"Device {device} for {cam_id} does not exist, skipping")
-                continue
-            
-            # Check if device is busy (being used by another process)
-            # For video60, we still check but don't skip - we'll let the pipeline fail if it's busy
-            # This allows cleanup to work, but we still verify the device is accessible
-            try:
-                import fcntl
-                test_file = open(device, 'r')
-                fcntl.flock(test_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                fcntl.flock(test_file, fcntl.LOCK_UN)
-                test_file.close()
-            except (IOError, OSError) as e:
-                if "video60" not in device:
-                    logger.warning(f"Device {device} for {cam_id} is busy or not accessible, skipping: {e}")
-                    continue
-                else:
-                    logger.warning(f"Device {device} for {cam_id} appears busy, but continuing (will fail if actually in use): {e}")
-                    # For video60, we continue but the pipeline will fail if it's actually busy
-            
-            # Build source pipeline (similar to existing R58 pipeline)
-            if "video60" in device or "hdmirx" in device.lower():
-                # HDMI input (NV24 format) - use EXACT same approach as working recorder pipeline
-                # Match the working pipeline exactly: format=NV24,width={width},height={height},framerate=60/1
-                # Then convert to NV12 and scale to match compositor input requirements
-                # Add explicit caps after queue to prevent compositor from negotiating upstream
-                # Note: If no HDMI signal is present, this will fail at format negotiation
-                # The error will be caught and the source will be skipped
+            # Use RTSP from MediaMTX preview streams to avoid device conflicts
+            # Preview streams are already publishing to MediaMTX at camX_preview paths
+            # This allows mixer and preview to run simultaneously
+            if self.config.mediamtx.enabled:
+                rtsp_port = self.config.mediamtx.rtsp_port
+                preview_stream = f"{cam_id}_preview"
+                rtsp_url = f"rtsp://127.0.0.1:{rtsp_port}/{preview_stream}"
+                
+                logger.info(f"Using RTSP source for {cam_id} from MediaMTX: {rtsp_url}")
+                # Source from MediaMTX RTSP stream (preview stream)
+                # Low latency settings for live mixing
                 source_str = (
-                    f"v4l2src device={device} io-mode=mmap ! "
-                    f"video/x-raw,format=NV24,width={width},height={height},framerate=60/1 ! "
-                    f"videoconvert ! "
-                    f"video/x-raw,format=NV12 ! "
-                    f"videoscale ! "
-                    f"video/x-raw,width={width},height={height} ! "
-                    f"queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream ! "
-                    f"video/x-raw,format=NV12,width={width},height={height}"
-                )
-            else:
-                # Other video devices - check if they exist first
-                if not Path(device).exists():
-                    logger.warning(f"Device {device} does not exist, skipping")
-                    continue
-                source_str = (
-                    f"v4l2src device={device} ! "
+                    f"rtspsrc location={rtsp_url} latency=100 protocols=tcp ! "
+                    f"rtph264depay ! "
+                    f"h264parse ! "
+                    f"avdec_h264 ! "
                     f"videoconvert ! "
                     f"videoscale ! "
                     f"video/x-raw,width={width},height={height} ! "
                     f"queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream"
                 )
+            else:
+                # Fallback to direct device access if MediaMTX is disabled
+                # Skip if device doesn't exist (for non-connected cameras)
+                if not Path(device).exists():
+                    logger.debug(f"Device {device} for {cam_id} does not exist, skipping")
+                    continue
+                
+                # Check if device is busy (being used by another process)
+                try:
+                    import fcntl
+                    test_file = open(device, 'r')
+                    fcntl.flock(test_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    fcntl.flock(test_file, fcntl.LOCK_UN)
+                    test_file.close()
+                except (IOError, OSError) as e:
+                    logger.warning(f"Device {device} for {cam_id} is busy or not accessible, skipping: {e}")
+                    continue
+                
+                # Build source pipeline (similar to existing R58 pipeline)
+                if "video60" in device or "hdmirx" in device.lower():
+                    # HDMI input (NV24 format)
+                    source_str = (
+                        f"v4l2src device={device} io-mode=mmap ! "
+                        f"video/x-raw,format=NV24,width={width},height={height},framerate=60/1 ! "
+                        f"videoconvert ! "
+                        f"video/x-raw,format=NV12 ! "
+                        f"videoscale ! "
+                        f"video/x-raw,width={width},height={height} ! "
+                        f"queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream ! "
+                        f"video/x-raw,format=NV12,width={width},height={height}"
+                    )
+                else:
+                    # Other video devices
+                    source_str = (
+                        f"v4l2src device={device} ! "
+                        f"videoconvert ! "
+                        f"videoscale ! "
+                        f"video/x-raw,width={width},height={height} ! "
+                        f"queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream"
+                    )
             
             # Apply crop if specified (for video sources)
             if slot.crop_w < 1.0 or slot.crop_h < 1.0 or slot.crop_x > 0.0 or slot.crop_y > 0.0:
