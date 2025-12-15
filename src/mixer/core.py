@@ -484,11 +484,12 @@ class MixerCore:
                 logger.info(f"Using RTSP source for {cam_id} from MediaMTX: {rtsp_url}")
                 # Source from MediaMTX RTSP stream (preview stream)
                 # Low latency settings for live mixing
+                # Use decodebin for automatic decoder selection (works with hardware decoders)
                 source_str = (
                     f"rtspsrc location={rtsp_url} latency=100 protocols=tcp ! "
                     f"rtph264depay ! "
                     f"h264parse ! "
-                    f"avdec_h264 ! "
+                    f"decodebin ! "
                     f"videoconvert ! "
                     f"videoscale ! "
                     f"video/x-raw,width={width},height={height} ! "
