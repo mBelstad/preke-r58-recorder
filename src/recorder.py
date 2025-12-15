@@ -68,7 +68,7 @@ class Recorder:
             if preview_mode == "direct":
                 logger.info(f"Switching preview for {cam_id} from direct to restream mode")
             preview_manager.stop_preview(cam_id)
-                preview_was_active = True
+            preview_was_active = True
             # Give device time to release before starting recording
             import time
             time.sleep(0.5)
