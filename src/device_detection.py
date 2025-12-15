@@ -1,10 +1,19 @@
 """Device detection utilities for identifying video input types."""
 import logging
+import re
 import subprocess
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, Any
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+# Mapping of rkcif video devices to their V4L2 subdevs
+# These subdevs report the actual HDMI signal resolution from LT6911 bridges
+RKCIF_SUBDEV_MAP = {
+    "/dev/video0": "/dev/v4l-subdev2",   # HDMI N0 via LT6911 7-002b
+    "/dev/video11": "/dev/v4l-subdev7",  # HDMI N11 via LT6911 4-002b
+    "/dev/video22": "/dev/v4l-subdev12", # HDMI N21 via LT6911 2-002b
+}
 
 
 def detect_device_type(device_path: str) -> str:
@@ -23,11 +32,11 @@ def detect_device_type(device_path: str) -> str:
         return "unknown"
     
     # R58 4x4 3S specific: Known HDMI port mappings via LT6911 bridges
-    # HDMI N0 → /dev/video0 (rkcif-mipi-lvds)
+    # HDMI N0 → /dev/video0 (rkcif-mipi-lvds via LT6911 7-002b)
     # HDMI N60 → /dev/video60 (hdmirx direct)
-    # HDMI N11 → /dev/video11 (rkcif-mipi-lvds1)
-    # HDMI N21 → /dev/video21 (rkcif-mipi-lvds1, different format)
-    hdmi_rkcif_devices = ["/dev/video0", "/dev/video11", "/dev/video21"]
+    # HDMI N11 → /dev/video11 (rkcif-mipi-lvds1 via LT6911 4-002b)
+    # HDMI N21 → /dev/video22 (rkcif-mipi-lvds2 via LT6911 2-002b)
+    hdmi_rkcif_devices = ["/dev/video0", "/dev/video11", "/dev/video22"]
     if str(device_path) in hdmi_rkcif_devices:
         return "hdmi_rkcif"
     
@@ -190,15 +199,86 @@ def get_hdmi_port_mapping() -> Dict[str, str]:
             'HDMI N0': '/dev/video0',
             'HDMI N60': '/dev/video60',
             'HDMI N11': '/dev/video11',
-            'HDMI N21': '/dev/video21'
+            'HDMI N21': '/dev/video22'
         }
     """
     return {
-        "HDMI N0": "/dev/video0",   # rkcif-mipi-lvds (via LT6911 bridge)
+        "HDMI N0": "/dev/video0",    # rkcif-mipi-lvds (via LT6911 7-002b bridge)
         "HDMI N60": "/dev/video60",  # hdmirx (direct)
-        "HDMI N11": "/dev/video11",  # rkcif-mipi-lvds1 (via LT6911 bridge)
-        "HDMI N21": "/dev/video21"   # rkcif-mipi-lvds1 (via LT6911 bridge, different format)
+        "HDMI N11": "/dev/video11",  # rkcif-mipi-lvds1 (via LT6911 4-002b bridge)
+        "HDMI N21": "/dev/video22"   # rkcif-mipi-lvds2 (via LT6911 2-002b bridge)
     }
+
+
+def initialize_rkcif_device(device_path: str) -> Dict[str, Any]:
+    """Initialize rkcif device by querying subdev resolution and setting format.
+    
+    The LT6911 HDMI-to-MIPI bridges report resolution via their V4L2 subdevs,
+    but the video devices start with 0x0 resolution. This function:
+    1. Queries the subdev for the actual detected HDMI resolution
+    2. Sets that format on the video device using v4l2-ctl
+    3. Returns the device capabilities
+    
+    Args:
+        device_path: Path to video device (e.g., /dev/video11)
+        
+    Returns:
+        Device capabilities dictionary from get_device_capabilities()
+    """
+    subdev = RKCIF_SUBDEV_MAP.get(device_path)
+    if not subdev:
+        # Not an rkcif device, just return capabilities
+        logger.debug(f"{device_path}: Not an rkcif device, skipping initialization")
+        return get_device_capabilities(device_path)
+    
+    logger.info(f"{device_path}: Initializing rkcif device via subdev {subdev}")
+    
+    try:
+        # Query subdev for actual resolution detected by LT6911 bridge
+        result = subprocess.run(
+            ["v4l2-ctl", "-d", subdev, "--get-subdev-fmt", "pad=0"],
+            capture_output=True, text=True, timeout=5
+        )
+        
+        if result.returncode != 0:
+            logger.warning(f"Failed to query subdev {subdev}: {result.stderr}")
+            return get_device_capabilities(device_path)
+        
+        # Parse width/height from subdev output
+        # Format: "Width/Height      : 1920/1080"
+        width_match = re.search(r"Width/Height\s*:\s*(\d+)/(\d+)", result.stdout)
+        if width_match:
+            width = int(width_match.group(1))
+            height = int(width_match.group(2))
+            
+            if width > 0 and height > 0:
+                logger.info(f"{device_path}: Subdev reports {width}x{height}, setting format")
+                
+                # Set format on video device - use UYVY which works for all LT6911 bridges
+                set_result = subprocess.run(
+                    ["v4l2-ctl", "-d", device_path,
+                     f"--set-fmt-video=width={width},height={height},pixelformat=UYVY"],
+                    capture_output=True, text=True, timeout=5
+                )
+                
+                if set_result.returncode != 0:
+                    logger.warning(f"Failed to set format on {device_path}: {set_result.stderr}")
+                else:
+                    logger.info(f"{device_path}: Format set to {width}x{height} UYVY")
+            else:
+                logger.warning(f"{device_path}: Subdev reports invalid resolution {width}x{height}")
+        else:
+            logger.warning(f"{device_path}: Could not parse resolution from subdev output")
+            
+    except subprocess.TimeoutExpired:
+        logger.error(f"Timeout initializing {device_path}")
+    except FileNotFoundError:
+        logger.warning("v4l2-ctl not found")
+    except Exception as e:
+        logger.error(f"Error initializing {device_path}: {e}")
+    
+    # Return current device capabilities after initialization
+    return get_device_capabilities(device_path)
 
 
 def get_device_capabilities(device_path: str) -> Dict:
@@ -353,7 +433,7 @@ def suggest_camera_mapping() -> Dict[str, Optional[str]]:
     - cam0 → HDMI N0 (/dev/video0)
     - cam1 → HDMI N60 (/dev/video60)
     - cam2 → HDMI N11 (/dev/video11)
-    - cam3 → HDMI N21 (/dev/video21)
+    - cam3 → HDMI N21 (/dev/video22)
     
     Returns:
         Dictionary mapping cam0-3 to device paths (or None if not available)

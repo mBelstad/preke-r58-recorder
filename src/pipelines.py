@@ -64,9 +64,14 @@ def build_r58_pipeline(
     # Video source detection and pipeline setup
     # Import device detection (lazy import to avoid circular dependencies)
     try:
-        from .device_detection import detect_device_type, get_device_capabilities
+        from .device_detection import detect_device_type, get_device_capabilities, initialize_rkcif_device, RKCIF_SUBDEV_MAP
         device_type = detect_device_type(device)
-        caps = get_device_capabilities(device)
+        
+        # For rkcif devices (LT6911 bridges), initialize format from subdev first
+        if device in RKCIF_SUBDEV_MAP:
+            caps = initialize_rkcif_device(device)
+        else:
+            caps = get_device_capabilities(device)
     except ImportError:
         # Fallback to simple detection
         device_type = "hdmirx" if ("video60" in device or "hdmirx" in device.lower()) else "unknown"
@@ -273,9 +278,14 @@ def build_r58_preview_pipeline(
     # Video source - use explicit format specification for reliability
     # Import device detection (lazy import to avoid circular dependencies)
     try:
-        from .device_detection import detect_device_type, get_device_capabilities
+        from .device_detection import detect_device_type, get_device_capabilities, initialize_rkcif_device, RKCIF_SUBDEV_MAP
         device_type = detect_device_type(device)
-        caps = get_device_capabilities(device)
+        
+        # For rkcif devices (LT6911 bridges), initialize format from subdev first
+        if device in RKCIF_SUBDEV_MAP:
+            caps = initialize_rkcif_device(device)
+        else:
+            caps = get_device_capabilities(device)
     except ImportError:
         # Fallback to simple detection
         device_type = "hdmirx" if ("video60" in device or "hdmirx" in device.lower()) else "unknown"

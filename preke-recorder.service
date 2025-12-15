@@ -13,6 +13,8 @@ Environment="GST_REGISTRY_UPDATE=no"
 # Clean up stuck GStreamer processes before starting (use - prefix to ignore failures)
 ExecStartPre=-/usr/bin/pkill -9 gst-plugin-scanner
 ExecStartPre=-/bin/sleep 1
+# Initialize HDMI inputs (query subdev resolution and set format on video devices)
+ExecStartPre=-/opt/preke-r58-recorder/scripts/init_hdmi_inputs.sh
 ExecStart=/opt/preke-r58-recorder/venv/bin/uvicorn src.main:app --host 0.0.0.0 --port 8000
 Restart=always
 RestartSec=10

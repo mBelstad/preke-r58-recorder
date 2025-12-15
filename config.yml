@@ -30,10 +30,10 @@ mixer:
 
 # Camera configurations
 # R58 4x4 3S HDMI port mappings:
-#   HDMI N0  → /dev/video0  (rkcif-mipi-lvds via LT6911 bridge)
+#   HDMI N0  → /dev/video0  (rkcif-mipi-lvds via LT6911 7-002b bridge)
 #   HDMI N60 → /dev/video60 (hdmirx direct)
-#   HDMI N11 → /dev/video11 (rkcif-mipi-lvds1 via LT6911 bridge)
-#   HDMI N21 → /dev/video21 (rkcif-mipi-lvds1 via LT6911 bridge)
+#   HDMI N11 → /dev/video11 (rkcif-mipi-lvds1 via LT6911 4-002b bridge)
+#   HDMI N21 → /dev/video22 (rkcif-mipi-lvds2 via LT6911 2-002b bridge)
 cameras:
   cam0:
     device: /dev/video0  # HDMI N0 (rkcif via LT6911 bridge)
@@ -63,7 +63,7 @@ cameras:
     mediamtx_path: null
 
   cam3:
-    device: /dev/video21  # HDMI N21 (rkcif via LT6911 bridge)
+    device: /dev/video22  # HDMI N21 (rkcif-mipi-lvds2 via LT6911 2-002b bridge)
     resolution: 1920x1080
     bitrate: 5000
     codec: h265
