@@ -175,21 +175,21 @@ def build_r58_pipeline(
             )
         else:
             # H.264 for both recording and streaming
-        pipeline_str = (
-            f"{source_str} ! "
-            f"timeoverlay ! "
-            f"{encoder_str} ! "
-            f"{caps_str} ! "
-            f"tee name=t ! "
-            f"queue max-size-buffers=0 max-size-time=0 max-size-bytes=0 ! "
-            f"{parse_str} ! "
-            f"{mux_str} ! "
-            f"filesink location={output_path} "
-            f"t. ! "
-            f"queue max-size-buffers=0 max-size-time=0 max-size-bytes=0 ! "
-            f"flvmux streamable=true ! "
-            f"rtmpsink location={rtmp_url}"
-        )
+            pipeline_str = (
+                f"{source_str} ! "
+                f"timeoverlay ! "
+                f"{encoder_str} ! "
+                f"{caps_str} ! "
+                f"tee name=t ! "
+                f"queue max-size-buffers=0 max-size-time=0 max-size-bytes=0 ! "
+                f"{parse_str} ! "
+                f"{mux_str} ! "
+                f"filesink location={output_path} "
+                f"t. ! "
+                f"queue max-size-buffers=0 max-size-time=0 max-size-bytes=0 ! "
+                f"flvmux streamable=true ! "
+                f"rtmpsink location={rtmp_url}"
+            )
     else:
         # Recording only - no streaming
         pipeline_str = (
