@@ -96,18 +96,15 @@ def build_r58_pipeline(
                 f"video/x-raw,width={width},height={height},format=NV12"
             )
         else:
-            # video0 and video11: Explicitly request NV16 format (like video60)
-            # These devices support NV16, YVYU, and other formats
-            # Convert NV16 to I420 first for proper scaling, then to NV12 for encoding
+            # video0 and video11: Auto-negotiate format/resolution from device
+            # This allows cameras to be switched between 1080p, 4K, etc.
+            # videoconvert and videoscale handle any input format/resolution
             source_str = (
                 f"v4l2src device={device} ! "
-                f"video/x-raw,format=NV16 ! "  # Explicit NV16 format
+                f"video/x-raw ! "  # Accept any format/resolution from device
                 f"videoconvert ! "
-                f"video/x-raw,format=I420 ! "  # Convert to I420 for proper scaling
                 f"videoscale ! "
-                f"video/x-raw,width={width},height={height} ! "
-                f"videoconvert ! "
-                f"video/x-raw,format=NV12"
+                f"video/x-raw,width={width},height={height},format=NV12"
             )
     elif device_type == "usb":
         # USB capture devices: typically use different formats, let v4l2src negotiate
@@ -288,19 +285,16 @@ def build_r58_preview_pipeline(
                 f"video/x-raw,width={width},height={height},format=NV12"
             )
         else:
-            # video0 and video11: Explicitly request NV16 format (like video60)
-            # These devices support NV16, YVYU, and other formats
-            # Convert NV16 to I420 first for proper scaling, then to NV12 for encoding
+            # video0 and video11: Auto-negotiate format/resolution from device
+            # This allows cameras to be switched between 1080p, 4K, etc.
+            # videoconvert and videoscale handle any input format/resolution
             source_str = (
                 f"v4l2src device={device} ! "
-                f"video/x-raw,format=NV16 ! "  # Explicit NV16 format
-                f"videoconvert ! "
-                f"video/x-raw,format=I420 ! "  # Convert to I420 for proper scaling
-                f"videoscale ! "
-                f"video/x-raw,width={width},height={height} ! "
+                f"video/x-raw ! "  # Accept any format/resolution from device
                 f"videorate ! video/x-raw,framerate=30/1 ! "
                 f"videoconvert ! "
-                f"video/x-raw,format=NV12"
+                f"videoscale ! "
+                f"video/x-raw,width={width},height={height},format=NV12"
             )
     elif device_type == "usb":
         # USB capture devices: let v4l2src negotiate format, then normalize framerate
