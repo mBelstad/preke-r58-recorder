@@ -1094,34 +1094,19 @@
 
             // Set connecting status
             updatePlaceholderStatus(camId, 'connecting');
+
+            // Always use preview path - backend handles restream mode automatically
+            // The restream pipeline outputs to cam0_preview, so frontend should always watch that path
+            const streamPath = `${camId}_preview`;
             
-            // Check if camera is recording - if so, use main stream path, otherwise use preview path
-            // We need to check the current status to determine which path to use
-            fetch(`${API_BASE}/status`)
-                .then(r => r.json())
-                .then(data => {
-                    const isRecording = data.cameras[camId]?.status === 'recording';
-                    const streamPath = isRecording ? camId : `${camId}_preview`;
-                    
-                    // Try WebRTC first for ultra-low latency (local access only)
-                    if (window.RTCPeerConnection && !IS_REMOTE) {
-                        const webrtcUrl = getWebRTCUrl(streamPath);
-                        startWebRTCPreview(video, webrtcUrl, camId, placeholder);
-                    } else {
-                        // Use HLS for remote access or no WebRTC support
-                        startHLSPreview(video, camId, placeholder, streamPath);
-                    }
-                })
-                .catch(err => {
-                    console.error(`Failed to check status for ${camId}:`, err);
-                    // Fallback to preview path
-                    if (window.RTCPeerConnection && !IS_REMOTE) {
-                        const webrtcUrl = getWebRTCUrl(`${camId}_preview`);
-                        startWebRTCPreview(video, webrtcUrl, camId, placeholder);
-                    } else {
-                        startHLSPreview(video, camId, placeholder);
-                    }
-                });
+            // Try WebRTC first for ultra-low latency (local access only)
+            if (window.RTCPeerConnection && !IS_REMOTE) {
+                const webrtcUrl = getWebRTCUrl(streamPath);
+                startWebRTCPreview(video, webrtcUrl, camId, placeholder);
+            } else {
+                // Use HLS for remote access or no WebRTC support
+                startHLSPreview(video, camId, placeholder, streamPath);
+            }
         }
 
         function startWebRTCPreview(video, webrtcUrl, camId, placeholder) {
@@ -1479,19 +1464,10 @@
         function startHLSPreview(video, camId, placeholder, streamPath = null) {
             // Use provided streamPath or default to preview path
             if (!streamPath) {
-                // Check if recording to determine path
-                fetch(`${API_BASE}/status`)
-                    .then(r => r.json())
-                    .then(data => {
-                        const isRecording = data.cameras[camId]?.status === 'recording';
-                        streamPath = isRecording ? camId : `${camId}_preview`;
-                        const hlsUrl = getHLSUrl(streamPath);
-                        startHLSWithUrl(video, camId, placeholder, hlsUrl);
-                    })
-                    .catch(() => {
-                        const hlsUrl = getHLSUrl(`${camId}_preview`);
-                        startHLSWithUrl(video, camId, placeholder, hlsUrl);
-                    });
+                // Always use preview path - backend handles restream mode automatically
+                streamPath = `${camId}_preview`;
+                const hlsUrl = getHLSUrl(streamPath);
+                startHLSWithUrl(video, camId, placeholder, hlsUrl);
                 return;
             }
             const hlsUrl = getHLSUrl(streamPath);
@@ -1587,20 +1563,12 @@
                             // Retry on network error - check if stream is available first
                             console.log(`HLS network error for ${camId}, retrying in 2 seconds... (attempt ${hls.retryCount}/3)`);
                             setTimeout(() => {
-                                // Check if recording status changed and use correct path
-                                fetch(`${API_BASE}/status`)
-                                    .then(r => r.json())
-                                    .then(statusData => {
-                                        const isRecording = statusData.cameras[camId]?.status === 'recording';
-                                        const streamPath = isRecording ? camId : `${camId}_preview`;
-                                        const newHlsUrl = getHLSUrl(streamPath);
-                                        console.log(`Retrying HLS for ${camId} with path: ${streamPath}`);
-                                        hls.loadSource(newHlsUrl);
-                                        hls.startLoad();
-                                    })
-                                    .catch(() => {
-                                        hls.startLoad();
-                                    });
+                                // Always use preview path - backend handles restream mode automatically
+                                const streamPath = `${camId}_preview`;
+                                const newHlsUrl = getHLSUrl(streamPath);
+                                console.log(`Retrying HLS for ${camId} with path: ${streamPath}`);
+                                hls.loadSource(newHlsUrl);
+                                hls.startLoad();
                             }, 2000);
                         } else if (data.type === window.Hls.ErrorTypes.MEDIA_ERROR) {
                             console.log(`HLS media error for ${camId}, recovering...`);
@@ -1728,20 +1696,13 @@
                     if (recordingState && !recordingStartTime) {
                         recordingStartTime = new Date();
                         startRecordingTimer();
-                        // When recording starts, preview stops - restart preview streams with correct paths
-                        // Wait longer to ensure recording pipeline is fully established
-                        setTimeout(() => {
-                            console.log('Recording started, restarting previews with recording stream paths...');
-                            startAllPreviews();
-                        }, 3000); // Increased delay to 3 seconds
+                        // Backend now handles preview switching automatically (restream mode)
+                        // No need to restart previews manually
                     } else if (!recordingState && recordingStartTime) {
                         recordingStartTime = null;
                         stopRecordingTimer();
-                        // When recording stops, restart preview streams (will use preview paths)
-                        setTimeout(() => {
-                            console.log('Recording stopped, restarting previews with preview stream paths...');
-                            startAllPreviews();
-                        }, 1000);
+                        // Backend now handles preview switching automatically (back to direct mode)
+                        // No need to restart previews manually
                     }
                     updateRecordingUI();
                     updateStats(data);

@@ -31,6 +31,7 @@ class PreviewConfig:
     """Preview configuration."""
     health_check_interval: int = 10  # seconds
     stale_threshold: int = 15  # seconds
+    restream_when_recording: bool = True  # Use restream mode when recording active
 
 
 @dataclass
@@ -89,6 +90,7 @@ class AppConfig:
         preview = PreviewConfig(
             health_check_interval=preview_data.get("health_check_interval", 10),
             stale_threshold=preview_data.get("stale_threshold", 15),
+            restream_when_recording=preview_data.get("restream_when_recording", True),
         )
 
         # Load Mixer config

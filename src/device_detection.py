@@ -341,6 +341,8 @@ def get_device_capabilities(device_path: str) -> Dict:
     Uses v4l2-ctl to get the actual device capabilities, allowing pipelines
     to use explicit format specification instead of auto-negotiation.
     
+    For rkcif devices, checks the subdev (authoritative source) for signal status.
+    
     Returns:
         Dictionary with device capabilities:
         {
@@ -362,6 +364,15 @@ def get_device_capabilities(device_path: str) -> Dict:
         'is_bayer': False,
         'bayer_format': None
     }
+    
+    # For rkcif devices, check subdev first (authoritative source for signal)
+    subdev = RKCIF_SUBDEV_MAP.get(device_path)
+    if subdev:
+        subdev_res = get_subdev_resolution(device_path)
+        if not subdev_res or subdev_res == (0, 0):
+            # No signal on subdev - return early with no signal
+            logger.info(f"{device_path}: No signal detected via subdev {subdev}")
+            return result
     
     try:
         # Query current format using v4l2-ctl
@@ -406,12 +417,24 @@ def get_device_capabilities(device_path: str) -> Dict:
                             result['bayer_format'] = fmt.lower()
         
         # Determine if we have a valid signal
-        # No signal typically shows as 0x0, 64x64, or very small resolution
-        if result['width'] >= 640 and result['height'] >= 480:
-            result['has_signal'] = True
+        # For rkcif devices, we already checked subdev above
+        # For other devices, check resolution
+        if subdev:
+            # For rkcif, use subdev resolution (already checked above)
+            if subdev_res:
+                result['width'] = subdev_res[0]
+                result['height'] = subdev_res[1]
+                result['has_signal'] = True
+            else:
+                result['has_signal'] = False
         else:
-            logger.info(f"{device_path}: No signal (resolution {result['width']}x{result['height']})")
-            result['has_signal'] = False
+            # For non-rkcif devices, check video device resolution
+            # No signal typically shows as 0x0, 64x64, or very small resolution
+            if result['width'] >= 640 and result['height'] >= 480:
+                result['has_signal'] = True
+            else:
+                logger.info(f"{device_path}: No signal (resolution {result['width']}x{result['height']})")
+                result['has_signal'] = False
         
         # Try to get framerate
         try:

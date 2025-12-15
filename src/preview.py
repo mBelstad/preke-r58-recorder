@@ -6,7 +6,7 @@ import httpx
 from typing import Dict, Optional, Any
 
 from .config import AppConfig, CameraConfig
-from .pipelines import build_preview_pipeline
+from .pipelines import build_preview_pipeline, build_r58_restream_preview_pipeline
 from .gst_utils import ensure_gst_initialized, get_gst
 
 logger = logging.getLogger(__name__)
@@ -29,6 +29,8 @@ class PreviewManager:
         self.current_resolutions: Dict[str, tuple[int, int]] = {}  # Track active resolutions for change detection
         self.signal_states: Dict[str, bool] = {}  # Track if camera has HDMI signal
         self.signal_loss_times: Dict[str, Optional[float]] = {}  # When signal was lost (None if has signal)
+        self.preview_modes: Dict[str, str] = {}  # "direct" or "restream" - track which mode each preview uses
+        self.error_retry_count: Dict[str, int] = {}  # Track retry attempts for failed cameras
         self._gst_ready = False
         self._health_check_running = False
         self._health_check_thread: Optional[threading.Thread] = None
@@ -69,39 +71,67 @@ class PreviewManager:
         if cam_id in self.preview_pipelines:
             self._stop_preview(cam_id)
         
-        # Stop recording pipeline if running (same device can't be used by both)
-        # Import here to avoid circular dependency
-        from .main import recorder
-        if hasattr(recorder, 'states') and recorder.states.get(cam_id) == "recording":
-            logger.info(f"Stopping recording for {cam_id} before starting preview")
-            recorder.stop_recording(cam_id)
-            # Give device time to release before starting preview
-            import time
-            time.sleep(0.5)
-
         cam_config: CameraConfig = self.config.cameras[cam_id]
-
-        # Check if device has an active signal before starting preview
-        # Devices with no signal may report minimum resolution (64x64) or 0x0
-        # We'll let the pipeline start but it may not produce frames
-        # The pipeline will handle this gracefully with format negotiation
 
         # Build MediaMTX path for preview
         preview_path = None
         if self.config.mediamtx.enabled:
             preview_path = f"rtsp://localhost:{self.config.mediamtx.rtsp_port}/{cam_id}_preview"
 
+        # Check if recording is active for this camera
+        # Import here to avoid circular dependency
+        from .main import recorder
+        is_recording = hasattr(recorder, 'states') and recorder.states.get(cam_id) == "recording"
+        use_restream = is_recording and self.config.preview.restream_when_recording
+
+        # For direct mode, check signal before starting
+        if not use_restream:
+            from .device_detection import get_device_capabilities
+            caps = get_device_capabilities(cam_config.device)
+            if not caps.get('has_signal', False):
+                logger.info(f"Skipping preview start for {cam_id} - no HDMI signal detected")
+                self.preview_states[cam_id] = "no_signal"
+                return False
+        
+        # For restream mode, verify recording stream exists
+        if use_restream:
+            # Verify recording is actually active
+            if not is_recording:
+                logger.warning(f"Cannot use restream mode for {cam_id} - recording not active")
+                return False
+            
+            # Add small delay to ensure recording stream is ready
+            import time
+            time.sleep(0.5)  # Give recording pipeline time to start streaming
+
         # Build preview pipeline (streaming only, no recording)
         try:
-            pipeline = build_preview_pipeline(
-                platform=self.config.platform,
-                cam_id=cam_id,
-                device=cam_config.device,
-                resolution=cam_config.resolution,
-                bitrate=cam_config.bitrate,
-                codec=cam_config.codec,
-                mediamtx_path=preview_path,
-            )
+            if use_restream:
+                # Recording active: use restream pipeline (sources from recording's MediaMTX stream)
+                logger.info(f"Recording active for {cam_id}, using restream preview mode")
+                pipeline = build_r58_restream_preview_pipeline(
+                    cam_id=cam_id,
+                    source_stream=cam_id,  # Recording stream (e.g., "cam0")
+                    mediamtx_path=preview_path,
+                    rtsp_port=self.config.mediamtx.rtsp_port,
+                )
+                self.preview_modes[cam_id] = "restream"
+            else:
+                # No recording: use direct device access
+                # Check if device has an active signal before starting preview
+                # Devices with no signal may report minimum resolution (64x64) or 0x0
+                # We'll let the pipeline start but it may not produce frames
+                # The pipeline will handle this gracefully with format negotiation
+                pipeline = build_preview_pipeline(
+                    platform=self.config.platform,
+                    cam_id=cam_id,
+                    device=cam_config.device,
+                    resolution=cam_config.resolution,
+                    bitrate=cam_config.bitrate,
+                    codec=cam_config.codec,
+                    mediamtx_path=preview_path,
+                )
+                self.preview_modes[cam_id] = "direct"
 
             # Set up bus message handler
             bus = pipeline.get_bus()
@@ -142,6 +172,9 @@ class PreviewManager:
             self.preview_states[cam_id] = "preview"
             self.pipeline_start_times[cam_id] = time.time()
             self.last_health_check[cam_id] = time.time()
+            
+            # Reset error retry count on successful start
+            self.error_retry_count.pop(cam_id, None)
             
             # Store initial resolution for change detection
             try:
@@ -201,6 +234,12 @@ class PreviewManager:
             del self.preview_pipelines[cam_id]
             self.preview_states[cam_id] = "idle"
             
+            # Clear preview mode tracking
+            self.preview_modes.pop(cam_id, None)
+            
+            # Reset error retry count on manual stop
+            self.error_retry_count.pop(cam_id, None)
+            
             # Reset signal tracking on manual stop
             self.signal_states[cam_id] = True
             self.signal_loss_times[cam_id] = None
@@ -218,9 +257,23 @@ class PreviewManager:
             return False
 
     def start_all_previews(self) -> Dict[str, bool]:
-        """Start preview for all cameras."""
+        """Start preview for all cameras that have signal."""
         results = {}
         for cam_id in self.config.cameras.keys():
+            # Check signal before attempting to start
+            try:
+                from .device_detection import get_device_capabilities
+                cam_config = self.config.cameras[cam_id]
+                caps = get_device_capabilities(cam_config.device)
+                if not caps.get('has_signal', False):
+                    logger.info(f"Skipping {cam_id} - no signal")
+                    results[cam_id] = False
+                    self.preview_states[cam_id] = "no_signal"
+                    continue
+            except Exception as e:
+                logger.debug(f"Could not check signal for {cam_id}: {e}")
+                # Continue anyway - let start_preview handle it
+            
             results[cam_id] = self.start_preview(cam_id)
         return results
 
@@ -240,6 +293,29 @@ class PreviewManager:
         if message.type == Gst.MessageType.ERROR:
             err, debug = message.parse_error()
             logger.error(f"Preview pipeline error for {cam_id}: {err.message} - {debug}")
+            
+            # If restream mode fails, log specific error
+            if self.preview_modes.get(cam_id) == "restream":
+                logger.error(f"Restream pipeline failed for {cam_id}. "
+                            f"Recording stream may not be available yet. "
+                            f"Error: {err.message}")
+                # Check if recording is still active - if not, switch back to direct mode
+                from .main import recorder
+                if hasattr(recorder, 'states') and recorder.states.get(cam_id) != "recording":
+                    logger.info(f"Recording stopped for {cam_id}, switching preview back to direct mode")
+                    # Clean up failed pipeline first
+                    if cam_id in self.preview_pipelines:
+                        try:
+                            pipeline = self.preview_pipelines[cam_id]
+                            pipeline.set_state(Gst.State.NULL)
+                            del self.preview_pipelines[cam_id]
+                        except:
+                            pass
+                    # Retry in direct mode after a short delay
+                    import threading
+                    threading.Timer(1.0, lambda: self.start_preview(cam_id)).start()
+                    return
+            
             self.preview_states[cam_id] = "error"
             # Try to clean up the failed pipeline
             if cam_id in self.preview_pipelines:
@@ -249,6 +325,32 @@ class PreviewManager:
                     del self.preview_pipelines[cam_id]
                 except:
                     pass
+            
+            # For device errors (Internal data stream error), retry with exponential backoff
+            if "Internal data stream error" in err.message or "device" in err.message.lower():
+                retry_count = self.error_retry_count.get(cam_id, 0)
+                if retry_count < 3:  # Max 3 retries
+                    self.error_retry_count[cam_id] = retry_count + 1
+                    retry_delay = min(2.0 * (2 ** retry_count), 10.0)  # Exponential backoff: 2s, 4s, 8s
+                    logger.info(f"Retrying preview for {cam_id} after device error (attempt {retry_count + 1}/3) in {retry_delay}s")
+                    
+                    # For rkcif devices, try re-initializing the device
+                    cam_config = self.config.cameras.get(cam_id)
+                    if cam_config:
+                        try:
+                            from .device_detection import RKCIF_SUBDEV_MAP, initialize_rkcif_device
+                            if cam_config.device in RKCIF_SUBDEV_MAP:
+                                logger.info(f"Re-initializing rkcif device {cam_config.device} for {cam_id}")
+                                initialize_rkcif_device(cam_config.device)
+                        except Exception as e:
+                            logger.debug(f"Could not re-initialize device for {cam_id}: {e}")
+                    
+                    # Retry after delay
+                    import threading
+                    threading.Timer(retry_delay, lambda: self.start_preview(cam_id)).start()
+                else:
+                    logger.error(f"Max retries reached for {cam_id}, giving up. Device may need manual intervention.")
+                    self.error_retry_count.pop(cam_id, None)  # Reset counter after max retries
         elif message.type == Gst.MessageType.WARNING:
             warn, debug = message.parse_warning()
             logger.warning(f"Preview pipeline warning for {cam_id}: {warn.message} - {debug}")
@@ -333,12 +435,31 @@ class PreviewManager:
                 
                 # Signal present and stable - check if we're in preview mode
                 if state != "preview":
+                    # If camera is in error state but has signal, try to recover
+                    if state == "error" and signal_res:
+                        error_age = time.time() - self.pipeline_start_times.get(cam_id, 0)
+                        # Only retry if error is recent (within last 30 seconds) and we haven't exceeded retries
+                        if error_age < 30 and self.error_retry_count.get(cam_id, 0) < 3:
+                            logger.info(f"Camera {cam_id} in error state but has signal, attempting recovery")
+                            self.stop_preview(cam_id)
+                            import threading
+                            threading.Timer(2.0, lambda: self.start_preview(cam_id)).start()
                     continue
                 
                 # Check for resolution changes
                 if self._check_resolution_change(cam_id):
                     # Resolution changed, restart pipeline with new resolution
                     continue  # Skip other checks, restart will happen
+                
+                # For restream mode, check if recording is still active
+                if self.preview_modes.get(cam_id) == "restream":
+                    from .main import recorder
+                    if not (hasattr(recorder, 'states') and recorder.states.get(cam_id) == "recording"):
+                        logger.warning(f"Recording stopped for {cam_id}, but preview still in restream mode. "
+                                     f"Switching back to direct mode.")
+                        self.stop_preview(cam_id)
+                        self.start_preview(cam_id)  # Will use direct mode now
+                        continue  # Skip other checks, restart will happen
                 
                 # Check if pipeline is actually producing data
                 is_healthy = self._is_pipeline_healthy(cam_id)

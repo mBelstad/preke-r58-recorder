@@ -13,6 +13,7 @@ log_level: INFO
 preview:
   health_check_interval: 10  # seconds between health checks
   stale_threshold: 15  # seconds before restarting stale pipeline
+  restream_when_recording: true  # Use restream mode when recording active (avoids device conflicts)
 
 # MediaMTX configuration (optional)
 mediamtx:

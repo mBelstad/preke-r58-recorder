@@ -59,18 +59,30 @@ class Recorder:
         if cam_id in self.pipelines:
             self._stop_pipeline(cam_id)
         
-        # Stop preview pipeline if running (same device can't be used by both)
+        # If preview is running in direct mode, switch it to restream mode
         # Import here to avoid circular dependency
         from .main import preview_manager
+        preview_was_active = False
         if hasattr(preview_manager, 'preview_states') and preview_manager.preview_states.get(cam_id) == "preview":
-            logger.info(f"Stopping preview for {cam_id} before starting recording")
+            preview_mode = preview_manager.preview_modes.get(cam_id, "direct")
+            if preview_mode == "direct":
+                logger.info(f"Switching preview for {cam_id} from direct to restream mode")
             preview_manager.stop_preview(cam_id)
+                preview_was_active = True
             # Give device time to release before starting recording
             import time
             time.sleep(0.5)
 
         # Get camera config
         cam_config: CameraConfig = self.config.cameras[cam_id]
+
+        # Check signal before starting recording
+        from .device_detection import get_device_capabilities
+        caps = get_device_capabilities(cam_config.device)
+        if not caps.get('has_signal', False):
+            logger.info(f"Skipping recording start for {cam_id} - no HDMI signal detected")
+            self.states[cam_id] = "no_signal"
+            return False
 
         # Format output path with timestamp if needed
         output_path_str = cam_config.output_path
@@ -117,6 +129,14 @@ class Recorder:
             # This avoids dual device access which caused system crashes
 
             logger.info(f"Started recording for camera {cam_id}")
+            
+            # After recording starts successfully, restart preview in restream mode if it was active
+            if preview_was_active and hasattr(preview_manager, 'preview_states'):
+                import time
+                time.sleep(2.0)  # Wait longer for recording stream to be fully available in MediaMTX
+                logger.info(f"Restarting preview for {cam_id} in restream mode")
+                preview_manager.start_preview(cam_id)
+            
             return True
 
         except Exception as e:
@@ -145,7 +165,20 @@ class Recorder:
                     pass
             return True
 
-        return self._stop_pipeline(cam_id)
+        success = self._stop_pipeline(cam_id)
+        
+        # If preview is in restream mode, switch it back to direct device access
+        if success:
+            from .main import preview_manager
+            if hasattr(preview_manager, 'preview_modes') and preview_manager.preview_modes.get(cam_id) == "restream":
+                if hasattr(preview_manager, 'preview_states') and preview_manager.preview_states.get(cam_id) == "preview":
+                    logger.info(f"Switching preview for {cam_id} from restream to direct mode")
+                    preview_manager.stop_preview(cam_id)
+                    import time
+                    time.sleep(0.5)  # Wait for device to be released
+                    preview_manager.start_preview(cam_id)
+        
+        return success
 
     def _stop_pipeline(self, cam_id: str) -> bool:
         """Internal method to stop a pipeline."""
@@ -250,9 +283,23 @@ class Recorder:
         return self.states.get(cam_id)
 
     def start_all_recordings(self) -> Dict[str, bool]:
-        """Start recording for all cameras."""
+        """Start recording for all cameras that have signal."""
         results = {}
         for cam_id in self.config.cameras.keys():
+            # Check signal before attempting to start
+            try:
+                from .device_detection import get_device_capabilities
+                cam_config = self.config.cameras[cam_id]
+                caps = get_device_capabilities(cam_config.device)
+                if not caps.get('has_signal', False):
+                    logger.info(f"Skipping {cam_id} - no signal")
+                    results[cam_id] = False
+                    self.states[cam_id] = "no_signal"
+                    continue
+            except Exception as e:
+                logger.debug(f"Could not check signal for {cam_id}: {e}")
+                # Continue anyway - let start_recording handle it
+            
             results[cam_id] = self.start_recording(cam_id)
         return results
 

@@ -448,11 +448,13 @@ async def get_status() -> Dict[str, Dict[str, Any]]:
         recording_status = recording_statuses.get(cam_id, "idle")
         preview_status = preview_statuses.get(cam_id, "idle")
         
-        # Prioritize recording over preview
+        # Prioritize recording over preview, but preserve no_signal state
         if recording_status == "recording":
             combined_statuses[cam_id] = {"status": "recording", "config": True}
         elif preview_status == "preview":
             combined_statuses[cam_id] = {"status": "preview", "config": True}
+        elif recording_status == "no_signal" or preview_status == "no_signal":
+            combined_statuses[cam_id] = {"status": "no_signal", "config": True}
         else:
             combined_statuses[cam_id] = {"status": recording_status, "config": True}
     

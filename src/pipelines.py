@@ -394,6 +394,54 @@ def build_r58_preview_pipeline(
     return pipeline
 
 
+def build_r58_restream_preview_pipeline(
+    cam_id: str,
+    source_stream: str,  # e.g., "cam0"
+    mediamtx_path: str,  # e.g., "cam0_preview"
+    rtsp_port: int = 8554,
+):
+    """Build preview pipeline that re-streams from MediaMTX (for recording mode).
+    
+    This avoids V4L2 device access conflicts by sourcing from the recording's
+    MediaMTX stream instead of accessing the device directly.
+    
+    Args:
+        cam_id: Camera identifier (e.g., "cam0")
+        source_stream: MediaMTX stream path to source from (e.g., "cam0")
+        mediamtx_path: Full MediaMTX path for output (e.g., "rtsp://localhost:8554/cam0_preview")
+        rtsp_port: MediaMTX RTSP port
+        
+    Returns:
+        GStreamer pipeline instance
+    """
+    # Source from recording's MediaMTX stream with retry/timeout settings
+    rtsp_url = f"rtsp://127.0.0.1:{rtsp_port}/{source_stream}"
+    # Add retry settings: retry=3 allows 3 connection attempts, timeout=5s gives MediaMTX time to make stream available
+    source_str = (
+        f"rtspsrc location={rtsp_url} latency=100 "
+        f"retry=3 timeout=5000000000 "
+        f"! rtph264depay"
+    )
+    
+    # Output to preview MediaMTX stream
+    stream_path = mediamtx_path.split("/")[-1] if "/" in mediamtx_path else f"{cam_id}_preview"
+    rtmp_url = f"rtmp://127.0.0.1:1935/{stream_path}"
+    
+    # Minimal pipeline: just re-mux the H.264 stream
+    # Use leaky queues for low latency
+    pipeline_str = (
+        f"{source_str} ! "
+        f"h264parse ! "
+        f"queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream ! "
+        f"flvmux streamable=true ! "
+        f"rtmpsink location={rtmp_url} sync=false"
+    )
+    
+    logger.info(f"Building restream preview pipeline for {cam_id}: {pipeline_str}")
+    Gst = get_gst()
+    return Gst.parse_launch(pipeline_str)
+
+
 def build_pipeline(
     platform: str,
     cam_id: str,
