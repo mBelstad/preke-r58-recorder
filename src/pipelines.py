@@ -86,37 +86,25 @@ def build_r58_pipeline(
         # When no signal, let v4l2src negotiate format to avoid errors
         if "video21" in device:
             # video21 uses Bayer format (RGGB/GRBG) - needs bayer2rgb conversion
-            # Try Bayer format first, but allow negotiation if no signal
+            # Explicitly request Bayer format for proper color conversion
             source_str = (
-                f"v4l2src device={device} io-mode=mmap ! "
-                f"video/x-raw ! "  # Let v4l2src negotiate format (handles no-signal case)
+                f"v4l2src device={device} ! "
+                f"video/x-bayer,format=rggb ! "  # Explicit Bayer format
+                f"bayer2rgb ! "
                 f"videoconvert ! "
                 f"videoscale ! "
                 f"video/x-raw,width={width},height={height},format=NV12"
             )
         else:
-            # video0 and video11: Handle format negotiation
-            # video0 may have issues with io-mode=mmap, try without it first
-            # Use do-timestamp=false to avoid issues when no frames are available
-            if "video0" in device:
-                # video0: Accept device's native resolution and scale
-                # Device may report unusual resolutions, accept and scale to target
-                source_str = (
-                    f"v4l2src device={device} do-timestamp=false ! "
-                    f"video/x-raw ! "  # Accept whatever format/resolution device provides
-                    f"videoconvert ! "
-                    f"videoscale ! "
-                    f"video/x-raw,width={width},height={height},format=NV12"
-                )
-            else:
-                # video11: Use io-mode=mmap for better performance
-                source_str = (
-                    f"v4l2src device={device} io-mode=mmap do-timestamp=false ! "
-                    f"video/x-raw ! "  # Let v4l2src negotiate format (handles no-signal case)
-                    f"videoconvert ! "
-                    f"videoscale ! "
-                    f"video/x-raw,width={width},height={height},format=NV12"
-                )
+            # video0 and video11: Explicitly request NV16 format (like video60)
+            # These devices support NV16, YVYU, and other formats
+            source_str = (
+                f"v4l2src device={device} ! "
+                f"video/x-raw,format=NV16 ! "  # Explicit NV16 format
+                f"videoconvert ! "
+                f"videoscale ! "
+                f"video/x-raw,width={width},height={height},format=NV12"
+            )
     elif device_type == "usb":
         # USB capture devices: typically use different formats, let v4l2src negotiate
         # USB devices may have different framerates, so we use videorate to normalize
@@ -187,21 +175,21 @@ def build_r58_pipeline(
             )
         else:
             # H.264 for both recording and streaming
-            pipeline_str = (
-                f"{source_str} ! "
-                f"timeoverlay ! "
-                f"{encoder_str} ! "
-                f"{caps_str} ! "
-                f"tee name=t ! "
-                f"queue max-size-buffers=0 max-size-time=0 max-size-bytes=0 ! "
-                f"{parse_str} ! "
-                f"{mux_str} ! "
-                f"filesink location={output_path} "
-                f"t. ! "
-                f"queue max-size-buffers=0 max-size-time=0 max-size-bytes=0 ! "
-                f"flvmux streamable=true ! "
-                f"rtmpsink location={rtmp_url}"
-            )
+        pipeline_str = (
+            f"{source_str} ! "
+            f"timeoverlay ! "
+            f"{encoder_str} ! "
+            f"{caps_str} ! "
+            f"tee name=t ! "
+            f"queue max-size-buffers=0 max-size-time=0 max-size-bytes=0 ! "
+            f"{parse_str} ! "
+            f"{mux_str} ! "
+            f"filesink location={output_path} "
+            f"t. ! "
+            f"queue max-size-buffers=0 max-size-time=0 max-size-bytes=0 ! "
+            f"flvmux streamable=true ! "
+            f"rtmpsink location={rtmp_url}"
+        )
     else:
         # Recording only - no streaming
         pipeline_str = (
@@ -284,42 +272,27 @@ def build_r58_preview_pipeline(
         )
     elif device_type == "hdmi_rkcif":
         # HDMI input via rkcif (LT6911 bridge): Similar to hdmirx for preview
-        # When no signal, let v4l2src negotiate format to avoid errors
         if "video21" in device:
             # video21 uses Bayer format (RGGB/GRBG) - needs bayer2rgb conversion
-            # Try Bayer format first, but allow negotiation if no signal
+            # Explicitly request Bayer format for proper color conversion
             source_str = (
-                f"v4l2src device={device} io-mode=mmap do-timestamp=false ! "
-                f"video/x-raw ! "  # Let v4l2src negotiate format (handles no-signal case)
-                f"videorate ! video/x-raw,framerate=30/1 ! "
+                f"v4l2src device={device} ! "
+                f"video/x-bayer,format=rggb ! "  # Explicit Bayer format
+                f"bayer2rgb ! "
                 f"videoconvert ! "
                 f"videoscale ! "
                 f"video/x-raw,width={width},height={height},format=NV12"
             )
         else:
-            # video0 and video11: Handle format negotiation for preview
-            # video0 may have issues with io-mode=mmap, try without it first
-            if "video0" in device:
-                # video0: Accept device's native resolution and scale
-                # Device may report unusual resolutions, accept and scale to target
-                source_str = (
-                    f"v4l2src device={device} do-timestamp=false ! "
-                    f"video/x-raw ! "  # Accept whatever format/resolution device provides
-                    f"videorate ! video/x-raw,framerate=30/1 ! "
-                    f"videoconvert ! "
-                    f"videoscale ! "
-                    f"video/x-raw,width={width},height={height},format=NV12"
-                )
-            else:
-                # video11: Use io-mode=mmap for better performance
-                source_str = (
-                    f"v4l2src device={device} io-mode=mmap do-timestamp=false ! "
-                    f"video/x-raw ! "  # Let v4l2src negotiate format (handles no-signal case)
-                    f"videorate ! video/x-raw,framerate=30/1 ! "
-                    f"videoconvert ! "
-                    f"videoscale ! "
-                    f"video/x-raw,width={width},height={height},format=NV12"
-                )
+            # video0 and video11: Explicitly request NV16 format (like video60)
+            # These devices support NV16, YVYU, and other formats
+            source_str = (
+                f"v4l2src device={device} ! "
+                f"video/x-raw,format=NV16 ! "  # Explicit NV16 format
+                f"videorate ! video/x-raw,framerate=30/1 ! "
+                f"videoconvert ! "
+                f"video/x-raw,format=NV12"
+            )
     elif device_type == "usb":
         # USB capture devices: let v4l2src negotiate format, then normalize framerate
         source_str = (

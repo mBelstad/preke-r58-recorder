@@ -94,7 +94,34 @@ class PreviewManager:
 
             # Start pipeline
             Gst = get_gst()
-            pipeline.set_state(Gst.State.PLAYING)
+            ret = pipeline.set_state(Gst.State.PLAYING)
+            
+            # Check if pipeline successfully started
+            if ret == Gst.StateChangeReturn.FAILURE:
+                logger.error(f"Failed to set pipeline to PLAYING state for {cam_id}")
+                pipeline.set_state(Gst.State.NULL)
+                self.preview_states[cam_id] = "error"
+                return False
+            
+            # Wait a moment and check for errors (caps negotiation, etc.)
+            import time
+            time.sleep(0.5)
+            
+            # Check pipeline state
+            state_ret, current_state, pending_state = pipeline.get_state(Gst.SECOND)
+            
+            if state_ret == Gst.StateChangeReturn.FAILURE:
+                logger.error(f"Pipeline failed to reach PLAYING state for {cam_id}")
+                # Check bus for error messages
+                bus = pipeline.get_bus()
+                msg = bus.pop_filtered(Gst.MessageType.ERROR)
+                if msg:
+                    err, debug = msg.parse_error()
+                    logger.error(f"Pipeline error for {cam_id}: {err.message} - {debug}")
+                pipeline.set_state(Gst.State.NULL)
+                self.preview_states[cam_id] = "error"
+                return False
+            
             self.preview_pipelines[cam_id] = pipeline
             self.preview_states[cam_id] = "preview"
 
