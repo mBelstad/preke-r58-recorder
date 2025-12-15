@@ -210,6 +210,60 @@ def get_hdmi_port_mapping() -> Dict[str, str]:
     }
 
 
+def get_subdev_resolution(device_path: str) -> Optional[tuple[int, int]]:
+    """Query subdev for current resolution without reinitializing device.
+    
+    This is a fast, read-only query that checks the current HDMI signal
+    resolution from the LT6911 bridge without modifying any device state.
+    
+    Args:
+        device_path: Path to video device (e.g., /dev/video11)
+        
+    Returns:
+        Tuple of (width, height) if signal detected, None if no signal or error
+    """
+    subdev = RKCIF_SUBDEV_MAP.get(device_path)
+    if not subdev:
+        # Not an rkcif device, query the video device directly
+        caps = get_device_capabilities(device_path)
+        if caps['has_signal']:
+            return (caps['width'], caps['height'])
+        return None
+    
+    try:
+        # Query subdev for actual resolution detected by LT6911 bridge
+        result = subprocess.run(
+            ["v4l2-ctl", "-d", subdev, "--get-subdev-fmt", "pad=0"],
+            capture_output=True, text=True, timeout=2
+        )
+        
+        if result.returncode != 0:
+            return None
+        
+        # Parse width/height from subdev output
+        # Format: "Width/Height      : 1920/1080"
+        width_match = re.search(r"Width/Height\s*:\s*(\d+)/(\d+)", result.stdout)
+        if width_match:
+            width = int(width_match.group(1))
+            height = int(width_match.group(2))
+            
+            # Check for valid signal (not 0x0 or very small)
+            if width >= 640 and height >= 480:
+                return (width, height)
+        
+        return None
+        
+    except subprocess.TimeoutExpired:
+        logger.debug(f"Timeout querying subdev for {device_path}")
+        return None
+    except FileNotFoundError:
+        logger.warning("v4l2-ctl not found")
+        return None
+    except Exception as e:
+        logger.debug(f"Error querying subdev resolution for {device_path}: {e}")
+        return None
+
+
 def initialize_rkcif_device(device_path: str) -> Dict[str, Any]:
     """Initialize rkcif device by querying subdev resolution and setting format.
     

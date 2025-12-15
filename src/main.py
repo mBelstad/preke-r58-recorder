@@ -264,11 +264,23 @@ async def get_preview_status_api() -> Dict[str, Any]:
     
     for cam_id, status in statuses.items():
         cam_config = config.cameras.get(cam_id)
+        
+        # Get current resolution from preview manager (actual detected resolution)
+        current_res = preview_manager.current_resolutions.get(cam_id)
+        resolution_info = None
+        if current_res:
+            resolution_info = {
+                "width": current_res[0],
+                "height": current_res[1],
+                "formatted": f"{current_res[0]}x{current_res[1]}"
+            }
+        
         camera_details[cam_id] = {
             "status": status,
             "config": cam_id in config.cameras,
             "device": cam_config.device if cam_config else None,
-            "resolution": cam_config.resolution if cam_config else None,
+            "configured_resolution": cam_config.resolution if cam_config else None,
+            "current_resolution": resolution_info,  # Actual detected resolution
             "hls_url": f"/hls/{cam_id}_preview/index.m3u8" if status == "preview" else None
         }
     

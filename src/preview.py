@@ -27,6 +27,7 @@ class PreviewManager:
         self.preview_states: Dict[str, str] = {}  # 'idle', 'preview', 'error'
         self.pipeline_start_times: Dict[str, float] = {}  # Track when pipelines started
         self.last_health_check: Dict[str, float] = {}  # Track last successful health check
+        self.current_resolutions: Dict[str, tuple[int, int]] = {}  # Track active resolutions for change detection
         self._gst_ready = False
         self._health_check_running = False
         self._health_check_thread: Optional[threading.Thread] = None
@@ -138,6 +139,16 @@ class PreviewManager:
             self.preview_states[cam_id] = "preview"
             self.pipeline_start_times[cam_id] = time.time()
             self.last_health_check[cam_id] = time.time()
+            
+            # Store initial resolution for change detection
+            try:
+                from .device_detection import get_subdev_resolution
+                initial_res = get_subdev_resolution(cam_config.device)
+                if initial_res:
+                    self.current_resolutions[cam_id] = initial_res
+                    logger.info(f"Tracking resolution for {cam_id}: {initial_res[0]}x{initial_res[1]}")
+            except Exception as e:
+                logger.debug(f"Could not store initial resolution for {cam_id}: {e}")
 
             logger.info(f"Started preview for camera {cam_id}")
             
@@ -285,6 +296,11 @@ class PreviewManager:
             if state != "preview":
                 continue
             
+            # Check for resolution changes
+            if self._check_resolution_change(cam_id):
+                # Resolution changed, restart pipeline with new resolution
+                continue  # Skip other checks, restart will happen
+            
             # Check if pipeline is actually producing data
             is_healthy = self._is_pipeline_healthy(cam_id)
             
@@ -340,6 +356,91 @@ class PreviewManager:
         except Exception as e:
             logger.debug(f"Health check error for {cam_id}: {e}")
             return False
+    
+    def _check_resolution_change(self, cam_id: str) -> bool:
+        """Check if resolution changed for a camera.
+        
+        Returns:
+            True if resolution changed and restart was triggered, False otherwise
+        """
+        if cam_id not in self.config.cameras:
+            return False
+        
+        try:
+            from .device_detection import get_subdev_resolution
+            device = self.config.cameras[cam_id].device
+            new_res = get_subdev_resolution(device)
+            
+            # No signal or error querying resolution
+            if not new_res or new_res == (0, 0):
+                return False
+            
+            # Get current tracked resolution
+            current_res = self.current_resolutions.get(cam_id)
+            
+            # If we have a tracked resolution and it changed
+            if current_res and current_res != new_res:
+                logger.info(
+                    f"{cam_id}: Resolution changed from {current_res[0]}x{current_res[1]} "
+                    f"to {new_res[0]}x{new_res[1]}, restarting preview..."
+                )
+                self._handle_resolution_change(cam_id, new_res[0], new_res[1])
+                return True
+            
+            # Update tracked resolution (first time or no change)
+            if not current_res:
+                self.current_resolutions[cam_id] = new_res
+            
+            return False
+            
+        except Exception as e:
+            logger.debug(f"Error checking resolution change for {cam_id}: {e}")
+            return False
+    
+    def _handle_resolution_change(self, cam_id: str, new_width: int, new_height: int):
+        """Handle resolution change by gracefully restarting the preview pipeline.
+        
+        Args:
+            cam_id: Camera identifier
+            new_width: New resolution width
+            new_height: New resolution height
+        """
+        try:
+            # Stop current pipeline cleanly
+            if cam_id in self.preview_pipelines:
+                pipeline = self.preview_pipelines[cam_id]
+                pipeline.set_state(Gst.State.NULL)
+                del self.preview_pipelines[cam_id]
+            
+            # Update tracked resolution
+            self.current_resolutions[cam_id] = (new_width, new_height)
+            
+            # Wait for device release
+            time.sleep(0.5)
+            
+            # Re-initialize rkcif device if needed
+            cam_config = self.config.cameras[cam_id]
+            try:
+                from .device_detection import initialize_rkcif_device, detect_device_type
+                device_type = detect_device_type(cam_config.device)
+                
+                if device_type == "hdmi_rkcif":
+                    logger.info(f"Re-initializing rkcif device {cam_config.device} with new resolution")
+                    initialize_rkcif_device(cam_config.device)
+            except Exception as e:
+                logger.warning(f"Could not re-initialize device {cam_config.device}: {e}")
+            
+            # Start new pipeline with new resolution
+            self.start_preview(cam_id)
+            
+            logger.info(
+                f"Successfully restarted {cam_id} preview with resolution "
+                f"{new_width}x{new_height}"
+            )
+            
+        except Exception as e:
+            logger.error(f"Error handling resolution change for {cam_id}: {e}")
+            self.preview_states[cam_id] = "error"
     
     def _restart_preview(self, cam_id: str):
         """Restart a preview pipeline."""
