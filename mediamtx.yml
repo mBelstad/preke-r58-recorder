@@ -26,22 +26,16 @@ webrtcAllowOrigin: "*"
 webrtcEncryption: no
 
 # Paths configuration
+# In always-on ingest architecture, only cam0-cam3 paths are used
+# Ingest pipelines publish to these paths, all consumers subscribe
 paths:
   cam0:
     source: publisher
-  cam0_preview:
-    source: publisher
   cam1:
-    source: publisher
-  cam1_preview:
     source: publisher
   cam2:
     source: publisher
-  cam2_preview:
-    source: publisher
   cam3:
-    source: publisher
-  cam3_preview:
     source: publisher
   mixer_program:
     source: publisher

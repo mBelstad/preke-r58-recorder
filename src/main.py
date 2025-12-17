@@ -11,6 +11,7 @@ import uuid
 import httpx
 
 from .config import AppConfig
+from .ingest import IngestManager
 from .recorder import Recorder
 from .preview import PreviewManager
 from .mixer.scenes import SceneManager
@@ -36,9 +37,14 @@ except FileNotFoundError:
     logger.error(f"config.yml not found at {config_path}. Using default configuration.")
     config = AppConfig(platform="macos", cameras={})
 
-# Initialize recorder and preview manager
+# Initialize ingest manager (always-on capture)
+ingest_manager = IngestManager(config)
+
+# Initialize recorder (subscribes to ingest streams)
 recorder = Recorder(config)
-preview_manager = PreviewManager(config)
+
+# Initialize preview manager (delegates to ingest)
+preview_manager = PreviewManager(config, ingest_manager)
 
 # Initialize database
 database = Database(db_path="data/app.db")
@@ -107,6 +113,18 @@ videos_dir.mkdir(exist_ok=True)
 
 # Mount uploads directory for serving files
 app.mount("/uploads", StaticFiles(directory=str(uploads_dir)), name="uploads")
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Start ingest pipelines on application startup."""
+    logger.info("Starting ingest pipelines for all cameras...")
+    results = ingest_manager.start_all()
+    for cam_id, success in results.items():
+        if success:
+            logger.info(f"✓ Ingest started for {cam_id}")
+        else:
+            logger.warning(f"✗ Failed to start ingest for {cam_id}")
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -256,16 +274,54 @@ async def get_preview_status() -> Dict[str, Dict[str, Any]]:
     }
 
 
+@app.get("/api/ingest/status")
+async def get_ingest_status_api() -> Dict[str, Any]:
+    """Get ingest status for all cameras (always-on streams)."""
+    ingest_statuses = ingest_manager.get_status()
+    camera_details = {}
+    
+    for cam_id, ingest_status in ingest_statuses.items():
+        cam_config = config.cameras.get(cam_id)
+        
+        resolution_info = None
+        if ingest_status.resolution:
+            resolution_info = {
+                "width": ingest_status.resolution[0],
+                "height": ingest_status.resolution[1],
+                "formatted": f"{ingest_status.resolution[0]}x{ingest_status.resolution[1]}"
+            }
+        
+        camera_details[cam_id] = {
+            "status": ingest_status.status,
+            "config": cam_id in config.cameras,
+            "device": cam_config.device if cam_config else None,
+            "resolution": resolution_info,
+            "has_signal": ingest_status.has_signal,
+            "stream_url": ingest_status.stream_url
+        }
+    
+    return {
+        "cameras": camera_details,
+        "summary": {
+            "total": len(ingest_statuses),
+            "streaming": sum(1 for s in ingest_statuses.values() if s.status == "streaming"),
+            "no_signal": sum(1 for s in ingest_statuses.values() if s.status == "no_signal"),
+            "error": sum(1 for s in ingest_statuses.values() if s.status == "error"),
+            "idle": sum(1 for s in ingest_statuses.values() if s.status == "idle")
+        }
+    }
+
+
 @app.get("/api/preview/status")
 async def get_preview_status_api() -> Dict[str, Any]:
-    """Get detailed preview status for all cameras (API version)."""
+    """Get detailed preview status for all cameras (delegates to ingest)."""
     statuses = preview_manager.get_preview_status()
     camera_details = {}
     
     for cam_id, status in statuses.items():
         cam_config = config.cameras.get(cam_id)
         
-        # Get current resolution from preview manager (actual detected resolution)
+        # Get current resolution from ingest manager
         current_res = preview_manager.current_resolutions.get(cam_id)
         resolution_info = None
         if current_res:
@@ -275,9 +331,9 @@ async def get_preview_status_api() -> Dict[str, Any]:
                 "formatted": f"{current_res[0]}x{current_res[1]}"
             }
         
-        # Get signal status
-        has_signal = preview_manager.signal_states.get(cam_id, True)
-        signal_loss_time = preview_manager.signal_loss_times.get(cam_id)
+        # Get signal status from ingest manager
+        has_signal = preview_manager.current_signal_status.get(cam_id, True)
+        signal_loss_time = preview_manager.signal_loss_start_time.get(cam_id)
         signal_loss_duration = None
         if signal_loss_time:
             import time
@@ -288,10 +344,10 @@ async def get_preview_status_api() -> Dict[str, Any]:
             "config": cam_id in config.cameras,
             "device": cam_config.device if cam_config else None,
             "configured_resolution": cam_config.resolution if cam_config else None,
-            "current_resolution": resolution_info,  # Actual detected resolution
-            "has_signal": has_signal,  # HDMI signal present
-            "signal_loss_duration": signal_loss_duration,  # Seconds since signal lost (None if has signal)
-            "hls_url": f"/hls/{cam_id}_preview/index.m3u8" if status == "preview" else None
+            "current_resolution": resolution_info,
+            "has_signal": has_signal,
+            "signal_loss_duration": signal_loss_duration,
+            "hls_url": f"/hls/{cam_id}/index.m3u8" if status == "preview" else None
         }
     
     return {
@@ -448,13 +504,11 @@ async def get_status() -> Dict[str, Dict[str, Any]]:
         recording_status = recording_statuses.get(cam_id, "idle")
         preview_status = preview_statuses.get(cam_id, "idle")
         
-        # Prioritize recording over preview, but preserve no_signal state
+        # Prioritize recording over preview
         if recording_status == "recording":
             combined_statuses[cam_id] = {"status": "recording", "config": True}
         elif preview_status == "preview":
             combined_statuses[cam_id] = {"status": "preview", "config": True}
-        elif recording_status == "no_signal" or preview_status == "no_signal":
-            combined_statuses[cam_id] = {"status": "no_signal", "config": True}
         else:
             combined_statuses[cam_id] = {"status": recording_status, "config": True}
     

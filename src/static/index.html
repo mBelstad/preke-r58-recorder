@@ -843,7 +843,7 @@
         
         // Log access mode for debugging
         console.log(`Access mode: ${IS_REMOTE ? 'REMOTE (using HLS proxy)' : 'LOCAL (using MediaMTX directly)'}`);
-        console.log(`HLS URL example: ${getHLSUrl('cam0_preview')}`);
+        console.log(`HLS URL example: ${getHLSUrl('cam0')}`);
         
         let recordingState = false;
         let hlsPlayers = {};
@@ -1096,8 +1096,8 @@
             updatePlaceholderStatus(camId, 'connecting');
 
             // Always use preview path - backend handles restream mode automatically
-            // The restream pipeline outputs to cam0_preview, so frontend should always watch that path
-            const streamPath = `${camId}_preview`;
+            // In always-on ingest architecture, all streams use cam0, cam1, etc.
+            const streamPath = `${camId}`;
             
             // Try WebRTC first for ultra-low latency (local access only)
             if (window.RTCPeerConnection && !IS_REMOTE) {
@@ -1465,7 +1465,7 @@
             // Use provided streamPath or default to preview path
             if (!streamPath) {
                 // Always use preview path - backend handles restream mode automatically
-                streamPath = `${camId}_preview`;
+                streamPath = `${camId}`;
                 const hlsUrl = getHLSUrl(streamPath);
                 startHLSWithUrl(video, camId, placeholder, hlsUrl);
                 return;

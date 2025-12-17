@@ -1,4 +1,4 @@
-"""Pipeline manager for camera recording."""
+"""Pipeline manager for camera recording (subscribes to MediaMTX streams)."""
 import logging
 import subprocess
 from datetime import datetime
@@ -6,14 +6,18 @@ from typing import Dict, Optional, Any
 from pathlib import Path
 
 from .config import AppConfig, CameraConfig
-from .pipelines import build_pipeline
+from .pipelines import build_recording_subscriber_pipeline
 from .gst_utils import ensure_gst_initialized, get_gst, get_glib
 
 logger = logging.getLogger(__name__)
 
 
 class Recorder:
-    """Manages recording pipelines for multiple cameras."""
+    """Manages recording pipelines for multiple cameras.
+    
+    Records by subscribing to MediaMTX streams from IngestManager.
+    Does NOT access V4L2 devices directly - completely independent of ingest.
+    """
 
     def __init__(self, config: AppConfig):
         """Initialize recorder with configuration."""
@@ -42,7 +46,7 @@ class Recorder:
         return False
 
     def start_recording(self, cam_id: str) -> bool:
-        """Start recording for a specific camera."""
+        """Start recording for a specific camera by subscribing to its MediaMTX stream."""
         if not self._ensure_gst():
             logger.error("Cannot start recording - GStreamer not available")
             return False
@@ -59,30 +63,12 @@ class Recorder:
         if cam_id in self.pipelines:
             self._stop_pipeline(cam_id)
         
-        # If preview is running in direct mode, switch it to restream mode
-        # Import here to avoid circular dependency
-        from .main import preview_manager
-        preview_was_active = False
-        if hasattr(preview_manager, 'preview_states') and preview_manager.preview_states.get(cam_id) == "preview":
-            preview_mode = preview_manager.preview_modes.get(cam_id, "direct")
-            if preview_mode == "direct":
-                logger.info(f"Switching preview for {cam_id} from direct to restream mode")
-            preview_manager.stop_preview(cam_id)
-            preview_was_active = True
-            # Give device time to release before starting recording
-            import time
-            time.sleep(0.5)
+        # NO LONGER NEEDED: Device contention removed
+        # Recording now subscribes to MediaMTX stream from ingest pipeline
+        # Preview and recording can run simultaneously
 
         # Get camera config
         cam_config: CameraConfig = self.config.cameras[cam_id]
-
-        # Check signal before starting recording
-        from .device_detection import get_device_capabilities
-        caps = get_device_capabilities(cam_config.device)
-        if not caps.get('has_signal', False):
-            logger.info(f"Skipping recording start for {cam_id} - no HDMI signal detected")
-            self.states[cam_id] = "no_signal"
-            return False
 
         # Format output path with timestamp if needed
         output_path_str = cam_config.output_path
@@ -93,25 +79,16 @@ class Recorder:
         output_path = Path(output_path_str)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Build MediaMTX path if enabled
-        mediamtx_path = None
-        if cam_config.mediamtx_enabled and self.config.mediamtx.enabled:
-            if cam_config.mediamtx_path:
-                mediamtx_path = cam_config.mediamtx_path
-            else:
-                mediamtx_path = f"rtsp://localhost:{self.config.mediamtx.rtsp_port}/{cam_id}"
+        # Build MediaMTX source URL (subscribe to ingest stream)
+        source_url = f"rtsp://localhost:{self.config.mediamtx.rtsp_port}/{cam_id}"
 
-        # Build pipeline
+        # Build recording subscriber pipeline (reads from MediaMTX, not device)
         try:
-            pipeline = build_pipeline(
-                platform=self.config.platform,
+            pipeline = build_recording_subscriber_pipeline(
                 cam_id=cam_id,
-                device=cam_config.device,
+                source_url=source_url,
                 output_path=str(output_path),
-                resolution=cam_config.resolution,
-                bitrate=cam_config.bitrate,
                 codec=cam_config.codec,
-                mediamtx_path=mediamtx_path,
             )
 
             # Set up bus message handler
@@ -125,18 +102,10 @@ class Recorder:
             self.pipelines[cam_id] = pipeline
             self.states[cam_id] = "recording"
 
-            # Streaming is now handled via tee in the main pipeline (no separate pipeline needed)
-            # This avoids dual device access which caused system crashes
+            # Recording now subscribes to MediaMTX ingest stream
+            # No device access needed - completely independent of ingest
 
-            logger.info(f"Started recording for camera {cam_id}")
-            
-            # After recording starts successfully, restart preview in restream mode if it was active
-            if preview_was_active and hasattr(preview_manager, 'preview_states'):
-                import time
-                time.sleep(2.0)  # Wait longer for recording stream to be fully available in MediaMTX
-                logger.info(f"Restarting preview for {cam_id} in restream mode")
-                preview_manager.start_preview(cam_id)
-            
+            logger.info(f"Started recording for camera {cam_id} (subscribing to {source_url})")
             return True
 
         except Exception as e:
@@ -165,20 +134,7 @@ class Recorder:
                     pass
             return True
 
-        success = self._stop_pipeline(cam_id)
-        
-        # If preview is in restream mode, switch it back to direct device access
-        if success:
-            from .main import preview_manager
-            if hasattr(preview_manager, 'preview_modes') and preview_manager.preview_modes.get(cam_id) == "restream":
-                if hasattr(preview_manager, 'preview_states') and preview_manager.preview_states.get(cam_id) == "preview":
-                    logger.info(f"Switching preview for {cam_id} from restream to direct mode")
-                    preview_manager.stop_preview(cam_id)
-                    import time
-                    time.sleep(0.5)  # Wait for device to be released
-                    preview_manager.start_preview(cam_id)
-        
-        return success
+        return self._stop_pipeline(cam_id)
 
     def _stop_pipeline(self, cam_id: str) -> bool:
         """Internal method to stop a pipeline."""
@@ -192,13 +148,13 @@ class Recorder:
 
         pipeline = self.pipelines[cam_id]
         try:
-            # Send EOS to flush the pipeline (don't pause first - let it finish naturally)
+            # Send EOS to flush the pipeline
             pipeline.send_event(Gst.Event.new_eos())
 
-            # Wait for EOS or timeout (15 seconds max)
+            # Wait for EOS or timeout
             bus = pipeline.get_bus()
             msg = bus.timed_pop_filtered(
-                15 * Gst.SECOND,  # 15 second timeout
+                15 * Gst.SECOND,
                 Gst.MessageType.EOS | Gst.MessageType.ERROR,
             )
 
@@ -206,15 +162,13 @@ class Recorder:
                 err, debug = msg.parse_error()
                 logger.error(f"Pipeline error during stop for {cam_id}: {err.message}")
 
-            # Set to NULL state to finalize the file
+            # Set to NULL state
             pipeline.set_state(Gst.State.NULL)
             
-            # Wait for state change to ensure file is finalized
+            # Wait for state change
             ret = pipeline.get_state(Gst.CLOCK_TIME_NONE)
             if ret[0] == Gst.StateChangeReturn.ASYNC:
                 pipeline.get_state(Gst.CLOCK_TIME_NONE)
-
-            # Streaming is handled in the main pipeline via tee, no separate cleanup needed
 
             # Clean up
             del self.pipelines[cam_id]
@@ -225,7 +179,7 @@ class Recorder:
 
         except Exception as e:
             logger.error(f"Error stopping pipeline for {cam_id}: {e}")
-            # Force stop even if there was an error
+            # Force stop
             try:
                 pipeline.set_state(Gst.State.NULL)
                 pipeline.get_state(Gst.CLOCK_TIME_NONE)
@@ -245,7 +199,7 @@ class Recorder:
             err, debug = message.parse_error()
             logger.error(f"Pipeline error for {cam_id}: {err.message} - {debug}")
             self.states[cam_id] = "error"
-            # Try to restart the pipeline if it's a recoverable error
+            # Try to restart if recoverable
             if "busy" not in err.message.lower() and "device" not in err.message.lower():
                 logger.info(f"Attempting to restart pipeline for {cam_id} after error")
                 try:
@@ -258,14 +212,12 @@ class Recorder:
                     logger.error(f"Failed to restart pipeline for {cam_id}: {e}")
         elif message.type == Gst.MessageType.EOS:
             logger.info(f"End of stream for {cam_id}")
-            # Don't change state to idle here - let stop_pipeline handle it
         elif message.type == Gst.MessageType.STATE_CHANGED:
             if message.src == self.pipelines.get(cam_id):
                 old_state, new_state, pending_state = message.parse_state_changed()
                 logger.info(
                     f"State changed for {cam_id}: {old_state.value_nick} -> {new_state.value_nick}"
                 )
-                # If pipeline goes to NULL unexpectedly, mark as error
                 if new_state == Gst.State.NULL and old_state == Gst.State.PLAYING:
                     if self.states.get(cam_id) == "recording":
                         logger.warning(f"Pipeline for {cam_id} unexpectedly went to NULL state during recording")
@@ -283,23 +235,9 @@ class Recorder:
         return self.states.get(cam_id)
 
     def start_all_recordings(self) -> Dict[str, bool]:
-        """Start recording for all cameras that have signal."""
+        """Start recording for all cameras."""
         results = {}
         for cam_id in self.config.cameras.keys():
-            # Check signal before attempting to start
-            try:
-                from .device_detection import get_device_capabilities
-                cam_config = self.config.cameras[cam_id]
-                caps = get_device_capabilities(cam_config.device)
-                if not caps.get('has_signal', False):
-                    logger.info(f"Skipping {cam_id} - no signal")
-                    results[cam_id] = False
-                    self.states[cam_id] = "no_signal"
-                    continue
-            except Exception as e:
-                logger.debug(f"Could not check signal for {cam_id}: {e}")
-                # Continue anyway - let start_recording handle it
-            
             results[cam_id] = self.start_recording(cam_id)
         return results
 
@@ -311,10 +249,9 @@ class Recorder:
         return results
 
     def _cleanup_stuck_pipelines(self) -> None:
-        """Kill any stuck GStreamer processes that might be holding video devices."""
+        """Kill any stuck GStreamer processes."""
         import subprocess
         try:
-            # Find and kill stuck gst-launch processes
             result = subprocess.run(
                 ["pgrep", "-f", "gst-launch.*video60"],
                 capture_output=True,
@@ -331,4 +268,3 @@ class Recorder:
                             pass
         except Exception as e:
             logger.warning(f"Could not cleanup stuck pipelines: {e}")
-

@@ -394,52 +394,203 @@ def build_r58_preview_pipeline(
     return pipeline
 
 
-def build_r58_restream_preview_pipeline(
+def build_ingest_pipeline(
+    platform: str,
     cam_id: str,
-    source_stream: str,  # e.g., "cam0"
-    mediamtx_path: str,  # e.g., "cam0_preview"
-    rtsp_port: int = 8554,
+    device: str,
+    resolution: str = "1920x1080",
+    bitrate: int = 8000,
+    codec: str = "h264",
+    mediamtx_path: Optional[str] = None,
 ):
-    """Build preview pipeline that re-streams from MediaMTX (for recording mode).
+    """Build always-on ingest pipeline (streaming only, no recording).
     
-    This avoids V4L2 device access conflicts by sourcing from the recording's
-    MediaMTX stream instead of accessing the device directly.
-    
-    Args:
-        cam_id: Camera identifier (e.g., "cam0")
-        source_stream: MediaMTX stream path to source from (e.g., "cam0")
-        mediamtx_path: Full MediaMTX path for output (e.g., "rtsp://localhost:8554/cam0_preview")
-        rtsp_port: MediaMTX RTSP port
-        
-    Returns:
-        GStreamer pipeline instance
+    This pipeline captures from device and streams to MediaMTX.
+    All consumers (preview, recording, mixer) subscribe to the MediaMTX stream.
     """
-    # Source from recording's MediaMTX stream with retry/timeout settings
-    rtsp_url = f"rtsp://127.0.0.1:{rtsp_port}/{source_stream}"
-    # Add retry settings: retry=3 allows 3 connection attempts, timeout=5s gives MediaMTX time to make stream available
-    source_str = (
-        f"rtspsrc location={rtsp_url} latency=100 "
-        f"retry=3 timeout=5000000000 "
-        f"! rtph264depay"
-    )
+    if platform == "macos":
+        # Mock ingest pipeline for development
+        width, height = resolution.split("x")
+        pipeline_str = (
+            f"videotestsrc pattern=ball is-live=true ! "
+            f"video/x-raw,width={width},height={height},framerate=30/1 ! "
+            f"x264enc bitrate={bitrate} speed-preset=ultrafast tune=zerolatency ! "
+            f"video/x-h264,profile=baseline ! "
+            f"flvmux streamable=true ! "
+            f"rtmpsink location={mediamtx_path or f'rtmp://127.0.0.1:1935/{cam_id}'}"
+        )
+        Gst = get_gst()
+        return Gst.parse_launch(pipeline_str)
+    else:  # r58
+        return build_r58_ingest_pipeline(
+            cam_id=cam_id,
+            device=device,
+            resolution=resolution,
+            bitrate=bitrate,
+            codec=codec,
+            mediamtx_path=mediamtx_path,
+        )
+
+
+def build_r58_ingest_pipeline(
+    cam_id: str,
+    device: str,
+    resolution: str = "1920x1080",
+    bitrate: int = 8000,
+    codec: str = "h264",
+    mediamtx_path: Optional[str] = None,
+):
+    """Build always-on ingest pipeline for R58 (streaming to MediaMTX only)."""
+    width, height = resolution.split("x")
+
+    # Video source - reuse device detection logic
+    try:
+        from .device_detection import detect_device_type, get_device_capabilities, initialize_rkcif_device, RKCIF_SUBDEV_MAP
+        device_type = detect_device_type(device)
+        
+        # For rkcif devices, initialize format from subdev first
+        if device in RKCIF_SUBDEV_MAP:
+            caps = initialize_rkcif_device(device)
+        else:
+            caps = get_device_capabilities(device)
+    except ImportError:
+        device_type = "hdmirx" if ("video60" in device or "hdmirx" in device.lower()) else "unknown"
+        caps = {'format': 'NV16', 'width': int(width), 'height': int(height), 'framerate': 60, 'has_signal': True, 'is_bayer': False, 'bayer_format': None}
     
-    # Output to preview MediaMTX stream
-    stream_path = mediamtx_path.split("/")[-1] if "/" in mediamtx_path else f"{cam_id}_preview"
-    rtmp_url = f"rtmp://127.0.0.1:1935/{stream_path}"
+    logger.info(f"Building ingest pipeline for {cam_id}: device_type={device_type}, caps={caps}")
     
-    # Minimal pipeline: just re-mux the H.264 stream
-    # Use leaky queues for low latency
+    if device_type == "hdmirx":
+        source_str = (
+            f"v4l2src device={device} io-mode=mmap ! "
+            f"video/x-raw,format=NV16,width={width},height={height},framerate=60/1 ! "
+            f"videorate ! video/x-raw,framerate=30/1 ! "
+            f"videoconvert ! "
+            f"video/x-raw,format=NV12"
+        )
+    elif device_type == "hdmi_rkcif":
+        if not caps['has_signal']:
+            logger.warning(f"{cam_id}: No HDMI signal on {device}, using test pattern")
+            source_str = (
+                f"videotestsrc pattern=black is-live=true ! "
+                f"video/x-raw,width={width},height={height},framerate=30/1,format=NV12"
+            )
+        elif caps['is_bayer']:
+            bayer_fmt = caps['bayer_format'] or 'rggb'
+            src_width = caps['width']
+            src_height = caps['height']
+            logger.info(f"{cam_id}: Using Bayer format {bayer_fmt} at {src_width}x{src_height}")
+            source_str = (
+                f"v4l2src device={device} io-mode=mmap ! "
+                f"video/x-bayer,format={bayer_fmt},width={src_width},height={src_height} ! "
+                f"bayer2rgb ! "
+                f"videoconvert ! "
+                f"videoscale ! "
+                f"video/x-raw,width={width},height={height},format=NV12"
+            )
+        else:
+            src_format = caps['format'] or 'NV16'
+            src_width = caps['width']
+            src_height = caps['height']
+            src_fps = caps['framerate'] or 60
+            logger.info(f"{cam_id}: Using explicit format {src_format} at {src_width}x{src_height}@{src_fps}fps")
+            source_str = (
+                f"v4l2src device={device} io-mode=mmap ! "
+                f"video/x-raw,format={src_format},width={src_width},height={src_height},framerate={src_fps}/1 ! "
+                f"videorate ! video/x-raw,framerate=30/1 ! "
+                f"videoconvert ! "
+                f"videoscale ! "
+                f"video/x-raw,width={width},height={height},format=NV12"
+            )
+    elif device_type == "usb":
+        source_str = (
+            f"v4l2src device={device} ! "
+            f"video/x-raw ! "
+            f"videorate ! video/x-raw,framerate=30/1 ! "
+            f"videoconvert ! "
+            f"videoscale ! "
+            f"video/x-raw,width={width},height={height},format=NV12"
+        )
+    else:
+        source_str = (
+            f"v4l2src device={device} ! "
+            f"video/x-raw ! "
+            f"videoconvert ! "
+            f"videoscale ! "
+            f"video/x-raw,width={width},height={height},framerate=30/1,format=NV12"
+        )
+
+    # Encoder - always H.264 for compatibility
+    # Use higher bitrate for quality preservation (will be transcoded by subscribers)
+    encoder_str = f"x264enc tune=zerolatency bitrate={bitrate} speed-preset=veryfast key-int-max=30"
+    caps_str = "video/x-h264"
+
+    # Stream to MediaMTX only
+    if mediamtx_path:
+        stream_path = mediamtx_path.split("/")[-1] if "/" in mediamtx_path else cam_id
+        rtmp_url = f"rtmp://127.0.0.1:1935/{stream_path}"
+    else:
+        rtmp_url = f"rtmp://127.0.0.1:1935/{cam_id}"
+
+    # Simple pipeline: source → encode → stream
     pipeline_str = (
         f"{source_str} ! "
-        f"h264parse ! "
-        f"queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream ! "
+        f"queue max-size-buffers=3 max-size-time=0 max-size-bytes=0 leaky=downstream ! "
+        f"{encoder_str} ! "
+        f"{caps_str} ! "
+        f"queue max-size-buffers=3 max-size-time=0 max-size-bytes=0 leaky=downstream ! "
         f"flvmux streamable=true ! "
         f"rtmpsink location={rtmp_url} sync=false"
     )
-    
-    logger.info(f"Building restream preview pipeline for {cam_id}: {pipeline_str}")
+
+    logger.info(f"Building ingest pipeline for {cam_id}: {pipeline_str}")
     Gst = get_gst()
-    return Gst.parse_launch(pipeline_str)
+    pipeline = Gst.parse_launch(pipeline_str)
+    return pipeline
+
+
+def build_recording_subscriber_pipeline(
+    cam_id: str,
+    source_url: str,
+    output_path: str,
+    codec: str = "h264",
+):
+    """Build recording pipeline that subscribes to MediaMTX stream.
+    
+    This pipeline reads from an RTSP source (MediaMTX) instead of directly
+    from a V4L2 device, allowing recording to be independent of ingest.
+    
+    Args:
+        cam_id: Camera identifier
+        source_url: RTSP URL to subscribe to (e.g., rtsp://localhost:8554/cam0)
+        output_path: Path to output file
+        codec: Codec (h264 or h265) - determines muxer
+    """
+    # RTSP source with minimal latency
+    source_str = f"rtspsrc location={source_url} latency=100 protocols=tcp ! rtph264depay"
+    
+    # Parser and muxer based on codec
+    if codec == "h265":
+        parse_str = "h265parse"
+        mux_str = "matroskamux"
+    else:  # h264
+        parse_str = "h264parse"
+        mux_str = "mp4mux"
+    
+    # Use splitmuxsink for clean file segments (optional, can segment by time)
+    # max-size-time in nanoseconds (3600000000000 = 1 hour)
+    # For now, use single file (no splitting)
+    pipeline_str = (
+        f"{source_str} ! "
+        f"queue max-size-buffers=0 max-size-time=0 max-size-bytes=0 ! "
+        f"{parse_str} ! "
+        f"{mux_str} ! "
+        f"filesink location={output_path}"
+    )
+    
+    logger.info(f"Building recording subscriber pipeline for {cam_id}: {pipeline_str}")
+    Gst = get_gst()
+    pipeline = Gst.parse_launch(pipeline_str)
+    return pipeline
 
 
 def build_pipeline(
