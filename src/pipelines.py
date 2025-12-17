@@ -520,8 +520,17 @@ def build_r58_ingest_pipeline(
         )
 
     # Encoder - always H.264 for compatibility
-    # Use higher bitrate for quality preservation (will be transcoded by subscribers)
-    encoder_str = f"x264enc tune=zerolatency bitrate={bitrate} speed-preset=veryfast key-int-max=30"
+    # Optimized settings for low-latency streaming:
+    # - tune=zerolatency: Minimize encoding latency
+    # - speed-preset=superfast: Fast encoding (ultrafast causes quality issues)
+    # - key-int-max=30: Keyframe every 1s at 30fps (good for HLS)
+    # - bframes=0: No B-frames for lower latency
+    # - threads=4: Use multiple threads for 4K sources
+    # - sliced-threads=true: Better parallelization
+    encoder_str = (
+        f"x264enc tune=zerolatency bitrate={bitrate} speed-preset=superfast "
+        f"key-int-max=30 bframes=0 threads=4 sliced-threads=true"
+    )
     caps_str = "video/x-h264"
 
     # Stream to MediaMTX only
@@ -531,13 +540,14 @@ def build_r58_ingest_pipeline(
     else:
         rtmp_url = f"rtmp://127.0.0.1:1935/{cam_id}"
 
-    # Simple pipeline: source → encode → stream
+    # Pipeline with larger queues for 4K sources to prevent frame drops
+    # leaky=downstream drops old frames if queue fills (prevents latency buildup)
     pipeline_str = (
         f"{source_str} ! "
-        f"queue max-size-buffers=3 max-size-time=0 max-size-bytes=0 leaky=downstream ! "
+        f"queue max-size-buffers=5 max-size-time=0 max-size-bytes=0 leaky=downstream ! "
         f"{encoder_str} ! "
         f"{caps_str} ! "
-        f"queue max-size-buffers=3 max-size-time=0 max-size-bytes=0 leaky=downstream ! "
+        f"queue max-size-buffers=5 max-size-time=0 max-size-bytes=0 leaky=downstream ! "
         f"flvmux streamable=true ! "
         f"rtmpsink location={rtmp_url} sync=false"
     )

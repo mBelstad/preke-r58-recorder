@@ -294,6 +294,41 @@
             background: #4b5563;
         }
 
+        /* Stream mode selector */
+        .stream-mode-selector {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .stream-mode-selector select {
+            padding: 10px 14px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.15);
+            background: rgba(30, 41, 59, 0.8);
+            color: #f1f5f9;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .stream-mode-selector select:hover {
+            border-color: rgba(59, 130, 246, 0.5);
+            background: rgba(30, 41, 59, 0.95);
+        }
+        
+        .stream-mode-selector select:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        }
+        
+        .mode-hint {
+            font-size: 0.75rem;
+            color: #94a3b8;
+            padding: 4px 0;
+        }
+
         /* Broadcaster-style 2-column multiview */
         .multiview {
             display: grid;
@@ -790,11 +825,23 @@
             </div>
             
             <div>
-                <h2>Controls</h2>
+                <h2>Control</h2>
                 <div class="recording-controls">
                     <button class="btn btn-record" id="recordBtn" onclick="toggleRecording()">
                         <span id="recordBtnText">Start Recording</span>
                     </button>
+                </div>
+            </div>
+            
+            <div>
+                <h2>Stream Mode</h2>
+                <div class="stream-mode-selector">
+                    <select id="streamModeSelect" onchange="changeStreamMode(this.value)">
+                        <option value="lowlatency">Low Latency (~1s)</option>
+                        <option value="balanced" selected>Balanced (~2s)</option>
+                        <option value="stable">Stable (~5s)</option>
+                    </select>
+                    <div class="mode-hint" id="modeHint">Balanced mode for most connections</div>
                 </div>
             </div>
 
@@ -854,6 +901,161 @@
         let previousSignalStates = {};
         let recordingInterval = null;
         let cameraStreamStates = {}; // Track which cameras have active streams
+        
+        // Stream optimization settings
+        let streamMode = localStorage.getItem('streamMode') || 'balanced'; // 'lowlatency', 'balanced', 'stable'
+        let lastVideoTimes = {}; // Track video.currentTime for freeze detection
+        let freezeCheckInterval = null;
+        
+        // HLS configuration profiles
+        const hlsProfiles = {
+            lowlatency: {
+                lowLatencyMode: true,
+                backBufferLength: 0,
+                maxBufferLength: 1,
+                maxMaxBufferLength: 2,
+                maxBufferHole: 0.3,
+                maxStarvationDelay: 1,
+                maxLoadingDelay: 1,
+                liveSyncDurationCount: 2,
+                liveMaxLatencyDurationCount: 4,
+            },
+            balanced: {
+                lowLatencyMode: true,
+                backBufferLength: 0,
+                maxBufferLength: 2,
+                maxMaxBufferLength: 4,
+                maxBufferHole: 0.5,
+                maxStarvationDelay: 2,
+                maxLoadingDelay: 2,
+                liveSyncDurationCount: 3,
+                liveMaxLatencyDurationCount: 6,
+            },
+            stable: {
+                lowLatencyMode: false,
+                backBufferLength: 5,
+                maxBufferLength: 10,
+                maxMaxBufferLength: 30,
+                maxBufferHole: 1,
+                maxStarvationDelay: 4,
+                maxLoadingDelay: 4,
+                liveSyncDurationCount: 5,
+                liveMaxLatencyDurationCount: 10,
+            }
+        };
+        
+        // Get current HLS config based on mode
+        function getHLSConfig() {
+            const profile = hlsProfiles[streamMode] || hlsProfiles.balanced;
+            return {
+                ...profile,
+                liveDurationInfinity: false,
+                highBufferWatchdogPeriod: 0.1,
+                nudgeOffset: 0.1,
+                nudgeMaxRetry: 3,
+                startLevel: -1,
+                startFragPrefetch: true,
+                testBandwidth: false,
+                progressive: false
+            };
+        }
+        
+        // Freeze detection - restart frozen streams
+        function startFreezeDetection() {
+            if (freezeCheckInterval) clearInterval(freezeCheckInterval);
+            
+            freezeCheckInterval = setInterval(() => {
+                for (const [camId, hls] of Object.entries(hlsPlayers)) {
+                    if (!hls || !hls.media) continue;
+                    
+                    const video = hls.media;
+                    const currentTime = video.currentTime;
+                    const lastTime = lastVideoTimes[camId] || 0;
+                    
+                    // Check if video is playing but time hasn't changed
+                    if (!video.paused && !video.ended && currentTime === lastTime && currentTime > 0) {
+                        const placeholder = document.getElementById(`placeholder-${camId}`);
+                        console.warn(`${camId} appears frozen (time stuck at ${currentTime}), attempting recovery...`);
+                        
+                        // Try recovery methods in order
+                        try {
+                            // Method 1: Try media error recovery
+                            hls.recoverMediaError();
+                        } catch (e) {
+                            console.log(`${camId} recoverMediaError failed, reloading source...`);
+                            // Method 2: Reload the source
+                            const hlsUrl = getHLSUrl(camId);
+                            hls.loadSource(hlsUrl);
+                            hls.startLoad();
+                        }
+                    }
+                    
+                    lastVideoTimes[camId] = currentTime;
+                }
+            }, 3000); // Check every 3 seconds
+        }
+        
+        // Stream sync manager - keeps streams approximately in sync
+        const syncManager = {
+            enabled: true,
+            masterCam: null,
+            maxDrift: 1.0, // Max allowed drift in seconds
+            
+            findMasterStream() {
+                // Find the stream with the most stable playback (highest currentTime)
+                let maxTime = 0;
+                let master = null;
+                
+                for (const [camId, hls] of Object.entries(hlsPlayers)) {
+                    if (!hls || !hls.media) continue;
+                    const video = hls.media;
+                    if (!video.paused && video.currentTime > maxTime) {
+                        maxTime = video.currentTime;
+                        master = camId;
+                    }
+                }
+                
+                return master;
+            },
+            
+            syncStreams() {
+                if (!this.enabled) return;
+                
+                const master = this.findMasterStream();
+                if (!master || !hlsPlayers[master]) return;
+                
+                const masterVideo = hlsPlayers[master].media;
+                if (!masterVideo) return;
+                
+                const masterTime = masterVideo.currentTime;
+                
+                for (const [camId, hls] of Object.entries(hlsPlayers)) {
+                    if (camId === master || !hls || !hls.media) continue;
+                    
+                    const video = hls.media;
+                    if (video.paused) continue;
+                    
+                    const drift = video.currentTime - masterTime;
+                    
+                    // Only adjust if drift exceeds threshold
+                    if (Math.abs(drift) > this.maxDrift) {
+                        // Gently adjust playback rate instead of seeking (smoother)
+                        if (drift > 0) {
+                            video.playbackRate = 0.97; // Slow down
+                        } else {
+                            video.playbackRate = 1.03; // Speed up
+                        }
+                    } else if (Math.abs(drift) < 0.3) {
+                        // Close enough, normalize playback rate
+                        video.playbackRate = 1.0;
+                    }
+                }
+            },
+            
+            start() {
+                setInterval(() => this.syncStreams(), 2000);
+            }
+        };
 
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', () => {
@@ -914,6 +1116,11 @@
             updateStats();
             updateCameraInfo();
             setInterval(updateCameraInfo, 5000);
+            
+            // Initialize stream optimization features
+            initStreamModeUI();
+            startFreezeDetection();
+            syncManager.start();
             
             // Periodically check video stream states
             setInterval(() => {
@@ -1482,26 +1689,9 @@
             }
             
             if (window.Hls && window.Hls.isSupported()) {
-                const hls = new window.Hls({
-                    lowLatencyMode: true,
-                    backBufferLength: 0,
-                    maxBufferLength: 2,        // Increased from 0.4 for remote stability
-                    maxMaxBufferLength: 4,     // Increased from 0.6 for remote stability
-                    maxBufferSize: 0,
-                    maxBufferHole: 0.5,        // Increased from 0.2 for remote tolerance
-                    maxStarvationDelay: 2,     // Increased from 0.3 for remote tolerance
-                    maxLoadingDelay: 2,        // Increased from 0.3 for remote tolerance
-                    liveSyncDurationCount: 3,  // Increased from 1 for remote stability
-                    liveMaxLatencyDurationCount: 6, // Increased from 2 for remote stability
-                    liveDurationInfinity: false,
-                    highBufferWatchdogPeriod: 0.1,
-                    nudgeOffset: 0.1,
-                    nudgeMaxRetry: 3,
-                    startLevel: -1, // Start from highest quality
-                    startFragPrefetch: true,
-                    testBandwidth: false,
-                    progressive: false
-                });
+                // Use profile-based configuration
+                const hlsConfig = getHLSConfig();
+                const hls = new window.Hls(hlsConfig);
                 
                 hls.loadSource(hlsUrl);
                 hls.attachMedia(video);
@@ -1619,6 +1809,53 @@
                 await stopAllRecordings();
             } else {
                 await startAllRecordings();
+            }
+        }
+        
+        // Change stream mode and restart all HLS players
+        function changeStreamMode(mode) {
+            streamMode = mode;
+            localStorage.setItem('streamMode', mode);
+            
+            // Update hint text
+            const hints = {
+                lowlatency: 'Lowest latency, may stutter on slow connections',
+                balanced: 'Balanced mode for most connections',
+                stable: 'Most stable, higher latency (~5s delay)'
+            };
+            document.getElementById('modeHint').textContent = hints[mode] || '';
+            
+            console.log(`Switching stream mode to: ${mode}`);
+            
+            // Restart all HLS players with new config
+            restartAllHLSPlayers();
+        }
+        
+        // Restart all HLS players with current config
+        function restartAllHLSPlayers() {
+            for (const [camId, hls] of Object.entries(hlsPlayers)) {
+                if (!hls) continue;
+                
+                const video = hls.media;
+                const placeholder = document.getElementById(`placeholder-${camId}`);
+                
+                // Destroy old player
+                hls.destroy();
+                delete hlsPlayers[camId];
+                
+                // Start new player with updated config
+                if (video && placeholder) {
+                    startHLSPreview(video, camId, placeholder);
+                }
+            }
+        }
+        
+        // Initialize stream mode UI on page load
+        function initStreamModeUI() {
+            const select = document.getElementById('streamModeSelect');
+            if (select) {
+                select.value = streamMode;
+                changeStreamMode(streamMode); // Update hint
             }
         }
 
