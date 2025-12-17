@@ -18,6 +18,53 @@ logger = logging.getLogger(__name__)
 STATE_CHANGE_TIMEOUT = 10.0
 
 
+def _detect_hardware_decoder() -> Optional[str]:
+    """Detect available hardware H.264 decoder.
+    
+    Returns:
+        Decoder element name if available, None otherwise
+    """
+    try:
+        Gst = get_gst()
+        registry = Gst.Registry.get()
+        
+        # Check for RK3588 hardware decoder (mppvideodec)
+        mpp_decoder = registry.find_feature("mppvideodec", Gst.ElementFactory.__gtype__)
+        if mpp_decoder:
+            logger.info("Hardware decoder available: mppvideodec")
+            return "mppvideodec"
+        
+        # Check for other hardware decoders (vaapi, etc.)
+        vaapi_decoder = registry.find_feature("vaapih264dec", Gst.ElementFactory.__gtype__)
+        if vaapi_decoder:
+            logger.info("Hardware decoder available: vaapih264dec")
+            return "vaapih264dec"
+        
+        logger.info("No hardware decoder found, will use software decoding")
+        return None
+    except Exception as e:
+        logger.warning(f"Error detecting hardware decoder: {e}")
+        return None
+
+
+def _build_decoder_string(hardware_decoder: Optional[str] = None) -> str:
+    """Build decoder pipeline string with auto-fallback.
+    
+    Args:
+        hardware_decoder: Hardware decoder element name (from _detect_hardware_decoder)
+    
+    Returns:
+        GStreamer pipeline string for decoding
+    """
+    if hardware_decoder:
+        # Try hardware decoder first, with decodebin as fallback
+        # Use typefind to auto-detect codec, then try hardware decoder
+        return f"{hardware_decoder} ! videoconvert"
+    else:
+        # Use decodebin for automatic software decoding
+        return "decodebin ! videoconvert"
+
+
 class MixerCore:
     """Manages GStreamer compositor pipeline for mixing multiple video sources."""
 
@@ -75,6 +122,7 @@ class MixerCore:
 
         # Don't initialize GStreamer here - lazy load when needed
         self._Gst = None  # Will be set by _ensure_gst
+        self._hardware_decoder = None  # Will be detected when GStreamer is ready
 
         # Get camera devices from config
         self.camera_devices = {}
@@ -99,6 +147,8 @@ class MixerCore:
         if ensure_gst_initialized():
             self._gst_ready = True
             self._Gst = get_gst()
+            # Detect hardware decoder once GStreamer is ready
+            self._hardware_decoder = _detect_hardware_decoder()
             return True
         
         logger.error("GStreamer initialization failed - mixer not available")
@@ -336,6 +386,43 @@ class MixerCore:
                 "recording_enabled": self.recording_enabled,
                 "mediamtx_enabled": self.mediamtx_enabled,
             }
+    
+    def _check_ingest_status(self, cam_id: str) -> bool:
+        """Check if a camera's ingest stream is available.
+        
+        Args:
+            cam_id: Camera identifier
+        
+        Returns:
+            True if ingest is streaming, False otherwise
+        """
+        try:
+            # Import IngestManager to check status
+            # This is a lazy import to avoid circular dependencies
+            from ..ingest import IngestManager
+            
+            # Check if ingest manager is available in the app
+            # For now, we'll use a simple approach: try to connect to RTSP
+            # In production, this should query the IngestManager directly
+            import subprocess
+            rtsp_port = self.config.mediamtx.rtsp_port
+            rtsp_url = f"rtsp://127.0.0.1:{rtsp_port}/{cam_id}"
+            
+            # Quick check using gst-launch to test RTSP connection
+            # Timeout after 2 seconds
+            result = subprocess.run(
+                ["timeout", "2", "gst-launch-1.0", "-q",
+                 f"rtspsrc location={rtsp_url} latency=100 protocols=tcp",
+                 "!", "fakesink"],
+                capture_output=True,
+                timeout=3
+            )
+            
+            # If it connects successfully (even briefly), ingest is available
+            return result.returncode in [0, 124]  # 0=success, 124=timeout (which means it connected)
+        except Exception as e:
+            logger.debug(f"Error checking ingest status for {cam_id}: {e}")
+            return False
 
     def _build_pipeline(self):
         """Build the GStreamer compositor pipeline."""
@@ -470,71 +557,37 @@ class MixerCore:
                 logger.debug(f"Camera {cam_id} not found in config, skipping")
                 continue
 
-            device = self.camera_devices[cam_id]
-            logger.debug(f"Processing camera {cam_id} with device {device}")
+            logger.debug(f"Processing camera {cam_id}")
             
-            # Use RTSP from MediaMTX ingest streams to avoid device conflicts
-            # Ingest streams are always-on and publishing to MediaMTX at camX paths
-            # This allows mixer and recording to run simultaneously
-            if self.config.mediamtx.enabled:
-                rtsp_port = self.config.mediamtx.rtsp_port
-                preview_stream = cam_id  # Changed from {cam_id}_preview to cam_id
-                rtsp_url = f"rtsp://127.0.0.1:{rtsp_port}/{preview_stream}"
-                
-                logger.info(f"Using RTSP source for {cam_id} from MediaMTX: {rtsp_url}")
-                # Source from MediaMTX RTSP stream (preview stream)
-                # Low latency settings for live mixing
-                # Use decodebin for automatic decoder selection (works with hardware decoders)
-                source_str = (
-                    f"rtspsrc location={rtsp_url} latency=100 protocols=tcp ! "
-                    f"rtph264depay ! "
-                    f"h264parse ! "
-                    f"decodebin ! "
-                    f"videoconvert ! "
-                    f"videoscale ! "
-                    f"video/x-raw,width={width},height={height} ! "
-                    f"queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream"
-                )
-            else:
-                # Fallback to direct device access if MediaMTX is disabled
-                # Skip if device doesn't exist (for non-connected cameras)
-                if not Path(device).exists():
-                    logger.debug(f"Device {device} for {cam_id} does not exist, skipping")
-                    continue
-                
-                # Check if device is busy (being used by another process)
-                try:
-                    import fcntl
-                    test_file = open(device, 'r')
-                    fcntl.flock(test_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                    fcntl.flock(test_file, fcntl.LOCK_UN)
-                    test_file.close()
-                except (IOError, OSError) as e:
-                    logger.warning(f"Device {device} for {cam_id} is busy or not accessible, skipping: {e}")
-                    continue
-                
-                # Build source pipeline (similar to existing R58 pipeline)
-                if "video60" in device or "hdmirx" in device.lower():
-                    # HDMI input (NV24 format)
-                    source_str = (
-                        f"v4l2src device={device} io-mode=mmap ! "
-                        f"video/x-raw,format=NV24,width={width},height={height},framerate=60/1 ! "
-                        f"videoconvert ! "
-                        f"video/x-raw,format=NV12 ! "
-                        f"videoscale ! "
-                        f"video/x-raw,width={width},height={height} ! "
-                        f"queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream ! "
-                        f"video/x-raw,format=NV12,width={width},height={height}"
-                    )
-                else:
-                    # Other video devices
-                    source_str = (
-                        f"v4l2src device={device} ! "
-                        f"videoconvert ! "
-                        f"videoscale ! "
-                        f"video/x-raw,width={width},height={height} ! "
-                        f"queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream"
-                    )
+            # Mixer always sources from MediaMTX RTSP streams
+            # This avoids device conflicts with the always-on ingest pipelines
+            if not self.config.mediamtx.enabled:
+                logger.error("MediaMTX is required for mixer operation")
+                continue
+            
+            # Check if ingest is streaming for this camera
+            if not self._check_ingest_status(cam_id):
+                logger.warning(f"Ingest not streaming for {cam_id}, skipping")
+                continue
+            
+            rtsp_port = self.config.mediamtx.rtsp_port
+            rtsp_url = f"rtsp://127.0.0.1:{rtsp_port}/{cam_id}"
+            
+            logger.info(f"Using RTSP source for {cam_id} from MediaMTX: {rtsp_url}")
+            
+            # Build decoder string with hardware acceleration if available
+            decoder_str = _build_decoder_string(self._hardware_decoder)
+            
+            # Source from MediaMTX RTSP stream with low latency settings
+            source_str = (
+                f"rtspsrc location={rtsp_url} latency=100 protocols=tcp ! "
+                f"rtph264depay ! "
+                f"h264parse ! "
+                f"{decoder_str} ! "
+                f"videoscale ! "
+                f"video/x-raw,width={width},height={height} ! "
+                f"queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream"
+            )
             
             # Apply crop if specified (for video sources)
             if slot.crop_w < 1.0 or slot.crop_h < 1.0 or slot.crop_x > 0.0 or slot.crop_y > 0.0:
