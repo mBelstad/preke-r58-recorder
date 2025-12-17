@@ -637,8 +637,9 @@ class MixerCore:
         if self.mediamtx_enabled:
             rtmp_url = f"rtmp://127.0.0.1:1935/{self.mediamtx_path}"
             output_branches.append(
-                f"queue ! flvmux streamable=true ! rtmpsink location={rtmp_url} sync=false"
+                f"queue ! {parse_str} ! flvmux streamable=true ! rtmpsink location={rtmp_url} sync=false"
             )
+            logger.info(f"Mixer will stream to MediaMTX at {rtmp_url}")
 
         if not output_branches:
             logger.warning("No output branches configured")
@@ -767,6 +768,10 @@ class MixerCore:
                 old_state, new_state, pending_state = message.parse_state_changed()
                 logger.info(f"Mixer state changed: {old_state.value_nick} -> {new_state.value_nick}")
                 self.state = new_state.value_nick
+            # Log RTMP sink state changes for debugging
+            elif hasattr(message.src, 'get_name') and 'rtmpsink' in message.src.get_name():
+                old_state, new_state, pending_state = message.parse_state_changed()
+                logger.info(f"RTMP sink state: {old_state.value_nick} -> {new_state.value_nick}")
 
         elif message.type == self.Gst.MessageType.EOS:
             logger.info("Mixer pipeline EOS")
