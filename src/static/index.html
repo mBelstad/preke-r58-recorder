@@ -839,7 +839,7 @@
                     <select id="streamModeSelect" onchange="changeStreamMode(this.value)">
                         <option value="lowlatency">Low Latency (~1s)</option>
                         <option value="balanced" selected>Balanced (~2s)</option>
-                        <option value="stable">Stable (~5s)</option>
+                        <option value="stable">Stable (~10s)</option>
                     </select>
                     <div class="mode-hint" id="modeHint">Balanced mode for most connections</div>
                 </div>
@@ -933,14 +933,14 @@
             },
             stable: {
                 lowLatencyMode: false,
-                backBufferLength: 5,
-                maxBufferLength: 10,
-                maxMaxBufferLength: 30,
-                maxBufferHole: 1,
-                maxStarvationDelay: 4,
-                maxLoadingDelay: 4,
-                liveSyncDurationCount: 5,
-                liveMaxLatencyDurationCount: 10,
+                backBufferLength: 10,
+                maxBufferLength: 30,
+                maxMaxBufferLength: 90,
+                maxBufferHole: 2,
+                maxStarvationDelay: 8,
+                maxLoadingDelay: 8,
+                liveSyncDurationCount: 10,
+                liveMaxLatencyDurationCount: 20,
             }
         };
         
@@ -964,6 +964,8 @@
         function startFreezeDetection() {
             if (freezeCheckInterval) clearInterval(freezeCheckInterval);
             
+            let freezeCount = {}; // Track consecutive freeze detections
+            
             freezeCheckInterval = setInterval(() => {
                 for (const [camId, hls] of Object.entries(hlsPlayers)) {
                     if (!hls || !hls.media) continue;
@@ -972,27 +974,54 @@
                     const currentTime = video.currentTime;
                     const lastTime = lastVideoTimes[camId] || 0;
                     
+                    // Initialize freeze counter
+                    if (!freezeCount[camId]) freezeCount[camId] = 0;
+                    
                     // Check if video is playing but time hasn't changed
                     if (!video.paused && !video.ended && currentTime === lastTime && currentTime > 0) {
+                        freezeCount[camId]++;
                         const placeholder = document.getElementById(`placeholder-${camId}`);
-                        console.warn(`${camId} appears frozen (time stuck at ${currentTime}), attempting recovery...`);
+                        console.warn(`${camId} appears frozen (time stuck at ${currentTime}, count: ${freezeCount[camId]}), attempting recovery...`);
                         
-                        // Try recovery methods in order
-                        try {
-                            // Method 1: Try media error recovery
-                            hls.recoverMediaError();
-                        } catch (e) {
-                            console.log(`${camId} recoverMediaError failed, reloading source...`);
-                            // Method 2: Reload the source
-                            const hlsUrl = getHLSUrl(camId);
-                            hls.loadSource(hlsUrl);
-                            hls.startLoad();
+                        // More aggressive recovery for repeated freezes
+                        if (freezeCount[camId] >= 2) {
+                            // After 2 consecutive freezes, do full restart
+                            console.warn(`${camId} frozen multiple times, doing full HLS restart...`);
+                            try {
+                                hls.destroy();
+                                delete hlsPlayers[camId];
+                                // Restart after a brief delay
+                                setTimeout(() => {
+                                    if (placeholder) {
+                                        startHLSPreview(video, camId, placeholder);
+                                    }
+                                }, 500);
+                            } catch (e) {
+                                console.error(`Failed to restart ${camId}:`, e);
+                            }
+                            freezeCount[camId] = 0;
+                        } else {
+                            // First freeze, try gentle recovery
+                            try {
+                                hls.recoverMediaError();
+                            } catch (e) {
+                                console.log(`${camId} recoverMediaError failed, reloading source...`);
+                                const hlsUrl = getHLSUrl(camId);
+                                hls.loadSource(hlsUrl);
+                                hls.startLoad();
+                            }
                         }
+                    } else {
+                        // Video is progressing, reset freeze counter
+                        if (freezeCount[camId] > 0) {
+                            console.log(`${camId} recovered, resetting freeze counter`);
+                        }
+                        freezeCount[camId] = 0;
                     }
                     
                     lastVideoTimes[camId] = currentTime;
                 }
-            }, 3000); // Check every 3 seconds
+            }, 2000); // Check every 2 seconds (more frequent)
         }
         
         // Stream sync manager - keeps streams approximately in sync
@@ -1821,7 +1850,7 @@
             const hints = {
                 lowlatency: 'Lowest latency, may stutter on slow connections',
                 balanced: 'Balanced mode for most connections',
-                stable: 'Most stable, higher latency (~5s delay)'
+                stable: 'Most stable for bad connections (~10s delay, large buffer)'
             };
             document.getElementById('modeHint').textContent = hints[mode] || '';
             
