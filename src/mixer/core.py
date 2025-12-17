@@ -397,29 +397,28 @@ class MixerCore:
             True if ingest is streaming, False otherwise
         """
         try:
-            # Import IngestManager to check status
-            # This is a lazy import to avoid circular dependencies
-            from ..ingest import IngestManager
+            # Check MediaMTX API for stream availability
+            # MediaMTX exposes stream info at /v3/paths/list
+            import urllib.request
+            import json
             
-            # Check if ingest manager is available in the app
-            # For now, we'll use a simple approach: try to connect to RTSP
-            # In production, this should query the IngestManager directly
-            import subprocess
-            rtsp_port = self.config.mediamtx.rtsp_port
-            rtsp_url = f"rtsp://127.0.0.1:{rtsp_port}/{cam_id}"
+            mediamtx_api_url = f"http://127.0.0.1:9997/v3/paths/list"
             
-            # Quick check using gst-launch to test RTSP connection
-            # Timeout after 2 seconds
-            result = subprocess.run(
-                ["timeout", "2", "gst-launch-1.0", "-q",
-                 f"rtspsrc location={rtsp_url} latency=100 protocols=tcp",
-                 "!", "fakesink"],
-                capture_output=True,
-                timeout=3
-            )
-            
-            # If it connects successfully (even briefly), ingest is available
-            return result.returncode in [0, 124]  # 0=success, 124=timeout (which means it connected)
+            req = urllib.request.Request(mediamtx_api_url)
+            with urllib.request.urlopen(req, timeout=2) as response:
+                data = json.loads(response.read().decode())
+                
+                # Check if our camera stream exists and has readers
+                items = data.get("items", [])
+                for item in items:
+                    if item.get("name") == cam_id:
+                        # Check if stream has at least one source (publisher)
+                        source_ready = item.get("sourceReady", False)
+                        logger.debug(f"Ingest check for {cam_id}: sourceReady={source_ready}")
+                        return source_ready
+                
+                logger.debug(f"Ingest check for {cam_id}: stream not found in MediaMTX")
+                return False
         except Exception as e:
             logger.debug(f"Error checking ingest status for {cam_id}: {e}")
             return False
