@@ -559,22 +559,22 @@ def build_recording_subscriber_pipeline(
     This pipeline reads from an RTSP source (MediaMTX) instead of directly
     from a V4L2 device, allowing recording to be independent of ingest.
     
+    NOTE: The ingest pipeline ALWAYS streams H.264 to MediaMTX, regardless of
+    camera codec config. Therefore, this pipeline always uses H.264 depay/parse.
+    
     Args:
         cam_id: Camera identifier
         source_url: RTSP URL to subscribe to (e.g., rtsp://localhost:8554/cam0)
         output_path: Path to output file
-        codec: Codec (h264 or h265) - determines muxer
+        codec: Codec parameter (ignored - always H.264 from ingest)
     """
     # RTSP source with minimal latency
+    # Always use H.264 depay because ingest always streams H.264
     source_str = f"rtspsrc location={source_url} latency=100 protocols=tcp ! rtph264depay"
     
-    # Parser and muxer based on codec
-    if codec == "h265":
-        parse_str = "h265parse"
-        mux_str = "matroskamux"
-    else:  # h264
-        parse_str = "h264parse"
-        mux_str = "mp4mux"
+    # Always use H.264 parser and MP4 muxer (ingest streams H.264)
+    parse_str = "h264parse"
+    mux_str = "mp4mux"
     
     # Use splitmuxsink for clean file segments (optional, can segment by time)
     # max-size-time in nanoseconds (3600000000000 = 1 hour)

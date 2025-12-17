@@ -473,12 +473,12 @@ class MixerCore:
             device = self.camera_devices[cam_id]
             logger.debug(f"Processing camera {cam_id} with device {device}")
             
-            # Use RTSP from MediaMTX preview streams to avoid device conflicts
-            # Preview streams are already publishing to MediaMTX at camX_preview paths
-            # This allows mixer and preview to run simultaneously
+            # Use RTSP from MediaMTX ingest streams to avoid device conflicts
+            # Ingest streams are always-on and publishing to MediaMTX at camX paths
+            # This allows mixer and recording to run simultaneously
             if self.config.mediamtx.enabled:
                 rtsp_port = self.config.mediamtx.rtsp_port
-                preview_stream = f"{cam_id}_preview"
+                preview_stream = cam_id  # Changed from {cam_id}_preview to cam_id
                 rtsp_url = f"rtsp://127.0.0.1:{rtsp_port}/{preview_stream}"
                 
                 logger.info(f"Using RTSP source for {cam_id} from MediaMTX: {rtsp_url}")

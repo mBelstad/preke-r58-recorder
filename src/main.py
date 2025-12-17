@@ -41,7 +41,7 @@ except FileNotFoundError:
 ingest_manager = IngestManager(config)
 
 # Initialize recorder (subscribes to ingest streams)
-recorder = Recorder(config)
+recorder = Recorder(config, ingest_manager=ingest_manager)
 
 # Initialize preview manager (delegates to ingest)
 preview_manager = PreviewManager(config, ingest_manager)

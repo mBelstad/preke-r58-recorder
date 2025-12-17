@@ -19,9 +19,10 @@ class Recorder:
     Does NOT access V4L2 devices directly - completely independent of ingest.
     """
 
-    def __init__(self, config: AppConfig):
+    def __init__(self, config: AppConfig, ingest_manager=None):
         """Initialize recorder with configuration."""
         self.config = config
+        self.ingest_manager = ingest_manager  # Reference to IngestManager for status checks
         self.pipelines: Dict[str, Any] = {}  # Gst.Pipeline objects
         self.states: Dict[str, str] = {}  # 'idle', 'recording', 'error'
         self.loop = None
@@ -58,6 +59,18 @@ class Recorder:
         if self.states.get(cam_id) == "recording":
             logger.warning(f"Camera {cam_id} is already recording")
             return False
+
+        # Check if ingest is streaming for this camera
+        if self.ingest_manager:
+            ingest_status = self.ingest_manager.states.get(cam_id)
+            if ingest_status != "streaming":
+                logger.warning(
+                    f"Cannot start recording for {cam_id} - ingest not streaming "
+                    f"(status: {ingest_status})"
+                )
+                return False
+        else:
+            logger.warning(f"No ingest_manager available - cannot verify stream status for {cam_id}")
 
         # Stop existing pipeline if any
         if cam_id in self.pipelines:

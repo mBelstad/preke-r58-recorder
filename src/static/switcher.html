@@ -2289,10 +2289,10 @@
                 input.addEventListener('click', () => selectInput(i));
                 grid.appendChild(input);
                 
-                // Load preview stream (using correct path with _preview suffix)
+                // Load preview stream (using correct path, no _preview suffix)
                 const video = input.querySelector('video');
                 if (video) {
-                    const hlsUrl = getHLSUrl(`cam${i}_preview`);
+                    const hlsUrl = getHLSUrl(`cam${i}`);
                     loadHLS(video, hlsUrl, `compact-input-${i}`);
                 }
             }
