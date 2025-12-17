@@ -595,8 +595,9 @@ def build_recording_subscriber_pipeline(
     source_str = f"rtspsrc location={source_url} latency=100 protocols=tcp ! rtph264depay"
     
     # Always use H.264 parser and MP4 muxer (ingest streams H.264)
+    # faststart=true moves moov atom to beginning for progressive playback in browsers
     parse_str = "h264parse"
-    mux_str = "mp4mux"
+    mux_str = "mp4mux faststart=true"
     
     # Use splitmuxsink for clean file segments (optional, can segment by time)
     # max-size-time in nanoseconds (3600000000000 = 1 hour)

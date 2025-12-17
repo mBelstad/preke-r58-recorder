@@ -188,6 +188,15 @@ async def control():
     return "<h1>Control Interface</h1><p>Control interface not found.</p>"
 
 
+@app.get("/library", response_class=HTMLResponse)
+async def library():
+    """Serve the recording library page."""
+    library_path = Path(__file__).parent / "static" / "library.html"
+    if library_path.exists():
+        return library_path.read_text()
+    return "<h1>Library</h1><p>Library page not found.</p>"
+
+
 @app.get("/health")
 async def health() -> Dict[str, Any]:
     """Health check endpoint - always responds even if GStreamer fails."""
@@ -669,6 +678,79 @@ async def get_recording(cam_id: str, filename: str) -> FileResponse:
         filename=filename,
         media_type="video/mp4",
     )
+
+
+@app.get("/api/recordings")
+async def list_all_recordings() -> Dict[str, Any]:
+    """List all recordings across all cameras, grouped by date/session."""
+    from datetime import datetime
+    from collections import defaultdict
+    
+    # Dictionary to group recordings by date
+    sessions_by_date = defaultdict(list)
+    total_count = 0
+    total_size = 0
+    
+    # Scan all camera directories
+    for cam_id, cam_config in config.cameras.items():
+        recordings_dir = Path(cam_config.output_path).parent
+        
+        if not recordings_dir.exists():
+            continue
+        
+        # Find all MP4 files
+        for file_path in recordings_dir.glob("*.mp4"):
+            try:
+                stat = file_path.stat()
+                
+                # Extract date from filename (format: recording_YYYYMMDD_HHMMSS.mp4)
+                filename = file_path.name
+                if filename.startswith("recording_") and len(filename) >= 24:
+                    date_str = filename[10:18]  # YYYYMMDD
+                    time_str = filename[19:25]  # HHMMSS
+                    
+                    # Format date as YYYY-MM-DD
+                    formatted_date = f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}"
+                    formatted_time = f"{time_str[:2]}:{time_str[2:4]}:{time_str[4:6]}"
+                else:
+                    # Fallback to modification time
+                    dt = datetime.fromtimestamp(stat.st_mtime)
+                    formatted_date = dt.strftime("%Y-%m-%d")
+                    formatted_time = dt.strftime("%H:%M:%S")
+                
+                recording_info = {
+                    "cam_id": cam_id,
+                    "filename": filename,
+                    "size": stat.st_size,
+                    "modified": int(stat.st_mtime),
+                    "time": formatted_time,
+                    "path": str(file_path),
+                    "url": f"/recordings/{cam_id}/{filename}"
+                }
+                
+                sessions_by_date[formatted_date].append(recording_info)
+                total_count += 1
+                total_size += stat.st_size
+            except Exception as e:
+                logger.error(f"Error processing recording {file_path}: {e}")
+                continue
+    
+    # Convert to list of sessions, sorted by date (newest first)
+    sessions = []
+    for date in sorted(sessions_by_date.keys(), reverse=True):
+        recordings = sorted(sessions_by_date[date], key=lambda x: x["modified"], reverse=True)
+        sessions.append({
+            "date": date,
+            "recordings": recordings,
+            "count": len(recordings),
+            "total_size": sum(r["size"] for r in recordings)
+        })
+    
+    return {
+        "sessions": sessions,
+        "total_count": total_count,
+        "total_size": total_size
+    }
 
 
 # Mixer API endpoints
