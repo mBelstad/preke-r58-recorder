@@ -830,6 +830,69 @@
         function toggleSession(header) {
             const session = header.parentElement;
             session.classList.toggle('expanded');
+            
+            // Load thumbnails when session is expanded
+            if (session.classList.contains('expanded')) {
+                loadThumbnails(session);
+            }
+        }
+
+        function loadThumbnails(container) {
+            const thumbnails = container.querySelectorAll('.thumbnail-video[data-url]');
+            thumbnails.forEach(video => {
+                if (!video.src) {
+                    const url = video.getAttribute('data-url');
+                    const thumbnailId = video.id;
+                    const loadingEl = document.getElementById(`loading-${thumbnailId}`);
+                    const durationEl = document.getElementById(`duration-${thumbnailId}`);
+                    
+                    video.addEventListener('loadedmetadata', () => {
+                        // Seek to middle of video for better thumbnail
+                        video.currentTime = video.duration / 2;
+                        
+                        // Format and display duration
+                        if (durationEl) {
+                            durationEl.textContent = formatDuration(video.duration);
+                            durationEl.style.display = 'block';
+                        }
+                    });
+                    
+                    video.addEventListener('seeked', () => {
+                        // Hide loading indicator once frame is loaded
+                        if (loadingEl) {
+                            loadingEl.style.display = 'none';
+                        }
+                    });
+                    
+                    video.addEventListener('error', () => {
+                        if (loadingEl) {
+                            loadingEl.textContent = 'Error';
+                        }
+                    });
+                    
+                    video.src = url;
+                }
+            });
+        }
+
+        function formatDuration(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = Math.floor(seconds % 60);
+            
+            if (hours > 0) {
+                return `${hours}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+            } else {
+                return `${minutes}:${String(secs).padStart(2, '0')}`;
+            }
+        }
+
+        function formatTime12Hour(time24) {
+            const [hours, minutes, seconds] = time24.split(':');
+            const hour = parseInt(hours);
+            const ampm = hour >= 12 ? 'PM' : 'AM';
+            const hour12 = hour % 12 || 12;
+            return `${hour12}:${minutes} ${ampm}`;
         }
 
         function playRecording(url, filename) {
