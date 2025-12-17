@@ -375,6 +375,247 @@
         .cam-badge.cam1 { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
         .cam-badge.cam2 { background: rgba(16, 185, 129, 0.2); color: #10b981; }
         .cam-badge.cam3 { background: rgba(251, 191, 36, 0.2); color: #fbbf24; }
+
+        /* Session card styles */
+        .session-card {
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 16px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .session-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .session-name {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .session-name-input {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px;
+            padding: 6px 12px;
+            color: #fff;
+            font-size: 1rem;
+            font-weight: 600;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        .session-name-input:focus {
+            background: rgba(255,255,255,0.1);
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        }
+
+        .btn-edit {
+            background: rgba(59, 130, 246, 0.2);
+            color: #3b82f6;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-edit:hover {
+            background: rgba(59, 130, 246, 0.3);
+            border-color: rgba(59, 130, 246, 0.5);
+        }
+
+        .session-meta {
+            font-size: 0.85rem;
+            color: #9ca3af;
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+
+        /* Recording grid with thumbnails */
+        .recordings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 16px;
+        }
+
+        @media (max-width: 768px) {
+            .recordings-grid {
+                grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            }
+        }
+
+        .recording-card {
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.05);
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .recording-card:hover {
+            border-color: rgba(59, 130, 246, 0.5);
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+        }
+
+        .thumbnail-container {
+            position: relative;
+            width: 100%;
+            padding-top: 56.25%; /* 16:9 aspect ratio */
+            background: #000;
+            overflow: hidden;
+        }
+
+        .thumbnail-video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .thumbnail-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .recording-card:hover .thumbnail-overlay {
+            opacity: 1;
+        }
+
+        .play-icon {
+            width: 48px;
+            height: 48px;
+            background: rgba(59, 130, 246, 0.9);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 20px;
+            transition: all 0.3s;
+        }
+
+        .recording-card:hover .play-icon {
+            transform: scale(1.1);
+            background: rgba(59, 130, 246, 1);
+        }
+
+        .thumbnail-loading {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0,0,0,0.8);
+            color: #9ca3af;
+            font-size: 0.85rem;
+        }
+
+        .recording-card-info {
+            padding: 12px;
+        }
+
+        .recording-card-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #e0e0e0;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .recording-card-meta {
+            font-size: 0.75rem;
+            color: #9ca3af;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .recording-card-actions {
+            display: flex;
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .btn-icon {
+            padding: 6px 10px;
+            font-size: 0.75rem;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            flex: 1;
+            justify-content: center;
+        }
+
+        .btn-icon.btn-play {
+            background: rgba(59, 130, 246, 0.2);
+            color: #3b82f6;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-icon.btn-play:hover {
+            background: rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-icon.btn-download {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-icon.btn-download:hover {
+            background: rgba(16, 185, 129, 0.3);
+        }
+
+        .duration-badge {
+            background: rgba(0,0,0,0.8);
+            color: #fff;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            position: absolute;
+            bottom: 8px;
+            right: 8px;
+            font-family: 'Courier New', monospace;
+        }
     </style>
 </head>
 <body>
@@ -434,19 +675,22 @@
                     return;
                 }
                 
+                // Count total sessions across all dates
+                const totalSessions = data.sessions.reduce((sum, dateGroup) => sum + dateGroup.date_sessions.length, 0);
+                
                 // Update stats
                 document.getElementById('statsBar').style.display = 'flex';
                 document.getElementById('totalCount').textContent = data.total_count;
                 document.getElementById('totalSize').textContent = formatBytes(data.total_size);
-                document.getElementById('sessionCount').textContent = data.sessions.length;
+                document.getElementById('sessionCount').textContent = totalSessions;
                 
-                // Render sessions
+                // Render date groups
                 const sessionsList = document.getElementById('sessionsList');
                 sessionsList.innerHTML = '';
                 
-                data.sessions.forEach((session, index) => {
-                    const sessionEl = createSessionElement(session, index === 0);
-                    sessionsList.appendChild(sessionEl);
+                data.sessions.forEach((dateGroup, index) => {
+                    const dateEl = createDateGroupElement(dateGroup, index === 0);
+                    sessionsList.appendChild(dateEl);
                 });
             } catch (error) {
                 console.error('Failed to load recordings:', error);
@@ -454,57 +698,133 @@
             }
         }
 
-        function createSessionElement(session, expanded = false) {
-            const sessionDiv = document.createElement('div');
-            sessionDiv.className = `session ${expanded ? 'expanded' : ''}`;
+        function createDateGroupElement(dateGroup, expanded = false) {
+            const dateDiv = document.createElement('div');
+            dateDiv.className = `session ${expanded ? 'expanded' : ''}`;
             
-            const sessionSize = formatBytes(session.total_size);
-            const recordingText = session.count === 1 ? 'recording' : 'recordings';
+            const dateSize = formatBytes(dateGroup.total_size);
+            const recordingText = dateGroup.count === 1 ? 'recording' : 'recordings';
             
-            sessionDiv.innerHTML = `
+            dateDiv.innerHTML = `
                 <div class="session-header" onclick="toggleSession(this)">
-                    <div class="session-title">${formatDate(session.date)}</div>
+                    <div class="session-title">${formatDate(dateGroup.date)}</div>
                     <div class="session-info">
-                        <span>${session.count} ${recordingText}</span>
-                        <span>${sessionSize}</span>
+                        <span>${dateGroup.date_sessions.length} sessions</span>
+                        <span>${dateGroup.count} ${recordingText}</span>
+                        <span>${dateSize}</span>
                     </div>
                 </div>
                 <div class="session-content">
-                    <div class="recording-list">
-                        ${session.recordings.map(rec => createRecordingHTML(rec)).join('')}
-                    </div>
+                    ${dateGroup.date_sessions.map(session => createSessionCardHTML(session)).join('')}
                 </div>
             `;
             
-            return sessionDiv;
+            return dateDiv;
         }
 
-        function createRecordingHTML(recording) {
-            const camNumber = parseInt(recording.cam_id.replace('cam', '')) + 1;
-            const size = formatBytes(recording.size);
+        function createSessionCardHTML(session) {
+            const sessionName = session.name || `Session at ${formatTime12Hour(session.start_time)}`;
+            const sessionSize = formatBytes(session.total_size);
+            const recordingText = session.count === 1 ? 'recording' : 'recordings';
             
             return `
-                <div class="recording-item">
-                    <div class="recording-info">
-                        <div class="recording-name">
-                            <span class="cam-badge ${recording.cam_id}">CAM ${camNumber}</span>
-                            ${recording.filename}
+                <div class="session-card">
+                    <div class="session-card-header">
+                        <div class="session-name">
+                            <span id="name-${session.session_id}">${sessionName}</span>
+                            <button class="btn-edit" onclick="editSessionName('${session.session_id}', '${sessionName.replace(/'/g, "\\'")}')">✏️ Edit</button>
                         </div>
-                        <div class="recording-meta">
-                            <span>🕐 ${recording.time}</span>
-                            <span>💾 ${size}</span>
+                        <div class="session-meta">
+                            <span>${session.start_time} - ${session.end_time}</span>
+                            <span>${session.count} ${recordingText}</span>
+                            <span>${sessionSize}</span>
                         </div>
                     </div>
-                    <div class="recording-actions">
-                        <button class="btn-small btn-play" onclick="playRecording('${recording.url}', '${recording.filename}')">
-                            ▶ Play
-                        </button>
-                        <a href="${recording.url}" download class="btn-small btn-download">
-                            ⬇ Download
-                        </a>
+                    <div class="recordings-grid">
+                        ${session.recordings.map(rec => createRecordingCardHTML(rec)).join('')}
                     </div>
                 </div>
             `;
+        }
+
+        function createRecordingCardHTML(recording) {
+            const camNumber = parseInt(recording.cam_id.replace('cam', '')) + 1;
+            const size = formatBytes(recording.size);
+            const thumbnailId = `thumb-${recording.cam_id}-${recording.modified}`;
+            
+            return `
+                <div class="recording-card" onclick="playRecording('${recording.url}', '${recording.filename}')">
+                    <div class="thumbnail-container">
+                        <div class="thumbnail-loading" id="loading-${thumbnailId}">Loading...</div>
+                        <video class="thumbnail-video" id="${thumbnailId}" 
+                               preload="metadata" 
+                               muted 
+                               playsinline
+                               data-url="${recording.url}">
+                        </video>
+                        <div class="thumbnail-overlay">
+                            <div class="play-icon">▶</div>
+                        </div>
+                        <div class="duration-badge" id="duration-${thumbnailId}" style="display: none;">0:00</div>
+                    </div>
+                    <div class="recording-card-info">
+                        <div class="recording-card-title">
+                            <span class="cam-badge ${recording.cam_id}">CAM ${camNumber}</span>
+                        </div>
+                        <div class="recording-card-meta">
+                            <span>🕐 ${formatTime12Hour(recording.time)}</span>
+                            <span>💾 ${size}</span>
+                        </div>
+                        <div class="recording-card-actions">
+                            <button class="btn-icon btn-play" onclick="event.stopPropagation(); playRecording('${recording.url}', '${recording.filename}')">
+                                ▶ Play
+                            </button>
+                            <a href="${recording.url}" download class="btn-icon btn-download" onclick="event.stopPropagation()">
+                                ⬇
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function editSessionName(sessionId, currentName) {
+            const nameSpan = document.getElementById(`name-${sessionId}`);
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'session-name-input';
+            input.value = currentName.startsWith('Session at') ? '' : currentName;
+            input.placeholder = 'Enter session name';
+            
+            input.onblur = () => saveSessionName(sessionId, input.value, nameSpan);
+            input.onkeypress = (e) => {
+                if (e.key === 'Enter') {
+                    input.blur();
+                }
+            };
+            
+            nameSpan.replaceWith(input);
+            input.focus();
+        }
+
+        async function saveSessionName(sessionId, name, originalElement) {
+            try {
+                const response = await fetch(`${API_BASE}/api/sessions/${sessionId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: name || `Session at ${new Date().toLocaleTimeString()}` })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const nameSpan = document.createElement('span');
+                    nameSpan.id = `name-${sessionId}`;
+                    nameSpan.textContent = data.name;
+                    document.querySelector(`input.session-name-input`).replaceWith(nameSpan);
+                }
+            } catch (error) {
+                console.error('Failed to save session name:', error);
+            }
         }
 
         function toggleSession(header) {

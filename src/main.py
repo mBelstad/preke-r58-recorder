@@ -1,6 +1,7 @@
 """FastAPI application for R58 recorder."""
 import logging
 import os
+import json
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from fastapi import FastAPI, HTTPException, UploadFile, File, Response
@@ -9,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 import shutil
 import uuid
 import httpx
+import time
 
 from .config import AppConfig
 from .ingest import IngestManager
@@ -72,6 +74,7 @@ if config.mixer.enabled:
     mixer_core = MixerCore(
         config=config,
         scene_manager=scene_manager,
+        ingest_manager=ingest_manager,
         output_resolution=config.mixer.output_resolution,
         output_bitrate=config.mixer.output_bitrate,
         output_codec=config.mixer.output_codec,
@@ -682,12 +685,12 @@ async def get_recording(cam_id: str, filename: str) -> FileResponse:
 
 @app.get("/api/recordings")
 async def list_all_recordings() -> Dict[str, Any]:
-    """List all recordings across all cameras, grouped by date/session."""
+    """List all recordings across all cameras, grouped by date and session."""
     from datetime import datetime
     from collections import defaultdict
     
     # Dictionary to group recordings by date
-    sessions_by_date = defaultdict(list)
+    recordings_by_date = defaultdict(list)
     total_count = 0
     total_size = 0
     
@@ -728,29 +731,179 @@ async def list_all_recordings() -> Dict[str, Any]:
                     "url": f"/recordings/{cam_id}/{filename}"
                 }
                 
-                sessions_by_date[formatted_date].append(recording_info)
+                recordings_by_date[formatted_date].append(recording_info)
                 total_count += 1
                 total_size += stat.st_size
             except Exception as e:
                 logger.error(f"Error processing recording {file_path}: {e}")
                 continue
     
-    # Convert to list of sessions, sorted by date (newest first)
-    sessions = []
-    for date in sorted(sessions_by_date.keys(), reverse=True):
-        recordings = sorted(sessions_by_date[date], key=lambda x: x["modified"], reverse=True)
-        sessions.append({
+    # Group recordings into sessions by time gap (10 minutes)
+    def group_into_sessions(recordings, time_gap_minutes=10):
+        """Group recordings into sessions based on time proximity."""
+        if not recordings:
+            return []
+        
+        # Sort by timestamp
+        sorted_recordings = sorted(recordings, key=lambda x: x["modified"])
+        sessions = []
+        current_session = [sorted_recordings[0]]
+        
+        for recording in sorted_recordings[1:]:
+            last_time = current_session[-1]["modified"]
+            current_time = recording["modified"]
+            gap_minutes = (current_time - last_time) / 60
+            
+            if gap_minutes <= time_gap_minutes:
+                current_session.append(recording)
+            else:
+                sessions.append(current_session)
+                current_session = [recording]
+        
+        if current_session:
+            sessions.append(current_session)
+        
+        return sessions
+    
+    # Convert to list of date groups with sessions
+    date_groups = []
+    for date in sorted(recordings_by_date.keys(), reverse=True):
+        recordings = recordings_by_date[date]
+        sessions = group_into_sessions(recordings)
+        
+        # Create session objects
+        date_sessions = []
+        for idx, session_recordings in enumerate(sessions):
+            # Sort recordings within session by time (newest first for display)
+            session_recordings_sorted = sorted(session_recordings, key=lambda x: x["modified"], reverse=True)
+            
+            # Get session time range
+            start_time = min(r["modified"] for r in session_recordings)
+            end_time = max(r["modified"] for r in session_recordings)
+            
+            # Create session ID from first recording's timestamp
+            first_recording = min(session_recordings, key=lambda x: x["modified"])
+            session_id = f"session_{date.replace('-', '')}_{first_recording['time'].replace(':', '')}"
+            
+            date_sessions.append({
+                "session_id": session_id,
+                "name": None,  # Will be populated from session names storage
+                "start_time": datetime.fromtimestamp(start_time).strftime("%H:%M:%S"),
+                "end_time": datetime.fromtimestamp(end_time).strftime("%H:%M:%S"),
+                "recordings": session_recordings_sorted,
+                "count": len(session_recordings),
+                "total_size": sum(r["size"] for r in session_recordings)
+            })
+        
+        date_groups.append({
             "date": date,
-            "recordings": recordings,
+            "date_sessions": date_sessions,
             "count": len(recordings),
             "total_size": sum(r["size"] for r in recordings)
         })
     
+    # Load session names and populate
+    session_names = _load_session_names()
+    for date_group in date_groups:
+        for session in date_group["date_sessions"]:
+            session_id = session["session_id"]
+            if session_id in session_names:
+                session["name"] = session_names[session_id]["name"]
+    
     return {
-        "sessions": sessions,
+        "sessions": date_groups,
         "total_count": total_count,
         "total_size": total_size
     }
+
+
+# Session naming helper functions
+def _get_sessions_file_path() -> Path:
+    """Get path to sessions.json file."""
+    data_dir = Path(__file__).parent.parent / "data"
+    data_dir.mkdir(exist_ok=True)
+    return data_dir / "sessions.json"
+
+
+def _load_session_names() -> Dict[str, Any]:
+    """Load session names from JSON file."""
+    sessions_file = _get_sessions_file_path()
+    if sessions_file.exists():
+        try:
+            with open(sessions_file, 'r') as f:
+                return json.load(f)
+        except Exception as e:
+            logger.error(f"Error loading session names: {e}")
+            return {}
+    return {}
+
+
+def _save_session_names(sessions: Dict[str, Any]) -> bool:
+    """Save session names to JSON file."""
+    sessions_file = _get_sessions_file_path()
+    try:
+        with open(sessions_file, 'w') as f:
+            json.dump(sessions, f, indent=2)
+        return True
+    except Exception as e:
+        logger.error(f"Error saving session names: {e}")
+        return False
+
+
+@app.get("/api/sessions")
+async def get_all_sessions() -> Dict[str, Any]:
+    """Get all session names."""
+    session_names = _load_session_names()
+    return {"sessions": session_names}
+
+
+@app.get("/api/sessions/{session_id}")
+async def get_session(session_id: str) -> Dict[str, Any]:
+    """Get a specific session's name."""
+    session_names = _load_session_names()
+    if session_id in session_names:
+        return {
+            "session_id": session_id,
+            "name": session_names[session_id]["name"],
+            "created_at": session_names[session_id].get("created_at")
+        }
+    return {
+        "session_id": session_id,
+        "name": None,
+        "created_at": None
+    }
+
+
+@app.put("/api/sessions/{session_id}")
+async def update_session_name(session_id: str, request: Dict[str, Any]) -> Dict[str, str]:
+    """Update a session's name."""
+    name = request.get("name")
+    if name is None:
+        raise HTTPException(status_code=400, detail="Name is required")
+    
+    session_names = _load_session_names()
+    session_names[session_id] = {
+        "name": name,
+        "created_at": session_names.get(session_id, {}).get("created_at", int(time.time()))
+    }
+    
+    if _save_session_names(session_names):
+        return {"status": "updated", "session_id": session_id, "name": name}
+    else:
+        raise HTTPException(status_code=500, detail="Failed to save session name")
+
+
+@app.delete("/api/sessions/{session_id}")
+async def delete_session_name(session_id: str) -> Dict[str, str]:
+    """Delete a session's name."""
+    session_names = _load_session_names()
+    if session_id in session_names:
+        del session_names[session_id]
+        if _save_session_names(session_names):
+            return {"status": "deleted", "session_id": session_id}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to save session names")
+    raise HTTPException(status_code=404, detail="Session not found")
 
 
 # Mixer API endpoints

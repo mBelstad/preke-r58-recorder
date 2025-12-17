@@ -72,6 +72,7 @@ class MixerCore:
         self,
         config: Any,  # AppConfig from config.py
         scene_manager: SceneManager,
+        ingest_manager: Optional[Any] = None,  # IngestManager instance
         output_resolution: str = "1920x1080",
         output_bitrate: int = 8000,
         output_codec: str = "h264",
@@ -85,6 +86,7 @@ class MixerCore:
         Args:
             config: Application configuration
             scene_manager: Scene manager instance
+            ingest_manager: Ingest manager instance (for checking stream availability)
             output_resolution: Output resolution (e.g., "1920x1080")
             output_bitrate: Output bitrate in kbps
             output_codec: Codec ("h264" or "h265")
@@ -95,6 +97,7 @@ class MixerCore:
         """
         self.config = config
         self.scene_manager = scene_manager
+        self.ingest_manager = ingest_manager
         self.output_resolution = output_resolution
         self.output_bitrate = output_bitrate
         self.output_codec = output_codec
@@ -396,31 +399,22 @@ class MixerCore:
         Returns:
             True if ingest is streaming, False otherwise
         """
+        if not self.ingest_manager:
+            logger.warning("No ingest manager available, cannot check ingest status")
+            return False
+        
         try:
-            # Check MediaMTX API for stream availability
-            # MediaMTX exposes stream info at /v3/paths/list
-            import urllib.request
-            import json
-            
-            mediamtx_api_url = f"http://127.0.0.1:9997/v3/paths/list"
-            
-            req = urllib.request.Request(mediamtx_api_url)
-            with urllib.request.urlopen(req, timeout=2) as response:
-                data = json.loads(response.read().decode())
-                
-                # Check if our camera stream exists and has readers
-                items = data.get("items", [])
-                for item in items:
-                    if item.get("name") == cam_id:
-                        # Check if stream has at least one source (publisher)
-                        source_ready = item.get("sourceReady", False)
-                        logger.debug(f"Ingest check for {cam_id}: sourceReady={source_ready}")
-                        return source_ready
-                
-                logger.debug(f"Ingest check for {cam_id}: stream not found in MediaMTX")
+            # Query ingest manager directly for camera status
+            ingest_status = self.ingest_manager.get_camera_status(cam_id)
+            if not ingest_status:
+                logger.debug(f"Ingest check for {cam_id}: no status available")
                 return False
+            
+            is_streaming = ingest_status.status == "streaming"
+            logger.debug(f"Ingest check for {cam_id}: status={ingest_status.status}, streaming={is_streaming}")
+            return is_streaming
         except Exception as e:
-            logger.debug(f"Error checking ingest status for {cam_id}: {e}")
+            logger.warning(f"Error checking ingest status for {cam_id}: {e}")
             return False
 
     def _build_pipeline(self):
