@@ -598,7 +598,7 @@ class MixerCore:
                 )
 
             source_branches.append((i, source_str, slot))
-            logger.info(f"Added source branch for {cam_id} ({device})")
+            logger.info(f"Added source branch for {cam_id} from RTSP")
 
         if not source_branches:
             logger.warning("No valid source branches to build - all cameras are unavailable or not configured")
