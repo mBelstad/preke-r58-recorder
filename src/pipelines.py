@@ -522,15 +522,27 @@ def build_r58_ingest_pipeline(
     # Encoder - always H.264 for compatibility
     # Optimized settings for low-latency streaming:
     # - tune=zerolatency: Minimize encoding latency
-    # - speed-preset=superfast: Fast encoding (ultrafast causes quality issues)
-    # - key-int-max=30: Keyframe every 1s at 30fps (good for HLS)
+    # - speed-preset: ultrafast for 4K sources (cam2), superfast for HD
+    # - key-int-max: 15 for 4K (faster seeking), 30 for HD
     # - bframes=0: No B-frames for lower latency
-    # - threads=4: Use multiple threads for 4K sources
+    # - threads=6: More threads for 4K sources
     # - sliced-threads=true: Better parallelization
-    encoder_str = (
-        f"x264enc tune=zerolatency bitrate={bitrate} speed-preset=superfast "
-        f"key-int-max=30 bframes=0 threads=4 sliced-threads=true"
-    )
+    
+    # Detect if source is 4K (cam2 typically outputs 3840x2160)
+    is_4k_source = (int(width) >= 3840 or cam_id == "cam2")
+    
+    if is_4k_source:
+        # Ultra-fast encoding for 4K sources to reduce CPU load
+        encoder_str = (
+            f"x264enc tune=zerolatency bitrate={bitrate} speed-preset=ultrafast "
+            f"key-int-max=15 bframes=0 threads=6 sliced-threads=true"
+        )
+    else:
+        # Balanced encoding for HD sources
+        encoder_str = (
+            f"x264enc tune=zerolatency bitrate={bitrate} speed-preset=superfast "
+            f"key-int-max=30 bframes=0 threads=4 sliced-threads=true"
+        )
     caps_str = "video/x-h264"
 
     # Stream to MediaMTX only
