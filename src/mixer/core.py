@@ -738,8 +738,27 @@ class MixerCore:
         with self._lock:
             watchdog_status = self.watchdog.get_status()
             
+            # Verify pipeline is actually running
+            actual_state = self.state
+            if self.pipeline and self.state == "PLAYING":
+                try:
+                    _, gst_state, _ = self.pipeline.get_state(0)  # 0 = no timeout, immediate check
+                    if gst_state != self.Gst.State.PLAYING:
+                        logger.warning(f"State mismatch: Python says PLAYING but GStreamer is {gst_state.value_nick}")
+                        actual_state = gst_state.value_nick
+                        self.state = actual_state  # Sync Python state
+                except Exception as e:
+                    logger.error(f"Failed to get pipeline state: {e}")
+                    actual_state = "NULL"
+                    self.state = "NULL"
+            elif not self.pipeline and self.state == "PLAYING":
+                # Pipeline doesn't exist but state says PLAYING - fix it
+                logger.warning("Pipeline is None but state is PLAYING - correcting to NULL")
+                actual_state = "NULL"
+                self.state = "NULL"
+            
             return {
-                "state": self.state,
+                "state": actual_state,
                 "current_scene": self.current_scene.id if self.current_scene else None,
                 "health": watchdog_status["health"],
                 "last_error": self.last_error or watchdog_status["last_error"],
