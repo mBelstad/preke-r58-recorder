@@ -163,6 +163,20 @@
             box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
         }
 
+        .remote-indicator {
+            margin-top: var(--spacing-xs);
+        }
+
+        .remote-badge {
+            background: rgba(245, 158, 11, 0.2);
+            border: 1px solid var(--accent-warning);
+            color: var(--accent-warning);
+            padding: 2px 6px;
+            border-radius: var(--radius-sm);
+            font-size: 9px;
+            font-weight: 600;
+        }
+
         .compact-input-grid {
             flex: 1;
             display: flex;
@@ -1587,6 +1601,9 @@
                     <div class="status-dot" id="healthDot"></div>
                     <span id="healthText">HEALTHY</span>
                 </div>
+                <div class="status-compact remote-indicator" id="remoteIndicator" style="display: none;">
+                    <span class="remote-badge">🌐 REMOTE</span>
+                </div>
             </div>
             <div class="compact-input-grid" id="compactInputGrid">
                 <!-- Inputs will be dynamically generated -->
@@ -1738,6 +1755,8 @@
                     <button class="input-selector-btn" data-input="cam1" onclick="assignInput('cam1')">Input 2</button>
                     <button class="input-selector-btn" data-input="cam2" onclick="assignInput('cam2')">Input 3</button>
                     <button class="input-selector-btn" data-input="cam3" onclick="assignInput('cam3')">Input 4</button>
+                    <button class="input-selector-btn" data-input="guest1" onclick="assignInput('guest1')">Guest 1</button>
+                    <button class="input-selector-btn" data-input="guest2" onclick="assignInput('guest2')">Guest 2</button>
                             </div>
                         </div>
                     </div>
@@ -1851,13 +1870,28 @@
             }
         }
         
-        // WebRTC URL helper (local access only)
-        function getWebRTCUrl(streamPath) {
-            return `http://${HOSTNAME}:8889/${streamPath}/whep`;
+        // WebRTC configuration
+        // Note: WebRTC only works for local network access (not through Cloudflare tunnel)
+        const webrtcConfig = {
+            enabled: !IS_REMOTE,  // Disable WebRTC for remote access
+            fallbackToHLS: true,
+            iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+        };
+        
+        // Log WebRTC availability and update UI
+        if (IS_REMOTE) {
+            console.log('Remote access detected - WebRTC disabled, using HLS');
+            // Show remote indicator
+            const remoteIndicator = document.getElementById('remoteIndicator');
+            if (remoteIndicator) {
+                remoteIndicator.style.display = 'block';
+            }
+        } else {
+            console.log('Local access detected - WebRTC enabled for ultra-low latency');
         }
         
-        // WebRTC connection storage
-        let webrtcConnections = {};
+        // WebRTC client instances
+        let webrtcClients = {};
         
         let currentScene = null;
         let mixerState = 'NULL';
@@ -2285,6 +2319,7 @@
             if (!grid) return;
             grid.innerHTML = '';
 
+            // Camera inputs (cam0-cam3)
             for (let i = 0; i < 4; i++) {
                 const input = document.createElement('div');
                 input.className = 'compact-input';
@@ -2296,20 +2331,41 @@
                 `;
                 input.addEventListener('click', () => selectInput(i));
                 grid.appendChild(input);
-                
-                // Load preview stream (using correct path, no _preview suffix)
+
+                // Load preview stream with WebRTC (falls back to HLS if unavailable)
                 const video = input.querySelector('video');
                 if (video) {
-                    // Try WebRTC first for ultra-low latency (local access only)
-                    if (window.RTCPeerConnection && !IS_REMOTE) {
-                        startWebRTCPreview(video, `cam${i}`, `compact-input-${i}`);
-                    } else {
-                        // Use HLS for remote access or no WebRTC support
-                        const hlsUrl = getHLSUrl(`cam${i}`);
-                        loadHLS(video, hlsUrl, `compact-input-${i}`);
-                    }
+                    loadStreamWithWebRTC(video, `cam${i}`, `compact-input-${i}`);
                 }
             }
+            
+            // Guest inputs (guest1, guest2)
+            const guests = ['guest1', 'guest2'];
+            guests.forEach((guestId, idx) => {
+                const inputNum = 4 + idx + 1; // Input 5, 6
+                const input = document.createElement('div');
+                input.className = 'compact-input guest-input';
+                input.dataset.guestId = guestId;
+                input.innerHTML = `
+                    <video id="${guestId}-video" muted playsinline></video>
+                    <div class="compact-input-label">${guestId.replace('guest', 'Guest ')}</div>
+                    <div class="compact-input-status" id="${guestId}-status">Waiting...</div>
+                `;
+                input.addEventListener('click', () => selectGuestInput(guestId));
+                grid.appendChild(input);
+
+                // Try to load guest stream (will show waiting if not connected)
+                const video = input.querySelector('video');
+                if (video) {
+                    loadStreamWithWebRTC(video, guestId, guestId);
+                }
+            });
+        }
+        
+        // Select guest input
+        function selectGuestInput(guestId) {
+            console.log('Selected guest input:', guestId);
+            // Could be used for assignment to scene slots
         }
 
         // Load preview stream
@@ -2527,21 +2583,11 @@
                 const placeholder = document.getElementById('programPlaceholder');
                 
                 if (video && placeholder) {
-                    placeholder.style.display = 'none';
-                    
-                    // Try WebRTC first for ultra-low latency (local access only)
-                    if (window.RTCPeerConnection && !IS_REMOTE) {
-                        // Only start WebRTC if not already connected
-                        if (!webrtcConnections['program']) {
-                            startWebRTCPreview(video, 'mixer_program', 'program');
-                        }
-                    } else {
-                        // Use HLS for remote access or no WebRTC support
-                        const hlsUrl = getHLSUrl('mixer_program');
-                        // Only load if not already loaded
-                        if (!hlsInstances['program'] || hlsInstances['program']._url !== hlsUrl) {
-                            loadHLS(video, hlsUrl, 'program');
-                        }
+                    // Only load if not already loaded (check both WebRTC and HLS)
+                    const isLoaded = webrtcClients['program'] || hlsInstances['program'];
+                    if (!isLoaded) {
+                        placeholder.style.display = 'none';
+                        loadStreamWithWebRTC(video, 'mixer_program', 'program');
                     }
                 }
                 
@@ -2556,14 +2602,8 @@
         function resetAllStreams() {
             showToast('Refreshing streams...', 'info', 2000);
             
-            // Clear all WebRTC connections
-            Object.keys(webrtcConnections).forEach(id => {
-                if (webrtcConnections[id]) {
-                    console.log(`Closing WebRTC connection: ${id}`);
-                    webrtcConnections[id].close();
-                }
-                delete webrtcConnections[id];
-            });
+            // Cleanup WebRTC clients
+            cleanupAllWebRTCClients();
             
             // Clear all HLS instances
             Object.keys(hlsInstances).forEach(id => {
@@ -2594,280 +2634,6 @@
             placeholders.forEach(p => p.style.display = 'flex');
         }
 
-        // WebRTC Preview using WHEP protocol
-        function startWebRTCPreview(video, streamPath, streamId) {
-            // Close existing connection if any
-            if (webrtcConnections[streamId]) {
-                console.log(`Closing existing WebRTC connection for ${streamId}`);
-                webrtcConnections[streamId].close();
-                webrtcConnections[streamId] = null;
-            }
-            
-            // Prevent multiple simultaneous connections
-            if (video.dataset.connecting === 'true') {
-                console.log(`WebRTC connection already in progress for ${streamId}, skipping`);
-                return;
-            }
-            video.dataset.connecting = 'true';
-            
-            // Update status
-            updateStreamStatus(streamId, 'connecting');
-            
-            const webrtcUrl = getWebRTCUrl(streamPath);
-
-            const pc = new RTCPeerConnection({
-                iceServers: [
-                    { urls: 'stun:stun.l.google.com:19302' },
-                    { urls: 'stun:stun1.l.google.com:19302' }
-                ],
-                iceCandidatePoolSize: 10
-            });
-
-            pc.ontrack = (event) => {
-                console.log(`✅ WebRTC track received for ${streamId}`, event);
-                
-                // Check if we have a valid track
-                if (!event.track) {
-                    console.error(`❌ No track in WebRTC event for ${streamId}`);
-                    return;
-                }
-                
-                // Check track type and state
-                if (event.track.kind !== 'video') {
-                    console.log(`Track is ${event.track.kind}, not video - skipping`);
-                    return;
-                }
-                
-                console.log(`Track state: enabled=${event.track.enabled}, readyState=${event.track.readyState}, muted=${event.track.muted}`);
-                
-                // Use event.streams if available, otherwise create from track
-                let stream;
-                if (event.streams && event.streams.length > 0) {
-                    stream = event.streams[0];
-                    console.log(`Using stream from event.streams (${stream.getTracks().length} tracks)`);
-                } else {
-                    stream = new MediaStream([event.track]);
-                    console.log(`Created new stream from track`);
-                }
-                
-                // Ensure stream has video tracks
-                const videoTracks = stream.getVideoTracks();
-                if (videoTracks.length === 0) {
-                    console.error(`❌ Stream has no video tracks for ${streamId}`);
-                    return;
-                }
-                
-                console.log(`Stream has ${videoTracks.length} video track(s):`, videoTracks.map(t => ({
-                    id: t.id,
-                    enabled: t.enabled,
-                    readyState: t.readyState,
-                    muted: t.muted,
-                    settings: t.getSettings()
-                })));
-                
-                // Set stream on video element
-                video.srcObject = stream;
-                
-                // Wait for video metadata to load before playing
-                video.onloadedmetadata = () => {
-                    console.log(`✅ Video metadata loaded for ${streamId}, dimensions: ${video.videoWidth}x${video.videoHeight}`);
-                    
-                    // Check if video has actual dimensions
-                    if (video.videoWidth === 0 || video.videoHeight === 0 || 
-                        (video.videoWidth === 2 && video.videoHeight === 2)) {
-                        console.warn(`⚠️ Video has invalid dimensions (${video.videoWidth}x${video.videoHeight}) for ${streamId}`);
-                        // Wait a bit more and check again
-                        setTimeout(() => {
-                            if (video.videoWidth > 2 && video.videoHeight > 2) {
-                                console.log(`✅ Video dimensions now: ${video.videoWidth}x${video.videoHeight}`);
-                                tryPlayVideo();
-                            } else {
-                                console.error(`❌ Video still has invalid dimensions after wait`);
-                                // Fall back to HLS
-                                updateStreamStatus(streamId, 'error');
-                                const hlsUrl = getHLSUrl(streamPath);
-                                loadHLS(video, hlsUrl, streamId);
-                            }
-                        }, 500);
-                    } else {
-                        tryPlayVideo();
-                    }
-                };
-                
-                // Monitor video playback
-                video.onplaying = () => {
-                    console.log(`✅ Video is playing for ${streamId}, currentTime: ${video.currentTime.toFixed(2)}s`);
-                    updateStreamStatus(streamId, 'connected');
-                };
-                
-                video.oncanplay = () => {
-                    console.log(`✅ Video can play for ${streamId}, readyState: ${video.readyState}`);
-                    if (video.videoWidth > 0 && video.videoHeight > 0) {
-                        updateStreamStatus(streamId, 'connected');
-                    }
-                };
-                
-                // Monitor errors
-                video.onerror = (e) => {
-                    console.warn(`⚠️ Video error for ${streamId}:`, e);
-                    updateStreamStatus(streamId, 'error');
-                    // Fall back to HLS
-                    setTimeout(() => {
-                        console.log(`Falling back to HLS for ${streamId} after error...`);
-                        const hlsUrl = getHLSUrl(streamPath);
-                        loadHLS(video, hlsUrl, streamId);
-                    }, 1000);
-                };
-                
-                video.onstalled = () => {
-                    console.warn(`⚠️ Video stalled for ${streamId}`);
-                    updateStreamStatus(streamId, 'reconnecting');
-                };
-                
-                video.onsuspend = () => {
-                    console.warn(`⚠️ Video suspended for ${streamId}`);
-                };
-                
-                // Track ended handler
-                event.track.onended = () => {
-                    console.warn(`⚠️ Track ended for ${streamId}`);
-                    updateStreamStatus(streamId, 'error');
-                    // Retry connection
-                    setTimeout(() => {
-                        startWebRTCPreview(video, streamPath, streamId);
-                    }, 2000);
-                };
-                
-                // Track unmuted handler
-                event.track.onunmute = () => {
-                    console.log(`✅ Track unmuted for ${streamId}`);
-                    if (video.srcObject) {
-                        tryPlayVideo();
-                    }
-                };
-                
-                // Function to actually play the video
-                const tryPlayVideo = () => {
-                    if (video.paused) {
-                        video.play().then(() => {
-                            console.log(`✅ WebRTC playing for ${streamId} - ultra-low latency!`);
-                            updateStreamStatus(streamId, 'connected');
-                        }).catch(e => {
-                            if (e.name !== 'AbortError' && e.name !== 'NotAllowedError') {
-                                console.log(`⚠️ Play failed for ${streamId}:`, e.message);
-                            }
-                        });
-                    }
-                };
-                
-                // If metadata is already loaded, try playing immediately
-                if (video.readyState >= 1) {
-                    console.log(`Video readyState is ${video.readyState}, trying to play immediately`);
-                    tryPlayVideo();
-                }
-                
-                // Check periodically if video dimensions become available
-                let dimensionCheckCount = 0;
-                let dimensionsDetected = false;
-                const checkDimensions = setInterval(() => {
-                    dimensionCheckCount++;
-                    // Check for valid dimensions
-                    if (video.videoWidth > 2 && video.videoHeight > 2) {
-                        if (!dimensionsDetected) {
-                            console.log(`✅ Video dimensions detected: ${video.videoWidth}x${video.videoHeight}`);
-                            dimensionsDetected = true;
-                        }
-                        updateStreamStatus(streamId, 'connected');
-                        clearInterval(checkDimensions);
-                    } else if (dimensionCheckCount > 50) {
-                        // Stop checking after 5 seconds
-                        clearInterval(checkDimensions);
-                        console.warn(`⚠️ Video dimensions still invalid after 5 seconds for ${streamId}`);
-                        // Fall back to HLS if we never got valid dimensions
-                        if (!dimensionsDetected && video.currentTime === 0) {
-                            console.log(`Falling back to HLS for ${streamId}`);
-                            const hlsUrl = getHLSUrl(streamPath);
-                            loadHLS(video, hlsUrl, streamId);
-                        }
-                    }
-                }, 100);
-            };
-
-            pc.oniceconnectionstatechange = () => {
-                console.log(`WebRTC ICE state for ${streamId}: ${pc.iceConnectionState}`);
-                if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
-                    console.log(`WebRTC failed for ${streamId}, falling back to HLS`);
-                    updateStreamStatus(streamId, 'error');
-                    const hlsUrl = getHLSUrl(streamPath);
-                    loadHLS(video, hlsUrl, streamId);
-                } else if (pc.iceConnectionState === 'connected') {
-                    console.log(`✅ WebRTC connected for ${streamId}`);
-                    updateStreamStatus(streamId, 'connected');
-                }
-            };
-            
-            pc.onconnectionstatechange = () => {
-                console.log(`WebRTC connection state for ${streamId}: ${pc.connectionState}`);
-                if (pc.connectionState === 'failed') {
-                    console.log(`WebRTC connection failed for ${streamId}, falling back to HLS`);
-                    updateStreamStatus(streamId, 'error');
-                    const hlsUrl = getHLSUrl(streamPath);
-                    loadHLS(video, hlsUrl, streamId);
-                }
-            };
-
-            pc.addTransceiver('video', { direction: 'recvonly' });
-            pc.addTransceiver('audio', { direction: 'recvonly' });
-
-            let resourceUrl = null;
-
-            pc.createOffer({
-                offerToReceiveVideo: true,
-                offerToReceiveAudio: true
-            }).then(offer => {
-                return pc.setLocalDescription(offer);
-            }).then(() => {
-                return fetch(webrtcUrl, {
-                    method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/sdp',
-                        'Accept': 'application/sdp'
-                    },
-                    body: pc.localDescription.sdp
-                });
-            }).then(response => {
-                if (!response.ok) {
-                    throw new Error(`WHEP error: ${response.status}`);
-                }
-                resourceUrl = response.headers.get('Location') || webrtcUrl;
-                return response.text();
-            }).then(answerSdp => {
-                console.log(`Received SDP answer for ${streamId}, setting remote description...`);
-                return pc.setRemoteDescription({ type: 'answer', sdp: answerSdp });
-            }).then(() => {
-                console.log(`Remote description set for ${streamId}`);
-                pc.onicecandidate = (event) => {
-                    if (event.candidate && resourceUrl) {
-                        fetch(resourceUrl, {
-                            method: 'PATCH',
-                            headers: { 'Content-Type': 'application/trickle-ice-sdpfrag' },
-                            body: 'a=' + event.candidate.candidate
-                        }).catch(err => console.warn('ICE candidate send failed:', err));
-                    }
-                };
-                webrtcConnections[streamId] = pc;
-                video.dataset.connecting = 'false';
-                console.log(`WebRTC preview started for ${streamId} (ultra-low latency)`);
-            }).catch(error => {
-                video.dataset.connecting = 'false';
-                console.error(`WebRTC setup failed for ${streamId}:`, error);
-                updateStreamStatus(streamId, 'error');
-                // Fallback to HLS
-                const hlsUrl = getHLSUrl(streamPath);
-                loadHLS(video, hlsUrl, streamId);
-            });
-        }
-
         // HLS reconnection state
         const hlsRetryState = {};
         const HLS_MAX_RETRIES = 5;
@@ -2888,15 +2654,39 @@
                     hlsInstances[id].destroy();
                 }
                 
-                const hls = new Hls({
+                // Configure HLS.js for remote/high-latency connections
+                const hlsConfig = IS_REMOTE ? {
+                    // Remote access - more tolerant of high latency
+                    manifestLoadingTimeOut: 30000,      // 30s for manifest (Cloudflare can be slow)
+                    manifestLoadingMaxRetry: 5,         // More retries
+                    levelLoadingTimeOut: 30000,         // 30s for level loading
+                    levelLoadingMaxRetry: 5,
+                    fragLoadingTimeOut: 60000,          // 60s for fragment loading
+                    fragLoadingMaxRetry: 4,
+                    enableWorker: true,
+                    lowLatencyMode: false,              // Disable LL-HLS for stability
+                    backBufferLength: 60,               // Keep 60s in buffer
+                    maxBufferLength: 60,                // Buffer up to 60s ahead
+                    maxMaxBufferLength: 120,            // Allow up to 120s buffer
+                    liveSyncDurationCount: 4,           // Sync 4 segments behind live
+                    liveMaxLatencyDurationCount: 10,    // Allow up to 10 segments latency
+                    startLevel: -1,                     // Auto quality selection
+                    debug: false,
+                } : {
+                    // Local access - lower latency settings
                     manifestLoadingTimeOut: 10000,
                     manifestLoadingMaxRetry: 3,
                     levelLoadingTimeOut: 10000,
                     fragLoadingTimeOut: 20000,
                     enableWorker: true,
-                    lowLatencyMode: false,
+                    lowLatencyMode: true,               // Enable LL-HLS for local
                     backBufferLength: 30,
-                });
+                    maxBufferLength: 30,
+                    liveSyncDurationCount: 2,           // Closer to live edge
+                    debug: false,
+                };
+                
+                const hls = new Hls(hlsConfig);
                 
                 hls.loadSource(url);
                 hls.attachMedia(video);
@@ -3026,6 +2816,156 @@
                     statusEl.textContent = '?';
                     break;
             }
+        }
+        
+        // ========== WebRTC Stream Management ==========
+        
+        // Get WHEP URL for WebRTC playback
+        function getWHEPUrl(streamPath) {
+            // WebRTC only works for direct access to MediaMTX (not through Cloudflare proxy)
+            // Always use direct connection to port 8889
+            return `http://${HOSTNAME}:8889/${streamPath}/whep`;
+        }
+        
+        // Native WHEP client implementation
+        async function connectWHEP(whepUrl, iceServers) {
+            const pc = new RTCPeerConnection({
+                iceServers: iceServers || [{ urls: 'stun:stun.l.google.com:19302' }]
+            });
+            
+            // Add transceivers for receiving video and audio
+            pc.addTransceiver('video', { direction: 'recvonly' });
+            pc.addTransceiver('audio', { direction: 'recvonly' });
+            
+            // Create offer
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            
+            // Send offer to WHEP endpoint
+            const response = await fetch(whepUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/sdp'
+                },
+                body: offer.sdp
+            });
+            
+            if (!response.ok) {
+                throw new Error(`WHEP endpoint returned ${response.status}: ${response.statusText}`);
+            }
+            
+            // Get answer from server
+            const answerSdp = await response.text();
+            await pc.setRemoteDescription({
+                type: 'answer',
+                sdp: answerSdp
+            });
+            
+            // Create media stream from received tracks
+            const stream = new MediaStream();
+            pc.getReceivers().forEach(receiver => {
+                if (receiver.track) {
+                    stream.addTrack(receiver.track);
+                }
+            });
+            
+            return { pc, stream };
+        }
+        
+        // Load stream with WebRTC (primary) and HLS (fallback)
+        async function loadStreamWithWebRTC(videoElement, streamPath, instanceId) {
+            if (!videoElement) {
+                console.error(`Video element not found for ${instanceId}`);
+                return;
+            }
+            
+            updateStreamStatus(instanceId, 'connecting');
+            
+            // Try WebRTC first
+            if (webrtcConfig.enabled) {
+                try {
+                    console.log(`Attempting WebRTC connection for ${streamPath}...`);
+                    const whepUrl = getWHEPUrl(streamPath);
+                    
+                    // Connect using native WHEP implementation
+                    const { pc, stream } = await connectWHEP(whepUrl, webrtcConfig.iceServers);
+                    
+                    // Attach stream to video element
+                    videoElement.srcObject = stream;
+                    
+                    // Store peer connection for cleanup
+                    webrtcClients[instanceId] = {
+                        pc: pc,
+                        stream: stream,
+                        type: 'webrtc',
+                        streamPath: streamPath
+                    };
+                    
+                    // Wait for video to start playing
+                    await videoElement.play().catch(e => console.debug('Autoplay blocked:', e));
+                    
+                    updateStreamStatus(instanceId, 'connected');
+                    console.log(`✓ WebRTC connected for ${streamPath} (${instanceId})`);
+                    return true;
+                    
+                } catch (error) {
+                    console.warn(`WebRTC failed for ${streamPath}:`, error.message);
+                    
+                    // Cleanup failed WebRTC attempt
+                    if (webrtcClients[instanceId]) {
+                        try {
+                            webrtcClients[instanceId].client?.disconnect();
+                        } catch (e) {}
+                        delete webrtcClients[instanceId];
+                    }
+                    
+                    // Clear srcObject
+                    if (videoElement.srcObject) {
+                        videoElement.srcObject = null;
+                    }
+                }
+            }
+            
+            // Fallback to HLS
+            if (webrtcConfig.fallbackToHLS) {
+                console.log(`Falling back to HLS for ${streamPath}...`);
+                const hlsUrl = getHLSUrl(streamPath);
+                loadHLS(videoElement, hlsUrl, instanceId);
+            } else {
+                updateStreamStatus(instanceId, 'failed');
+            }
+        }
+        
+        // Cleanup WebRTC client
+        function cleanupWebRTCClient(instanceId) {
+            if (webrtcClients[instanceId]) {
+                try {
+                    console.log(`Cleaning up WebRTC client: ${instanceId}`);
+                    const { pc, stream, type } = webrtcClients[instanceId];
+                    
+                    if (type === 'webrtc') {
+                        // Stop all tracks
+                        if (stream) {
+                            stream.getTracks().forEach(track => track.stop());
+                        }
+                        // Close peer connection
+                        if (pc) {
+                            pc.close();
+                        }
+                    }
+                } catch (e) {
+                    console.warn(`Error disconnecting WebRTC client ${instanceId}:`, e);
+                }
+                delete webrtcClients[instanceId];
+            }
+        }
+        
+        // Cleanup all WebRTC clients
+        function cleanupAllWebRTCClients() {
+            console.log('Cleaning up all WebRTC clients...');
+            Object.keys(webrtcClients).forEach(id => {
+                cleanupWebRTCClient(id);
+            });
         }
 
         // Fetch scene details

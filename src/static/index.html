@@ -857,6 +857,14 @@
                         <div class="stat-label">Cameras</div>
                         <div class="stat-value idle" id="activeCameras">0 / 4</div>
                     </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Session ID</div>
+                        <div class="stat-value idle" id="sessionId" style="font-size: 0.75rem; font-family: monospace;">-</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Disk Space</div>
+                        <div class="stat-value idle" id="diskSpace">-</div>
+                    </div>
                 </div>
                 <div class="camera-list" id="cameraList"></div>
             </div>
@@ -1889,18 +1897,30 @@
             }
         }
 
+        let currentSessionId = null;
+
         async function startAllRecordings() {
             try {
-                const response = await fetch(`${API_BASE}/record/start-all`, { method: 'POST' });
+                const response = await fetch(`${API_BASE}/api/trigger/start`, { method: 'POST' });
                 const data = await response.json();
                 
                 if (response.ok) {
                     recordingState = true;
                     recordingStartTime = new Date();
+                    currentSessionId = data.session_id;
                     updateRecordingUI();
                     startRecordingTimer();
                     updateStats();
-                    showAlert('Recording started for all cameras', 'success');
+                    
+                    let message = 'Recording started';
+                    if (data.session_id) {
+                        message += ` (Session: ${data.session_id})`;
+                    }
+                    if (data.external_cameras && Object.keys(data.external_cameras).length > 0) {
+                        const extCount = Object.values(data.external_cameras).filter(v => v === 'recording').length;
+                        message += ` + ${extCount} external camera(s)`;
+                    }
+                    showAlert(message, 'success');
                 } else {
                     showAlert('Failed to start recording', 'error');
                 }
@@ -1911,16 +1931,23 @@
 
         async function stopAllRecordings() {
             try {
-                const response = await fetch(`${API_BASE}/record/stop-all`, { method: 'POST' });
+                const response = await fetch(`${API_BASE}/api/trigger/stop`, { method: 'POST' });
                 const data = await response.json();
                 
                 if (response.ok) {
                     recordingState = false;
                     recordingStartTime = null;
+                    const sessionId = currentSessionId;
+                    currentSessionId = null;
                     updateRecordingUI();
                     stopRecordingTimer();
                     updateStats();
-                    showAlert('Recording stopped for all cameras', 'success');
+                    
+                    let message = 'Recording stopped';
+                    if (sessionId) {
+                        message += ` (Session: ${sessionId})`;
+                    }
+                    showAlert(message, 'success');
                 } else {
                     showAlert('Failed to stop recording', 'error');
                 }
@@ -2243,6 +2270,67 @@
                 alert.remove();
             }, 3000);
         }
+
+        async function updateSessionStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/api/trigger/status`);
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    // Update session ID
+                    const sessionIdEl = document.getElementById('sessionId');
+                    if (sessionIdEl) {
+                        if (data.session_id) {
+                            sessionIdEl.textContent = data.session_id.replace('session_', '');
+                            sessionIdEl.classList.remove('idle');
+                            sessionIdEl.classList.add('recording');
+                        } else {
+                            sessionIdEl.textContent = '-';
+                            sessionIdEl.classList.remove('recording');
+                            sessionIdEl.classList.add('idle');
+                        }
+                    }
+                    
+                    // Update disk space
+                    const diskSpaceEl = document.getElementById('diskSpace');
+                    if (diskSpaceEl && data.disk) {
+                        if (data.disk.free_gb !== undefined) {
+                            const freeGB = data.disk.free_gb;
+                            const percentUsed = data.disk.percent_used || 0;
+                            diskSpaceEl.textContent = `${freeGB.toFixed(1)} GB`;
+                            
+                            // Color code based on available space
+                            diskSpaceEl.classList.remove('idle', 'recording');
+                            if (freeGB < 5) {
+                                diskSpaceEl.style.color = '#ef4444'; // Red
+                            } else if (freeGB < 10) {
+                                diskSpaceEl.style.color = '#f59e0b'; // Orange
+                            } else {
+                                diskSpaceEl.style.color = '#10b981'; // Green
+                            }
+                        }
+                    }
+                    
+                    // Update recording state from server
+                    if (data.active !== undefined && data.active !== recordingState) {
+                        recordingState = data.active;
+                        if (data.active && data.session_id) {
+                            currentSessionId = data.session_id;
+                            if (!recordingStartTime && data.start_time) {
+                                recordingStartTime = new Date(data.start_time);
+                            }
+                        }
+                        updateRecordingUI();
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to update session status:', error);
+            }
+        }
+
+        // Update session status every 5 seconds
+        setInterval(updateSessionStatus, 5000);
+        updateSessionStatus(); // Initial call
     </script>
 </body>
 </html>

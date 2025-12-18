@@ -535,7 +535,7 @@ def build_r58_ingest_pipeline(
         # Ultra-fast encoding for 4K sources to reduce CPU load
         encoder_str = (
             f"x264enc tune=zerolatency bitrate={bitrate} speed-preset=ultrafast "
-            f"key-int-max=15 bframes=0 threads=6 sliced-threads=true"
+            f"key-int-max=30 bframes=0 threads=6 sliced-threads=true"
         )
     else:
         # Balanced encoding for HD sources
@@ -596,8 +596,9 @@ def build_recording_subscriber_pipeline(
     
     # Always use H.264 parser and MP4 muxer (ingest streams H.264)
     # faststart=true moves moov atom to beginning for progressive playback in browsers
+    # fragment-duration=1000 creates 1-second fragments for live editing and crash recovery
     parse_str = "h264parse"
-    mux_str = "mp4mux faststart=true"
+    mux_str = "mp4mux faststart=true fragment-duration=1000"
     
     # Use splitmuxsink for clean file segments (optional, can segment by time)
     # max-size-time in nanoseconds (3600000000000 = 1 hour)

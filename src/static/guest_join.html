@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Join as Guest - R58 Recorder</title>
+    <style>
+        :root {
+            --bg-dark: #0a0a0a;
+            --bg-panel: #141414;
+            --bg-element: #1f1f1f;
+            --bg-hover: #2a2a2a;
+            --text-primary: #ffffff;
+            --text-secondary: rgba(255, 255, 255, 0.7);
+            --text-muted: rgba(255, 255, 255, 0.4);
+            --accent-primary: #3b82f6;
+            --accent-success: #10b981;
+            --accent-danger: #ef4444;
+            --accent-warning: #f59e0b;
+            --border-light: rgba(255, 255, 255, 0.1);
+            --radius-md: 8px;
+            --spacing-sm: 8px;
+            --spacing-md: 16px;
+            --spacing-lg: 24px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: var(--spacing-lg);
+        }
+
+        .container {
+            max-width: 600px;
+            width: 100%;
+            background: var(--bg-panel);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-lg);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: var(--spacing-sm);
+            color: var(--text-primary);
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            margin-bottom: var(--spacing-lg);
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: var(--spacing-md);
+        }
+
+        label {
+            display: block;
+            margin-bottom: var(--spacing-sm);
+            color: var(--text-secondary);
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        select, input {
+            width: 100%;
+            padding: 12px;
+            background: var(--bg-element);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+
+        select:focus, input:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+        }
+
+        .preview-container {
+            margin: var(--spacing-lg) 0;
+            background: #000;
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            aspect-ratio: 16/9;
+            position: relative;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .preview-placeholder {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: var(--text-muted);
+        }
+
+        .preview-placeholder svg {
+            width: 64px;
+            height: 64px;
+            margin-bottom: var(--spacing-md);
+            opacity: 0.3;
+        }
+
+        .button-group {
+            display: flex;
+            gap: var(--spacing-md);
+            margin-top: var(--spacing-lg);
+        }
+
+        button {
+            flex: 1;
+            padding: 14px 24px;
+            border: none;
+            border-radius: var(--radius-md);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: var(--accent-primary);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #2563eb;
+            transform: translateY(-1px);
+        }
+
+        .btn-danger {
+            background: var(--accent-danger);
+            color: white;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: #dc2626;
+        }
+
+        .btn-secondary {
+            background: var(--bg-element);
+            color: var(--text-primary);
+            border: 1px solid var(--border-light);
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: var(--bg-hover);
+        }
+
+        .status-message {
+            margin-top: var(--spacing-md);
+            padding: 12px;
+            border-radius: var(--radius-md);
+            font-size: 14px;
+            display: none;
+        }
+
+        .status-message.info {
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            color: var(--accent-primary);
+            display: block;
+        }
+
+        .status-message.success {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: var(--accent-success);
+            display: block;
+        }
+
+        .status-message.error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: var(--accent-danger);
+            display: block;
+        }
+
+        .instructions {
+            margin-top: var(--spacing-lg);
+            padding: var(--spacing-md);
+            background: var(--bg-element);
+            border-radius: var(--radius-md);
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .instructions h3 {
+            font-size: 14px;
+            margin-bottom: var(--spacing-sm);
+            color: var(--text-primary);
+        }
+
+        .instructions ul {
+            margin-left: 20px;
+        }
+
+        .instructions li {
+            margin-bottom: 6px;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--spacing-md);
+            margin-top: var(--spacing-md);
+        }
+
+        .stat {
+            background: var(--bg-element);
+            padding: var(--spacing-md);
+            border-radius: var(--radius-md);
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        .stat-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .connecting {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Join as Remote Guest</h1>
+        <p class="subtitle">Connect your camera and microphone to join the production</p>
+        
+        <div id="networkWarning" class="status-message" style="display: none;"></div>
+
+        <div class="form-group">
+            <label for="guestId">Guest Slot</label>
+            <select id="guestId">
+                <option value="guest1">Guest 1</option>
+                <option value="guest2">Guest 2</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="cameraSelect">Camera</label>
+            <select id="cameraSelect">
+                <option value="">Loading cameras...</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="micSelect">Microphone</label>
+            <select id="micSelect">
+                <option value="">Loading microphones...</option>
+            </select>
+        </div>
+
+        <div class="preview-container">
+            <video id="previewVideo" autoplay muted playsinline></video>
+            <div class="preview-placeholder" id="placeholder">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                </svg>
+                <div>Click "Start Preview" to test your camera</div>
+            </div>
+        </div>
+
+        <div class="button-group">
+            <button id="previewBtn" class="btn-secondary" onclick="startPreview()">Start Preview</button>
+            <button id="joinBtn" class="btn-primary" onclick="joinStream()" disabled>Join Stream</button>
+            <button id="leaveBtn" class="btn-danger" onclick="leaveStream()" style="display: none;">Leave Stream</button>
+        </div>
+
+        <div id="statusMessage" class="status-message"></div>
+
+        <div class="stats" id="stats" style="display: none;">
+            <div class="stat">
+                <div class="stat-label">Connection</div>
+                <div class="stat-value" id="connectionState">-</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Bitrate</div>
+                <div class="stat-value" id="bitrate">0 kbps</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Duration</div>
+                <div class="stat-value" id="duration">00:00</div>
+            </div>
+        </div>
+
+        <div class="instructions">
+            <h3>Instructions</h3>
+            <ul>
+                <li>Select your camera and microphone from the dropdowns</li>
+                <li>Click "Start Preview" to test your setup</li>
+                <li>When ready, click "Join Stream" to go live</li>
+                <li>Your video will appear in the production switcher</li>
+                <li>Keep this page open while you're connected</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+        const HOSTNAME = window.location.hostname;
+        
+        // Detect if accessing remotely
+        const IS_REMOTE = window.location.hostname.includes('itagenten.no');
+        
+        // Show network info for remote access
+        if (IS_REMOTE) {
+            const warning = document.getElementById('networkWarning');
+            warning.className = 'status-message info';
+            warning.innerHTML = `
+                <strong>🌐 Remote Access Mode</strong><br>
+                Using Cloudflare Calls SFU for WebRTC connection.<br>
+                Your stream will be relayed through Cloudflare's global network to the R58 system.<br>
+                <small>For lower latency, guests on the local network can use: <strong>http://192.168.1.58:8000/guest_join</strong></small>
+            `;
+            warning.style.display = 'block';
+        }
+        
+        // Get WebRTC endpoint
+        function getWHIPUrl(streamPath) {
+            if (IS_REMOTE) {
+                // Through Cloudflare tunnel
+                return `${API_BASE}/whip/${streamPath}`;
+            } else {
+                // Direct to MediaMTX
+                return `http://${HOSTNAME}:8889/${streamPath}/whip`;
+            }
+        }
+
+        let localStream = null;
+        let peerConnection = null;
+        let statsInterval = null;
+        let durationInterval = null;
+        let startTime = null;
+        let currentSessionId = null;  // Cloudflare Calls session ID
+
+        // Load available devices
+        async function loadDevices() {
+            try {
+                // First, request permission to get device labels
+                // This will trigger the browser permission prompt
+                const tempStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                
+                // Now enumerate devices (labels will be available)
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                
+                // Stop the temporary stream
+                tempStream.getTracks().forEach(track => track.stop());
+                
+                const cameras = devices.filter(d => d.kind === 'videoinput');
+                const mics = devices.filter(d => d.kind === 'audioinput');
+
+                const cameraSelect = document.getElementById('cameraSelect');
+                const micSelect = document.getElementById('micSelect');
+
+                cameraSelect.innerHTML = cameras.length > 0 
+                    ? cameras.map(d => `<option value="${d.deviceId}">${d.label || 'Camera ' + (cameras.indexOf(d) + 1)}</option>`).join('')
+                    : '<option value="">No cameras found</option>';
+
+                micSelect.innerHTML = mics.length > 0
+                    ? mics.map(d => `<option value="${d.deviceId}">${d.label || 'Microphone ' + (mics.indexOf(d) + 1)}</option>`).join('')
+                    : '<option value="">No microphones found</option>';
+
+            } catch (err) {
+                console.error('Error loading devices:', err);
+                showStatus('error', 'Failed to load devices. Please grant camera/microphone permissions and reload the page.');
+            }
+        }
+
+        // Start preview
+        async function startPreview() {
+            try {
+                const cameraId = document.getElementById('cameraSelect').value;
+                const micId = document.getElementById('micSelect').value;
+
+                if (!cameraId || !micId) {
+                    showStatus('error', 'Please select both camera and microphone');
+                    return;
+                }
+
+                // Stop existing stream
+                if (localStream) {
+                    localStream.getTracks().forEach(track => track.stop());
+                }
+
+                // Get user media
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    video: { deviceId: cameraId ? { exact: cameraId } : undefined },
+                    audio: { deviceId: micId ? { exact: micId } : undefined }
+                });
+
+                // Show preview
+                const video = document.getElementById('previewVideo');
+                video.srcObject = localStream;
+                document.getElementById('placeholder').style.display = 'none';
+
+                // Enable join button
+                document.getElementById('joinBtn').disabled = false;
+                document.getElementById('previewBtn').textContent = 'Restart Preview';
+                
+                showStatus('success', 'Preview started! Click "Join Stream" when ready.');
+
+                // Reload devices to get labels
+                await loadDevices();
+
+            } catch (err) {
+                console.error('Error starting preview:', err);
+                showStatus('error', `Failed to start preview: ${err.message}`);
+            }
+        }
+
+        // Join stream via WHIP
+        async function joinStream() {
+            try {
+                if (!localStream) {
+                    showStatus('error', 'Please start preview first');
+                    return;
+                }
+
+                const guestId = document.getElementById('guestId').value;
+                let whipUrl;
+                
+                document.getElementById('joinBtn').disabled = true;
+
+                // Determine WHIP endpoint
+                if (IS_REMOTE) {
+                    // Remote: Use Cloudflare Calls SFU via our proxy
+                    whipUrl = `${API_BASE}/api/calls/whip/${guestId}`;
+                    showStatus('info', 'Connecting to Cloudflare Calls...');
+                } else {
+                    // Local: Direct to MediaMTX
+                    whipUrl = `http://${HOSTNAME}:8889/${guestId}/whip`;
+                    showStatus('info', 'Connecting to local MediaMTX...');
+                }
+
+                // Create peer connection with STUN
+                const iceServers = [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' }
+                ];
+                
+                peerConnection = new RTCPeerConnection({ iceServers });
+
+                // Add local stream tracks
+                localStream.getTracks().forEach(track => {
+                    peerConnection.addTrack(track, localStream);
+                });
+
+                // Handle ICE candidates
+                peerConnection.onicecandidate = (event) => {
+                    if (event.candidate) {
+                        console.log('ICE candidate:', event.candidate);
+                    } else {
+                        console.log('ICE gathering complete');
+                    }
+                };
+
+                // Handle ICE connection state
+                peerConnection.oniceconnectionstatechange = () => {
+                    console.log('ICE connection state:', peerConnection.iceConnectionState);
+                };
+
+                // Handle connection state changes
+                peerConnection.onconnectionstatechange = () => {
+                    const state = peerConnection.connectionState;
+                    console.log('Connection state:', state);
+                    document.getElementById('connectionState').textContent = state;
+
+                    if (state === 'connected') {
+                        showStatus('success', `Connected as ${guestId}! You are now live.`);
+                        document.getElementById('joinBtn').style.display = 'none';
+                        document.getElementById('leaveBtn').style.display = 'block';
+                        document.getElementById('stats').style.display = 'grid';
+                        
+                        // Start duration timer
+                        startTime = Date.now();
+                        durationInterval = setInterval(updateDuration, 1000);
+                        
+                        // Start stats monitoring
+                        startStatsMonitoring();
+                    } else if (state === 'failed' || state === 'disconnected') {
+                        showStatus('error', 'Connection lost. Please try again.');
+                        cleanup();
+                    }
+                };
+
+                // Create offer
+                const offer = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offer);
+
+                // Wait for ICE gathering to complete (important for WHIP)
+                if (peerConnection.iceGatheringState !== 'complete') {
+                    await new Promise((resolve) => {
+                        peerConnection.onicegatheringstatechange = () => {
+                            if (peerConnection.iceGatheringState === 'complete') {
+                                resolve();
+                            }
+                        };
+                    });
+                }
+
+                // Send offer to WHIP endpoint
+                console.log('Sending WHIP offer to:', whipUrl);
+                const response = await fetch(whipUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/sdp'
+                    },
+                    body: offer.sdp
+                });
+
+                if (!response.ok) {
+                    throw new Error(`WHIP request failed: ${response.status} ${response.statusText}`);
+                }
+
+                // Get answer
+                const answerSdp = await response.text();
+                await peerConnection.setRemoteDescription({
+                    type: 'answer',
+                    sdp: answerSdp
+                });
+
+                console.log('WHIP connection established');
+                
+                // For Cloudflare Calls, we're now connected to Cloudflare's SFU
+                if (IS_REMOTE) {
+                    console.log('Connected to Cloudflare Calls SFU - stream will be relayed to R58');
+                }
+
+            } catch (err) {
+                console.error('Error joining stream:', err);
+                showStatus('error', `Failed to join: ${err.message}`);
+                cleanup();
+            }
+        }
+
+        // Leave stream
+        function leaveStream() {
+            cleanup();
+            showStatus('info', 'Disconnected. You can rejoin anytime.');
+        }
+
+        // Cleanup connection
+        async function cleanup() {
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+
+            // Close Cloudflare Calls session if exists
+            if (IS_REMOTE) {
+                try {
+                    const guestId = document.getElementById('guestId').value;
+                    await fetch(`${API_BASE}/api/calls/session/${guestId}`, {
+                        method: 'DELETE'
+                    });
+                    console.log('Cloudflare Calls session closed for', guestId);
+                } catch (err) {
+                    console.warn('Failed to close Calls session:', err);
+                }
+            }
+
+            if (statsInterval) {
+                clearInterval(statsInterval);
+                statsInterval = null;
+            }
+
+            if (durationInterval) {
+                clearInterval(durationInterval);
+                durationInterval = null;
+            }
+
+            document.getElementById('joinBtn').style.display = 'block';
+            document.getElementById('joinBtn').disabled = false;
+            document.getElementById('leaveBtn').style.display = 'none';
+            document.getElementById('stats').style.display = 'none';
+            document.getElementById('connectionState').textContent = '-';
+            document.getElementById('bitrate').textContent = '0 kbps';
+            document.getElementById('duration').textContent = '00:00';
+        }
+
+        // Monitor connection stats
+        function startStatsMonitoring() {
+            statsInterval = setInterval(async () => {
+                if (!peerConnection) return;
+
+                try {
+                    const stats = await peerConnection.getStats();
+                    let bitrate = 0;
+
+                    stats.forEach(report => {
+                        if (report.type === 'outbound-rtp' && report.mediaType === 'video') {
+                            if (report.bytesSent) {
+                                const bytes = report.bytesSent;
+                                const now = report.timestamp;
+                                
+                                if (window.lastBytes && window.lastTime) {
+                                    const bitrateBps = 8 * (bytes - window.lastBytes) / (now - window.lastTime) * 1000;
+                                    bitrate = Math.round(bitrateBps / 1000);
+                                }
+                                
+                                window.lastBytes = bytes;
+                                window.lastTime = now;
+                            }
+                        }
+                    });
+
+                    if (bitrate > 0) {
+                        document.getElementById('bitrate').textContent = bitrate + ' kbps';
+                    }
+                } catch (err) {
+                    console.error('Error getting stats:', err);
+                }
+            }, 1000);
+        }
+
+        // Update duration
+        function updateDuration() {
+            if (!startTime) return;
+            
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            const minutes = Math.floor(elapsed / 60);
+            const seconds = elapsed % 60;
+            
+            document.getElementById('duration').textContent = 
+                `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+
+        // Show status message
+        function showStatus(type, message) {
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.className = `status-message ${type}`;
+            statusEl.textContent = message;
+        }
+
+        // Initialize
+        loadDevices();
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (peerConnection) {
+                leaveStream();
+            }
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+            }
+        });
+    </script>
+</body>
+</html>

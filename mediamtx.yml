@@ -8,14 +8,14 @@ rtspAddress: :8554
 # RTMP settings
 rtmpAddress: :1935
 
-# HLS settings (separate port for HLS) - balanced for low latency + stability
-# Slightly larger segments reduce HTTP request overhead for remote connections
-# LL-HLS parts still enable sub-second latency when connection is good
+# HLS settings (separate port for HLS) - optimized for remote access via Cloudflare Tunnel
+# Larger segments reduce HTTP request overhead and improve reliability over high-latency connections
+# Part duration set for reasonable sub-second latency while maintaining stability
 hlsAddress: :8888
 hlsAlwaysRemux: yes
-hlsSegmentCount: 10         # More segments available for buffering (was 7)
-hlsSegmentDuration: 500ms   # Larger segments = fewer requests (was 100ms)
-hlsPartDuration: 100ms      # LL-HLS parts for low latency (was 50ms)
+hlsSegmentCount: 12         # More segments for buffering over high-latency connections
+hlsSegmentDuration: 2s      # 2-second segments for stability (better for remote)
+hlsPartDuration: 200ms      # 200ms parts for reasonable latency without overwhelming the connection
 hlsAllowOrigin: "*"
 
 # SRT settings
@@ -39,4 +39,9 @@ paths:
   cam3:
     source: publisher
   mixer_program:
+    source: publisher
+  # Remote guest paths (published via WHIP)
+  guest1:
+    source: publisher
+  guest2:
     source: publisher

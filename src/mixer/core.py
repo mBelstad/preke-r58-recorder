@@ -3,6 +3,7 @@ import logging
 import time
 import threading
 import subprocess
+import os
 from typing import Dict, Optional, Any
 from pathlib import Path
 from datetime import datetime
@@ -13,6 +14,9 @@ from .graphics import GraphicsRenderer
 from ..gst_utils import ensure_gst_initialized, get_gst, get_glib
 
 logger = logging.getLogger(__name__)
+
+# Enable Rockchip RGA for hardware-accelerated video conversion on RK3588
+os.environ["GST_VIDEO_CONVERT_USE_RGA"] = "1"
 
 # Timeout for state transitions (seconds)
 STATE_CHANGE_TIMEOUT = 10.0
@@ -73,6 +77,7 @@ class MixerCore:
         config: Any,  # AppConfig from config.py
         scene_manager: SceneManager,
         ingest_manager: Optional[Any] = None,  # IngestManager instance
+        graphics_renderer: Optional[Any] = None,  # Optional GraphicsRenderer from graphics plugin
         output_resolution: str = "1920x1080",
         output_bitrate: int = 8000,
         output_codec: str = "h264",
@@ -87,6 +92,7 @@ class MixerCore:
             config: Application configuration
             scene_manager: Scene manager instance
             ingest_manager: Ingest manager instance (for checking stream availability)
+            graphics_renderer: Optional graphics renderer from graphics plugin
             output_resolution: Output resolution (e.g., "1920x1080")
             output_bitrate: Output bitrate in kbps
             output_codec: Codec ("h264" or "h265")
@@ -98,6 +104,7 @@ class MixerCore:
         self.config = config
         self.scene_manager = scene_manager
         self.ingest_manager = ingest_manager
+        self.graphics_renderer = graphics_renderer  # Store optional graphics renderer
         self.output_resolution = output_resolution
         self.output_bitrate = output_bitrate
         self.output_codec = output_codec
@@ -416,6 +423,32 @@ class MixerCore:
         except Exception as e:
             logger.warning(f"Error checking ingest status for {cam_id}: {e}")
             return False
+    
+    def _check_mediamtx_stream(self, stream_path: str) -> bool:
+        """Check if a stream is available via MediaMTX API.
+        
+        Args:
+            stream_path: MediaMTX path (e.g., "guest1", "guest2")
+        
+        Returns:
+            True if stream is available, False otherwise
+        """
+        try:
+            import httpx
+            # MediaMTX API is on port 9997 by default
+            response = httpx.get(
+                f"http://127.0.0.1:9997/v3/paths/get/{stream_path}",
+                timeout=1.0
+            )
+            if response.status_code == 200:
+                data = response.json()
+                # Check if source is ready (someone is publishing)
+                source_ready = data.get("sourceReady", False)
+                logger.debug(f"MediaMTX stream check for {stream_path}: sourceReady={source_ready}")
+                return source_ready
+        except Exception as e:
+            logger.debug(f"Error checking MediaMTX stream {stream_path}: {e}")
+        return False
 
     def _build_pipeline(self):
         """Build the GStreamer compositor pipeline."""
@@ -540,6 +573,61 @@ class MixerCore:
                     logger.warning(f"Failed to create graphics source for {slot.source}")
                 continue
             
+            # Handle guest sources (remote guests via WHIP)
+            if slot.source.startswith("guest"):
+                guest_id = slot.source
+                
+                # Check if guest is configured
+                if guest_id not in self.config.guests:
+                    logger.debug(f"Guest {guest_id} not found in config, skipping")
+                    continue
+                
+                guest_config = self.config.guests[guest_id]
+                if not guest_config.enabled:
+                    logger.debug(f"Guest {guest_id} is disabled, skipping")
+                    continue
+                
+                # Check if guest is currently streaming via MediaMTX API
+                if not self._check_mediamtx_stream(guest_id):
+                    logger.info(f"Guest {guest_id} not streaming, skipping")
+                    continue
+                
+                rtsp_port = self.config.mediamtx.rtsp_port
+                rtsp_url = f"rtsp://127.0.0.1:{rtsp_port}/{guest_id}"
+                
+                logger.info(f"Using RTSP source for guest {guest_id} from MediaMTX: {rtsp_url}")
+                
+                # Build decoder string with hardware acceleration if available
+                decoder_str = _build_decoder_string(self._hardware_decoder)
+                
+                # Source from MediaMTX RTSP stream
+                source_str = (
+                    f"rtspsrc location={rtsp_url} latency=50 protocols=udp buffer-mode=auto ! "
+                    f"rtph264depay ! "
+                    f"h264parse ! "
+                    f"{decoder_str} ! "
+                    f"videoscale ! "
+                    f"video/x-raw,width={width},height={height} ! "
+                    f"queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream"
+                )
+                
+                # Apply crop if specified
+                if slot.crop_w < 1.0 or slot.crop_h < 1.0 or slot.crop_x > 0.0 or slot.crop_y > 0.0:
+                    source_width = int(width)
+                    source_height = int(height)
+                    crop_left = int(slot.crop_x * source_width)
+                    crop_top = int(slot.crop_y * source_height)
+                    crop_right = int((1.0 - slot.crop_x - slot.crop_w) * source_width)
+                    crop_bottom = int((1.0 - slot.crop_y - slot.crop_h) * source_height)
+                    source_str = source_str.replace(
+                        f"queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream",
+                        f"videocrop left={crop_left} top={crop_top} right={crop_right} bottom={crop_bottom} ! queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream"
+                    )
+                
+                source_branches.append((i, source_str, slot))
+                logger.info(f"Added guest source branch for {guest_id} from RTSP")
+                continue
+            
             # Handle camera sources
             if slot.source_type != "camera":
                 logger.warning(f"Unknown source type: {slot.source_type}, skipping")
@@ -571,9 +659,10 @@ class MixerCore:
             # Build decoder string with hardware acceleration if available
             decoder_str = _build_decoder_string(self._hardware_decoder)
             
-            # Source from MediaMTX RTSP stream with low latency settings
+            # Source from MediaMTX RTSP stream with optimized low latency settings
+            # UDP is faster than TCP for local connections, 50ms latency for mixer
             source_str = (
-                f"rtspsrc location={rtsp_url} latency=100 protocols=tcp ! "
+                f"rtspsrc location={rtsp_url} latency=50 protocols=udp buffer-mode=auto ! "
                 f"rtph264depay ! "
                 f"h264parse ! "
                 f"{decoder_str} ! "

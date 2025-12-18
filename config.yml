@@ -22,6 +22,12 @@ mediamtx:
   rtmp_port: 1935
   srt_port: 8890
 
+# Graphics plugin configuration
+graphics:
+  enabled: true
+  templates_dir: graphics_templates
+  output_dir: /tmp/graphics_output
+
 # Mixer configuration (optional)
 mixer:
   enabled: true  # Set to true to enable mixer
@@ -44,16 +50,17 @@ cameras:
   cam0:
     device: /dev/video0  # HDMI N0 (rkcif via LT6911 bridge)
     resolution: 1920x1080
-    bitrate: 5000
+    bitrate: 18000  # 18 Mbps target for actual ~12-15 Mbps
     codec: h264
     output_path: /mnt/sdcard/recordings/cam0/recording_%Y%m%d_%H%M%S.mp4
     mediamtx_enabled: true
     mediamtx_path: null  # Auto-generated if null: rtsp://localhost:8554/cam0
+    enabled: false  # Disabled - no camera connected
 
   cam1:
     device: /dev/video60  # HDMI N60 (hdmirx direct)
     resolution: 1920x1080
-    bitrate: 5000
+    bitrate: 18000  # 18 Mbps target for actual ~12-15 Mbps
     codec: h264
     output_path: /mnt/sdcard/recordings/cam1/recording_%Y%m%d_%H%M%S.mp4
     mediamtx_enabled: true
@@ -62,7 +69,7 @@ cameras:
   cam2:
     device: /dev/video11  # HDMI N11 (rkcif via LT6911 bridge)
     resolution: 1920x1080
-    bitrate: 5000
+    bitrate: 18000  # 18 Mbps target for actual ~12-15 Mbps
     codec: h264
     output_path: /mnt/sdcard/recordings/cam2/recording_%Y%m%d_%H%M%S.mp4
     mediamtx_enabled: true
@@ -71,9 +78,58 @@ cameras:
   cam3:
     device: /dev/video22  # HDMI N21 (rkcif-mipi-lvds2 via LT6911 2-002b bridge)
     resolution: 1920x1080
-    bitrate: 5000
-    codec: h265
+    bitrate: 18000  # 18 Mbps target for actual ~12-15 Mbps
+    codec: h264  # Changed from h265 to h264 for consistency
     output_path: /mnt/sdcard/recordings/cam3/recording_%Y%m%d_%H%M%S.mp4
     mediamtx_enabled: true
     mediamtx_path: null
+
+# Recording configuration
+recording:
+  enabled: true
+  gop: 30  # Keyframe interval (frames) - 1 second at 30fps
+  fragmented: true  # Enable fragmented MP4 for growing file editing
+  fragment_duration: 1000  # Fragment size (ms)
+  filename_pattern: "{cam_id}_{timestamp}.mp4"
+  min_disk_space_gb: 10  # Minimum disk space to start recording
+  warning_disk_space_gb: 5  # Warning threshold during recording
+
+# Cloudflare Calls configuration for remote guests
+# Enables remote guests to connect via Cloudflare's infrastructure
+cloudflare:
+  account_id: "909fc2cd90c5fa19833110165ccb9bd7"
+  calls_app_id: "56f5d93b573a427c45663a15cf5606a5"
+  calls_api_token: "25f9d97cdfaee83d141811fc07a87679ca521660b3eb59615f7d4bf3293c65e8"
+  calls_app_name: "r58-1"
+
+# Remote guests configuration
+# Guests connect via WHIP and appear as mixer inputs
+guests:
+  guest1:
+    name: "Guest 1"
+    enabled: true
+  guest2:
+    name: "Guest 2"
+    enabled: true
+
+# External cameras configuration
+# These cameras will be triggered to start/stop recording along with R58 cameras
+external_cameras:
+  - name: "BMD Cam 1"
+    type: blackmagic  # blackmagic or obsbot_tail2
+    ip: 192.168.1.101
+    port: 80  # Optional, defaults to 80 for Blackmagic
+    enabled: false  # Set to true when camera is available
+  
+  - name: "BMD Cam 2"
+    type: blackmagic
+    ip: 192.168.1.102
+    port: 80
+    enabled: false
+  
+  - name: "Obsbot PTZ"
+    type: obsbot_tail2
+    ip: 192.168.1.110
+    port: 52381  # Optional, defaults to 52381 for Obsbot
+    enabled: false
 

@@ -1,10 +1,11 @@
 """FastAPI application for R58 recorder."""
+import asyncio
 import logging
 import os
 import json
 from pathlib import Path
 from typing import Dict, Any, List, Optional
-from fastapi import FastAPI, HTTPException, UploadFile, File, Response
+from fastapi import FastAPI, HTTPException, UploadFile, File, Response, Request
 from fastapi.responses import JSONResponse, FileResponse, HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 import shutil
@@ -16,13 +17,9 @@ from .config import AppConfig
 from .ingest import IngestManager
 from .recorder import Recorder
 from .preview import PreviewManager
-from .mixer.scenes import SceneManager
-from .mixer.core import MixerCore
-from .mixer.graphics import GraphicsRenderer
-from .mixer.graphics_templates import get_template, list_templates, GraphicsTemplate
-from .mixer.database import Database
-from .mixer.files import FileManager
-from .mixer.queue import SceneQueue
+from .database import Database
+from .files import FileManager
+from .camera_control import CameraControlManager
 
 # Configure logging
 logging.basicConfig(
@@ -48,45 +45,81 @@ recorder = Recorder(config, ingest_manager=ingest_manager)
 # Initialize preview manager (delegates to ingest)
 preview_manager = PreviewManager(config, ingest_manager)
 
-# Initialize database
-database = Database(db_path="data/app.db")
-database.migrate_json_scenes(config.mixer.scenes_dir if config.mixer.enabled else "scenes")
+# Initialize camera control manager (for external cameras)
+camera_control_manager: Optional[CameraControlManager] = None
+if config.external_cameras:
+    try:
+        camera_control_manager = CameraControlManager(config.external_cameras)
+        logger.info(f"Camera control manager initialized with {camera_control_manager.get_camera_count()} external camera(s)")
+    except Exception as e:
+        logger.error(f"Failed to initialize camera control manager: {e}")
 
-# Initialize file manager
+# Initialize shared database (always available)
+database = Database(db_path="data/app.db")
+
+# Initialize shared file manager (always available)
 file_manager = FileManager(uploads_dir="uploads", database=database)
 
-# Initialize mixer (if enabled)
-mixer_core: Optional[MixerCore] = None
-scene_manager: Optional[SceneManager] = None
-graphics_renderer: Optional[GraphicsRenderer] = None
-scene_queue: Optional[SceneQueue] = None
+# Initialize Graphics plugin (optional)
+graphics_plugin = None
+graphics_renderer = None
+if config.graphics.enabled:
+    try:
+        from .graphics import create_graphics_plugin
+        graphics_plugin = create_graphics_plugin()
+        graphics_plugin.initialize(config)
+        graphics_renderer = graphics_plugin.renderer
+        logger.info("Graphics plugin initialized")
+    except Exception as e:
+        logger.error(f"Failed to initialize graphics plugin: {e}")
+        graphics_plugin = None  # Continue without graphics
+
+# Initialize Mixer plugin (optional, uses graphics if available)
+mixer_plugin = None
+mixer_core = None
+scene_manager = None
+scene_queue = None
 if config.mixer.enabled:
-    scene_manager = SceneManager(scenes_dir=config.mixer.scenes_dir)
-    
-    # Initialize queue with callback to advance scene
-    def queue_advance_callback(scene_id: str):
-        """Callback when queue advances to next scene."""
-        if mixer_core:
-            mixer_core.apply_scene(scene_id)
-    
-    scene_queue = SceneQueue(database=database, on_advance=queue_advance_callback)
-    
-    mixer_core = MixerCore(
-        config=config,
-        scene_manager=scene_manager,
-        ingest_manager=ingest_manager,
-        output_resolution=config.mixer.output_resolution,
-        output_bitrate=config.mixer.output_bitrate,
-        output_codec=config.mixer.output_codec,
-        recording_enabled=config.mixer.recording_enabled,
-        recording_path=config.mixer.recording_path,
-        mediamtx_enabled=config.mixer.mediamtx_enabled,
-        mediamtx_path=config.mixer.mediamtx_path,
-    )
-    graphics_renderer = GraphicsRenderer()
-    logger.info("Mixer Core initialized")
+    try:
+        from .mixer import create_mixer_plugin
+        mixer_plugin = create_mixer_plugin()
+        mixer_plugin.initialize(config, ingest_manager, database, graphics_plugin)
+        mixer_core = mixer_plugin.core
+        scene_manager = mixer_plugin.scene_manager
+        scene_queue = mixer_plugin.scene_queue
+        logger.info("Mixer plugin initialized")
+    except Exception as e:
+        logger.error(f"Failed to initialize mixer plugin: {e}")
+        mixer_plugin = None  # Continue without mixer
 else:
-    logger.info("Mixer Core disabled in configuration")
+    logger.info("Mixer plugin disabled in configuration")
+
+# Initialize Cloudflare Calls manager (for remote guests)
+calls_manager: Optional[Any] = None
+calls_relay: Optional[Any] = None
+if config.cloudflare.account_id and config.cloudflare.calls_api_token:
+    try:
+        from .cloudflare_calls import CloudflareCallsManager
+        from .calls_relay import CloudflareCallsRelay
+        
+        calls_manager = CloudflareCallsManager(
+            account_id=config.cloudflare.account_id,
+            app_id=config.cloudflare.calls_app_id,
+            api_token=config.cloudflare.calls_api_token
+        )
+        
+        calls_relay = CloudflareCallsRelay(
+            app_id=config.cloudflare.calls_app_id,
+            api_token=config.cloudflare.calls_api_token
+        )
+        
+        logger.info("Cloudflare Calls manager and relay initialized for remote guests")
+    except Exception as e:
+        logger.error(f"Failed to initialize Cloudflare Calls: {e}")
+        calls_manager = None
+        calls_relay = None
+else:
+    logger.info("Cloudflare Calls disabled - no credentials configured")
 
 # Create FastAPI app
 app = FastAPI(
@@ -200,6 +233,24 @@ async def library():
     return "<h1>Library</h1><p>Library page not found.</p>"
 
 
+@app.get("/guest_join", response_class=HTMLResponse)
+async def guest_join():
+    """Serve the guest join page."""
+    guest_join_path = Path(__file__).parent / "static" / "guest_join.html"
+    if guest_join_path.exists():
+        return guest_join_path.read_text()
+    return "<h1>Guest Join</h1><p>Guest join page not found.</p>"
+
+
+@app.get("/test_turn", response_class=HTMLResponse)
+async def test_turn():
+    """Serve the TURN connection test page."""
+    test_path = Path(__file__).parent.parent / "test_turn_connection.html"
+    if test_path.exists():
+        return test_path.read_text()
+    return "<h1>TURN Test</h1><p>Test page not found.</p>"
+
+
 @app.get("/health")
 async def health() -> Dict[str, Any]:
     """Health check endpoint - always responds even if GStreamer fails."""
@@ -258,6 +309,92 @@ async def stop_all_recordings() -> Dict[str, Any]:
     """Stop recording for all active cameras."""
     results = recorder.stop_all_recordings()
     return {"status": "completed", "cameras": {k: "stopped" if v else "not_recording" for k, v in results.items()}}
+
+
+@app.post("/api/trigger/start")
+async def trigger_start(session_name: Optional[str] = None) -> Dict[str, Any]:
+    """Start recording on all cameras with session management.
+    
+    This is the master trigger that starts all R58 recordings and can optionally
+    trigger external cameras (Blackmagic, Obsbot) if configured.
+    """
+    logger.info(f"Master trigger START called (session_name: {session_name})")
+    
+    # Start all R58 recordings
+    results = recorder.start_all_recordings()
+    
+    # Get session info
+    session_status = recorder.get_session_status()
+    session_id = session_status.get("session_id")
+    
+    # Trigger external cameras if configured
+    external_results = {}
+    if camera_control_manager:
+        try:
+            external_results = await camera_control_manager.start_all_recordings(session_id=session_id)
+            logger.info(f"External camera trigger results: {external_results}")
+        except Exception as e:
+            logger.error(f"Failed to trigger external cameras: {e}")
+    
+    return {
+        "status": "started",
+        "session_id": session_id,
+        "cameras": {k: "recording" if v else "failed" for k, v in results.items()},
+        "external_cameras": {k: "recording" if v else "failed" for k, v in external_results.items()}
+    }
+
+
+@app.post("/api/trigger/stop")
+async def trigger_stop() -> Dict[str, Any]:
+    """Stop all recordings and finalize session metadata."""
+    logger.info("Master trigger STOP called")
+    
+    # Get session info before stopping
+    session_status = recorder.get_session_status()
+    session_id = session_status.get("session_id")
+    
+    # Stop all R58 recordings
+    results = recorder.stop_all_recordings()
+    
+    # Stop external cameras if configured
+    external_results = {}
+    if camera_control_manager:
+        try:
+            external_results = await camera_control_manager.stop_all_recordings()
+            logger.info(f"External camera stop results: {external_results}")
+        except Exception as e:
+            logger.error(f"Failed to stop external cameras: {e}")
+    
+    return {
+        "status": "stopped",
+        "session_id": session_id,
+        "cameras": {k: "stopped" if v else "not_recording" for k, v in results.items()},
+        "external_cameras": {k: "stopped" if v else "failed" for k, v in external_results.items()}
+    }
+
+
+@app.get("/api/trigger/status")
+async def trigger_status() -> Dict[str, Any]:
+    """Get current recording state, duration, and session info."""
+    session_status = recorder.get_session_status()
+    
+    # Add disk space info
+    try:
+        disk = shutil.disk_usage("/mnt/sdcard")
+        disk_info = {
+            "free_gb": round(disk.free / (1024**3), 2),
+            "total_gb": round(disk.total / (1024**3), 2),
+            "used_gb": round(disk.used / (1024**3), 2),
+            "percent_used": round((disk.used / disk.total) * 100, 1)
+        }
+    except Exception as e:
+        logger.error(f"Failed to get disk space: {e}")
+        disk_info = {"error": str(e)}
+    
+    return {
+        **session_status,
+        "disk": disk_info
+    }
 
 
 @app.post("/preview/start-all")
@@ -425,6 +562,115 @@ async def proxy_hls(stream_path: str):
         raise HTTPException(status_code=503, detail="Cannot connect to MediaMTX - service may be down")
     except Exception as e:
         logger.error(f"HLS proxy error for {stream_path}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/whip/{stream_path}")
+async def proxy_whip(stream_path: str, request: Request):
+    """Proxy WHIP requests to MediaMTX for remote guest publishing.
+    
+    WHIP (WebRTC-HTTP Ingestion Protocol) allows guests to publish
+    WebRTC streams through HTTP POST requests.
+    
+    Example: /whip/guest1
+    """
+    try:
+        # Read the SDP offer from request body
+        sdp_offer = await request.body()
+        
+        # Forward to MediaMTX WHIP endpoint
+        mediamtx_whip_url = f"http://localhost:8889/{stream_path}/whip"
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                mediamtx_whip_url,
+                content=sdp_offer,
+                headers={
+                    "Content-Type": "application/sdp"
+                },
+                timeout=10.0
+            )
+            
+            if response.status_code == 404:
+                raise HTTPException(status_code=404, detail=f"Stream path not found: {stream_path}")
+            
+            if not response.is_success:
+                logger.error(f"WHIP proxy error for {stream_path}: {response.status_code} - {response.text}")
+                raise HTTPException(
+                    status_code=response.status_code,
+                    detail=f"MediaMTX WHIP error: {response.text}"
+                )
+            
+            # Return the SDP answer
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                media_type="application/sdp",
+                headers={
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "POST, OPTIONS",
+                    "Access-Control-Allow-Headers": "Content-Type",
+                }
+            )
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=504, detail="WHIP timeout - MediaMTX may not be responding")
+    except httpx.ConnectError:
+        raise HTTPException(status_code=503, detail="Cannot connect to MediaMTX - service may be down")
+    except Exception as e:
+        logger.error(f"WHIP proxy error for {stream_path}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.options("/whip/{stream_path}")
+async def whip_options(stream_path: str):
+    """Handle CORS preflight for WHIP requests."""
+    return Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type",
+        }
+    )
+
+
+@app.get("/api/turn-credentials")
+async def get_turn_credentials() -> Dict[str, Any]:
+    """Generate short-lived Cloudflare TURN credentials for remote WebRTC guests.
+    
+    This endpoint calls the Cloudflare TURN API to generate ICE servers with
+    temporary credentials (24 hour TTL). These credentials enable remote guests
+    to connect via WebRTC through the Cloudflare Tunnel by using TURN relay.
+    """
+    TURN_TOKEN_ID = "79d61c83455a63d11a18c17bedb53d3f"
+    API_TOKEN = "9054653545421be55e42219295b74b1036d261e1c0259c2cf410fb9d8a372984"
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"https://rtc.live.cloudflare.com/v1/turn/keys/{TURN_TOKEN_ID}/credentials/generate-ice-servers",
+                headers={
+                    "Authorization": f"Bearer {API_TOKEN}",
+                    "Content-Type": "application/json"
+                },
+                json={"ttl": 86400},  # 24 hour validity
+                timeout=10.0
+            )
+            
+            if not response.is_success:
+                logger.error(f"Cloudflare TURN API error: {response.status_code} - {response.text}")
+                raise HTTPException(
+                    status_code=response.status_code,
+                    detail=f"Failed to get TURN credentials: {response.text}"
+                )
+            
+            return response.json()
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=504, detail="TURN API timeout")
+    except httpx.ConnectError:
+        raise HTTPException(status_code=503, detail="Cannot connect to Cloudflare TURN API")
+    except Exception as e:
+        logger.error(f"Error getting TURN credentials: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -681,6 +927,40 @@ async def get_recording(cam_id: str, filename: str) -> FileResponse:
         filename=filename,
         media_type="video/mp4",
     )
+
+
+@app.get("/api/sessions")
+async def list_sessions() -> Dict[str, Any]:
+    """List all recording sessions."""
+    sessions_dir = Path("data/sessions")
+    sessions = []
+    
+    if sessions_dir.exists():
+        for session_file in sorted(sessions_dir.glob("*.json"), reverse=True):
+            try:
+                with open(session_file, 'r') as f:
+                    session_data = json.load(f)
+                    sessions.append(session_data)
+            except Exception as e:
+                logger.error(f"Failed to read session file {session_file}: {e}")
+    
+    return {"sessions": sessions}
+
+
+@app.get("/api/sessions/{session_id}")
+async def get_session(session_id: str) -> Dict[str, Any]:
+    """Get metadata for a specific session."""
+    sessions_dir = Path("data/sessions")
+    session_file = sessions_dir / f"{session_id}.json"
+    
+    if not session_file.exists():
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    try:
+        with open(session_file, 'r') as f:
+            return json.load(f)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to read session: {e}")
 
 
 @app.get("/api/recordings")
@@ -1033,6 +1313,159 @@ async def get_mixer_status() -> Dict[str, Any]:
     return mixer_core.get_status()
 
 
+@app.get("/api/guests/status")
+async def get_guests_status() -> Dict[str, Any]:
+    """Get status of all remote guests (check if they're streaming via MediaMTX)."""
+    guests_status = {}
+    
+    for guest_id, guest_config in config.guests.items():
+        if not guest_config.enabled:
+            guests_status[guest_id] = {
+                "name": guest_config.name,
+                "enabled": False,
+                "streaming": False
+            }
+            continue
+        
+        # Check MediaMTX API for stream status
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"http://127.0.0.1:9997/v3/paths/get/{guest_id}",
+                    timeout=1.0
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    source_ready = data.get("sourceReady", False)
+                    guests_status[guest_id] = {
+                        "name": guest_config.name,
+                        "enabled": True,
+                        "streaming": source_ready
+                    }
+                else:
+                    guests_status[guest_id] = {
+                        "name": guest_config.name,
+                        "enabled": True,
+                        "streaming": False
+                    }
+        except Exception as e:
+            logger.debug(f"Error checking guest {guest_id} status: {e}")
+            guests_status[guest_id] = {
+                "name": guest_config.name,
+                "enabled": True,
+                "streaming": False
+            }
+    
+    return {"guests": guests_status}
+
+
+# Cloudflare Calls API endpoints (for remote guests)
+@app.post("/api/calls/whip/{guest_id}")
+async def cloudflare_calls_whip(guest_id: str, request: Request) -> Response:
+    """Proxy WHIP requests to Cloudflare Calls for remote guests.
+    
+    This endpoint receives SDP offers from guests, forwards them to Cloudflare Calls,
+    and returns the SDP answer. The guest then connects to Cloudflare's infrastructure.
+    After connection, starts a relay to pull the stream and push to MediaMTX.
+    """
+    if not calls_manager or not calls_relay:
+        raise HTTPException(status_code=503, detail="Cloudflare Calls not configured")
+    
+    if guest_id not in config.guests or not config.guests[guest_id].enabled:
+        raise HTTPException(status_code=400, detail=f"Invalid or disabled guest: {guest_id}")
+    
+    try:
+        # Read SDP offer from request body
+        sdp_offer = (await request.body()).decode('utf-8')
+        
+        # Create guest session using two-step flow (returns session_id, sdp_answer, track_names)
+        session_data = await calls_manager.create_guest_session(guest_id, sdp_offer)
+        session_id = session_data['session_id']
+        track_names = session_data['track_names']
+        
+        logger.info(f"Cloudflare Calls session created for {guest_id}: {session_id} with tracks {track_names}")
+        
+        # Start relay in background (after a short delay to let tracks be published)
+        rtmp_port = config.mediamtx.rtmp_port
+        rtmp_url = f"rtmp://127.0.0.1:{rtmp_port}/{guest_id}"
+        
+        async def start_relay_delayed():
+            await asyncio.sleep(2)  # Wait for guest to publish tracks
+            try:
+                await calls_relay.subscribe_and_relay(
+                    guest_session_id=session_id,
+                    track_names=track_names,
+                    guest_id=guest_id,
+                    rtmp_url=rtmp_url
+                )
+                logger.info(f"Relay started for {guest_id}: Cloudflare -> MediaMTX")
+            except Exception as e:
+                logger.error(f"Failed to start relay for {guest_id}: {e}")
+        
+        asyncio.create_task(start_relay_delayed())
+        
+        # Return SDP answer
+        return Response(
+            content=session_data["sdp_answer"],
+            media_type="application/sdp",
+            headers={
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "POST, OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type",
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f"Failed to create Cloudflare Calls session for {guest_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create session: {str(e)}")
+
+
+@app.options("/api/calls/whip/{guest_id}")
+async def cloudflare_calls_whip_options(guest_id: str):
+    """Handle CORS preflight for Cloudflare Calls WHIP requests."""
+    return Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type",
+        }
+    )
+
+
+@app.delete("/api/calls/session/{guest_id}")
+async def close_calls_session(guest_id: str) -> Dict[str, str]:
+    """Close a Cloudflare Calls session and relay for a guest."""
+    if not calls_manager or not calls_relay:
+        raise HTTPException(status_code=503, detail="Cloudflare Calls not configured")
+    
+    try:
+        # Stop relay first
+        await calls_relay.stop_relay(guest_id)
+        
+        # Then close Cloudflare session
+        success = await calls_manager.close_guest_session(guest_id)
+        
+        if success:
+            logger.info(f"Closed Cloudflare Calls session and relay for {guest_id}")
+            return {"status": "closed", "guest_id": guest_id}
+        else:
+            return {"status": "no_session", "guest_id": guest_id}
+    except Exception as e:
+        logger.error(f"Error closing Cloudflare Calls session for {guest_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to close session: {str(e)}")
+
+
+@app.get("/api/calls/sessions")
+async def get_active_calls_sessions() -> Dict[str, Any]:
+    """Get all active Cloudflare Calls sessions."""
+    if not calls_manager:
+        return {"sessions": {}}
+    
+    active_sessions = calls_manager.get_active_sessions()
+    return {"sessions": active_sessions}
+
+
 # Graphics/Presentation API endpoints
 @app.get("/api/graphics/presentations")
 async def list_presentations() -> Dict[str, Any]:
@@ -1278,7 +1711,10 @@ async def list_graphics_templates(template_type: Optional[str] = None) -> Dict[s
     Query parameters:
         - template_type: Filter by type (e.g., "lower_third")
     """
-    templates = list_templates(template_type)
+    if not graphics_plugin:
+        raise HTTPException(status_code=503, detail="Graphics not enabled")
+    
+    templates = graphics_plugin.list_templates(template_type)
     return {
         "templates": [
             {
@@ -1296,7 +1732,10 @@ async def list_graphics_templates(template_type: Optional[str] = None) -> Dict[s
 @app.get("/api/graphics/templates/{template_id}")
 async def get_graphics_template(template_id: str) -> Dict[str, Any]:
     """Get a specific graphics template."""
-    template = get_template(template_id)
+    if not graphics_plugin:
+        raise HTTPException(status_code=503, detail="Graphics not enabled")
+    
+    template = graphics_plugin.get_template(template_id)
     if not template:
         raise HTTPException(status_code=404, detail=f"Template {template_id} not found")
     
@@ -1320,7 +1759,10 @@ async def apply_template(template_id: str, request: Dict[str, Any]) -> Dict[str,
     if not graphics_renderer:
         raise HTTPException(status_code=503, detail="Graphics renderer not available")
     
-    template = get_template(template_id)
+    if not graphics_plugin:
+        raise HTTPException(status_code=503, detail="Graphics not enabled")
+    
+    template = graphics_plugin.get_template(template_id)
     if not template:
         raise HTTPException(status_code=404, detail=f"Template {template_id} not found")
     
@@ -1727,6 +2169,27 @@ async def clear_queue() -> Dict[str, str]:
         raise HTTPException(status_code=500, detail="Failed to clear queue")
     
     return {"status": "cleared"}
+
+
+# Cleanup on shutdown
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Cleanup resources on application shutdown."""
+    logger.info("Application shutting down...")
+    
+    # Cleanup Cloudflare Calls relays
+    if calls_relay:
+        try:
+            await calls_relay.cleanup_all()
+        except Exception as e:
+            logger.error(f"Error cleaning up Cloudflare Calls relays: {e}")
+    
+    # Cleanup Cloudflare Calls sessions
+    if calls_manager:
+        try:
+            await calls_manager.cleanup_all_sessions()
+        except Exception as e:
+            logger.error(f"Error cleaning up Cloudflare Calls sessions: {e}")
 
 
 if __name__ == "__main__":
