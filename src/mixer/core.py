@@ -314,9 +314,17 @@ class MixerCore:
             current_sources = {slot.source for slot in self.current_scene.slots} if self.current_scene else set()
             new_sources = {slot.source for slot in scene.slots}
             
-            if current_sources != new_sources:
-                # Different sources - need to rebuild pipeline
-                logger.info(f"Scene {scene_id} uses different sources, rebuilding pipeline")
+            # Check if new scene requires sources we don't have
+            sources_to_add = new_sources - current_sources
+            sources_to_remove = current_sources - new_sources
+            
+            if sources_to_add:
+                # Need to add new sources - must rebuild pipeline
+                logger.info(f"Scene {scene_id} requires pipeline rebuild (new sources needed)")
+                logger.info(f"  Current sources: {current_sources}")
+                logger.info(f"  New sources: {new_sources}")
+                logger.info(f"  Sources to add: {sources_to_add}")
+                logger.info(f"  Sources to remove: {sources_to_remove}")
                 was_playing = (self.state == "PLAYING")
                 
                 # Stop current pipeline
@@ -343,17 +351,35 @@ class MixerCore:
                 else:
                     logger.error("Failed to restart pipeline after scene change")
                     return False
+            
+            # If we're here, new scene uses subset or same sources as current
+            # We can update pad properties and hide unused sources with alpha=0
+            if sources_to_remove:
+                logger.info(f"Scene {scene_id} uses subset of current sources, updating pads (fast path)")
+                logger.info(f"  Hiding unused sources: {sources_to_remove}")
 
-            # Same sources - just update pad properties
+            # Update pad properties (fast path - no pipeline rebuild)
             try:
                 compositor = self.pipeline.get_by_name("compositor")
                 if not compositor:
                     logger.error("Compositor element not found")
                     return False
 
-                # Update compositor pad properties for each slot
+                # Build mapping of source to current pad index
+                current_source_to_pad = {}
+                if self.current_scene:
+                    for i, slot in enumerate(self.current_scene.slots):
+                        current_source_to_pad[slot.source] = i
+                
+                # Update pads for new scene slots
                 for i, slot in enumerate(scene.slots):
-                    pad_name = f"sink_{i}"
+                    # Find which pad has this source
+                    if slot.source not in current_source_to_pad:
+                        logger.error(f"Source {slot.source} not in current pipeline (should not happen)")
+                        continue
+                    
+                    pad_index = current_source_to_pad[slot.source]
+                    pad_name = f"sink_{pad_index}"
                     pad = compositor.get_static_pad(pad_name)
                     if not pad:
                         logger.warning(f"Pad {pad_name} not found for source {slot.source}")
@@ -369,12 +395,22 @@ class MixerCore:
                     pad.set_property("zorder", slot.z)
                     pad.set_property("alpha", slot.alpha)
 
-                    logger.debug(f"Set pad {pad_name} ({slot.source}): "
+                    logger.debug(f"Updated pad {pad_name} ({slot.source}): "
                                f"x={coords['x']}, y={coords['y']}, "
-                               f"w={coords['w']}, h={coords['h']}, z={slot.z}")
+                               f"w={coords['w']}, h={coords['h']}, z={slot.z}, alpha={slot.alpha}")
+                
+                # Hide pads for sources not in new scene (set alpha=0)
+                for source in sources_to_remove:
+                    if source in current_source_to_pad:
+                        pad_index = current_source_to_pad[source]
+                        pad_name = f"sink_{pad_index}"
+                        pad = compositor.get_static_pad(pad_name)
+                        if pad:
+                            pad.set_property("alpha", 0.0)
+                            logger.debug(f"Hidden pad {pad_name} ({source}) with alpha=0")
 
                 self.current_scene = scene
-                logger.info(f"Scene applied: {scene_id}")
+                logger.info(f"Scene applied (fast path): {scene_id}")
                 return True
 
             except Exception as e:
