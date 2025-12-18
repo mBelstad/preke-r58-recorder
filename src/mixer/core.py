@@ -512,6 +512,227 @@ class MixerCore:
                 self.last_error = str(e)
                 return False
 
+    def transition_to_scene(
+        self, 
+        scene_id: str, 
+        transition_type: str = "cut",
+        duration_ms: int = 500
+    ) -> bool:
+        """Transition to a new scene with animation.
+        
+        Args:
+            scene_id: Target scene ID
+            transition_type: "cut" (instant), "mix" (crossfade), "auto" (timed mix)
+            duration_ms: Transition duration in milliseconds (for mix/auto)
+        
+        Returns:
+            True if transition started successfully
+        """
+        if transition_type == "cut":
+            return self.apply_scene(scene_id)
+        
+        if transition_type in ("mix", "auto"):
+            return self._crossfade_transition(scene_id, duration_ms)
+        
+        logger.warning(f"Unknown transition type: {transition_type}, using cut")
+        return self.apply_scene(scene_id)
+
+    def _crossfade_transition(self, scene_id: str, duration_ms: int) -> bool:
+        """Perform crossfade transition by animating alpha values.
+        
+        Args:
+            scene_id: Target scene ID
+            duration_ms: Duration of crossfade in milliseconds
+        
+        Returns:
+            True if transition started successfully
+        """
+        GLib = get_glib()
+        Gst = get_gst()
+        
+        scene = self.scene_manager.get_scene(scene_id)
+        if not scene:
+            logger.error(f"Scene not found: {scene_id}")
+            return False
+
+        with self._lock:
+            if not self.pipeline or self.state != "PLAYING":
+                logger.error("Cannot transition: mixer not playing")
+                return False
+            
+            compositor = self.pipeline.get_by_name("compositor")
+            if not compositor:
+                logger.error("Compositor element not found")
+                return False
+            
+            # Get current scene sources
+            current_sources = set()
+            if self.current_scene:
+                current_sources = {slot.source for slot in self.current_scene.slots}
+            
+            # Get new scene sources
+            new_sources = {slot.source for slot in scene.slots}
+            
+            # Check if we need to rebuild pipeline (new sources not in current)
+            if not new_sources.issubset(current_sources):
+                # Need to rebuild pipeline first with merged sources
+                logger.info(f"Crossfade requires pipeline rebuild (new sources: {new_sources - current_sources})")
+                
+                # Build merged scene with all sources
+                merged_sources = current_sources.union(new_sources)
+                merged_scene = self._create_merged_scene(scene, merged_sources)
+                
+                # Rebuild pipeline
+                if not self._rebuild_pipeline_with_scene(merged_scene):
+                    logger.error("Failed to rebuild pipeline for crossfade")
+                    return False
+            
+            # Now perform crossfade animation
+            # Build mapping of source to pad index
+            source_to_pad = {}
+            if self.current_scene:
+                for i, slot in enumerate(self.current_scene.slots):
+                    source_to_pad[slot.source] = i
+            
+            # Animation parameters
+            fps = 30  # 30 frames per second
+            total_frames = int((duration_ms / 1000.0) * fps)
+            frame_interval_ms = int(1000 / fps)
+            current_frame = [0]  # Use list for mutable closure
+            
+            # Store target alpha values for each source
+            target_alphas = {}
+            for slot in scene.slots:
+                target_alphas[slot.source] = slot.alpha
+            
+            # Sources to fade out (in current but not in new)
+            sources_to_fade_out = current_sources - new_sources
+            
+            def animate_frame():
+                """Animate one frame of the crossfade."""
+                current_frame[0] += 1
+                progress = current_frame[0] / total_frames
+                
+                try:
+                    # Update alpha for sources in new scene (fade in)
+                    for slot in scene.slots:
+                        if slot.source in source_to_pad:
+                            pad_index = source_to_pad[slot.source]
+                            pad = compositor.get_static_pad(f"sink_{pad_index}")
+                            if pad:
+                                # Interpolate alpha from current to target
+                                new_alpha = progress * target_alphas[slot.source]
+                                pad.set_property("alpha", new_alpha)
+                                
+                                # Also update position/size
+                                coords = scene.get_absolute_coords(slot)
+                                pad.set_property("xpos", coords["x"])
+                                pad.set_property("ypos", coords["y"])
+                                pad.set_property("width", coords["w"])
+                                pad.set_property("height", coords["h"])
+                                pad.set_property("zorder", slot.z)
+                    
+                    # Fade out sources not in new scene
+                    for source in sources_to_fade_out:
+                        if source in source_to_pad:
+                            pad_index = source_to_pad[source]
+                            pad = compositor.get_static_pad(f"sink_{pad_index}")
+                            if pad:
+                                # Fade out from 1.0 to 0.0
+                                new_alpha = 1.0 - progress
+                                pad.set_property("alpha", new_alpha)
+                    
+                    # Continue animation if not finished
+                    if current_frame[0] < total_frames:
+                        return True  # Continue timeout
+                    else:
+                        # Animation complete, update current scene
+                        self.current_scene = scene
+                        logger.info(f"Crossfade transition complete: {scene_id}")
+                        return False  # Stop timeout
+                        
+                except Exception as e:
+                    logger.error(f"Error during crossfade animation: {e}")
+                    return False  # Stop on error
+            
+            # Start animation
+            GLib.timeout_add(frame_interval_ms, animate_frame)
+            logger.info(f"Started crossfade transition to {scene_id} ({duration_ms}ms, {total_frames} frames)")
+            return True
+
+    def _create_merged_scene(self, target_scene: "Scene", sources: set) -> "Scene":
+        """Create a temporary scene that includes all specified sources.
+        
+        Args:
+            target_scene: The target scene to transition to
+            sources: Set of all source IDs to include
+        
+        Returns:
+            A new Scene object with merged sources
+        """
+        from .scenes import Scene, SceneSlot
+        
+        merged_slots = []
+        for source_id in sources:
+            # Try to find existing slot in target scene
+            existing_slot = next((s for s in target_scene.slots if s.source == source_id), None)
+            if existing_slot:
+                merged_slots.append(existing_slot)
+            else:
+                # Create hidden slot for sources not in target
+                merged_slots.append(SceneSlot(
+                    source=source_id,
+                    source_type="camera",
+                    x_rel=0.0, y_rel=0.0, w_rel=0.01, h_rel=0.01,
+                    z=0, alpha=0.0  # Hidden
+                ))
+        
+        # Create merged scene
+        import time
+        merged_scene_id = f"merged_{int(time.time() * 1000)}"
+        return Scene(
+            id=merged_scene_id,
+            label=f"Merged for {target_scene.id}",
+            resolution=target_scene.resolution,
+            slots=merged_slots
+        )
+    
+    def _rebuild_pipeline_with_scene(self, scene: "Scene") -> bool:
+        """Rebuild pipeline with a specific scene.
+        
+        Args:
+            scene: Scene to build pipeline for
+        
+        Returns:
+            True if rebuild successful
+        """
+        try:
+            # Stop current pipeline
+            if self.pipeline:
+                self.pipeline.set_state(get_gst().State.NULL)
+                self.pipeline = None
+            
+            # Build new pipeline
+            self.current_scene = scene
+            self.pipeline = self._build_pipeline()
+            
+            if not self.pipeline:
+                logger.error("Failed to build new pipeline")
+                return False
+            
+            # Start pipeline
+            ret = self.pipeline.set_state(get_gst().State.PLAYING)
+            if ret == get_gst().StateChangeReturn.FAILURE:
+                logger.error("Failed to start rebuilt pipeline")
+                return False
+            
+            logger.info(f"Pipeline rebuilt successfully with scene: {scene.id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error rebuilding pipeline: {e}")
+            return False
+
     def get_status(self) -> Dict[str, Any]:
         """Get mixer status."""
         with self._lock:

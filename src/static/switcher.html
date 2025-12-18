@@ -2234,7 +2234,9 @@
             // System controls
             document.getElementById('startBtn')?.addEventListener('click', startMixer);
             document.getElementById('stopBtn')?.addEventListener('click', stopMixer);
-            document.getElementById('takeButton')?.addEventListener('click', takePreview);
+            document.getElementById('takeButton')?.addEventListener('click', () => {
+                performTransition(currentTransitionType);
+            });
             
             // Transition buttons
             document.getElementById('cutBtn')?.addEventListener('click', () => performTransition('cut'));
@@ -2387,6 +2389,7 @@
                 
                 // Update UI
                 updateSceneButtons();
+                updateTakeButtonState();
                 
                 console.log(`Scene ${sceneId} loaded in preview (not applied to mixer yet)`);
             } catch (error) {
@@ -2590,7 +2593,13 @@
         // Take preview to program (REFACTORED - proper A/B bus transition)
         async function takePreview() {
             if (!previewSceneId) {
-                console.warn('No scene in preview to take');
+                showToast('No scene in preview', 'warning', 2000);
+                return;
+            }
+            
+            // Check mixer is running
+            if (mixerState !== 'PLAYING') {
+                showToast('Start mixer first', 'warning', 2000);
                 return;
             }
             
@@ -2610,21 +2619,49 @@
                     programSceneId = previewSceneId;
                     currentProgramScene = previewSceneId; // Legacy compatibility
                     
+                    // CRITICAL FIX: Clear preview state
+                    previewSceneId = null;
+                    previewSceneData = null;
+                    cleanupPreviewComposite();
+                    
+                    // CRITICAL FIX: Force load program video
+                    forceLoadProgramVideo();
+                    
                     // Update UI
                     updateSceneButtons();
                     updateTallyLights();
-                    await checkMixerStatus();
+                    updateTakeButtonState();
                     
-                    console.log(`TAKE: Scene ${previewSceneId} is now live in program`);
-                    showToast(`Scene ${previewSceneId} is now live`, 'success', 2000);
+                    console.log(`TAKE: Scene ${programSceneId} is now live in program`);
+                    showToast(`Scene is now live`, 'success', 2000);
                 } else {
                     const data = await response.json().catch(() => ({}));
                     showError(data.detail || 'Failed to apply scene to program');
                 }
             } catch (error) {
                 console.error('Failed to take preview:', error);
-                showError('Failed to take preview: ' + error.message);
+                showError('Failed to take: ' + error.message);
             }
+        }
+        
+        function forceLoadProgramVideo() {
+            const video = document.getElementById('programVideo');
+            const placeholder = document.getElementById('programPlaceholder');
+            
+            if (!video || !placeholder) return;
+            
+            // Cleanup existing connection
+            if (hlsInstances['program']) {
+                hlsInstances['program'].destroy();
+                delete hlsInstances['program'];
+            }
+            if (webrtcClients['program']) {
+                cleanupWebRTCClient('program');
+            }
+            
+            // Force reload
+            placeholder.style.display = 'none';
+            loadStreamWithWebRTC(video, 'mixer_program', 'program');
         }
 
         // Initialize compact inputs
@@ -2936,6 +2973,7 @@
             }
 
             updateSceneButtons();
+            updateTakeButtonState();
             
             // Update current scene if changed
             if (currentScene && currentScene !== currentProgramScene) {
@@ -3472,10 +3510,80 @@
         }
 
         // Perform transition
-        function performTransition(type) {
-            // Transition logic here
-            document.querySelectorAll('.btn-transition').forEach(btn => btn.classList.remove('active'));
+        // Track current transition type
+        let currentTransitionType = 'cut';  // Default to cut
+        
+        function updateTakeButtonState() {
+            const takeBtn = document.getElementById('takeButton');
+            if (takeBtn) {
+                const isDisabled = mixerState !== 'PLAYING' || !previewSceneId;
+                takeBtn.disabled = isDisabled;
+                takeBtn.style.opacity = isDisabled ? '0.5' : '1';
+                
+                if (mixerState !== 'PLAYING') {
+                    takeBtn.title = 'Start mixer first';
+                } else if (!previewSceneId) {
+                    takeBtn.title = 'Select a scene first';
+                } else {
+                    takeBtn.title = `Take to program (${currentTransitionType.toUpperCase()})`;
+                }
+            }
+        }
+        
+        function selectTransition(type) {
+            currentTransitionType = type;
+            document.querySelectorAll('.btn-transition').forEach(btn => {
+                btn.classList.remove('active');
+            });
             document.getElementById(`${type}Btn`)?.classList.add('active');
+        }
+        
+        async function performTransition(type) {
+            selectTransition(type);
+            
+            if (!previewSceneId) {
+                showToast('Select a scene first', 'warning', 2000);
+                return;
+            }
+            
+            if (mixerState !== 'PLAYING') {
+                showToast('Start mixer first', 'warning', 2000);
+                return;
+            }
+            
+            try {
+                const duration = type === 'auto' ? 1000 : (type === 'mix' ? 500 : 0);
+                
+                showToast(`Transitioning (${type.toUpperCase()})...`, 'info', 0);
+                
+                const response = await fetch(`${API_BASE}/api/mixer/transition`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        scene_id: previewSceneId,
+                        transition: type,
+                        duration: duration
+                    })
+                });
+                
+                if (response.ok) {
+                    programSceneId = previewSceneId;
+                    previewSceneId = null;
+                    previewSceneData = null;
+                    cleanupPreviewComposite();
+                    forceLoadProgramVideo();
+                    updateSceneButtons();
+                    updateTallyLights();
+                    updateTakeButtonState();
+                    showToast(`Scene is now live`, 'success', 2000);
+                } else {
+                    const data = await response.json().catch(() => ({}));
+                    showError(data.detail || 'Transition failed');
+                }
+            } catch (error) {
+                console.error('Transition failed:', error);
+                showError('Transition failed: ' + error.message);
+            }
         }
 
         // Select input

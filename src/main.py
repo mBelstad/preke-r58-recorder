@@ -1293,6 +1293,41 @@ async def set_scene(request: Dict[str, str]) -> Dict[str, str]:
     return {"status": "applied", "scene_id": scene_id}
 
 
+@app.post("/api/mixer/transition")
+async def transition_scene(request: Dict[str, Any]) -> Dict[str, str]:
+    """Transition to a scene with animation.
+    
+    Body:
+        scene_id: Scene ID to transition to
+        transition: Transition type ("cut", "mix", "auto")
+        duration: Duration in milliseconds (default: 500 for mix, 1000 for auto)
+    """
+    if not mixer_core:
+        raise HTTPException(status_code=503, detail="Mixer not enabled")
+    
+    scene_id = request.get("scene_id")
+    transition = request.get("transition", "cut")
+    duration = request.get("duration")
+    
+    if not scene_id:
+        raise HTTPException(status_code=400, detail="Scene ID required")
+    
+    # Set default durations based on transition type
+    if duration is None:
+        if transition == "auto":
+            duration = 1000  # 1 second for auto
+        elif transition == "mix":
+            duration = 500  # 0.5 seconds for mix
+        else:
+            duration = 0  # Instant for cut
+    
+    success = mixer_core.transition_to_scene(scene_id, transition, duration)
+    if not success:
+        raise HTTPException(status_code=500, detail=f"Transition failed")
+    
+    return {"status": "transitioning", "scene_id": scene_id, "transition": transition, "duration": duration}
+
+
 @app.post("/api/mixer/start")
 async def start_mixer() -> Dict[str, str]:
     """Start the mixer pipeline."""
