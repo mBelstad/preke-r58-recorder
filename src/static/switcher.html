@@ -197,12 +197,23 @@
             transition: all var(--transition-fast);
         }
 
+        /* Hide border when video is active (not placeholder) */
+        .compact-input.has-video {
+            border: none;
+        }
+
         .compact-input:hover {
             border-color: var(--border-focus);
         }
 
         .compact-input.tally-pgm {
             border-color: var(--accent-danger);
+            box-shadow: 0 0 0 2px var(--accent-danger);
+        }
+
+        /* Tally light overrides border hiding */
+        .compact-input.has-video.tally-pgm {
+            border: 2px solid var(--accent-danger);
             box-shadow: 0 0 0 2px var(--accent-danger);
         }
 
@@ -223,6 +234,11 @@
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+        }
+
+        /* Hide label when video is active */
+        .compact-input.has-video .compact-input-label {
+            display: none;
         }
         
         .compact-input-status {
@@ -2368,7 +2384,8 @@
             // Sort slots by z-order
             const sortedSlots = [...scene.slots].sort((a, b) => a.z - b.z);
             
-            // Create video element for each slot
+            // Create video element for each slot (synchronously first, then load streams)
+            const loadPromises = [];
             for (const slot of sortedSlots) {
                 const wrapper = document.createElement('div');
                 wrapper.className = 'preview-slot';
@@ -2388,27 +2405,31 @@
                 video.muted = true;
                 video.playsInline = true;
                 
-                // Load stream for this source
-                const instanceId = `preview-${slot.source}`;
-                
-                // Check if we already have this stream in compact inputs
-                const existingInput = document.querySelector(`[data-source="${slot.source}"] video`);
+                // Try to reuse existing stream from compact inputs (much faster!)
+                const existingInput = document.querySelector(`[data-camera-id="${slot.source}"] video, [data-guest-id="${slot.source}"] video`);
                 if (existingInput && existingInput.srcObject) {
-                    // Clone the MediaStream if available
+                    // Reuse the MediaStream directly (no new connection needed!)
                     video.srcObject = existingInput.srcObject;
+                    video.play().catch(e => console.debug('Autoplay blocked:', e));
                 } else {
-                    // Load new stream
-                    await loadStreamForPreviewSlot(video, slot.source, instanceId);
+                    // Only load new stream if we don't have it already
+                    const instanceId = `preview-${slot.source}`;
+                    loadPromises.push(loadStreamForPreviewSlot(video, slot.source, instanceId));
                 }
                 
                 wrapper.appendChild(video);
                 composite.appendChild(wrapper);
             }
             
-            // Add composite to container
+            // Add composite to container immediately (don't wait for streams)
             container.appendChild(composite);
             
-            console.log(`Preview composite rendered with ${scene.slots.length} slots`);
+            // Load any missing streams in parallel
+            if (loadPromises.length > 0) {
+                Promise.all(loadPromises).catch(e => console.warn('Some preview streams failed to load:', e));
+            }
+            
+            console.log(`Preview composite rendered with ${scene.slots.length} slots (${sortedSlots.length - loadPromises.length} reused, ${loadPromises.length} new)`);
         }
 
         // Load stream for a preview slot
@@ -3119,6 +3140,22 @@
             }
             
             updateStreamStatus(instanceId, 'connecting');
+            
+            // Add event listener to mark video as active when playing
+            videoElement.addEventListener('playing', () => {
+                const parentInput = videoElement.closest('.compact-input');
+                if (parentInput) {
+                    parentInput.classList.add('has-video');
+                }
+            });
+            
+            // Remove has-video class if video stops or errors
+            videoElement.addEventListener('emptied', () => {
+                const parentInput = videoElement.closest('.compact-input');
+                if (parentInput) {
+                    parentInput.classList.remove('has-video');
+                }
+            });
             
             // Try WebRTC first
             if (webrtcConfig.enabled) {
