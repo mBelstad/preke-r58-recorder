@@ -1294,7 +1294,7 @@ async def set_scene(request: Dict[str, str]) -> Dict[str, str]:
 
 
 @app.post("/api/mixer/transition")
-async def transition_scene(request: Dict[str, Any]) -> Dict[str, str]:
+async def transition_scene(request: Dict[str, Any]) -> Dict[str, Any]:
     """Transition to a scene with animation.
     
     Body:
@@ -1325,7 +1325,7 @@ async def transition_scene(request: Dict[str, Any]) -> Dict[str, str]:
     if not success:
         raise HTTPException(status_code=500, detail=f"Transition failed")
     
-    return {"status": "transitioning", "scene_id": scene_id, "transition": transition, "duration": duration}
+    return {"status": "transitioning", "scene_id": scene_id, "transition": transition, "duration_ms": duration}
 
 
 @app.post("/api/mixer/start")
