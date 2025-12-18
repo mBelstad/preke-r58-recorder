@@ -108,6 +108,63 @@
             text-shadow: 0 0 30px rgba(96, 165, 250, 0.3);
         }
 
+        .nav-menu {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .nav-link {
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-decoration: none;
+            color: #9ca3af;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .nav-link:hover {
+            background: rgba(59, 130, 246, 0.15);
+            border-color: rgba(59, 130, 246, 0.3);
+            color: #60a5fa;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+        }
+
+        .nav-link.active {
+            background: rgba(59, 130, 246, 0.2);
+            border-color: rgba(59, 130, 246, 0.4);
+            color: #60a5fa;
+            box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.3);
+        }
+
+        @media (max-width: 1200px) {
+            .nav-menu {
+                gap: 6px;
+            }
+            
+            .nav-link {
+                padding: 8px 12px;
+                font-size: 0.75rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .nav-menu {
+                display: none;
+            }
+        }
+
         .control-panel {
             background: linear-gradient(135deg, #1a1a1a 0%, #252525 100%);
             border-radius: 12px;
@@ -619,6 +676,32 @@
         <div class="main-content">
             <div class="header">
                 <h1>R58 Recorder - Multiview</h1>
+                <nav class="nav-menu">
+                    <a href="/" class="nav-link active">
+                        <span>🎥</span>
+                        <span>Recorder</span>
+                    </a>
+                    <a href="/control" class="nav-link">
+                        <span>⚙️</span>
+                        <span>Control</span>
+                    </a>
+                    <a href="/switcher" class="nav-link">
+                        <span>🎬</span>
+                        <span>Switcher</span>
+                    </a>
+                    <a href="/editor" class="nav-link">
+                        <span>✏️</span>
+                        <span>Editor</span>
+                    </a>
+                    <a href="/graphics" class="nav-link">
+                        <span>📊</span>
+                        <span>Graphics</span>
+                    </a>
+                    <a href="/broadcast-graphics" class="nav-link">
+                        <span>🎨</span>
+                        <span>Broadcast</span>
+                    </a>
+                </nav>
             </div>
 
             <div class="multiview" id="multiview"></div>
