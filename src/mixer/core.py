@@ -380,13 +380,54 @@ class MixerCore:
                     logger.info(f"Pipeline rebuilt and started with scene: {scene_id}")
                     
                     # Now apply the actual scene properties (will use fast path since sources exist)
-                    if self.preallocate_sources:
-                        self.current_scene = merged_scene  # Keep merged scene as current
-                        # Recursively call apply_scene to update pad properties
-                        # This will take the fast path since all sources are now in pipeline
-                        return self.apply_scene(scene_id)
-                    else:
-                        return True
+                    if self.preallocate_sources and self.current_scene.id != scene_id:
+                        # Keep merged scene as current so future changes can use fast path
+                        # But we need to update the pad properties to match the target scene
+                        # Don't recursively call apply_scene - just update pads directly
+                        logger.info(f"Applying target scene properties to superset pipeline")
+                        
+                        try:
+                            compositor = self.pipeline.get_by_name("compositor")
+                            if not compositor:
+                                logger.error("Compositor element not found")
+                                return False
+                            
+                            # Build mapping of source to pad index in merged scene
+                            merged_source_to_pad = {}
+                            for i, slot in enumerate(merged_scene.slots):
+                                merged_source_to_pad[slot.source] = i
+                            
+                            # Hide all pads first
+                            for i in range(len(merged_scene.slots)):
+                                pad = compositor.get_static_pad(f"sink_{i}")
+                                if pad:
+                                    pad.set_property("alpha", 0.0)
+                            
+                            # Update pads for target scene slots
+                            for slot in scene.slots:
+                                if slot.source not in merged_source_to_pad:
+                                    logger.warning(f"Source {slot.source} not in merged pipeline")
+                                    continue
+                                
+                                pad_index = merged_source_to_pad[slot.source]
+                                pad = compositor.get_static_pad(f"sink_{pad_index}")
+                                if not pad:
+                                    continue
+                                
+                                coords = scene.get_absolute_coords(slot)
+                                pad.set_property("xpos", coords["x"])
+                                pad.set_property("ypos", coords["y"])
+                                pad.set_property("width", coords["w"])
+                                pad.set_property("height", coords["h"])
+                                pad.set_property("zorder", slot.z)
+                                pad.set_property("alpha", slot.alpha)
+                            
+                            logger.info(f"Target scene properties applied to superset pipeline")
+                        except Exception as e:
+                            logger.error(f"Failed to apply target scene properties: {e}")
+                            return False
+                    
+                    return True
                 else:
                     logger.error("Failed to restart pipeline after scene change")
                     return False
