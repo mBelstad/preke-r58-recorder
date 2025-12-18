@@ -359,8 +359,9 @@
         .preview-slot video {
             width: 100%;
             height: 100%;
-            object-fit: cover;
+            object-fit: contain; /* Changed from cover to contain to match mixer behavior */
             display: block;
+            background: #000;
         }
 
         .output-placeholder {
@@ -2272,7 +2273,7 @@
                 btn.dataset.dragType = 'scene';
                 btn.dataset.dragData = JSON.stringify({ type: 'scene', sceneId: scene.id, label: scene.label || scene.id });
                 btn.textContent = scene.label || scene.id;
-                btn.addEventListener('click', () => applyToPreview(scene.id));
+                btn.addEventListener('click', () => selectSceneForPreview(scene.id));
                 btn.addEventListener('dblclick', () => applyToProgram(scene.id));
                 btn.addEventListener('dragstart', handleDragStart);
                 btn.addEventListener('dragend', handleDragEnd);
@@ -2336,9 +2337,11 @@
             }
         }
 
-        // Legacy function for backward compatibility
+        // DEPRECATED: Legacy function - do not use
+        // This function previously applied scenes directly to mixer
+        // Use selectSceneForPreview() instead for preview-only selection
         async function applyToPreview(sceneId) {
-            // This now just selects for preview, doesn't apply to mixer
+            console.warn('applyToPreview is deprecated, use selectSceneForPreview instead');
             await selectSceneForPreview(sceneId);
         }
 
@@ -2415,8 +2418,14 @@
             // Store instance for cleanup
             previewVideoInstances[instanceId] = { video, source };
             
-            // Load via WebRTC or HLS depending on mode
-            await loadStreamWithWebRTC(video, streamPath, instanceId);
+            try {
+                // Load via WebRTC or HLS depending on mode
+                await loadStreamWithWebRTC(video, streamPath, instanceId);
+            } catch (error) {
+                console.warn(`Failed to load preview stream for ${source}:`, error);
+                // Show placeholder for missing stream
+                video.style.background = '#1a1a1a';
+            }
         }
 
         // Clean up preview composite
