@@ -121,6 +121,10 @@ class MixerCore:
         self._lock = threading.Lock()
         self._gst_ready = False
         
+        # Pre-allocation mode: build pipeline with all available sources
+        # This eliminates pipeline rebuilds at the cost of more resources
+        self.preallocate_sources = True  # Enable by default for best latency
+        
         # Watchdog
         self.watchdog = MixerWatchdog(
             on_unhealthy=self._handle_unhealthy
@@ -319,20 +323,47 @@ class MixerCore:
             sources_to_remove = current_sources - new_sources
             
             if sources_to_add:
-                # Need to add new sources - must rebuild pipeline
-                logger.info(f"Scene {scene_id} requires pipeline rebuild (new sources needed)")
-                logger.info(f"  Current sources: {current_sources}")
-                logger.info(f"  New sources: {new_sources}")
-                logger.info(f"  Sources to add: {sources_to_add}")
-                logger.info(f"  Sources to remove: {sources_to_remove}")
+                # Need to add new sources - rebuild with superset if preallocate_sources enabled
+                if self.preallocate_sources:
+                    # Build pipeline with union of current and new sources (superset strategy)
+                    # This allows future scene changes to be fast if they use these sources
+                    superset_sources = current_sources | new_sources
+                    logger.info(f"Scene {scene_id} requires pipeline rebuild (superset strategy)")
+                    logger.info(f"  Building pipeline with {len(superset_sources)} sources (superset)")
+                    logger.info(f"  Current: {current_sources}")
+                    logger.info(f"  New: {new_sources}")
+                    logger.info(f"  Superset: {superset_sources}")
+                else:
+                    logger.info(f"Scene {scene_id} requires pipeline rebuild")
+                    logger.info(f"  Current sources: {current_sources}")
+                    logger.info(f"  New sources: {new_sources}")
+                    logger.info(f"  Sources to add: {sources_to_add}")
+                
                 was_playing = (self.state == "PLAYING")
                 
                 # Stop current pipeline
                 self._stop_pipeline_internal()
                 time.sleep(0.5)  # Give device time to release
                 
-                # Set new scene and rebuild
-                self.current_scene = scene
+                # If using superset strategy, temporarily create a merged scene for pipeline build
+                if self.preallocate_sources and self.current_scene:
+                    # Create a temporary scene with all sources for pipeline building
+                    # We'll apply the actual scene properties after pipeline is built
+                    merged_scene = Scene(
+                        id=f"_merged_{scene_id}",
+                        label="Temporary merged scene",
+                        resolution=scene.resolution,
+                        slots=list(self.current_scene.slots) + [
+                            slot for slot in scene.slots 
+                            if slot.source not in current_sources
+                        ]
+                    )
+                    self.current_scene = merged_scene
+                    logger.debug(f"Built merged scene with {len(merged_scene.slots)} slots")
+                else:
+                    self.current_scene = scene
+                
+                # Rebuild pipeline
                 self.pipeline = self._build_pipeline()
                 
                 if not self.pipeline:
@@ -347,7 +378,15 @@ class MixerCore:
                 if self._set_state_with_timeout(self.Gst.State.PLAYING):
                     self.state = "PLAYING"
                     logger.info(f"Pipeline rebuilt and started with scene: {scene_id}")
-                    return True
+                    
+                    # Now apply the actual scene properties (will use fast path since sources exist)
+                    if self.preallocate_sources:
+                        self.current_scene = merged_scene  # Keep merged scene as current
+                        # Recursively call apply_scene to update pad properties
+                        # This will take the fast path since all sources are now in pipeline
+                        return self.apply_scene(scene_id)
+                    else:
+                        return True
                 else:
                     logger.error("Failed to restart pipeline after scene change")
                     return False
