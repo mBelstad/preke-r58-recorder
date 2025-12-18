@@ -2323,8 +2323,29 @@
         }
 
         // Select scene for preview (NEW - does NOT apply to mixer)
+        // Debounce/lock for scene selection to prevent race conditions
+        let sceneSelectionLock = false;
+        let pendingSceneId = null;
+        
         async function selectSceneForPreview(sceneId) {
+            // If same scene, ignore
+            if (sceneId === previewSceneId) {
+                return;
+            }
+            
+            // If currently loading, queue this scene and return
+            if (sceneSelectionLock) {
+                pendingSceneId = sceneId;
+                console.log(`Scene ${sceneId} queued (previous still loading)`);
+                return;
+            }
+            
+            sceneSelectionLock = true;
+            
             try {
+                // Cleanup previous preview before loading new one
+                cleanupPreviewComposite();
+                
                 // Fetch full scene definition
                 const response = await fetch(`${API_BASE}/api/scenes/${sceneId}`);
                 if (!response.ok) {
@@ -2350,6 +2371,15 @@
             } catch (error) {
                 console.error('Failed to select scene for preview:', error);
                 showError('Failed to load scene: ' + error.message);
+            } finally {
+                sceneSelectionLock = false;
+                
+                // Process queued scene if any
+                if (pendingSceneId && pendingSceneId !== sceneId) {
+                    const nextScene = pendingSceneId;
+                    pendingSceneId = null;
+                    selectSceneForPreview(nextScene);
+                }
             }
         }
 

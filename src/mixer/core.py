@@ -185,11 +185,25 @@ class MixerCore:
 
             # Apply default scene if none set
             if not self.current_scene:
-                default_scene = self.scene_manager.get_scene("quad")
-                if default_scene:
-                    self.current_scene = default_scene
-                else:
-                    logger.error("No scene set and no default scene available")
+                # Try to get any available scene as default
+                all_scenes = self.scene_manager.list_scenes()
+                if all_scenes:
+                    # Prefer cam1_full, cam2_full, or first available
+                    for preferred in ["cam1_full", "cam2_full", "cam3_full"]:
+                        default_scene = self.scene_manager.get_scene(preferred)
+                        if default_scene:
+                            self.current_scene = default_scene
+                            logger.info(f"Using default scene: {preferred}")
+                            break
+                    if not self.current_scene:
+                        # Use first available scene
+                        first_scene = self.scene_manager.get_scene(all_scenes[0].id)
+                        if first_scene:
+                            self.current_scene = first_scene
+                            logger.info(f"Using first available scene: {first_scene.id}")
+                
+                if not self.current_scene:
+                    logger.error("No scene set and no scenes available")
                     return False
 
             # Build and start pipeline
