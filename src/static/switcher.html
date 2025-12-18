@@ -341,6 +341,28 @@
             display: block;
         }
 
+        /* Preview composite container for CSS-based preview */
+        .preview-composite {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+        }
+
+        .preview-slot {
+            position: absolute;
+            overflow: hidden;
+        }
+
+        .preview-slot video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
         .output-placeholder {
             position: absolute;
             top: 0;
@@ -1893,11 +1915,23 @@
         // WebRTC client instances
         let webrtcClients = {};
         
-        let currentScene = null;
+        // State management - REFACTORED for proper A/B bus workflow
         let mixerState = 'NULL';
         let scenes = [];
+        
+        // Preview state (what's queued/selected but not live)
+        let previewSceneId = null;        // Scene ID currently in preview
+        let previewSceneData = null;      // Full scene definition for preview rendering
+        let previewVideoInstances = {};   // HLS/WebRTC instances for preview composite
+        
+        // Program state (what's actually live from mixer)
+        let programSceneId = null;        // Scene ID currently live in program (from mixer)
+        
+        // Legacy compatibility (deprecated, use previewSceneId/programSceneId instead)
+        let currentScene = null;
         let currentProgramScene = null;
         let currentPreviewScene = null;
+        
         let hlsInstances = {};
         let currentSceneDetails = null;
         let boxMappings = { 1: null, 2: null, 3: null, 4: null };
@@ -2247,69 +2281,235 @@
             updateSceneButtons();
         }
 
-        // Update scene button states
+        // Update scene button states (REFACTORED for proper A/B bus)
         function updateSceneButtons() {
             document.querySelectorAll('.scene-button-large').forEach(btn => {
                 btn.classList.remove('active', 'preview');
-                if (btn.dataset.sceneId === currentProgramScene) {
+                
+                const sceneId = btn.dataset.sceneId;
+                const isInProgram = sceneId === programSceneId;
+                const isInPreview = sceneId === previewSceneId;
+                
+                // Red border if in program (live)
+                if (isInProgram) {
                     btn.classList.add('active');
-                } else if (btn.dataset.sceneId === currentPreviewScene) {
+                }
+                
+                // Green border if in preview (queued)
+                if (isInPreview) {
                     btn.classList.add('preview');
                 }
+                
+                // If same scene is in both preview and program, show both styles
+                // (CSS will handle this with both classes applied)
             });
         }
 
-        // Apply scene to preview
-        async function applyToPreview(sceneId) {
+        // Select scene for preview (NEW - does NOT apply to mixer)
+        async function selectSceneForPreview(sceneId) {
             try {
+                // Fetch full scene definition
+                const response = await fetch(`${API_BASE}/api/scenes/${sceneId}`);
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch scene: ${response.status}`);
+                }
+                
+                const sceneData = await response.json();
+                
+                // Update preview state
+                previewSceneId = sceneId;
+                previewSceneData = sceneData;
+                
+                // Update legacy state for compatibility
+                currentPreviewScene = sceneId;
+                
+                // Render the scene in preview using CSS composite
+                await renderPreviewComposite(sceneData);
+                
+                // Update UI
+                updateSceneButtons();
+                
+                console.log(`Scene ${sceneId} loaded in preview (not applied to mixer yet)`);
+            } catch (error) {
+                console.error('Failed to select scene for preview:', error);
+                showError('Failed to load scene: ' + error.message);
+            }
+        }
+
+        // Legacy function for backward compatibility
+        async function applyToPreview(sceneId) {
+            // This now just selects for preview, doesn't apply to mixer
+            await selectSceneForPreview(sceneId);
+        }
+
+        // Render preview composite using CSS-positioned camera feeds
+        async function renderPreviewComposite(scene) {
+            const container = document.getElementById('previewOutput');
+            if (!container) return;
+            
+            // Remove existing preview video and composite
+            const oldVideo = container.querySelector('#previewVideo');
+            const oldComposite = container.querySelector('.preview-composite');
+            if (oldVideo) oldVideo.style.display = 'none';
+            if (oldComposite) oldComposite.remove();
+            
+            // Hide placeholder
+            const placeholder = document.getElementById('previewPlaceholder');
+            if (placeholder) placeholder.style.display = 'none';
+            
+            // Create composite container
+            const composite = document.createElement('div');
+            composite.className = 'preview-composite';
+            
+            // Sort slots by z-order
+            const sortedSlots = [...scene.slots].sort((a, b) => a.z - b.z);
+            
+            // Create video element for each slot
+            for (const slot of sortedSlots) {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'preview-slot';
+                wrapper.style.cssText = `
+                    left: ${slot.x_rel * 100}%;
+                    top: ${slot.y_rel * 100}%;
+                    width: ${slot.w_rel * 100}%;
+                    height: ${slot.h_rel * 100}%;
+                    z-index: ${slot.z};
+                    opacity: ${slot.alpha};
+                `;
+                
+                // Create video element for this slot
+                const video = document.createElement('video');
+                video.className = 'preview-slot-video';
+                video.autoplay = true;
+                video.muted = true;
+                video.playsInline = true;
+                
+                // Load stream for this source
+                const instanceId = `preview-${slot.source}`;
+                
+                // Check if we already have this stream in compact inputs
+                const existingInput = document.querySelector(`[data-source="${slot.source}"] video`);
+                if (existingInput && existingInput.srcObject) {
+                    // Clone the MediaStream if available
+                    video.srcObject = existingInput.srcObject;
+                } else {
+                    // Load new stream
+                    await loadStreamForPreviewSlot(video, slot.source, instanceId);
+                }
+                
+                wrapper.appendChild(video);
+                composite.appendChild(wrapper);
+            }
+            
+            // Add composite to container
+            container.appendChild(composite);
+            
+            console.log(`Preview composite rendered with ${scene.slots.length} slots`);
+        }
+
+        // Load stream for a preview slot
+        async function loadStreamForPreviewSlot(video, source, instanceId) {
+            // Use the same loading logic as compact inputs
+            const streamPath = source; // e.g., "cam0", "cam1", etc.
+            
+            // Store instance for cleanup
+            previewVideoInstances[instanceId] = { video, source };
+            
+            // Load via WebRTC or HLS depending on mode
+            await loadStreamWithWebRTC(video, streamPath, instanceId);
+        }
+
+        // Clean up preview composite
+        function cleanupPreviewComposite() {
+            // Cleanup all preview video instances
+            Object.keys(previewVideoInstances).forEach(id => {
+                if (webrtcClients[id]) {
+                    cleanupWebRTCClient(id);
+                }
+                if (hlsInstances[id]) {
+                    if (hlsInstances[id].destroy) {
+                        hlsInstances[id].destroy();
+                    }
+                    delete hlsInstances[id];
+                }
+            });
+            previewVideoInstances = {};
+            
+            // Remove composite from DOM
+            const composite = document.querySelector('.preview-composite');
+            if (composite) composite.remove();
+            
+            // Show preview video element again
+            const previewVideo = document.getElementById('previewVideo');
+            if (previewVideo) previewVideo.style.display = 'block';
+        }
+
+        // Apply scene directly to program (direct cut, bypasses preview)
+        async function applyToProgram(sceneId) {
+            try {
+                // Apply directly to mixer without going through preview
                 const response = await fetch(`${API_BASE}/api/mixer/set_scene`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ id: sceneId })
                 });
+                
                 if (response.ok) {
-                    currentPreviewScene = sceneId;
+                    // Update program state
+                    programSceneId = sceneId;
+                    currentProgramScene = sceneId; // Legacy compatibility
+                    
+                    // Update UI
                     updateSceneButtons();
-                    await fetchSceneDetails(sceneId);
+                    updateTallyLights();
                     await checkMixerStatus();
+                    
+                    console.log(`Direct CUT: Scene ${sceneId} applied to program`);
+                    showToast(`Scene ${sceneId} applied (direct cut)`, 'success', 2000);
                 } else {
                     const data = await response.json().catch(() => ({}));
                     showError(data.detail || 'Failed to apply scene');
                 }
             } catch (error) {
-                console.error('Failed to apply scene to preview:', error);
+                console.error('Failed to apply scene to program:', error);
                 showError('Failed to apply scene: ' + error.message);
             }
         }
 
-        // Apply scene directly to program (cut)
-        async function applyToProgram(sceneId) {
-            try {
-                await applyToPreview(sceneId);
-                await takePreview();
-            } catch (error) {
-                console.error('Failed to apply scene to program:', error);
-            }
-        }
-
-        // Take preview to program
+        // Take preview to program (REFACTORED - proper A/B bus transition)
         async function takePreview() {
-            if (!currentPreviewScene) return;
+            if (!previewSceneId) {
+                console.warn('No scene in preview to take');
+                return;
+            }
+            
             try {
-                // Apply preview scene to program
+                // Apply preview scene to the mixer (this makes it live)
                 const response = await fetch(`${API_BASE}/api/mixer/set_scene`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id: currentPreviewScene })
+                    body: JSON.stringify({ id: previewSceneId })
                 });
+                
                 if (response.ok) {
-                    currentProgramScene = currentPreviewScene;
+                    // Update program state
+                    programSceneId = previewSceneId;
+                    currentProgramScene = previewSceneId; // Legacy compatibility
+                    
+                    // Update UI
                     updateSceneButtons();
                     updateTallyLights();
                     await checkMixerStatus();
+                    
+                    console.log(`TAKE: Scene ${previewSceneId} is now live in program`);
+                    showToast(`Scene ${previewSceneId} is now live`, 'success', 2000);
+                } else {
+                    const data = await response.json().catch(() => ({}));
+                    showError(data.detail || 'Failed to apply scene to program');
                 }
             } catch (error) {
                 console.error('Failed to take preview:', error);
+                showError('Failed to take preview: ' + error.message);
             }
         }
 
@@ -2415,16 +2615,26 @@
         }
 
         // Update tally lights
+        // Update tally lights (REFACTORED for proper A/B bus)
         function updateTallyLights() {
             document.querySelectorAll('.compact-input').forEach(input => {
                 input.classList.remove('tally-pgm', 'tally-pvw');
                 const camId = input.dataset.cameraId;
-                // Check if this camera is in the current program scene
+                
+                // Check if camera is in preview scene
+                if (previewSceneData && previewSceneData.slots) {
+                    const isInPreview = previewSceneData.slots.some(slot => slot.source === camId);
+                    if (isInPreview) {
+                        input.classList.add('tally-pvw'); // Green tally
+                    }
+                }
+                
+                // Check if camera is in program scene (overrides preview if both)
                 if (currentSceneDetails && currentSceneDetails.slots) {
                     const isInProgram = currentSceneDetails.slots.some(slot => slot.source === camId);
-                    if (isInProgram && currentProgramScene) {
-                        input.classList.add('tally-pgm');
-            }
+                    if (isInProgram && programSceneId) {
+                        input.classList.add('tally-pgm'); // Red tally (higher priority)
+                    }
                 }
             });
         }
@@ -2496,10 +2706,19 @@
             }
         }
 
-        // Update status
+        // Update status (REFACTORED to track program scene)
         function updateStatus(data) {
             mixerState = data.state || 'NULL';
             currentScene = data.current_scene || null;
+            
+            // Update program scene from mixer (what's actually live)
+            if (data.current_scene) {
+                programSceneId = data.current_scene;
+                currentProgramScene = data.current_scene; // Legacy compatibility
+                
+                // Fetch scene details for tally lights
+                fetchSceneDetails(data.current_scene);
+            }
 
             // Update all status dots
             const statusDot = document.getElementById('statusDot');
