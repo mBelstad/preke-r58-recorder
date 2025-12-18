@@ -96,10 +96,19 @@ recording:
 
 # Cloudflare Calls configuration for remote guests
 # Enables remote guests to connect via Cloudflare's infrastructure
+# 
+# ⚠️ SECURITY: Set credentials via environment variables, not in this file!
+# Required environment variables:
+#   - CLOUDFLARE_ACCOUNT_ID
+#   - CLOUDFLARE_CALLS_APP_ID  
+#   - CLOUDFLARE_CALLS_API_TOKEN
+#   - CLOUDFLARE_TURN_TOKEN_ID
+#   - CLOUDFLARE_TURN_API_TOKEN
+#
 cloudflare:
-  account_id: "909fc2cd90c5fa19833110165ccb9bd7"
-  calls_app_id: "56f5d93b573a427c45663a15cf5606a5"
-  calls_api_token: "25f9d97cdfaee83d141811fc07a87679ca521660b3eb59615f7d4bf3293c65e8"
+  account_id: ""  # Set CLOUDFLARE_ACCOUNT_ID environment variable
+  calls_app_id: ""  # Set CLOUDFLARE_CALLS_APP_ID environment variable
+  calls_api_token: ""  # Set CLOUDFLARE_CALLS_API_TOKEN environment variable
   calls_app_name: "r58-1"
 
 # Remote guests configuration

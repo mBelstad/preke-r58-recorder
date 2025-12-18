@@ -189,12 +189,13 @@ class AppConfig:
                 enabled=guest_data.get("enabled", True),
             )
         
-        # Load Cloudflare config
+        # Load Cloudflare config (environment variables take priority over config file)
+        import os
         cloudflare_data = data.get("cloudflare", {})
         cloudflare = CloudflareConfig(
-            account_id=cloudflare_data.get("account_id", ""),
-            calls_app_id=cloudflare_data.get("calls_app_id", ""),
-            calls_api_token=cloudflare_data.get("calls_api_token", ""),
+            account_id=os.environ.get("CLOUDFLARE_ACCOUNT_ID", cloudflare_data.get("account_id", "")),
+            calls_app_id=os.environ.get("CLOUDFLARE_CALLS_APP_ID", cloudflare_data.get("calls_app_id", "")),
+            calls_api_token=os.environ.get("CLOUDFLARE_CALLS_API_TOKEN", cloudflare_data.get("calls_api_token", "")),
             calls_app_name=cloudflare_data.get("calls_app_name", "r58-1"),
         )
         

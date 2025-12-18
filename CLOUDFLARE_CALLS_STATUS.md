@@ -198,10 +198,14 @@ Guest → Cloudflare Calls SFU ✅
 ## Cloudflare Calls API Details
 
 ### Credentials Configured
-- **Account ID**: 909fc2cd90c5fa19833110165ccb9bd7
-- **App ID**: 56f5d93b573a427c45663a15cf5606a5
-- **API Token**: 25f9d97cdfaee83d141811fc07a87679ca521660b3eb59615f7d4bf3293c65e8
+**⚠️ SECURITY NOTE: Credentials should be stored in environment variables, not in config files.**
+
+- **Account ID**: `${CLOUDFLARE_ACCOUNT_ID}` (set via environment variable)
+- **App ID**: `${CLOUDFLARE_CALLS_APP_ID}` (set via environment variable)
+- **API Token**: `${CLOUDFLARE_CALLS_API_TOKEN}` (set via environment variable)
 - **App Name**: r58-1
+
+See `config.yml` for the environment variable configuration.
 
 ### API Endpoints Used
 - **Create Session**: `POST https://rtc.live.cloudflare.com/v1/apps/{appId}/sessions/new`
@@ -233,3 +237,4 @@ Guest → Cloudflare Calls SFU ✅
 **Current Workaround**: Use local network URL for guests who need to appear in mixer immediately.
 
 **Production Path**: Implement Phase 2 relay service for full remote guest functionality.
+

@@ -208,8 +208,10 @@ Mixer Core
 
 ## Cloudflare TURN Configuration
 
-**TURN Token ID**: `79d61c83455a63d11a18c17bedb53d3f`  
-**API Token**: `9054653545421be55e42219295b74b1036d261e1c0259c2cf410fb9d8a372984`
+**⚠️ SECURITY NOTE: Credentials should be stored in environment variables, not in config files.**
+
+**TURN Token ID**: `${CLOUDFLARE_TURN_TOKEN_ID}` (set via environment variable)  
+**API Token**: `${CLOUDFLARE_TURN_API_TOKEN}` (set via environment variable)
 
 **TURN Servers Provided**:
 - `stun:stun.cloudflare.com:3478`
@@ -309,3 +311,4 @@ Implement adaptive bitrate based on connection quality.
 **Cloudflare TURN integration is complete and deployed.** Remote guests can now connect via WebRTC through the Cloudflare Tunnel using TURN relay. The system automatically detects remote access and fetches appropriate TURN credentials, while local network guests continue to use direct WebRTC for lower latency.
 
 **Ready for testing!** 🚀
+

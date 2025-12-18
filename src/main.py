@@ -641,9 +641,24 @@ async def get_turn_credentials() -> Dict[str, Any]:
     This endpoint calls the Cloudflare TURN API to generate ICE servers with
     temporary credentials (24 hour TTL). These credentials enable remote guests
     to connect via WebRTC through the Cloudflare Tunnel by using TURN relay.
+    
+    Environment variables required:
+    - CLOUDFLARE_TURN_TOKEN_ID: The TURN token ID from Cloudflare
+    - CLOUDFLARE_TURN_API_TOKEN: The API token for TURN credentials
     """
-    TURN_TOKEN_ID = "79d61c83455a63d11a18c17bedb53d3f"
-    API_TOKEN = "9054653545421be55e42219295b74b1036d261e1c0259c2cf410fb9d8a372984"
+    import os
+    TURN_TOKEN_ID = os.environ.get("CLOUDFLARE_TURN_TOKEN_ID", "")
+    API_TOKEN = os.environ.get("CLOUDFLARE_TURN_API_TOKEN", "")
+    
+    if not TURN_TOKEN_ID or not API_TOKEN:
+        logger.warning("TURN credentials not configured. Set CLOUDFLARE_TURN_TOKEN_ID and CLOUDFLARE_TURN_API_TOKEN environment variables.")
+        # Return STUN-only fallback
+        return {
+            "iceServers": [
+                {"urls": ["stun:stun.cloudflare.com:3478"]},
+                {"urls": ["stun:stun.l.google.com:19302"]}
+            ]
+        }
     
     try:
         async with httpx.AsyncClient() as client:
