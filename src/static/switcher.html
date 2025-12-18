@@ -2456,6 +2456,9 @@
         // Apply scene directly to program (direct cut, bypasses preview)
         async function applyToProgram(sceneId) {
             try {
+                // Show loading indicator
+                showToast('Cutting to scene...', 'info', 0); // 0 = persistent until dismissed
+                
                 // Apply directly to mixer without going through preview
                 const response = await fetch(`${API_BASE}/api/mixer/set_scene`, {
                     method: 'POST',
@@ -2493,6 +2496,9 @@
             }
             
             try {
+                // Show loading indicator
+                showToast('Transitioning to program...', 'info', 0); // 0 = persistent until dismissed
+                
                 // Apply preview scene to the mixer (this makes it live)
                 const response = await fetch(`${API_BASE}/api/mixer/set_scene`, {
                     method: 'POST',
