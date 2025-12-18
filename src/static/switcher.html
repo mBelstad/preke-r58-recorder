@@ -2046,8 +2046,29 @@
             }
         }
 
+        // Preload HLS manifests for faster stream startup
+        function preloadHLSManifests() {
+            const streams = ['cam1', 'cam2', 'cam3']; // Skip cam0 (disconnected)
+            console.log('Preloading HLS manifests for faster startup...');
+            
+            streams.forEach(stream => {
+                const url = getHLSUrl(stream);
+                // Fetch manifest to prime browser cache
+                fetch(url, { mode: 'cors' })
+                    .then(response => {
+                        if (response.ok) {
+                            console.log(`✓ Preloaded manifest for ${stream}`);
+                        }
+                    })
+                    .catch(e => console.debug(`Preload failed for ${stream}:`, e.message));
+            });
+        }
+        
         // Initialize
         async function init() {
+            // Start preloading manifests immediately (in background)
+            preloadHLSManifests();
+            
             await loadScenes();
             await checkMixerStatus();
             initCompactInputs();
@@ -3014,33 +3035,33 @@
                 
                 // Configure HLS.js for remote/high-latency connections
                 const hlsConfig = IS_REMOTE ? {
-                    // Remote access - more tolerant of high latency
-                    manifestLoadingTimeOut: 30000,      // 30s for manifest (Cloudflare can be slow)
-                    manifestLoadingMaxRetry: 5,         // More retries
-                    levelLoadingTimeOut: 30000,         // 30s for level loading
-                    levelLoadingMaxRetry: 5,
-                    fragLoadingTimeOut: 60000,          // 60s for fragment loading
-                    fragLoadingMaxRetry: 4,
+                    // Remote access - FAST STARTUP optimized
+                    manifestLoadingTimeOut: 15000,      // Reduced from 30s
+                    manifestLoadingMaxRetry: 3,         // Fewer retries for faster failure
+                    levelLoadingTimeOut: 15000,         // Reduced from 30s
+                    levelLoadingMaxRetry: 3,
+                    fragLoadingTimeOut: 20000,          // Reduced from 60s
+                    fragLoadingMaxRetry: 3,
                     enableWorker: true,
-                    lowLatencyMode: false,              // Disable LL-HLS for stability
-                    backBufferLength: 60,               // Keep 60s in buffer
-                    maxBufferLength: 60,                // Buffer up to 60s ahead
-                    maxMaxBufferLength: 120,            // Allow up to 120s buffer
-                    liveSyncDurationCount: 4,           // Sync 4 segments behind live
-                    liveMaxLatencyDurationCount: 10,    // Allow up to 10 segments latency
+                    lowLatencyMode: true,               // Enable LL-HLS for faster startup!
+                    backBufferLength: 10,               // Reduced from 60s - less buffering needed
+                    maxBufferLength: 15,                // Reduced from 60s - start playing sooner
+                    maxMaxBufferLength: 30,             // Reduced from 120s
+                    liveSyncDurationCount: 2,           // Reduced from 4 - start 2 segments behind live
+                    liveMaxLatencyDurationCount: 6,     // Reduced from 10
                     startLevel: -1,                     // Auto quality selection
                     debug: false,
                 } : {
-                    // Local access - lower latency settings
-                    manifestLoadingTimeOut: 10000,
-                    manifestLoadingMaxRetry: 3,
-                    levelLoadingTimeOut: 10000,
-                    fragLoadingTimeOut: 20000,
+                    // Local access - ultra low latency
+                    manifestLoadingTimeOut: 5000,
+                    manifestLoadingMaxRetry: 2,
+                    levelLoadingTimeOut: 5000,
+                    fragLoadingTimeOut: 10000,
                     enableWorker: true,
-                    lowLatencyMode: true,               // Enable LL-HLS for local
-                    backBufferLength: 30,
-                    maxBufferLength: 30,
-                    liveSyncDurationCount: 2,           // Closer to live edge
+                    lowLatencyMode: true,
+                    backBufferLength: 5,
+                    maxBufferLength: 10,
+                    liveSyncDurationCount: 1,           // Start 1 segment behind live
                     debug: false,
                 };
                 
