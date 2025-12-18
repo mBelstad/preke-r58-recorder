@@ -349,6 +349,7 @@
             width: 100%;
             height: 100%;
             background: #000;
+            z-index: 2; /* Above placeholder */
         }
 
         .preview-slot {
@@ -375,7 +376,7 @@
             align-items: center;
             justify-content: center;
             background: rgba(0, 0, 0, 0.5);
-            z-index: 5;
+            z-index: 1; /* Below video and composite */
         }
 
         .output-placeholder .placeholder-icon {
@@ -2451,6 +2452,10 @@
             // Show preview video element again
             const previewVideo = document.getElementById('previewVideo');
             if (previewVideo) previewVideo.style.display = 'block';
+            
+            // Show placeholder when no scene is loaded
+            const placeholder = document.getElementById('previewPlaceholder');
+            if (placeholder) placeholder.style.display = 'flex';
         }
 
         // Apply scene directly to program (direct cut, bypasses preview)
