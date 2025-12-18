@@ -10,12 +10,12 @@ rtmpAddress: :1935
 
 # HLS settings (separate port for HLS) - optimized for remote access via Cloudflare Tunnel
 # Larger segments reduce HTTP request overhead and improve reliability over high-latency connections
-# Part duration set for reasonable sub-second latency while maintaining stability
+# Increased segment count and duration for better buffering over unreliable connections
 hlsAddress: :8888
 hlsAlwaysRemux: yes
-hlsSegmentCount: 12         # More segments for buffering over high-latency connections
-hlsSegmentDuration: 2s      # 2-second segments for stability (better for remote)
-hlsPartDuration: 200ms      # 200ms parts for reasonable latency without overwhelming the connection
+hlsSegmentCount: 15         # Increased buffer for unreliable remote connections
+hlsSegmentDuration: 3s      # 3-second segments for better stability (prioritize reliability over latency)
+hlsPartDuration: 300ms      # 300ms parts to reduce HTTP request frequency
 hlsAllowOrigin: "*"
 
 # SRT settings
