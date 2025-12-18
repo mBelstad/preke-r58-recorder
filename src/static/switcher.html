@@ -2572,11 +2572,45 @@
                 input.addEventListener('click', () => selectInput(i));
                 grid.appendChild(input);
 
+                // Skip cam0 (no HDMI cable connected) to avoid wasting resources
+                if (i === 0) {
+                    updateStreamStatus(`compact-input-${i}`, 'disconnected');
+                    // Allow manual retry on click
+                    input.addEventListener('click', (e) => {
+                        if (e.target.classList.contains('compact-input-status') || 
+                            e.target.closest('.compact-input-status')) {
+                            const video = input.querySelector('video');
+                            if (video) {
+                                console.log('Manual retry for cam0');
+                                // Reset retry state
+                                if (hlsRetryState[`compact-input-${i}`]) {
+                                    hlsRetryState[`compact-input-${i}`].retries = 0;
+                                }
+                                loadStreamWithWebRTC(video, `cam${i}`, `compact-input-${i}`);
+                            }
+                        }
+                    });
+                    continue;
+                }
+
                 // Load preview stream with WebRTC (falls back to HLS if unavailable)
                 const video = input.querySelector('video');
                 if (video) {
                     loadStreamWithWebRTC(video, `cam${i}`, `compact-input-${i}`);
                 }
+                
+                // Add click-to-retry for failed streams
+                input.addEventListener('click', (e) => {
+                    const statusEl = document.getElementById(`compact-input-${i}-status`);
+                    if (statusEl && statusEl.classList.contains('status-failed')) {
+                        console.log(`Manual retry for cam${i}`);
+                        // Reset retry state
+                        if (hlsRetryState[`compact-input-${i}`]) {
+                            hlsRetryState[`compact-input-${i}`].retries = 0;
+                        }
+                        loadStreamWithWebRTC(video, `cam${i}`, `compact-input-${i}`);
+                    }
+                });
             }
             
             // Guest inputs (guest1, guest2)
@@ -2586,19 +2620,30 @@
                 const input = document.createElement('div');
                 input.className = 'compact-input guest-input';
                 input.dataset.guestId = guestId;
+                input.dataset.source = guestId; // For stream reuse
                 input.innerHTML = `
                     <video id="${guestId}-video" muted playsinline></video>
                     <div class="compact-input-label">${guestId.replace('guest', 'Guest ')}</div>
-                    <div class="compact-input-status" id="${guestId}-status">Waiting...</div>
+                    <div class="compact-input-status" id="${guestId}-status">Click to connect</div>
                 `;
-                input.addEventListener('click', () => selectGuestInput(guestId));
+                
+                // Load guest stream on click (lazy loading to save resources)
+                input.addEventListener('click', () => {
+                    const video = input.querySelector('video');
+                    const statusEl = document.getElementById(`${guestId}-status`);
+                    
+                    // Only load if not already loaded
+                    if (!video.srcObject && !hlsInstances[guestId]) {
+                        statusEl.textContent = 'Connecting...';
+                        loadStreamWithWebRTC(video, guestId, guestId);
+                    }
+                    
+                    selectGuestInput(guestId);
+                });
+                
                 grid.appendChild(input);
-
-                // Try to load guest stream (will show waiting if not connected)
-                const video = input.querySelector('video');
-                if (video) {
-                    loadStreamWithWebRTC(video, guestId, guestId);
-                }
+                
+                // Don't auto-load guest streams - they're loaded on-demand when clicked
             });
         }
         
@@ -2895,8 +2940,9 @@
 
         // HLS reconnection state
         const hlsRetryState = {};
-        const HLS_MAX_RETRIES = 5;
-        const HLS_RETRY_DELAY_BASE = 2000; // 2 seconds base delay
+        const HLS_MAX_RETRIES = 3; // Reduced from 5 to avoid hammering server
+        const HLS_RETRY_DELAY_BASE = 5000; // Increased from 2s to 5s base delay
+        const HLS_MAX_RETRY_DELAY = 60000; // Cap at 60 seconds
         
         // Load HLS stream with robust error handling and reconnection
         function loadHLS(video, url, id) {
@@ -3025,8 +3071,11 @@
                 return;
             }
             
-            // Calculate delay with exponential backoff
-            const delay = HLS_RETRY_DELAY_BASE * Math.pow(2, state.retries);
+            // Calculate delay with exponential backoff (capped at max)
+            const delay = Math.min(
+                HLS_RETRY_DELAY_BASE * Math.pow(2, state.retries),
+                HLS_MAX_RETRY_DELAY
+            );
             state.retries++;
             
             console.log(`Scheduling HLS retry for ${id} in ${delay}ms (attempt ${state.retries}/${HLS_MAX_RETRIES})`);
@@ -3067,7 +3116,14 @@
                 case 'failed':
                     statusEl.style.display = 'flex';
                     statusEl.classList.add('status-failed');
-                    statusEl.textContent = '✕';
+                    statusEl.textContent = '✕ Click to retry';
+                    statusEl.style.cursor = 'pointer';
+                    break;
+                case 'disconnected':
+                    statusEl.style.display = 'flex';
+                    statusEl.classList.add('status-disconnected');
+                    statusEl.textContent = 'Not connected';
+                    statusEl.style.opacity = '0.5';
                     break;
                 case 'unsupported':
                     statusEl.style.display = 'flex';
