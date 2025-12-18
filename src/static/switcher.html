@@ -1851,6 +1851,14 @@
             }
         }
         
+        // WebRTC URL helper (local access only)
+        function getWebRTCUrl(streamPath) {
+            return `http://${HOSTNAME}:8889/${streamPath}/whep`;
+        }
+        
+        // WebRTC connection storage
+        let webrtcConnections = {};
+        
         let currentScene = null;
         let mixerState = 'NULL';
         let scenes = [];
@@ -2292,8 +2300,14 @@
                 // Load preview stream (using correct path, no _preview suffix)
                 const video = input.querySelector('video');
                 if (video) {
-                    const hlsUrl = getHLSUrl(`cam${i}`);
-                    loadHLS(video, hlsUrl, `compact-input-${i}`);
+                    // Try WebRTC first for ultra-low latency (local access only)
+                    if (window.RTCPeerConnection && !IS_REMOTE) {
+                        startWebRTCPreview(video, `cam${i}`, `compact-input-${i}`);
+                    } else {
+                        // Use HLS for remote access or no WebRTC support
+                        const hlsUrl = getHLSUrl(`cam${i}`);
+                        loadHLS(video, hlsUrl, `compact-input-${i}`);
+                    }
                 }
             }
         }
@@ -2509,15 +2523,25 @@
         // Update program output
         function updateProgramOutput(data) {
             if (data.state === 'PLAYING' && data.mediamtx_enabled) {
-                const hlsUrl = getHLSUrl('mixer_program');
                 const video = document.getElementById('programVideo');
                 const placeholder = document.getElementById('programPlaceholder');
                 
                 if (video && placeholder) {
-                    // Only load if not already loaded
-                    if (!hlsInstances['program'] || hlsInstances['program']._url !== hlsUrl) {
-                        placeholder.style.display = 'none';
-                        loadHLS(video, hlsUrl, 'program');
+                    placeholder.style.display = 'none';
+                    
+                    // Try WebRTC first for ultra-low latency (local access only)
+                    if (window.RTCPeerConnection && !IS_REMOTE) {
+                        // Only start WebRTC if not already connected
+                        if (!webrtcConnections['program']) {
+                            startWebRTCPreview(video, 'mixer_program', 'program');
+                        }
+                    } else {
+                        // Use HLS for remote access or no WebRTC support
+                        const hlsUrl = getHLSUrl('mixer_program');
+                        // Only load if not already loaded
+                        if (!hlsInstances['program'] || hlsInstances['program']._url !== hlsUrl) {
+                            loadHLS(video, hlsUrl, 'program');
+                        }
                     }
                 }
                 
@@ -2531,6 +2555,15 @@
         // Reset stream connections (useful for manual refresh)
         function resetAllStreams() {
             showToast('Refreshing streams...', 'info', 2000);
+            
+            // Clear all WebRTC connections
+            Object.keys(webrtcConnections).forEach(id => {
+                if (webrtcConnections[id]) {
+                    console.log(`Closing WebRTC connection: ${id}`);
+                    webrtcConnections[id].close();
+                }
+                delete webrtcConnections[id];
+            });
             
             // Clear all HLS instances
             Object.keys(hlsInstances).forEach(id => {
@@ -2559,6 +2592,280 @@
         function clearOutputs() {
             const placeholders = document.querySelectorAll('.output-placeholder');
             placeholders.forEach(p => p.style.display = 'flex');
+        }
+
+        // WebRTC Preview using WHEP protocol
+        function startWebRTCPreview(video, streamPath, streamId) {
+            // Close existing connection if any
+            if (webrtcConnections[streamId]) {
+                console.log(`Closing existing WebRTC connection for ${streamId}`);
+                webrtcConnections[streamId].close();
+                webrtcConnections[streamId] = null;
+            }
+            
+            // Prevent multiple simultaneous connections
+            if (video.dataset.connecting === 'true') {
+                console.log(`WebRTC connection already in progress for ${streamId}, skipping`);
+                return;
+            }
+            video.dataset.connecting = 'true';
+            
+            // Update status
+            updateStreamStatus(streamId, 'connecting');
+            
+            const webrtcUrl = getWebRTCUrl(streamPath);
+
+            const pc = new RTCPeerConnection({
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' }
+                ],
+                iceCandidatePoolSize: 10
+            });
+
+            pc.ontrack = (event) => {
+                console.log(`✅ WebRTC track received for ${streamId}`, event);
+                
+                // Check if we have a valid track
+                if (!event.track) {
+                    console.error(`❌ No track in WebRTC event for ${streamId}`);
+                    return;
+                }
+                
+                // Check track type and state
+                if (event.track.kind !== 'video') {
+                    console.log(`Track is ${event.track.kind}, not video - skipping`);
+                    return;
+                }
+                
+                console.log(`Track state: enabled=${event.track.enabled}, readyState=${event.track.readyState}, muted=${event.track.muted}`);
+                
+                // Use event.streams if available, otherwise create from track
+                let stream;
+                if (event.streams && event.streams.length > 0) {
+                    stream = event.streams[0];
+                    console.log(`Using stream from event.streams (${stream.getTracks().length} tracks)`);
+                } else {
+                    stream = new MediaStream([event.track]);
+                    console.log(`Created new stream from track`);
+                }
+                
+                // Ensure stream has video tracks
+                const videoTracks = stream.getVideoTracks();
+                if (videoTracks.length === 0) {
+                    console.error(`❌ Stream has no video tracks for ${streamId}`);
+                    return;
+                }
+                
+                console.log(`Stream has ${videoTracks.length} video track(s):`, videoTracks.map(t => ({
+                    id: t.id,
+                    enabled: t.enabled,
+                    readyState: t.readyState,
+                    muted: t.muted,
+                    settings: t.getSettings()
+                })));
+                
+                // Set stream on video element
+                video.srcObject = stream;
+                
+                // Wait for video metadata to load before playing
+                video.onloadedmetadata = () => {
+                    console.log(`✅ Video metadata loaded for ${streamId}, dimensions: ${video.videoWidth}x${video.videoHeight}`);
+                    
+                    // Check if video has actual dimensions
+                    if (video.videoWidth === 0 || video.videoHeight === 0 || 
+                        (video.videoWidth === 2 && video.videoHeight === 2)) {
+                        console.warn(`⚠️ Video has invalid dimensions (${video.videoWidth}x${video.videoHeight}) for ${streamId}`);
+                        // Wait a bit more and check again
+                        setTimeout(() => {
+                            if (video.videoWidth > 2 && video.videoHeight > 2) {
+                                console.log(`✅ Video dimensions now: ${video.videoWidth}x${video.videoHeight}`);
+                                tryPlayVideo();
+                            } else {
+                                console.error(`❌ Video still has invalid dimensions after wait`);
+                                // Fall back to HLS
+                                updateStreamStatus(streamId, 'error');
+                                const hlsUrl = getHLSUrl(streamPath);
+                                loadHLS(video, hlsUrl, streamId);
+                            }
+                        }, 500);
+                    } else {
+                        tryPlayVideo();
+                    }
+                };
+                
+                // Monitor video playback
+                video.onplaying = () => {
+                    console.log(`✅ Video is playing for ${streamId}, currentTime: ${video.currentTime.toFixed(2)}s`);
+                    updateStreamStatus(streamId, 'connected');
+                };
+                
+                video.oncanplay = () => {
+                    console.log(`✅ Video can play for ${streamId}, readyState: ${video.readyState}`);
+                    if (video.videoWidth > 0 && video.videoHeight > 0) {
+                        updateStreamStatus(streamId, 'connected');
+                    }
+                };
+                
+                // Monitor errors
+                video.onerror = (e) => {
+                    console.warn(`⚠️ Video error for ${streamId}:`, e);
+                    updateStreamStatus(streamId, 'error');
+                    // Fall back to HLS
+                    setTimeout(() => {
+                        console.log(`Falling back to HLS for ${streamId} after error...`);
+                        const hlsUrl = getHLSUrl(streamPath);
+                        loadHLS(video, hlsUrl, streamId);
+                    }, 1000);
+                };
+                
+                video.onstalled = () => {
+                    console.warn(`⚠️ Video stalled for ${streamId}`);
+                    updateStreamStatus(streamId, 'reconnecting');
+                };
+                
+                video.onsuspend = () => {
+                    console.warn(`⚠️ Video suspended for ${streamId}`);
+                };
+                
+                // Track ended handler
+                event.track.onended = () => {
+                    console.warn(`⚠️ Track ended for ${streamId}`);
+                    updateStreamStatus(streamId, 'error');
+                    // Retry connection
+                    setTimeout(() => {
+                        startWebRTCPreview(video, streamPath, streamId);
+                    }, 2000);
+                };
+                
+                // Track unmuted handler
+                event.track.onunmute = () => {
+                    console.log(`✅ Track unmuted for ${streamId}`);
+                    if (video.srcObject) {
+                        tryPlayVideo();
+                    }
+                };
+                
+                // Function to actually play the video
+                const tryPlayVideo = () => {
+                    if (video.paused) {
+                        video.play().then(() => {
+                            console.log(`✅ WebRTC playing for ${streamId} - ultra-low latency!`);
+                            updateStreamStatus(streamId, 'connected');
+                        }).catch(e => {
+                            if (e.name !== 'AbortError' && e.name !== 'NotAllowedError') {
+                                console.log(`⚠️ Play failed for ${streamId}:`, e.message);
+                            }
+                        });
+                    }
+                };
+                
+                // If metadata is already loaded, try playing immediately
+                if (video.readyState >= 1) {
+                    console.log(`Video readyState is ${video.readyState}, trying to play immediately`);
+                    tryPlayVideo();
+                }
+                
+                // Check periodically if video dimensions become available
+                let dimensionCheckCount = 0;
+                let dimensionsDetected = false;
+                const checkDimensions = setInterval(() => {
+                    dimensionCheckCount++;
+                    // Check for valid dimensions
+                    if (video.videoWidth > 2 && video.videoHeight > 2) {
+                        if (!dimensionsDetected) {
+                            console.log(`✅ Video dimensions detected: ${video.videoWidth}x${video.videoHeight}`);
+                            dimensionsDetected = true;
+                        }
+                        updateStreamStatus(streamId, 'connected');
+                        clearInterval(checkDimensions);
+                    } else if (dimensionCheckCount > 50) {
+                        // Stop checking after 5 seconds
+                        clearInterval(checkDimensions);
+                        console.warn(`⚠️ Video dimensions still invalid after 5 seconds for ${streamId}`);
+                        // Fall back to HLS if we never got valid dimensions
+                        if (!dimensionsDetected && video.currentTime === 0) {
+                            console.log(`Falling back to HLS for ${streamId}`);
+                            const hlsUrl = getHLSUrl(streamPath);
+                            loadHLS(video, hlsUrl, streamId);
+                        }
+                    }
+                }, 100);
+            };
+
+            pc.oniceconnectionstatechange = () => {
+                console.log(`WebRTC ICE state for ${streamId}: ${pc.iceConnectionState}`);
+                if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
+                    console.log(`WebRTC failed for ${streamId}, falling back to HLS`);
+                    updateStreamStatus(streamId, 'error');
+                    const hlsUrl = getHLSUrl(streamPath);
+                    loadHLS(video, hlsUrl, streamId);
+                } else if (pc.iceConnectionState === 'connected') {
+                    console.log(`✅ WebRTC connected for ${streamId}`);
+                    updateStreamStatus(streamId, 'connected');
+                }
+            };
+            
+            pc.onconnectionstatechange = () => {
+                console.log(`WebRTC connection state for ${streamId}: ${pc.connectionState}`);
+                if (pc.connectionState === 'failed') {
+                    console.log(`WebRTC connection failed for ${streamId}, falling back to HLS`);
+                    updateStreamStatus(streamId, 'error');
+                    const hlsUrl = getHLSUrl(streamPath);
+                    loadHLS(video, hlsUrl, streamId);
+                }
+            };
+
+            pc.addTransceiver('video', { direction: 'recvonly' });
+            pc.addTransceiver('audio', { direction: 'recvonly' });
+
+            let resourceUrl = null;
+
+            pc.createOffer({
+                offerToReceiveVideo: true,
+                offerToReceiveAudio: true
+            }).then(offer => {
+                return pc.setLocalDescription(offer);
+            }).then(() => {
+                return fetch(webrtcUrl, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/sdp',
+                        'Accept': 'application/sdp'
+                    },
+                    body: pc.localDescription.sdp
+                });
+            }).then(response => {
+                if (!response.ok) {
+                    throw new Error(`WHEP error: ${response.status}`);
+                }
+                resourceUrl = response.headers.get('Location') || webrtcUrl;
+                return response.text();
+            }).then(answerSdp => {
+                console.log(`Received SDP answer for ${streamId}, setting remote description...`);
+                return pc.setRemoteDescription({ type: 'answer', sdp: answerSdp });
+            }).then(() => {
+                console.log(`Remote description set for ${streamId}`);
+                pc.onicecandidate = (event) => {
+                    if (event.candidate && resourceUrl) {
+                        fetch(resourceUrl, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/trickle-ice-sdpfrag' },
+                            body: 'a=' + event.candidate.candidate
+                        }).catch(err => console.warn('ICE candidate send failed:', err));
+                    }
+                };
+                webrtcConnections[streamId] = pc;
+                video.dataset.connecting = 'false';
+                console.log(`WebRTC preview started for ${streamId} (ultra-low latency)`);
+            }).catch(error => {
+                video.dataset.connecting = 'false';
+                console.error(`WebRTC setup failed for ${streamId}:`, error);
+                updateStreamStatus(streamId, 'error');
+                // Fallback to HLS
+                const hlsUrl = getHLSUrl(streamPath);
+                loadHLS(video, hlsUrl, streamId);
+            });
         }
 
         // HLS reconnection state
