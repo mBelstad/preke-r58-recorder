@@ -2404,14 +2404,37 @@
                 video.muted = true;
                 video.playsInline = true;
                 
-                // Try to reuse existing stream from compact inputs (much faster!)
+                // Try to reuse existing stream from compact inputs (INSTANT scene changes!)
                 const existingInput = document.querySelector(`[data-camera-id="${slot.source}"] video, [data-guest-id="${slot.source}"] video`);
-                if (existingInput && existingInput.srcObject) {
-                    // Reuse the MediaStream directly (no new connection needed!)
-                    video.srcObject = existingInput.srcObject;
-                    video.play().catch(e => console.debug('Autoplay blocked:', e));
+                
+                // Check if video is actually playing (works for both WebRTC and HLS)
+                const isPlaying = existingInput && !existingInput.paused && existingInput.readyState >= 2;
+                
+                if (isPlaying) {
+                    try {
+                        // Use captureStream() to clone the video output
+                        // This works for BOTH WebRTC (srcObject) and HLS (no srcObject)
+                        if (existingInput.srcObject) {
+                            // WebRTC: reuse MediaStream directly
+                            video.srcObject = existingInput.srcObject;
+                        } else if (existingInput.captureStream) {
+                            // HLS: capture the video output as a new MediaStream
+                            video.srcObject = existingInput.captureStream();
+                        } else if (existingInput.mozCaptureStream) {
+                            // Firefox fallback
+                            video.srcObject = existingInput.mozCaptureStream();
+                        }
+                        video.play().catch(e => console.debug('Autoplay blocked:', e));
+                        console.log(`✓ Reused stream for ${slot.source} (instant)`);
+                    } catch (e) {
+                        console.warn(`Failed to capture stream for ${slot.source}:`, e);
+                        // Fallback to loading new stream
+                        const instanceId = `preview-${slot.source}`;
+                        loadPromises.push(loadStreamForPreviewSlot(video, slot.source, instanceId));
+                    }
                 } else {
                     // Only load new stream if we don't have it already
+                    console.log(`Loading new stream for ${slot.source} (no existing source)`);
                     const instanceId = `preview-${slot.source}`;
                     loadPromises.push(loadStreamForPreviewSlot(video, slot.source, instanceId));
                 }
