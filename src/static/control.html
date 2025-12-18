@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <title>R58 Device Control</title>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
@@ -10,11 +12,15 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            -webkit-tap-highlight-color: rgba(59, 130, 246, 0.3);
         }
 
         html {
             background: #0a0a0a;
             height: 100%;
+            overscroll-behavior-y: contain;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
 
         body {
@@ -24,6 +30,8 @@
             color: #fff;
             min-height: 100vh;
             overflow-x: hidden;
+            -webkit-touch-callout: none;
+            touch-action: pan-y pinch-zoom;
         }
 
         .app-container {
@@ -34,6 +42,83 @@
             height: 100vh;
             max-height: 100vh;
             overflow: hidden;
+        }
+
+        /* Mobile hamburger menu button */
+        .mobile-menu-toggle {
+            display: none;
+            position: fixed;
+            top: 16px;
+            left: 16px;
+            z-index: 1000;
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 12px;
+            min-width: 48px;
+            min-height: 48px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+            font-size: 1.25rem;
+            touch-action: manipulation;
+        }
+
+        @media (max-width: 1024px) {
+            .mobile-menu-toggle {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .app-container {
+                grid-template-columns: 1fr;
+                padding: 72px 16px 16px 16px;
+            }
+
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 280px;
+                height: 100vh;
+                background: #0a0a0a;
+                z-index: 999;
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+                padding: 72px 16px 16px 16px;
+                box-shadow: 4px 0 12px rgba(0,0,0,0.5);
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .sidebar-overlay {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0,0,0,0.7);
+                z-index: 998;
+            }
+
+            .sidebar-overlay.open {
+                display: block;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .app-container {
+                padding: 64px 8px 8px 8px;
+            }
+            
+            .sidebar {
+                width: 100%;
+                max-width: 320px;
+            }
         }
 
         .sidebar {
@@ -73,6 +158,16 @@
             flex-shrink: 0;
         }
 
+        @media (max-width: 768px) {
+            .header {
+                padding: 12px 16px;
+                border-radius: 8px;
+                flex-direction: column;
+                gap: 8px;
+                text-align: center;
+            }
+        }
+
         .header h1 {
             font-size: 1.5rem;
             font-weight: 800;
@@ -81,6 +176,12 @@
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.25rem;
+            }
         }
 
         .status-badge {
@@ -138,6 +239,11 @@
             font-weight: 500;
             color: #9ca3af;
             margin-bottom: 4px;
+            /* Touch-friendly size */
+            min-height: 44px;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
         }
 
         .nav-item:hover {
@@ -149,6 +255,22 @@
             background: linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(59, 130, 246, 0.1) 100%);
             color: #60a5fa;
             border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        /* Touch-specific active state */
+        @media (hover: none) and (pointer: coarse) {
+            .nav-item:active {
+                transform: scale(0.97);
+                background: rgba(255,255,255,0.08);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .nav-item {
+                padding: 14px 16px;
+                font-size: 0.95rem;
+                min-height: 48px;
+            }
         }
 
         .nav-icon {
@@ -195,11 +317,33 @@
             gap: 8px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            /* Touch-friendly minimum size */
+            min-height: 44px;
+            min-width: 44px;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
         }
 
         .btn:disabled {
             opacity: 0.4;
             cursor: not-allowed;
+        }
+
+        /* Touch-specific active state */
+        @media (hover: none) and (pointer: coarse) {
+            .btn:active:not(:disabled) {
+                transform: scale(0.95);
+                opacity: 0.9;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .btn {
+                padding: 14px 20px;
+                font-size: 0.8rem;
+                min-height: 48px;
+            }
         }
 
         .btn-primary {
@@ -260,6 +404,13 @@
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 16px;
             margin-bottom: 24px;
+        }
+
+        @media (max-width: 768px) {
+            .camera-grid {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
         }
 
         .camera-card {
@@ -325,6 +476,13 @@
             margin-bottom: 24px;
         }
 
+        @media (max-width: 768px) {
+            .scene-grid {
+                grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+                gap: 8px;
+            }
+        }
+
         .scene-button {
             background: rgba(59, 130, 246, 0.1);
             border: 2px solid rgba(59, 130, 246, 0.3);
@@ -336,6 +494,14 @@
             font-weight: 600;
             text-align: center;
             transition: all 0.2s;
+            /* Touch-friendly size */
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
         }
 
         .scene-button:hover {
@@ -350,11 +516,40 @@
             box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
         }
 
+        /* Touch-specific active state */
+        @media (hover: none) and (pointer: coarse) {
+            .scene-button:active {
+                transform: scale(0.95);
+                background: rgba(59, 130, 246, 0.25);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .scene-button {
+                padding: 12px;
+                font-size: 0.8rem;
+                min-height: 52px;
+            }
+        }
+
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 16px;
             margin-bottom: 24px;
+        }
+
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
         }
 
         .stat-card {
@@ -425,12 +620,21 @@
             position: relative;
             overflow: hidden;
             border: 2px solid rgba(255,255,255,0.1);
+            /* Touch-friendly */
+            touch-action: manipulation;
         }
 
         .mixer-preview video {
             width: 100%;
             height: 100%;
             object-fit: contain;
+        }
+
+        @media (max-width: 768px) {
+            .mixer-preview {
+                border-radius: 8px;
+                margin-bottom: 16px;
+            }
         }
 
         .mixer-preview-overlay {
@@ -462,28 +666,52 @@
             }
         }
 
+        .btn-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
         @media (max-width: 768px) {
-            .app-container {
-                grid-template-columns: 1fr;
-                grid-template-rows: auto 1fr;
+            .btn-group {
+                flex-direction: column;
             }
-
-            .sidebar {
-                flex-direction: row;
-                overflow-x: auto;
-                overflow-y: hidden;
-                height: auto;
+            
+            .btn-group .btn {
+                width: 100%;
             }
+        }
 
-            .nav-item {
-                white-space: nowrap;
+        .camera-controls {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .camera-controls .btn {
+            flex: 1;
+            min-width: 100px;
+            padding: 10px 16px;
+            font-size: 0.8rem;
+        }
+
+        @media (max-width: 768px) {
+            .camera-controls {
+                flex-direction: column;
+            }
+            
+            .camera-controls .btn {
+                width: 100%;
+                min-width: unset;
             }
         }
     </style>
 </head>
 <body>
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle menu">☰</button>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
     <div class="app-container">
-        <div class="sidebar">
+        <div class="sidebar" id="sidebar">
             <div class="card">
                 <div class="card-title">Navigation</div>
                 <div class="nav-item active" data-panel="dashboard">
@@ -614,9 +842,77 @@
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             setupNavigation();
+            setupMobileMenu();
+            setupTouchEnhancements();
             loadInitialData();
             startStatusPolling();
         });
+
+        // Mobile menu toggle
+        function setupMobileMenu() {
+            const menuToggle = document.getElementById('mobileMenuToggle');
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+
+            if (!menuToggle) return;
+
+            function closeSidebar() {
+                sidebar.classList.remove('open');
+                overlay.classList.remove('open');
+            }
+
+            function openSidebar() {
+                sidebar.classList.add('open');
+                overlay.classList.add('open');
+            }
+
+            menuToggle.addEventListener('click', () => {
+                if (sidebar.classList.contains('open')) {
+                    closeSidebar();
+                } else {
+                    openSidebar();
+                }
+            });
+
+            overlay.addEventListener('click', closeSidebar);
+
+            // Close sidebar when nav item is clicked on mobile
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    if (window.innerWidth <= 1024) {
+                        closeSidebar();
+                    }
+                });
+            });
+        }
+
+        // Touch enhancements
+        function setupTouchEnhancements() {
+            // Add touch feedback to buttons
+            document.querySelectorAll('.btn, .scene-button, .nav-item').forEach(element => {
+                element.addEventListener('touchstart', function() {
+                    this.style.transform = 'scale(0.95)';
+                }, { passive: true });
+                
+                element.addEventListener('touchend', function() {
+                    setTimeout(() => {
+                        this.style.transform = '';
+                    }, 100);
+                }, { passive: true });
+            });
+
+            // Prevent double-tap zoom on buttons
+            let lastTouchEnd = 0;
+            document.addEventListener('touchend', (e) => {
+                const now = Date.now();
+                if (now - lastTouchEnd <= 300) {
+                    if (e.target.closest('.btn, .scene-button, .nav-item')) {
+                        e.preventDefault();
+                    }
+                }
+                lastTouchEnd = now;
+            }, false);
+        }
 
         // Navigation
         function setupNavigation() {

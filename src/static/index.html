@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <title>R58 Recorder - Multiview</title>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
@@ -10,11 +12,17 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            -webkit-tap-highlight-color: rgba(59, 130, 246, 0.3);
         }
 
         html {
             background: #0a0a0a;
             height: 100%;
+            /* Prevent pull-to-refresh on mobile */
+            overscroll-behavior-y: contain;
+            /* Better text rendering on mobile */
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
 
         body {
@@ -26,6 +34,9 @@
             padding: 0;
             overflow-x: hidden;
             margin: 0;
+            /* Prevent text selection on touch devices */
+            -webkit-touch-callout: none;
+            touch-action: pan-y pinch-zoom;
         }
 
         .container {
@@ -41,11 +52,32 @@
             max-height: 100vh;
         }
 
+        /* Tablet and smaller laptops */
         @media (max-width: 1400px) {
             .container {
                 grid-template-columns: 1fr 280px;
                 gap: 12px;
                 padding: 12px;
+            }
+        }
+
+        /* Tablet portrait and mobile landscape */
+        @media (max-width: 1024px) {
+            .container {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 1fr;
+                gap: 12px;
+                padding: 12px;
+                height: auto;
+                min-height: 100vh;
+            }
+        }
+
+        /* Mobile devices */
+        @media (max-width: 768px) {
+            .container {
+                padding: 8px;
+                gap: 8px;
             }
         }
 
@@ -75,6 +107,16 @@
             flex-shrink: 0;
             position: relative;
             overflow: hidden;
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                padding: 12px 16px;
+                border-radius: 12px;
+                flex-direction: column;
+                gap: 8px;
+                text-align: center;
+            }
         }
 
         .header::before {
@@ -108,6 +150,19 @@
             text-shadow: 0 0 30px rgba(96, 165, 250, 0.3);
         }
 
+        @media (max-width: 1024px) {
+            .header h1 {
+                font-size: 1.5rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.25rem;
+                letter-spacing: -0.5px;
+            }
+        }
+
         .control-panel {
             background: linear-gradient(135deg, #1a1a1a 0%, #252525 100%);
             border-radius: 12px;
@@ -125,6 +180,22 @@
             overflow-y: auto;
             overflow-x: hidden;
             flex-shrink: 0;
+        }
+
+        @media (max-width: 1024px) {
+            .control-panel {
+                position: relative;
+                top: 0;
+                max-height: none;
+                padding: 16px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .control-panel {
+                padding: 12px;
+                border-radius: 8px;
+            }
         }
 
         .control-panel::-webkit-scrollbar {
@@ -169,6 +240,15 @@
             gap: 8px;
             position: relative;
             overflow: hidden;
+            min-height: 44px;
+        }
+
+        @media (max-width: 768px) {
+            .recording-status {
+                padding: 14px 16px;
+                font-size: 0.8rem;
+                min-height: 48px;
+            }
         }
 
         .recording-status::before {
@@ -216,6 +296,28 @@
             letter-spacing: 0.3px;
             text-transform: uppercase;
             font-size: 0.8rem;
+            /* Touch-friendly minimum size */
+            min-height: 44px;
+            min-width: 44px;
+            /* Better touch feedback */
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* Touch-specific active state */
+        @media (hover: none) and (pointer: coarse) {
+            .btn:active:not(:disabled) {
+                transform: scale(0.95);
+                opacity: 0.9;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .btn {
+                padding: 16px 20px;
+                font-size: 0.875rem;
+                min-height: 48px;
+            }
         }
 
         .btn::before {
@@ -311,13 +413,30 @@
             height: 100%;
         }
 
-        @media (max-width: 1200px) {
+        /* Tablet landscape - 2 columns */
+        @media (max-width: 1200px) and (min-width: 769px) {
             .multiview {
-                grid-template-columns: 1fr;
                 gap: 12px;
             }
         }
 
+        /* Tablet portrait and mobile landscape - 1 column */
+        @media (max-width: 1024px) {
+            .multiview {
+                grid-template-columns: 1fr;
+                gap: 12px;
+                overflow-y: auto;
+                max-height: none;
+                height: auto;
+            }
+        }
+
+        /* Mobile portrait - optimized spacing */
+        @media (max-width: 768px) {
+            .multiview {
+                gap: 8px;
+            }
+        }
 
         .multiview.fullscreen {
             grid-template-columns: 1fr;
@@ -340,6 +459,35 @@
             min-height: 0;
             max-height: 100%;
             height: 100%;
+            /* Better touch interaction */
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: rgba(59, 130, 246, 0.2);
+        }
+
+        /* Touch-specific styles */
+        @media (hover: none) and (pointer: coarse) {
+            .camera-view {
+                /* Larger hit area for touch */
+                min-height: 200px;
+            }
+            
+            .camera-view:active {
+                transform: scale(0.98);
+                border-color: #3b82f6;
+            }
+        }
+
+        @media (max-width: 1024px) {
+            .camera-view {
+                min-height: 250px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .camera-view {
+                border-radius: 8px;
+                min-height: 200px;
+            }
         }
         
         .camera-view video {
@@ -403,6 +551,15 @@
             border: 1px solid rgba(255,255,255,0.15);
             backdrop-filter: blur(10px);
             box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            pointer-events: none;
+        }
+
+        @media (max-width: 768px) {
+            .camera-label {
+                font-size: 0.75rem;
+                padding: 6px 12px;
+                letter-spacing: 1px;
+            }
         }
 
         .camera-view.fullscreen .camera-label {
@@ -410,6 +567,13 @@
             left: 20px;
             font-size: 1.1rem;
             padding: 10px 20px;
+        }
+
+        @media (max-width: 768px) {
+            .camera-view.fullscreen .camera-label {
+                font-size: 0.9rem;
+                padding: 8px 16px;
+            }
         }
 
         .camera-close {
@@ -426,18 +590,43 @@
             cursor: pointer;
             z-index: 10;
             display: none;
+            /* Touch-friendly size */
+            min-width: 44px;
+            min-height: 44px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            touch-action: manipulation;
         }
 
         .camera-view.fullscreen .camera-close {
-            display: block;
+            display: flex;
             top: 20px;
             right: 20px;
             font-size: 1rem;
             padding: 10px 20px;
         }
 
+        @media (max-width: 768px) {
+            .camera-view.fullscreen .camera-close {
+                top: 12px;
+                right: 12px;
+                min-width: 48px;
+                min-height: 48px;
+                font-size: 1.125rem;
+            }
+        }
+
         .camera-close:hover {
             background: rgba(220, 38, 38, 0.9);
+        }
+
+        /* Touch-specific active state */
+        @media (hover: none) and (pointer: coarse) {
+            .camera-close:active {
+                background: rgba(220, 38, 38, 1);
+                transform: scale(0.95);
+            }
         }
 
         .camera-placeholder {
@@ -521,11 +710,24 @@
             border: 1px solid rgba(255,255,255,0.05);
         }
 
+        @media (max-width: 768px) {
+            .stats-section {
+                padding: 12px;
+                border-radius: 6px;
+            }
+        }
+
         .stats-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 12px;
             margin-top: 12px;
+        }
+
+        @media (max-width: 768px) {
+            .stats-grid {
+                gap: 8px;
+            }
         }
 
         .stat-item {
@@ -547,6 +749,12 @@
             color: #fff;
             font-weight: 700;
             font-family: 'Courier New', monospace;
+        }
+
+        @media (max-width: 768px) {
+            .stat-value {
+                font-size: 1rem;
+            }
         }
 
         .stat-value.recording {
@@ -573,6 +781,14 @@
             border-radius: 6px;
             border: 1px solid rgba(255,255,255,0.05);
             font-size: 0.85rem;
+            min-height: 40px;
+        }
+
+        @media (max-width: 768px) {
+            .camera-stat {
+                padding: 10px 12px;
+                min-height: 44px;
+            }
         }
 
         .camera-stat-name {
@@ -823,6 +1039,11 @@
             }
         }
 
+        // Touch handling for double-tap and better interaction
+        let lastTap = 0;
+        let touchStartTime = 0;
+        let touchStartPos = { x: 0, y: 0 };
+
         function expandCamera(camId) {
             if (fullscreenCamera === camId) {
                 closeFullscreen();
@@ -868,6 +1089,65 @@
             if (e.key === 'Escape' && fullscreenCamera) {
                 closeFullscreen();
             }
+        });
+
+        // Enhanced touch handling for camera views
+        document.addEventListener('DOMContentLoaded', () => {
+            // Prevent accidental zoom on double-tap (but allow our custom double-tap)
+            let preventZoom = false;
+            document.addEventListener('touchstart', (e) => {
+                if (e.touches.length > 1) {
+                    e.preventDefault();
+                }
+                const now = Date.now();
+                const timeSince = now - lastTap;
+                if (timeSince < 300 && timeSince > 0) {
+                    // Double tap detected
+                    const target = e.target.closest('.camera-view');
+                    if (target && !target.classList.contains('fullscreen')) {
+                        e.preventDefault();
+                        const camId = target.id.replace('view-', '');
+                        expandCamera(camId);
+                    } else if (target && target.classList.contains('fullscreen')) {
+                        e.preventDefault();
+                        closeFullscreen();
+                    }
+                }
+                lastTap = now;
+                touchStartTime = now;
+                touchStartPos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            }, { passive: false });
+
+            // Prevent zoom on pinch
+            document.addEventListener('gesturestart', (e) => {
+                e.preventDefault();
+            });
+
+            // Add touch feedback to buttons
+            document.querySelectorAll('.btn').forEach(btn => {
+                btn.addEventListener('touchstart', function() {
+                    this.style.transform = 'scale(0.95)';
+                }, { passive: true });
+                
+                btn.addEventListener('touchend', function() {
+                    setTimeout(() => {
+                        this.style.transform = '';
+                    }, 100);
+                }, { passive: true });
+            });
+
+            // Improve camera view touch interaction
+            document.addEventListener('click', (e) => {
+                const cameraView = e.target.closest('.camera-view');
+                if (cameraView && !cameraView.classList.contains('fullscreen')) {
+                    // Check if it was a quick tap (not a drag)
+                    const touchDuration = Date.now() - touchStartTime;
+                    if (touchDuration < 200) {
+                        const camId = cameraView.id.replace('view-', '');
+                        expandCamera(camId);
+                    }
+                }
+            });
         });
 
         async function startAllPreviews() {
