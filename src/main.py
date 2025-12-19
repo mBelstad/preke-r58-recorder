@@ -62,6 +62,7 @@ database = Database(db_path="data/app.db")
 file_manager = FileManager(uploads_dir="uploads", database=database)
 
 # Initialize Reveal.js source manager first (needed by graphics plugin)
+# Supports multiple independent outputs (e.g., slides + slides_overlay)
 reveal_source_manager = None
 if config.reveal.enabled:
     try:
@@ -71,9 +72,10 @@ if config.reveal.enabled:
             framerate=config.reveal.framerate,
             bitrate=config.reveal.bitrate,
             mediamtx_path=config.reveal.mediamtx_path,
-            renderer=config.reveal.renderer
+            renderer=config.reveal.renderer,
+            outputs=config.reveal.outputs  # Multiple outputs support
         )
-        logger.info(f"Reveal.js source manager initialized (renderer: {reveal_source_manager.renderer_type})")
+        logger.info(f"Reveal.js source manager initialized (renderer: {reveal_source_manager.renderer_type}, outputs: {reveal_source_manager.get_output_ids()})")
     except Exception as e:
         logger.error(f"Failed to initialize Reveal.js source manager: {e}")
         reveal_source_manager = None
@@ -1456,87 +1458,162 @@ async def set_mixer_overlay_alpha(source: str, alpha: float) -> Dict[str, Any]:
     return {"status": "alpha_updated", "alpha": alpha}
 
 
-# Reveal.js API endpoints
-@app.post("/api/reveal/start")
-async def start_reveal(presentation_id: str, url: Optional[str] = None) -> Dict[str, Any]:
-    """Start Reveal.js video source.
+# Reveal.js API endpoints - supports multiple independent outputs
+@app.get("/api/reveal/outputs")
+async def get_reveal_outputs() -> Dict[str, Any]:
+    """Get available Reveal.js output IDs."""
+    if not reveal_source_manager:
+        raise HTTPException(status_code=503, detail="Reveal.js not enabled")
+    
+    return {
+        "outputs": reveal_source_manager.get_output_ids(),
+        "renderer": reveal_source_manager.renderer_type
+    }
+
+
+@app.post("/api/reveal/{output_id}/start")
+async def start_reveal_output(output_id: str, presentation_id: str, url: Optional[str] = None) -> Dict[str, Any]:
+    """Start a specific Reveal.js video output.
     
     Args:
+        output_id: Output identifier (e.g., "slides" or "slides_overlay")
         presentation_id: Presentation identifier
         url: Optional URL to render (defaults to /graphics?presentation={presentation_id})
     """
     if not reveal_source_manager:
         raise HTTPException(status_code=503, detail="Reveal.js not enabled")
     
+    # Validate output_id
+    if output_id not in reveal_source_manager.get_output_ids():
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Unknown output_id: {output_id}. Available: {reveal_source_manager.get_output_ids()}"
+        )
+    
     # Default URL if not provided
     if not url:
         url = f"http://localhost:8000/graphics?presentation={presentation_id}"
     
-    success = reveal_source_manager.start(presentation_id, url)
+    success = reveal_source_manager.start(output_id, presentation_id, url)
     if not success:
-        raise HTTPException(status_code=500, detail="Failed to start Reveal.js source")
+        raise HTTPException(status_code=500, detail=f"Failed to start Reveal.js output '{output_id}'")
     
+    output_status = reveal_source_manager.get_output_status(output_id)
     return {
         "status": "started",
+        "output_id": output_id,
         "presentation_id": presentation_id,
         "url": url,
-        "stream_url": reveal_source_manager.get_status()["stream_url"]
+        "stream_url": output_status["stream_url"] if output_status else None
     }
 
 
-@app.post("/api/reveal/stop")
-async def stop_reveal() -> Dict[str, str]:
-    """Stop Reveal.js video source."""
+@app.post("/api/reveal/{output_id}/stop")
+async def stop_reveal_output(output_id: str) -> Dict[str, str]:
+    """Stop a specific Reveal.js video output."""
     if not reveal_source_manager:
         raise HTTPException(status_code=503, detail="Reveal.js not enabled")
     
-    success = reveal_source_manager.stop()
-    if not success:
-        raise HTTPException(status_code=500, detail="Failed to stop Reveal.js source")
+    # Validate output_id
+    if output_id not in reveal_source_manager.get_output_ids():
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Unknown output_id: {output_id}. Available: {reveal_source_manager.get_output_ids()}"
+        )
     
-    return {"status": "stopped"}
+    success = reveal_source_manager.stop(output_id)
+    if not success:
+        raise HTTPException(status_code=500, detail=f"Failed to stop Reveal.js output '{output_id}'")
+    
+    return {"status": "stopped", "output_id": output_id}
 
 
-@app.post("/api/reveal/navigate/{direction}")
-async def navigate_reveal(direction: str) -> Dict[str, str]:
-    """Navigate slides in Reveal.js presentation.
+@app.post("/api/reveal/stop")
+async def stop_all_reveal() -> Dict[str, str]:
+    """Stop all Reveal.js video outputs."""
+    if not reveal_source_manager:
+        raise HTTPException(status_code=503, detail="Reveal.js not enabled")
+    
+    success = reveal_source_manager.stop_all()
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to stop all Reveal.js outputs")
+    
+    return {"status": "stopped", "message": "All outputs stopped"}
+
+
+@app.post("/api/reveal/{output_id}/navigate/{direction}")
+async def navigate_reveal_output(output_id: str, direction: str) -> Dict[str, str]:
+    """Navigate slides in a specific Reveal.js output.
     
     Args:
+        output_id: Output identifier
         direction: Navigation direction (next, prev, first, last)
     """
     if not reveal_source_manager:
         raise HTTPException(status_code=503, detail="Reveal.js not enabled")
     
+    if output_id not in reveal_source_manager.get_output_ids():
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Unknown output_id: {output_id}"
+        )
+    
     if direction not in ["next", "prev", "first", "last"]:
         raise HTTPException(status_code=400, detail="Invalid direction")
     
-    success = reveal_source_manager.navigate(direction)
+    success = reveal_source_manager.navigate(output_id, direction)
     if not success:
         raise HTTPException(status_code=500, detail="Failed to navigate slides")
     
-    return {"status": "navigated", "direction": direction}
+    return {"status": "navigated", "output_id": output_id, "direction": direction}
 
 
-@app.post("/api/reveal/goto/{slide}")
-async def goto_reveal_slide(slide: int) -> Dict[str, Any]:
-    """Go to specific slide in Reveal.js presentation.
+@app.post("/api/reveal/{output_id}/goto/{slide}")
+async def goto_reveal_output_slide(output_id: str, slide: int) -> Dict[str, Any]:
+    """Go to specific slide in a Reveal.js output.
     
     Args:
+        output_id: Output identifier
         slide: Slide index
     """
     if not reveal_source_manager:
         raise HTTPException(status_code=503, detail="Reveal.js not enabled")
     
-    success = reveal_source_manager.goto_slide(slide)
+    if output_id not in reveal_source_manager.get_output_ids():
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Unknown output_id: {output_id}"
+        )
+    
+    success = reveal_source_manager.goto_slide(output_id, slide)
     if not success:
         raise HTTPException(status_code=500, detail="Failed to go to slide")
     
-    return {"status": "navigated", "slide": slide}
+    return {"status": "navigated", "output_id": output_id, "slide": slide}
+
+
+@app.get("/api/reveal/{output_id}/status")
+async def get_reveal_output_status(output_id: str) -> Dict[str, Any]:
+    """Get status of a specific Reveal.js output."""
+    if not reveal_source_manager:
+        raise HTTPException(status_code=503, detail="Reveal.js not enabled")
+    
+    if output_id not in reveal_source_manager.get_output_ids():
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Unknown output_id: {output_id}"
+        )
+    
+    status = reveal_source_manager.get_output_status(output_id)
+    if not status:
+        raise HTTPException(status_code=404, detail=f"Output '{output_id}' not found")
+    
+    return status
 
 
 @app.get("/api/reveal/status")
 async def get_reveal_status() -> Dict[str, Any]:
-    """Get Reveal.js source status."""
+    """Get status of all Reveal.js outputs."""
     if not reveal_source_manager:
         raise HTTPException(status_code=503, detail="Reveal.js not enabled")
     

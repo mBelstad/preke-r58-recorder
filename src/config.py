@@ -87,13 +87,17 @@ class CloudflareConfig:
 
 @dataclass
 class RevealConfig:
-    """Reveal.js video source configuration."""
+    """Reveal.js video source configuration.
+    
+    Supports multiple independent outputs for simultaneous streaming.
+    """
     enabled: bool = True
     resolution: str = "1920x1080"
     framerate: int = 30
     bitrate: int = 4000
-    mediamtx_path: str = "slides"
+    mediamtx_path: str = "slides"  # Default path (backward compat)
     renderer: str = "auto"  # auto, wpe, chromium
+    outputs: list = field(default_factory=lambda: ["slides", "slides_overlay"])
 
 
 @dataclass
@@ -214,6 +218,8 @@ class AppConfig:
         
         # Load Reveal.js config
         reveal_data = data.get("reveal", {})
+        # Default outputs if not specified
+        default_outputs = ["slides", "slides_overlay"]
         reveal = RevealConfig(
             enabled=reveal_data.get("enabled", True),
             resolution=reveal_data.get("resolution", "1920x1080"),
@@ -221,6 +227,7 @@ class AppConfig:
             bitrate=reveal_data.get("bitrate", 4000),
             mediamtx_path=reveal_data.get("mediamtx_path", "slides"),
             renderer=reveal_data.get("renderer", "auto"),
+            outputs=reveal_data.get("outputs", default_outputs),
         )
         
         # Load external cameras

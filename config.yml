@@ -29,13 +29,18 @@ graphics:
   output_dir: /tmp/graphics_output
 
 # Reveal.js video source configuration
+# Supports multiple independent outputs that can run simultaneously
 reveal:
   enabled: true
   resolution: 1920x1080
   framerate: 30
   bitrate: 4000  # kbps
-  mediamtx_path: slides  # MediaMTX path for Reveal.js stream
+  mediamtx_path: slides  # Default path (backward compat)
   renderer: auto  # auto, wpe, chromium
+  # Two independent outputs - each can render a different presentation
+  outputs:
+    - slides          # Primary presentation (e.g., full slides for recording/main output)
+    - slides_overlay  # Secondary output (e.g., slides for PiP overlay, different view)
 
 # Mixer configuration (optional)
 mixer:
