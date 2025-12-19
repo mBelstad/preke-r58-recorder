@@ -7,13 +7,12 @@
 
 ## Current State
 
-### RTMP Usage (Internal Only)
-Currently, RTMP is used **exclusively for internal communication** between components:
-- Ingest → MediaMTX (localhost:1935)
-- Mixer → MediaMTX (localhost:1935)
-- Calls Relay → MediaMTX (localhost:1935)
+### Internal Communication Protocols
+- **Ingest → MediaMTX**: Uses **RTSP** (`rtspclientsink` with H.265 over UDP)
+- **Mixer → MediaMTX**: Uses **RTMP** (`rtmpsink` with H.264, because FLV doesn't support H.265)
+- **Calls Relay → MediaMTX**: Uses **RTMP** (for WebRTC guests)
 
-**Key Point**: RTMP is NOT used for external streaming. It's only for localhost communication.
+**Key Point**: RTMP is used ONLY for mixer output and guest relays (internal localhost). Ingest uses RTSP.
 
 ### External Streaming
 MediaMTX handles external streaming via:
@@ -45,17 +44,19 @@ MediaMTX handles external streaming via:
 
 ## Use Case Analysis
 
-### Internal Communication (Current RTMP Usage)
-**Verdict**: ✅ **Keep RTMP**
+### Internal Communication
+**Ingest → MediaMTX (RTSP)**: ✅ **Already optimal**
+- Uses RTSP with H.265 (VPU hardware encoding)
+- UDP transport for low latency
+- Native H.265 support (no transcoding)
 
-**Reasons**:
-1. **Localhost only** - No network issues (packet loss, jitter, etc.)
-2. **Simpler** - RTMP is well-established and debugged
-3. **FLV compatibility** - RTMP uses FLV which MediaMTX handles well
-4. **No latency concerns** - Internal communication is fast enough
-5. **Firewall irrelevant** - Localhost traffic
+**Mixer → MediaMTX (RTMP)**: ✅ **Keep RTMP**
+- **Localhost only** - No network issues
+- **FLV limitation** - RTMP/FLV required because mixer uses H.264 (H.265 not supported in FLV)
+- **No latency concerns** - Internal communication is fast enough
+- **Simpler** - Well-established and debugged
 
-**Recommendation**: No change needed for internal RTMP usage.
+**Recommendation**: No change needed. Ingest already uses RTSP (optimal), mixer uses RTMP (required for FLV).
 
 ### External Streaming (Future/Optional)
 **Verdict**: ✅ **Use SRT**
@@ -71,11 +72,12 @@ MediaMTX handles external streaming via:
 
 ## Recommendation
 
-### For Internal Communication (Ingest/Mixer → MediaMTX)
-**Keep RTMP** - No changes needed
+### For Internal Communication
+**Ingest → MediaMTX**: ✅ Already using RTSP (optimal for H.265)
+**Mixer → MediaMTX**: ✅ Keep RTMP (required for FLV/H.264)
 - Simple, reliable, well-tested
 - Localhost has no network issues
-- FLV format works well with MediaMTX
+- FLV format limitation requires RTMP
 
 ### For External Streaming (Future Feature)
 **Add SRT Output** - Implement when needed for external streaming
@@ -143,29 +145,38 @@ Direct SRT publishing from ingest (bypass MediaMTX):
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ Ingest Pipelines                                            │
-│ v4l2src → mpph265enc (VPU) → rtspclientsink                │
-│                                  ↓                          │
-│                          MediaMTX (RTSP)                    │
+│ Ingest Pipelines (4 cameras)                                │
+│ v4l2src → mpph265enc (VPU) → h265parse → rtspclientsink    │
+│                                              ↓              │
+│                                    RTSP (H.265/UDP)         │
 └────────────┬────────────────────────────────────────────────┘
              │
              ▼
 ┌─────────────────────────────────────────────────────────────┐
 │ MediaMTX Server                                             │
-│ - Receives: RTSP (H.265) from ingest                       │
-│ - Receives: RTMP (H.264) from mixer                        │
-│ - Outputs:                                                  │
-│   • RTSP :8554 (for recording, mixer input)                │
-│   • WebRTC :8889 (for browser preview)                     │
-│   • HLS :8888 (for browser fallback)                       │
-│   • SRT :8890 (for external streaming - available)         │
+│ Inputs:                                                     │
+│ • RTSP :8554 ← Ingest (H.265 via rtspclientsink)          │
+│ • RTMP :1935 ← Mixer (H.264 via rtmpsink)                 │
+│                                                             │
+│ Outputs:                                                    │
+│ • RTSP :8554 → Recording, Mixer input                      │
+│ • WebRTC :8889 → Browser preview                           │
+│ • HLS :8888 → Browser fallback                             │
+│ • SRT :8890 → External streaming (available)               │
+└─────────────────────────────────────────────────────────────┘
+             ↑
+             │ RTMP (H.264)
+┌────────────┴────────────────────────────────────────────────┐
+│ Mixer                                                       │
+│ Inputs: RTSP (H.265) from MediaMTX                         │
+│ Processing: Compositor, graphics overlay                    │
+│ Output: x264enc → flvmux → rtmpsink                        │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**Note**: Mixer uses RTMP internally because:
-1. It's localhost communication (no network issues)
-2. FLV format limitation (no H.265 support)
-3. MediaMTX handles RTMP → all other formats
+**Note**: 
+- **Ingest uses RTSP** - Optimal for H.265 VPU encoding
+- **Mixer uses RTMP** - Required because FLV doesn't support H.265
 
 ---
 
