@@ -83,13 +83,14 @@ def build_r58_pipeline(
         # HDMI input: RK hdmirx currently exposes NV16 (4:2:2); convert to NV12 for encoders
         # Must use io-mode=mmap for hdmirx
         # Use actual detected resolution, not configured resolution
+        # IMPORTANT: Don't force framerate - let v4l2src negotiate natively
         src_width = caps.get('width') or int(width)
         src_height = caps.get('height') or int(height)
-        src_fps = caps.get('framerate') or 60
-        logger.info(f"{cam_id}: hdmirx recording using detected resolution {src_width}x{src_height}@{src_fps}fps")
+        logger.info(f"{cam_id}: hdmirx recording using detected resolution {src_width}x{src_height} (native framerate)")
         source_str = (
             f"v4l2src device={device} io-mode=mmap ! "
-            f"video/x-raw,format=NV16,width={src_width},height={src_height},framerate={src_fps}/1 ! "
+            f"video/x-raw,format=NV16,width={src_width},height={src_height} ! "
+            f"videorate ! video/x-raw,framerate=30/1 ! "
             f"videoconvert ! "
             f"videoscale ! "
             f"video/x-raw,width={width},height={height},format=NV12"
@@ -301,13 +302,13 @@ def build_r58_preview_pipeline(
     
     if device_type == "hdmirx":
         # Use actual detected resolution, not configured resolution
+        # IMPORTANT: Don't force framerate - let v4l2src negotiate natively
         src_width = caps.get('width') or int(width)
         src_height = caps.get('height') or int(height)
-        src_fps = caps.get('framerate') or 60
-        logger.info(f"{cam_id}: hdmirx preview using detected resolution {src_width}x{src_height}@{src_fps}fps")
+        logger.info(f"{cam_id}: hdmirx preview using detected resolution {src_width}x{src_height} (native framerate)")
         source_str = (
             f"v4l2src device={device} io-mode=mmap ! "
-            f"video/x-raw,format=NV16,width={src_width},height={src_height},framerate={src_fps}/1 ! "
+            f"video/x-raw,format=NV16,width={src_width},height={src_height} ! "
             f"videorate ! video/x-raw,framerate=30/1 ! "
             f"videoconvert ! "
             f"videoscale ! "
@@ -474,13 +475,14 @@ def build_r58_ingest_pipeline(
     if device_type == "hdmirx":
         # Use actual detected resolution, not configured resolution
         # This is critical for hdmirx which may receive 4K even if config says 1080p
+        # IMPORTANT: Don't force framerate in caps - let v4l2src negotiate natively
+        # The camera may output at various framerates (30/60/120fps)
         src_width = caps.get('width') or int(width)
         src_height = caps.get('height') or int(height)
-        src_fps = caps.get('framerate') or 60
-        logger.info(f"{cam_id}: hdmirx using detected resolution {src_width}x{src_height}@{src_fps}fps")
+        logger.info(f"{cam_id}: hdmirx using detected resolution {src_width}x{src_height} (native framerate)")
         source_str = (
             f"v4l2src device={device} io-mode=mmap ! "
-            f"video/x-raw,format=NV16,width={src_width},height={src_height},framerate={src_fps}/1 ! "
+            f"video/x-raw,format=NV16,width={src_width},height={src_height} ! "
             f"videorate ! video/x-raw,framerate=30/1 ! "
             f"videoconvert ! "
             f"videoscale ! "
