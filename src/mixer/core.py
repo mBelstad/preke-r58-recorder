@@ -1066,14 +1066,16 @@ class MixerCore:
         
         logger.info(f"Building mixer pipeline with {len(source_branches)} valid source(s) out of {len(scene.slots)} scene slot(s)")
 
-        # Encoder
+        # Encoder - use hardware encoders for low CPU usage
         if self.output_codec == "h265":
             encoder_str = f"mpph265enc bps={self.output_bitrate * 1000} bps-max={self.output_bitrate * 2000}"
             caps_str = "video/x-h265"
             parse_str = "h265parse"
             mux_str = "matroskamux"
         else:  # h264
-            encoder_str = f"x264enc tune=zerolatency bitrate={self.output_bitrate} speed-preset=superfast"
+            # Use hardware mpph264enc for low CPU usage
+            bps = self.output_bitrate * 1000
+            encoder_str = f"mpph264enc rc-mode=cbr bps={bps} gop=30 qp-init=26"
             caps_str = "video/x-h264"
             parse_str = "h264parse"
             mux_str = "mp4mux"

@@ -7,6 +7,38 @@ from .gst_utils import get_gst, ensure_gst_initialized
 logger = logging.getLogger(__name__)
 
 
+def get_h264_encoder(bitrate: int, platform: str = "r58", is_4k_source: bool = False) -> tuple[str, str]:
+    """Get H.264 encoder string based on platform and source resolution.
+    
+    Args:
+        bitrate: Target bitrate in kbps
+        platform: "macos" or "r58"
+        is_4k_source: Whether the source is 4K resolution
+        
+    Returns:
+        Tuple of (encoder_str, caps_str)
+    """
+    if platform == "macos":
+        # macOS: Use software x264enc (no MPP hardware encoder)
+        if is_4k_source:
+            encoder_str = (
+                f"x264enc tune=zerolatency bitrate={bitrate} speed-preset=ultrafast "
+                f"key-int-max=30 bframes=0 threads=6 sliced-threads=true"
+            )
+        else:
+            encoder_str = (
+                f"x264enc tune=zerolatency bitrate={bitrate} speed-preset=superfast "
+                f"key-int-max=30 bframes=0 threads=4 sliced-threads=true"
+            )
+    else:
+        # R58: Use hardware mpph264enc (Rockchip VPU)
+        bps = bitrate * 1000  # mpph264enc uses bits per second, not kbps
+        encoder_str = f"mpph264enc rc-mode=cbr bps={bps} gop=30 qp-init=26"
+    
+    caps_str = "video/x-h264"
+    return encoder_str, caps_str
+
+
 def build_mock_pipeline(
     cam_id: str,
     output_path: str,
@@ -165,10 +197,8 @@ def build_r58_pipeline(
         parse_str = "h265parse"
         mux_str = "matroskamux"
     else:  # h264
-        # Use x264enc (software encoder) - more reliable than mpph264enc for HDMI
-        # bitrate is in kbps for x264enc
-        encoder_str = f"x264enc tune=zerolatency bitrate={bitrate} speed-preset=superfast"
-        caps_str = "video/x-h264"
+        # Use hardware mpph264enc (Rockchip VPU) for low CPU usage
+        encoder_str, caps_str = get_h264_encoder(bitrate, platform="r58")
         parse_str = "h264parse"
         mux_str = "mp4mux"
 
@@ -196,8 +226,12 @@ def build_r58_pipeline(
                 f"filesink location={output_path} "
                 f"source_tee. ! "
                 f"queue max-size-buffers=0 max-size-time=0 max-size-bytes=0 ! "
-                f"x264enc tune=zerolatency bitrate={bitrate} speed-preset=superfast ! "
-                f"video/x-h264 ! "
+            )
+            # Use hardware encoder for streaming too
+            stream_encoder_str, stream_caps_str = get_h264_encoder(bitrate, platform="r58")
+            pipeline_str += (
+                f"{stream_encoder_str} ! "
+                f"{stream_caps_str} ! "
                 f"h264parse ! "
                 f"flvmux streamable=true ! "
                 f"rtmpsink location={rtmp_url}"
@@ -373,15 +407,10 @@ def build_r58_preview_pipeline(
         )
 
     # Encoder - ALWAYS use H.264 for preview (flvmux doesn't support H.265)
-    # Balanced settings: higher bitrate for quality, veryfast preset, optimized keyframes
     # Use 80% of recording bitrate for preview (better quality)
     preview_bitrate = max(4000, int(bitrate * 0.8))  # 80% of recording bitrate
-    # key-int-max=30 = keyframe every 1s at 30fps (good quality, acceptable latency)
-    # speed-preset=veryfast = better quality than ultrafast, still low latency
-    # threads=2 = slight threading for better quality without much latency
-    # sync-lookahead=2 = minimal lookahead for better quality
-    encoder_str = f"x264enc tune=zerolatency bitrate={preview_bitrate} speed-preset=veryfast key-int-max=30 threads=2 sync-lookahead=2"
-    caps_str = "video/x-h264"
+    # Use hardware encoder for low CPU usage
+    encoder_str, caps_str = get_h264_encoder(preview_bitrate, platform="r58")
 
     # Preview pipeline: stream to MediaMTX only (no recording)
     if mediamtx_path:
@@ -541,30 +570,10 @@ def build_r58_ingest_pipeline(
         )
 
     # Encoder - always H.264 for compatibility
-    # Optimized settings for low-latency streaming:
-    # - tune=zerolatency: Minimize encoding latency
-    # - speed-preset: ultrafast for 4K sources (cam2), superfast for HD
-    # - key-int-max: 15 for 4K (faster seeking), 30 for HD
-    # - bframes=0: No B-frames for lower latency
-    # - threads=6: More threads for 4K sources
-    # - sliced-threads=true: Better parallelization
-    
-    # Detect if source is 4K (cam2 typically outputs 3840x2160)
+    # Use hardware encoder for low CPU usage
+    # Detect if source is 4K for potential future optimizations
     is_4k_source = (int(width) >= 3840 or cam_id == "cam2")
-    
-    if is_4k_source:
-        # Ultra-fast encoding for 4K sources to reduce CPU load
-        encoder_str = (
-            f"x264enc tune=zerolatency bitrate={bitrate} speed-preset=ultrafast "
-            f"key-int-max=30 bframes=0 threads=6 sliced-threads=true"
-        )
-    else:
-        # Balanced encoding for HD sources
-        encoder_str = (
-            f"x264enc tune=zerolatency bitrate={bitrate} speed-preset=superfast "
-            f"key-int-max=30 bframes=0 threads=4 sliced-threads=true"
-        )
-    caps_str = "video/x-h264"
+    encoder_str, caps_str = get_h264_encoder(bitrate, platform="r58", is_4k_source=is_4k_source)
 
     # Stream to MediaMTX only
     if mediamtx_path:
