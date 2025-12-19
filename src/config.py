@@ -86,6 +86,17 @@ class CloudflareConfig:
 
 
 @dataclass
+class RevealConfig:
+    """Reveal.js video source configuration."""
+    enabled: bool = True
+    resolution: str = "1920x1080"
+    framerate: int = 30
+    bitrate: int = 4000
+    mediamtx_path: str = "slides"
+    renderer: str = "auto"  # auto, wpe, chromium
+
+
+@dataclass
 class AppConfig:
     """Main application configuration."""
     platform: str  # 'macos' or 'r58'
@@ -97,6 +108,7 @@ class AppConfig:
     mixer: MixerConfig = field(default_factory=MixerConfig)
     preview: PreviewConfig = field(default_factory=PreviewConfig)
     recording: RecordingConfig = field(default_factory=RecordingConfig)
+    reveal: RevealConfig = field(default_factory=RevealConfig)
     external_cameras: list = field(default_factory=list)
     log_level: str = "INFO"
 
@@ -200,6 +212,17 @@ class AppConfig:
             calls_app_name=cloudflare_data.get("calls_app_name", "r58-1"),
         )
         
+        # Load Reveal.js config
+        reveal_data = data.get("reveal", {})
+        reveal = RevealConfig(
+            enabled=reveal_data.get("enabled", True),
+            resolution=reveal_data.get("resolution", "1920x1080"),
+            framerate=reveal_data.get("framerate", 30),
+            bitrate=reveal_data.get("bitrate", 4000),
+            mediamtx_path=reveal_data.get("mediamtx_path", "slides"),
+            renderer=reveal_data.get("renderer", "auto"),
+        )
+        
         # Load external cameras
         external_cameras = data.get("external_cameras", [])
 
@@ -213,6 +236,7 @@ class AppConfig:
             mixer=mixer,
             preview=preview,
             recording=recording,
+            reveal=reveal,
             external_cameras=external_cameras,
             log_level=data.get("log_level", "INFO"),
         )
