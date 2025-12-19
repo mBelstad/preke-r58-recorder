@@ -79,3 +79,4 @@ curl http://localhost:8000/switcher | grep -c 'WHIPClient'
 **Open now:** https://recorder.itagenten.no/switcher 🚀
 
 The WebRTC implementation is deployed and ready for testing!
+

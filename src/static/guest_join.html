@@ -375,22 +375,31 @@
 
         // Load available devices
         async function loadDevices() {
+            const cameraSelect = document.getElementById('cameraSelect');
+            const micSelect = document.getElementById('micSelect');
+            
             try {
+                // Check if mediaDevices API is available
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    throw new Error('Media devices API not available. Please use HTTPS or localhost.');
+                }
+                
                 // First, request permission to get device labels
                 // This will trigger the browser permission prompt
+                console.log('Requesting camera and microphone permissions...');
                 const tempStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                 
                 // Now enumerate devices (labels will be available)
                 const devices = await navigator.mediaDevices.enumerateDevices();
+                console.log('Found devices:', devices.length);
                 
                 // Stop the temporary stream
                 tempStream.getTracks().forEach(track => track.stop());
                 
                 const cameras = devices.filter(d => d.kind === 'videoinput');
                 const mics = devices.filter(d => d.kind === 'audioinput');
-
-                const cameraSelect = document.getElementById('cameraSelect');
-                const micSelect = document.getElementById('micSelect');
+                
+                console.log(`Found ${cameras.length} cameras and ${mics.length} microphones`);
 
                 cameraSelect.innerHTML = cameras.length > 0 
                     ? cameras.map(d => `<option value="${d.deviceId}">${d.label || 'Camera ' + (cameras.indexOf(d) + 1)}</option>`).join('')
@@ -399,10 +408,33 @@
                 micSelect.innerHTML = mics.length > 0
                     ? mics.map(d => `<option value="${d.deviceId}">${d.label || 'Microphone ' + (mics.indexOf(d) + 1)}</option>`).join('')
                     : '<option value="">No microphones found</option>';
+                
+                if (cameras.length === 0 || mics.length === 0) {
+                    showStatus('warning', 'Some devices not found. Please check your camera/microphone connections.');
+                }
 
             } catch (err) {
                 console.error('Error loading devices:', err);
-                showStatus('error', 'Failed to load devices. Please grant camera/microphone permissions and reload the page.');
+                
+                // Provide specific error messages based on error type
+                let errorMessage = 'Failed to load devices. ';
+                if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                    errorMessage += 'Camera/microphone permission denied. Please grant permissions and reload the page.';
+                } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+                    errorMessage += 'No camera or microphone found. Please connect devices and reload.';
+                } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+                    errorMessage += 'Camera/microphone is already in use by another application.';
+                } else if (err.message.includes('HTTPS') || err.message.includes('localhost')) {
+                    errorMessage += err.message;
+                } else {
+                    errorMessage += 'Please check your camera/microphone and try again.';
+                }
+                
+                // Update dropdowns to show error state
+                cameraSelect.innerHTML = '<option value="">Permission denied or no camera</option>';
+                micSelect.innerHTML = '<option value="">Permission denied or no microphone</option>';
+                
+                showStatus('error', errorMessage);
             }
         }
 
@@ -687,3 +719,4 @@
     </script>
 </body>
 </html>
+

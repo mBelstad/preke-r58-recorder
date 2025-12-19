@@ -126,3 +126,4 @@ class ObsbotTail2:
         finally:
             if sock:
                 sock.close()
+

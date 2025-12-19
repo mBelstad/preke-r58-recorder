@@ -5,6 +5,7 @@ import os
 import json
 from pathlib import Path
 from typing import Dict, Any, List, Optional
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, UploadFile, File, Response, Request
 from fastapi.responses import JSONResponse, FileResponse, HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -121,11 +122,46 @@ if config.cloudflare.account_id and config.cloudflare.calls_api_token:
 else:
     logger.info("Cloudflare Calls disabled - no credentials configured")
 
-# Create FastAPI app
+
+# Lifespan context manager for startup and shutdown
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manage application lifecycle."""
+    # Startup
+    logger.info("Starting ingest pipelines for all cameras...")
+    results = ingest_manager.start_all()
+    for cam_id, success in results.items():
+        if success:
+            logger.info(f"✓ Ingest started for {cam_id}")
+        else:
+            logger.warning(f"✗ Failed to start ingest for {cam_id}")
+    
+    yield
+    
+    # Shutdown
+    logger.info("Application shutting down...")
+    
+    # Cleanup Cloudflare Calls relays
+    if calls_relay:
+        try:
+            await calls_relay.cleanup_all()
+        except Exception as e:
+            logger.error(f"Error cleaning up Cloudflare Calls relays: {e}")
+    
+    # Cleanup Cloudflare Calls sessions
+    if calls_manager:
+        try:
+            await calls_manager.cleanup_all_sessions()
+        except Exception as e:
+            logger.error(f"Error cleaning up Cloudflare Calls sessions: {e}")
+
+
+# Create FastAPI app with lifespan
 app = FastAPI(
     title="R58 Recorder API",
     description="Recording API for Mekotronics R58 4x4 3S",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 # Mount static files for frontend
@@ -150,17 +186,6 @@ videos_dir.mkdir(exist_ok=True)
 # Mount uploads directory for serving files
 app.mount("/uploads", StaticFiles(directory=str(uploads_dir)), name="uploads")
 
-
-@app.on_event("startup")
-async def startup_event():
-    """Start ingest pipelines on application startup."""
-    logger.info("Starting ingest pipelines for all cameras...")
-    results = ingest_manager.start_all()
-    for cam_id, success in results.items():
-        if success:
-            logger.info(f"✓ Ingest started for {cam_id}")
-        else:
-            logger.warning(f"✗ Failed to start ingest for {cam_id}")
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
@@ -2218,27 +2243,6 @@ async def clear_queue() -> Dict[str, str]:
         raise HTTPException(status_code=500, detail="Failed to clear queue")
     
     return {"status": "cleared"}
-
-
-# Cleanup on shutdown
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Cleanup resources on application shutdown."""
-    logger.info("Application shutting down...")
-    
-    # Cleanup Cloudflare Calls relays
-    if calls_relay:
-        try:
-            await calls_relay.cleanup_all()
-        except Exception as e:
-            logger.error(f"Error cleaning up Cloudflare Calls relays: {e}")
-    
-    # Cleanup Cloudflare Calls sessions
-    if calls_manager:
-        try:
-            await calls_manager.cleanup_all_sessions()
-        except Exception as e:
-            logger.error(f"Error cleaning up Cloudflare Calls sessions: {e}")
 
 
 if __name__ == "__main__":

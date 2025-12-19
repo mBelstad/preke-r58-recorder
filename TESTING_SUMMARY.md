@@ -141,3 +141,4 @@ If issues occur:
 - Verify disk space: `df -h /mnt/sdcard`
 - Check MediaMTX: `systemctl status mediamtx`
 - View session files: `ls -la data/sessions/`
+

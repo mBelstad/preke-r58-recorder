@@ -2081,12 +2081,13 @@
 
         async function updateCameraInfo() {
             try {
-                const response = await fetch(`${API_BASE}/api/preview/status`);
+                // Use ingest status API for accurate streaming status
+                const response = await fetch(`${API_BASE}/api/ingest/status`);
                 const data = await response.json();
                 
                 for (const [camId, camData] of Object.entries(data.cameras)) {
                     // Check for resolution changes
-                    const currentRes = camData.current_resolution?.formatted;
+                    const currentRes = camData.resolution?.formatted;
                     const previousRes = previousResolutions[camId];
                     if (currentRes && previousRes && currentRes !== previousRes) {
                         const camNumber = parseInt(camId.replace('cam', '')) + 1;
@@ -2124,8 +2125,8 @@
                     // Update resolution display
                     const resolutionEl = document.getElementById(`resolution-${camId}`);
                     if (resolutionEl) {
-                        if (camData.current_resolution) {
-                            resolutionEl.textContent = camData.current_resolution.formatted;
+                        if (camData.resolution) {
+                            resolutionEl.textContent = camData.resolution.formatted;
                             resolutionEl.style.color = '#10b981';
                         } else {
                             resolutionEl.textContent = '--';
@@ -2133,24 +2134,20 @@
                         }
                     }
                     
-                    // Update signal status
+                    // Update signal status - use ingest status which is more accurate
                     const signalEl = document.getElementById(`signal-${camId}`);
                     if (signalEl) {
                         const dot = signalEl.querySelector('.signal-dot');
                         const text = signalEl.querySelector('span:last-child');
                         
-                        if (camData.status === 'preview' && camData.has_signal) {
+                        // Ingest status: 'streaming', 'no_signal', 'error', 'idle'
+                        if (camData.status === 'streaming' && camData.has_signal) {
                             dot.className = 'signal-dot connected';
                             text.textContent = 'LIVE';
                             text.style.color = '#10b981';
                         } else if (camData.status === 'no_signal' || !camData.has_signal) {
                             dot.className = 'signal-dot no-signal';
-                            if (camData.signal_loss_duration) {
-                                const duration = Math.floor(camData.signal_loss_duration);
-                                text.textContent = `NO SIGNAL (${duration}s)`;
-                            } else {
-                                text.textContent = 'NO SIGNAL';
-                            }
+                            text.textContent = 'NO SIGNAL';
                             text.style.color = '#ef4444';
                         } else if (camData.status === 'error') {
                             dot.className = 'signal-dot no-signal';

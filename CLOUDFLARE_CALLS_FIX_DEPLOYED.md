@@ -304,3 +304,4 @@ Response: { "sessionDescription": { "sdp": "..." } }
 **Status**: READY FOR TESTING
 
 **What to do**: Connect as guest and check logs for success sequence!
+

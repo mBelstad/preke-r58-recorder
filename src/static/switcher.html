@@ -3308,9 +3308,9 @@
                 console.error(`Video element not found for ${instanceId}`);
                 return;
             }
-            
+
             updateStreamStatus(instanceId, 'connecting');
-            
+
             // Add event listener to mark video as active when playing
             videoElement.addEventListener('playing', () => {
                 const parentInput = videoElement.closest('.compact-input');
@@ -3318,7 +3318,7 @@
                     parentInput.classList.add('has-video');
                 }
             });
-            
+
             // Remove has-video class if video stops or errors
             videoElement.addEventListener('emptied', () => {
                 const parentInput = videoElement.closest('.compact-input');
@@ -3326,19 +3326,19 @@
                     parentInput.classList.remove('has-video');
                 }
             });
-            
-            // Try WebRTC first
+
+            // Try WebRTC first (only if enabled - disabled for remote access)
             if (webrtcConfig.enabled) {
                 try {
                     console.log(`Attempting WebRTC connection for ${streamPath}...`);
                     const whepUrl = getWHEPUrl(streamPath);
-                    
+
                     // Connect using native WHEP implementation
                     const { pc, stream } = await connectWHEP(whepUrl, webrtcConfig.iceServers);
-                    
+
                     // Attach stream to video element
                     videoElement.srcObject = stream;
-                    
+
                     // Store peer connection for cleanup
                     webrtcClients[instanceId] = {
                         pc: pc,
@@ -3346,10 +3346,10 @@
                         type: 'webrtc',
                         streamPath: streamPath
                     };
-                    
+
                     // Wait for video to start playing
                     await videoElement.play().catch(e => console.debug('Autoplay blocked:', e));
-                    
+
                     updateStreamStatus(instanceId, 'connected');
                     console.log(`✓ WebRTC connected for ${streamPath} (${instanceId})`);
                     return true;
@@ -3372,10 +3372,18 @@
                 }
             }
             
-            // Fallback to HLS
-            if (webrtcConfig.fallbackToHLS) {
-                console.log(`Falling back to HLS for ${streamPath}...`);
+            // Fallback to HLS (always enabled, especially for remote access)
+            if (webrtcConfig.fallbackToHLS || IS_REMOTE) {
+                console.log(`${IS_REMOTE ? 'Using' : 'Falling back to'} HLS for ${streamPath}...`);
                 const hlsUrl = getHLSUrl(streamPath);
+                
+                // Check if HLS.js is available
+                if (typeof Hls === 'undefined') {
+                    console.error('HLS.js not loaded! Cannot play HLS streams.');
+                    updateStreamStatus(instanceId, 'failed');
+                    return;
+                }
+                
                 loadHLS(videoElement, hlsUrl, instanceId);
             } else {
                 updateStreamStatus(instanceId, 'failed');

@@ -125,3 +125,4 @@ tail -50 /tmp/r58-service.log
 The system is production-ready. Start recording and enjoy! 🚀
 
 **Support**: Check the documentation files for detailed guides and troubleshooting.
+

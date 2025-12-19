@@ -355,3 +355,4 @@ class CloudflareCallsRelay:
                 await self.stop_relay(guest_id)
             except Exception as e:
                 logger.error(f"Error stopping relay for {guest_id}: {e}")
+

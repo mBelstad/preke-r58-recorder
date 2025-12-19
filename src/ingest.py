@@ -225,11 +225,17 @@ class IngestManager:
     def start_all(self) -> Dict[str, bool]:
         """Start ingest for all cameras that have signal."""
         results = {}
-        for cam_id in self.config.cameras.keys():
+        for cam_id, cam_config in self.config.cameras.items():
+            # Skip disabled cameras
+            if not cam_config.enabled:
+                logger.info(f"Skipping {cam_id} - disabled in config")
+                results[cam_id] = False
+                self.states[cam_id] = "idle"
+                continue
+            
             # Check signal before attempting to start
             try:
                 from .device_detection import get_device_capabilities
-                cam_config = self.config.cameras[cam_id]
                 caps = get_device_capabilities(cam_config.device)
                 if not caps.get('has_signal', False):
                     logger.info(f"Skipping {cam_id} - no signal")
@@ -254,15 +260,26 @@ class IngestManager:
     def get_status(self) -> Dict[str, IngestStatus]:
         """Get status for all cameras."""
         status_dict = {}
-        for cam_id in self.config.cameras.keys():
+        for cam_id, cam_config in self.config.cameras.items():
+            # Check if camera is disabled
+            if not cam_config.enabled:
+                status_dict[cam_id] = IngestStatus(
+                    status="idle",
+                    resolution=None,
+                    has_signal=False,
+                    stream_url=None,
+                    error_message="Camera disabled in configuration"
+                )
+                continue
+            
             state = self.states.get(cam_id, "idle")
             resolution = self.current_resolutions.get(cam_id)
             has_signal = self.signal_states.get(cam_id, False)
-            
+
             stream_url = None
             if state == "streaming":
                 stream_url = f"rtsp://localhost:{self.config.mediamtx.rtsp_port}/{cam_id}"
-            
+
             status_dict[cam_id] = IngestStatus(
                 status=state,
                 resolution=resolution,

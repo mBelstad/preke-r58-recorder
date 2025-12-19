@@ -874,9 +874,15 @@
                     const loadingEl = document.getElementById(`loading-${thumbnailId}`);
                     const durationEl = document.getElementById(`duration-${thumbnailId}`);
                     
+                    let loadTimeout = null;
+                    
                     video.addEventListener('loadedmetadata', () => {
-                        // Seek to middle of video for better thumbnail
-                        video.currentTime = video.duration / 2;
+                        // Clear timeout since video loaded successfully
+                        if (loadTimeout) clearTimeout(loadTimeout);
+                        
+                        // Seek to 1 second (or middle if shorter) for better thumbnail
+                        const seekTime = Math.min(1, video.duration / 2);
+                        video.currentTime = seekTime;
                         
                         // Format and display duration
                         if (durationEl) {
@@ -890,15 +896,34 @@
                         if (loadingEl) {
                             loadingEl.style.display = 'none';
                         }
+                        // Show the video element
+                        video.style.opacity = '1';
                     });
                     
-                    video.addEventListener('error', () => {
+                    video.addEventListener('error', (e) => {
+                        console.error(`Thumbnail load error for ${thumbnailId}:`, e);
                         if (loadingEl) {
-                            loadingEl.textContent = 'Error';
+                            loadingEl.textContent = 'Preview unavailable';
+                            loadingEl.style.fontSize = '0.75rem';
+                            loadingEl.style.color = '#ef4444';
                         }
                     });
                     
-                    video.src = url;
+                    // Set timeout to show error if video doesn't load within 10 seconds
+                    loadTimeout = setTimeout(() => {
+                        if (video.readyState < 2) { // HAVE_CURRENT_DATA
+                            console.warn(`Thumbnail load timeout for ${thumbnailId}`);
+                            if (loadingEl) {
+                                loadingEl.textContent = 'Loading slow...';
+                                loadingEl.style.fontSize = '0.75rem';
+                                loadingEl.style.color = '#f59e0b';
+                            }
+                        }
+                    }, 10000);
+                    
+                    // Start loading video with fragment to load only beginning
+                    video.src = url + '#t=0.5';
+                    video.load();
                 }
             });
         }

@@ -66,3 +66,4 @@ class GraphicsPlugin:
 def create_graphics_plugin() -> GraphicsPlugin:
     """Create a new graphics plugin instance."""
     return GraphicsPlugin()
+

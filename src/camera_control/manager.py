@@ -171,3 +171,4 @@ class CameraControlManager:
     def get_camera_count(self) -> int:
         """Get number of configured external cameras."""
         return len(self.cameras)
+

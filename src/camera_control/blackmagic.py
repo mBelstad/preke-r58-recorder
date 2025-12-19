@@ -124,3 +124,4 @@ class BlackmagicCamera:
                 return response.status_code < 500
         except Exception:
             return False
+

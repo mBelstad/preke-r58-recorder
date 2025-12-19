@@ -291,3 +291,4 @@ Then refresh the browser.
 The switcher now has ultra-low latency WebRTC support with automatic HLS fallback. This should provide a dramatically improved switching experience with near-instant visual feedback.
 
 **Let's see how it performs!** 🚀
+

@@ -98,3 +98,4 @@ print('  ✓ All imports successful')
     echo "Ready to deploy to R58. Run:"
     echo "  ./deploy_plugin_refactor.sh --remote"
 fi
+

@@ -15,6 +15,7 @@ class CameraConfig:
     output_path: str
     mediamtx_enabled: bool = False
     mediamtx_path: Optional[str] = None
+    enabled: bool = True  # Allow disabling cameras without removing from config
 
 
 @dataclass

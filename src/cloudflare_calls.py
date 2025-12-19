@@ -213,3 +213,4 @@ class CloudflareCallsManager:
                 await self.close_session(info["session_id"])
             except Exception as e:
                 logger.error(f"Error closing session for {guest_id}: {e}")
+
