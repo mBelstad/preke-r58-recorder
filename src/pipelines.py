@@ -18,22 +18,18 @@ def get_h264_encoder(bitrate: int, platform: str = "r58", is_4k_source: bool = F
     Returns:
         Tuple of (encoder_str, caps_str)
     """
-    if platform == "macos":
-        # macOS: Use software x264enc (no MPP hardware encoder)
-        if is_4k_source:
-            encoder_str = (
-                f"x264enc tune=zerolatency bitrate={bitrate} speed-preset=ultrafast "
-                f"key-int-max=30 bframes=0 threads=6 sliced-threads=true"
-            )
-        else:
-            encoder_str = (
-                f"x264enc tune=zerolatency bitrate={bitrate} speed-preset=superfast "
-                f"key-int-max=30 bframes=0 threads=4 sliced-threads=true"
-            )
+    # TEMPORARY: Revert to software encoder due to mpph264enc kernel crashes
+    # TODO: Investigate MPP driver stability before re-enabling hardware encoder
+    if is_4k_source:
+        encoder_str = (
+            f"x264enc tune=zerolatency bitrate={bitrate} speed-preset=ultrafast "
+            f"key-int-max=30 bframes=0 threads=6 sliced-threads=true"
+        )
     else:
-        # R58: Use hardware mpph264enc (Rockchip VPU)
-        bps = bitrate * 1000  # mpph264enc uses bits per second, not kbps
-        encoder_str = f"mpph264enc rc-mode=cbr bps={bps} gop=30 qp-init=26"
+        encoder_str = (
+            f"x264enc tune=zerolatency bitrate={bitrate} speed-preset=superfast "
+            f"key-int-max=30 bframes=0 threads=4 sliced-threads=true"
+        )
     
     caps_str = "video/x-h264"
     return encoder_str, caps_str
