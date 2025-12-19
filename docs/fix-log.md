@@ -1,29 +1,32 @@
 # Fix & Incident Log
 
-## 2025-11-27 — HDMI “No Signal” on Preview
+## 2025-12-19 — CAM1 (HDMI N60/video60) Recording Fix
 
-- **Symptom**: UI showed “No signal” for all four HDMI previews. MediaMTX logs reported `no one is publishing to path 'cam*_preview'` even though FastAPI/status said `preview`.
-- **Root cause**: The HDMI source pipelines in `src/pipelines.py` forced `NV24` caps for `/dev/video60` (rk_hdmirx). Current R58 firmware only exposes `NV16` at 1080p, so every `TRY_FMT` failed before frames were produced.
-- **Fix**: Changed both the recording and preview builders to request `NV16` before converting to `NV12`. Validated by manually pushing the HDMI feed with `gst-launch-1.0 … format=NV16 … rtmpsink location=rtmp://127.0.0.1:1935/cam0_preview`, which succeeded and populated the HLS playlist.
-- **Operational notes**:
-  - If you run manual `gst-launch` tests, stop them afterwards so `/dev/video60` isn’t held by a stray process.
-  - When encountering “No signal,” check `sudo lsof /dev/video60`, `journalctl -u preke-recorder.service`, and MediaMTX logs for `TRY_FMT` or “no one is publishing” hints.
-  - Cameras under test: 3× Blackmagic Design Studio Camera 4K Plus G2/Pro over HDMI (HD format). Ensure they output supported modes (1080p59.94/60).
-- **Current device map** (Debian 12 / kernel 6.1.99 on Mekotronics R58 4x4 3S):
-  - `/dev/video60` (`/dev/v4l/by-path/platform-fdee0000.hdmirx-controller-video-index0`) is the only active HDMI input (rk_hdmirx). This feeds `cam0`.
-  - `/dev/video0-32` belong to three `rkcif-mipi-lvds*` capture blocks. Nothing is presently wired there, so our `cam1-3` previews stay idle until hardware is connected.
-  - Additional ISP virtual nodes `/dev/video33-59` exist but are not required unless we use the MIPI sensors.
-- **Verification**:
-  - `curl http://192.168.1.25:8000/preview/start-all` — API reports every camera in `preview`; only HDMI `/dev/video60` (cam0) currently has an active signal because the other inputs aren’t populated yet.
-  - `curl http://192.168.1.25:8888/cam0_preview/index.m3u8` returns HTTP 200 and a multi-variant playlist.
-  - Manual `gst-launch-1.0 … format=NV16 … rtmpsink … cam0_preview` confirmed MediaMTX logging `is publishing to path 'cam0_preview'`.
-
-### Hard stops to watch
-
-- **Single HDMI receiver exposed as `/dev/video60`**: Without external switching, only one HDMI program feed is available. Additional `/dev/video*` nodes are MIPI CSI interfaces that currently lack connected sensors; requesting them in config will hang pipelines.
-- **PyGObject via pip fails**: `pip install PyGObject` errors because `girepository-2.0.pc` isn’t shipped in the vendor image. Use Debian packages instead (`sudo apt install python3-gi gobject-introspection libgirepository1.0-dev`) and skip PyPI installs on-device.
-- **Manual gst-launch leftovers**: Any foreground `gst-launch-1.0 v4l2src device=/dev/video60 …` holds the device and causes `TRY_FMT` failures for the recorder. Always Ctrl+C such tests.
-- **Passworded SSH deploys**: `deploy.sh` now respects `R58_PASSWORD`, but deployments will still fail unless `sshpass` is available locally or SSH keys are configured.
+- **Symptom**: cam1 recordings produced 0-byte files while cam0/cam2/cam3 recorded successfully. MediaMTX showed "no one is publishing to path 'cam1'" despite ingest status showing "streaming".
+- **Root cause**: The hdmirx pipeline was forcing a specific framerate in the caps filter (`framerate=30/1`), but the camera was outputting at a different native framerate (120fps in this case). This caused GStreamer caps negotiation to fail silently.
+- **Fix**: 
+  1. Remove framerate constraint from v4l2src caps - let GStreamer negotiate the native framerate
+  2. Use `videorate` element after the source to convert to 30fps for encoding
+  3. Use actual detected resolution instead of configured resolution
+- **Commits**: 
+  - `d4c3ea0` - Fix hdmirx pipeline to use actual detected resolution
+  - `a03eaf9` - Fix hdmirx framerate negotiation issue
+- **Pipeline before** (broken):
+  ```
+  v4l2src device=/dev/video60 io-mode=mmap ! 
+  video/x-raw,format=NV16,width=1920,height=1080,framerate=60/1 ! ...
+  ```
+- **Pipeline after** (working):
+  ```
+  v4l2src device=/dev/video60 io-mode=mmap ! 
+  video/x-raw,format=NV16,width=3840,height=2160 ! 
+  videorate ! video/x-raw,framerate=30/1 ! ...
+  ```
+- **Key learnings**:
+  - hdmirx devices may output at various framerates (30/60/120fps) depending on the source
+  - Never force framerate in caps filter for live sources - use videorate instead
+  - Always use the actual detected resolution from `get_device_capabilities()`, not the config resolution
+  - The ingest status can show "streaming" even when the pipeline isn't actually producing frames
 
 ## 2025-11-27 — Hardware Investigation: Four Camera Support
 
@@ -64,4 +67,29 @@
   - Created `docs/hdmi-port-mapping.md` with comprehensive port mapping reference
   - All four HDMI inputs now documented and supported
 
+
+## 2025-11-27 — HDMI "No Signal" on Preview
+
+- **Symptom**: UI showed "No signal" for all four HDMI previews. MediaMTX logs reported `no one is publishing to path 'cam*_preview'` even though FastAPI/status said `preview`.
+- **Root cause**: The HDMI source pipelines in `src/pipelines.py` forced `NV24` caps for `/dev/video60` (rk_hdmirx). Current R58 firmware only exposes `NV16` at 1080p, so every `TRY_FMT` failed before frames were produced.
+- **Fix**: Changed both the recording and preview builders to request `NV16` before converting to `NV12`. Validated by manually pushing the HDMI feed with `gst-launch-1.0 … format=NV16 … rtmpsink location=rtmp://127.0.0.1:1935/cam0_preview`, which succeeded and populated the HLS playlist.
+- **Operational notes**:
+  - If you run manual `gst-launch` tests, stop them afterwards so `/dev/video60` isn't held by a stray process.
+  - When encountering "No signal," check `sudo lsof /dev/video60`, `journalctl -u preke-recorder.service`, and MediaMTX logs for `TRY_FMT` or "no one is publishing" hints.
+  - Cameras under test: 3× Blackmagic Design Studio Camera 4K Plus G2/Pro over HDMI (HD format). Ensure they output supported modes (1080p59.94/60).
+- **Current device map** (Debian 12 / kernel 6.1.99 on Mekotronics R58 4x4 3S):
+  - `/dev/video60` (`/dev/v4l/by-path/platform-fdee0000.hdmirx-controller-video-index0`) is the only active HDMI input (rk_hdmirx). This feeds `cam0`.
+  - `/dev/video0-32` belong to three `rkcif-mipi-lvds*` capture blocks. Nothing is presently wired there, so our `cam1-3` previews stay idle until hardware is connected.
+  - Additional ISP virtual nodes `/dev/video33-59` exist but are not required unless we use the MIPI sensors.
+- **Verification**:
+  - `curl http://192.168.1.25:8000/preview/start-all` — API reports every camera in `preview`; only HDMI `/dev/video60` (cam0) currently has an active signal because the other inputs aren't populated yet.
+  - `curl http://192.168.1.25:8888/cam0_preview/index.m3u8` returns HTTP 200 and a multi-variant playlist.
+  - Manual `gst-launch-1.0 … format=NV16 … rtmpsink … cam0_preview` confirmed MediaMTX logging `is publishing to path 'cam0_preview'`.
+
+### Hard stops to watch
+
+- **Single HDMI receiver exposed as `/dev/video60`**: Without external switching, only one HDMI program feed is available. Additional `/dev/video*` nodes are MIPI CSI interfaces that currently lack connected sensors; requesting them in config will hang pipelines.
+- **PyGObject via pip fails**: `pip install PyGObject` errors because `girepository-2.0.pc` isn't shipped in the vendor image. Use Debian packages instead (`sudo apt install python3-gi gobject-introspection libgirepository1.0-dev`) and skip PyPI installs on-device.
+- **Manual gst-launch leftovers**: Any foreground `gst-launch-1.0 v4l2src device=/dev/video60 …` holds the device and causes `TRY_FMT` failures for the recorder. Always Ctrl+C such tests.
+- **Passworded SSH deploys**: `deploy.sh` now respects `R58_PASSWORD`, but deployments will still fail unless `sshpass` is available locally or SSH keys are configured.
 
