@@ -71,34 +71,53 @@ class GraphicsRenderer:
         with self._lock:
             self.active_sources[source_id] = graphics_source
         
+        # Check if RevealSourceManager is available
+        if not self.reveal_source_manager:
+            logger.warning(f"RevealSourceManager not available - using placeholder for {source_id}")
+            # Return placeholder pipeline
+            pipeline = (
+                f"videotestsrc pattern=smpte ! "
+                f"video/x-raw,width=1920,height=1080,framerate=30/1 ! "
+                f"textoverlay text=\"Presentation: {presentation_data.get('name', source_id)}\" "
+                f"valign=top halign=left font-desc=\"Sans 24\" color=0xFFFFFFFF ! "
+                f"videoconvert ! "
+                f"video/x-raw,format=NV12"
+            )
+            return pipeline
+        
         # Generate HTML file for Reveal.js presentation
         html_path = self._generate_reveal_html(source_id, presentation_data)
         if not html_path:
             logger.error(f"Failed to generate HTML for presentation {source_id}")
             return None
         
-        # For now, use a simple approach: serve HTML via HTTP and capture with gst-launch
-        # In production, this would use headless browser (Chromium) or similar
-        # to render Reveal.js to video frames
+        # Build URL for the presentation
+        # Assume FastAPI is serving on localhost:8000
+        presentation_id = presentation_data.get("id", source_id)
+        url = f"http://localhost:8000/graphics?presentation={presentation_id}"
         
-        # Placeholder pipeline - full implementation would:
-        # 1. Start a local web server serving the Reveal.js HTML
-        # 2. Use gst-launch with souphttpsrc or similar to capture the rendered HTML
-        # 3. Or use a headless browser (Chromium) with screen capture
-        # 4. Return a proper GStreamer pipeline string
+        # Start the RevealSourceManager with this presentation
+        # Note: The RevealSourceManager streams directly to MediaMTX
+        # So we return the MediaMTX RTSP URL as the "pipeline"
+        success = self.reveal_source_manager.start(presentation_id, url)
+        if not success:
+            logger.error(f"Failed to start Reveal.js rendering for {source_id}")
+            return None
         
-        # For now, return a test pattern that can be replaced later
-        logger.warning(f"Presentation rendering not fully implemented - using placeholder for {source_id}")
-        pipeline = (
-            f"videotestsrc pattern=smpte ! "
-            f"video/x-raw,width=1920,height=1080,framerate=30/1 ! "
-            f"textoverlay text=\"Presentation: {presentation_data.get('name', source_id)}\" "
-            f"valign=top halign=left font-desc=\"Sans 24\" color=0xFFFFFFFF ! "
-            f"videoconvert ! "
-            f"video/x-raw,format=NV12"
-        )
+        # Return the MediaMTX stream URL
+        # The mixer will pull from this RTSP stream
+        status = self.reveal_source_manager.get_status()
+        stream_url = status.get("stream_url")
         
-        return pipeline
+        if not stream_url:
+            logger.error(f"No stream URL available for presentation {source_id}")
+            return None
+        
+        logger.info(f"Presentation source created: {source_id} streaming at {stream_url}")
+        
+        # Return a special marker that tells the mixer to use the MediaMTX stream
+        # The mixer will recognize "slides" as the Reveal.js source
+        return "slides"
     
     def _generate_reveal_html(self, source_id: str, presentation_data: Dict[str, Any]) -> Optional[Path]:
         """Generate Reveal.js HTML file from presentation data.

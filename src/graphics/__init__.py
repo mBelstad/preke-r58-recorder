@@ -26,10 +26,16 @@ class GraphicsPlugin:
     def __init__(self):
         self.renderer: Optional[Any] = None
         self.html_renderer: Optional[Any] = None
+        self.reveal_source_manager: Optional[Any] = None
         self._initialized = False
     
-    def initialize(self, config: "AppConfig") -> bool:
-        """Initialize graphics components."""
+    def initialize(self, config: "AppConfig", reveal_source_manager: Optional[Any] = None) -> bool:
+        """Initialize graphics components.
+        
+        Args:
+            config: Application configuration
+            reveal_source_manager: Optional RevealSourceManager instance
+        """
         if self._initialized:
             return True
         
@@ -37,8 +43,11 @@ class GraphicsPlugin:
         from .renderer import GraphicsRenderer
         from .html_renderer import HTMLGraphicsRenderer
         
+        self.reveal_source_manager = reveal_source_manager
+        
         self.renderer = GraphicsRenderer(
-            output_dir=config.graphics.output_dir
+            output_dir=config.graphics.output_dir,
+            reveal_source_manager=reveal_source_manager
         )
         self.html_renderer = HTMLGraphicsRenderer(
             templates_dir=config.graphics.templates_dir,

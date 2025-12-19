@@ -61,6 +61,25 @@ database = Database(db_path="data/app.db")
 # Initialize shared file manager (always available)
 file_manager = FileManager(uploads_dir="uploads", database=database)
 
+# Initialize Reveal.js source manager first (needed by graphics plugin)
+reveal_source_manager = None
+if config.reveal.enabled:
+    try:
+        from .reveal_source import RevealSourceManager
+        reveal_source_manager = RevealSourceManager(
+            resolution=config.reveal.resolution,
+            framerate=config.reveal.framerate,
+            bitrate=config.reveal.bitrate,
+            mediamtx_path=config.reveal.mediamtx_path,
+            renderer=config.reveal.renderer
+        )
+        logger.info(f"Reveal.js source manager initialized (renderer: {reveal_source_manager.renderer_type})")
+    except Exception as e:
+        logger.error(f"Failed to initialize Reveal.js source manager: {e}")
+        reveal_source_manager = None
+else:
+    logger.info("Reveal.js source disabled in configuration")
+
 # Initialize Graphics plugin (optional)
 graphics_plugin = None
 graphics_renderer = None
@@ -68,7 +87,7 @@ if config.graphics.enabled:
     try:
         from .graphics import create_graphics_plugin
         graphics_plugin = create_graphics_plugin()
-        graphics_plugin.initialize(config)
+        graphics_plugin.initialize(config, reveal_source_manager)
         graphics_renderer = graphics_plugin.renderer
         logger.info("Graphics plugin initialized")
     except Exception as e:
@@ -94,25 +113,6 @@ if config.mixer.enabled:
         mixer_plugin = None  # Continue without mixer
 else:
     logger.info("Mixer plugin disabled in configuration")
-
-# Initialize Reveal.js source manager (optional)
-reveal_source_manager = None
-if config.reveal.enabled:
-    try:
-        from .reveal_source import RevealSourceManager
-        reveal_source_manager = RevealSourceManager(
-            resolution=config.reveal.resolution,
-            framerate=config.reveal.framerate,
-            bitrate=config.reveal.bitrate,
-            mediamtx_path=config.reveal.mediamtx_path,
-            renderer=config.reveal.renderer
-        )
-        logger.info(f"Reveal.js source manager initialized (renderer: {reveal_source_manager.renderer_type})")
-    except Exception as e:
-        logger.error(f"Failed to initialize Reveal.js source manager: {e}")
-        reveal_source_manager = None
-else:
-    logger.info("Reveal.js source disabled in configuration")
 
 # Initialize Cloudflare Calls manager (for remote guests)
 calls_manager: Optional[Any] = None
