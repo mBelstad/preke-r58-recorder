@@ -6,8 +6,13 @@ import time
 from typing import Optional, Dict, Any
 from pathlib import Path
 
-from .gst_utils import ensure_gst_initialized, get_gst
-from .pipelines import get_h265_encoder
+try:
+    from .gst_utils import ensure_gst_initialized, get_gst
+    from .pipelines import get_h265_encoder
+except ImportError:
+    # Fallback for direct execution
+    from gst_utils import ensure_gst_initialized, get_gst
+    from pipelines import get_h265_encoder
 
 logger = logging.getLogger(__name__)
 
