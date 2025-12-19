@@ -177,6 +177,39 @@
             font-weight: 600;
         }
 
+        /* Signal indicator for compact inputs */
+        .compact-signal-indicator {
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #6b7280;
+            z-index: 10;
+            transition: all 0.3s ease;
+        }
+
+        .compact-signal-indicator.signal-live {
+            background: var(--accent-success);
+            box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+        }
+
+        .compact-signal-indicator.signal-none {
+            background: var(--accent-danger);
+            box-shadow: 0 0 6px rgba(239, 68, 68, 0.6);
+            animation: pulse-signal 2s infinite;
+        }
+
+        .compact-signal-indicator.signal-disabled {
+            background: #4b5563;
+        }
+
+        @keyframes pulse-signal {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
         .compact-input-grid {
             flex: 1;
             display: flex;
@@ -2047,11 +2080,22 @@
         }
 
         // Preload HLS manifests for faster stream startup
-        function preloadHLSManifests() {
-            const streams = ['cam1', 'cam2', 'cam3']; // Skip cam0 (disconnected)
-            console.log('Preloading HLS manifests for faster startup...');
-            
-            streams.forEach(stream => {
+        async function preloadHLSManifests() {
+            // Fetch camera status to only preload enabled cameras
+            let enabledStreams = [];
+            try {
+                const response = await fetch('/api/ingest/status');
+                const data = await response.json();
+                enabledStreams = Object.entries(data.cameras)
+                    .filter(([camId, status]) => status.status !== 'idle' && status.has_signal)
+                    .map(([camId]) => camId);
+                console.log('Preloading HLS manifests for enabled cameras:', enabledStreams);
+            } catch (e) {
+                console.error('Failed to fetch camera status for preload:', e);
+                enabledStreams = ['cam1', 'cam2']; // Fallback to known enabled cameras
+            }
+
+            enabledStreams.forEach(stream => {
                 const url = getHLSUrl(stream);
                 // Fetch manifest to prime browser cache
                 fetch(url, { mode: 'cors' })
@@ -2064,18 +2108,55 @@
             });
         }
         
+        // Update signal indicators periodically
+        async function updateSignalIndicators() {
+            try {
+                const response = await fetch('/api/ingest/status');
+                const data = await response.json();
+                
+                for (const [camId, camData] of Object.entries(data.cameras)) {
+                    const indicator = document.getElementById(`signal-indicator-${camId}`);
+                    if (!indicator) continue;
+                    
+                    indicator.classList.remove('signal-live', 'signal-none', 'signal-disabled');
+                    
+                    const isEnabled = camData.status !== 'idle';  // idle = disabled
+                    const hasSignal = camData.has_signal === true;
+                    
+                    if (!isEnabled) {
+                        indicator.classList.add('signal-disabled');
+                        indicator.title = 'Camera disabled in config';
+                    } else if (hasSignal && camData.status === 'streaming') {
+                        indicator.classList.add('signal-live');
+                        indicator.title = `Signal: ${camData.resolution?.formatted || 'OK'}`;
+                    } else if (camData.status === 'no_signal' || !hasSignal) {
+                        indicator.classList.add('signal-none');
+                        indicator.title = 'No HDMI signal';
+                    } else {
+                        indicator.title = 'Idle';
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to update signal indicators:', error);
+            }
+        }
+
         // Initialize
         async function init() {
             // Start preloading manifests immediately (in background)
-            preloadHLSManifests();
-            
+            await preloadHLSManifests();
+
             await loadScenes();
             await checkMixerStatus();
-            initCompactInputs();
+            await initCompactInputs();  // Now async
             initAudioChannels();
             initEventListeners();
             initKeyboardShortcuts();
             initDragAndDrop();
+            
+            // Start signal indicator polling
+            setInterval(updateSignalIndicators, 3000);
+            updateSignalIndicators(); // Initial call
             initTouchGestures();
             startStatusPolling();
             loadQueue();
@@ -2668,17 +2749,34 @@
         }
 
         // Initialize compact inputs
-        function initCompactInputs() {
+        async function initCompactInputs() {
             const grid = document.getElementById('compactInputGrid');
             if (!grid) return;
             grid.innerHTML = '';
 
+            // Fetch camera status FIRST to determine which cameras to connect
+            let cameraStatus = {};
+            try {
+                const response = await fetch('/api/ingest/status');
+                const data = await response.json();
+                cameraStatus = data.cameras || {};
+                console.log('Camera status fetched:', cameraStatus);
+            } catch (e) {
+                console.error('Failed to fetch camera status:', e);
+            }
+
             // Camera inputs (cam0-cam3)
             for (let i = 0; i < 4; i++) {
+                const camId = `cam${i}`;
+                const status = cameraStatus[camId];
+                const isEnabled = status && status.status !== 'idle';  // idle = disabled in config
+                const hasSignal = status?.has_signal === true;
+                
                 const input = document.createElement('div');
                 input.className = 'compact-input';
-                input.dataset.cameraId = `cam${i}`;
+                input.dataset.cameraId = camId;
                 input.innerHTML = `
+                    <span class="compact-signal-indicator" id="signal-indicator-${camId}"></span>
                     <video id="compact-input-${i}-video" muted playsinline></video>
                     <div class="compact-input-label">Input ${i + 1}</div>
                     <div class="compact-input-status" id="compact-input-${i}-status"></div>
@@ -2686,43 +2784,50 @@
                 input.addEventListener('click', () => selectInput(i));
                 grid.appendChild(input);
 
-                // Skip cam0 (no HDMI cable connected) to avoid wasting resources
-                if (i === 0) {
-                    updateStreamStatus(`compact-input-${i}`, 'disconnected');
-                    // Allow manual retry on click
-                    input.addEventListener('click', (e) => {
-                        if (e.target.classList.contains('compact-input-status') || 
-                            e.target.closest('.compact-input-status')) {
-                            const video = input.querySelector('video');
-                            if (video) {
-                                console.log('Manual retry for cam0');
-                                // Reset retry state
-                                if (hlsRetryState[`compact-input-${i}`]) {
-                                    hlsRetryState[`compact-input-${i}`].retries = 0;
-                                }
-                                loadStreamWithWebRTC(video, `cam${i}`, `compact-input-${i}`);
-                            }
-                        }
-                    });
-                    continue;
+                // Update signal indicator
+                const indicator = document.getElementById(`signal-indicator-${camId}`);
+                if (indicator) {
+                    if (!isEnabled) {
+                        indicator.classList.add('signal-disabled');
+                        indicator.title = 'Camera disabled in config';
+                    } else if (hasSignal) {
+                        indicator.classList.add('signal-live');
+                        indicator.title = `Signal: ${status.resolution?.formatted || 'OK'}`;
+                    } else {
+                        indicator.classList.add('signal-none');
+                        indicator.title = 'No HDMI signal';
+                    }
                 }
 
-                // Load preview stream with WebRTC (falls back to HLS if unavailable)
+                // Only connect stream if camera is enabled AND has signal
                 const video = input.querySelector('video');
-                if (video) {
-                    loadStreamWithWebRTC(video, `cam${i}`, `compact-input-${i}`);
+                if (isEnabled && hasSignal && video) {
+                    console.log(`Connecting ${camId}: enabled and has signal`);
+                    loadStreamWithWebRTC(video, camId, `compact-input-${i}`);
+                } else if (!isEnabled) {
+                    console.log(`Skipping ${camId}: disabled in config`);
+                    updateStreamStatus(`compact-input-${i}`, 'unsupported');
+                    const statusEl = document.getElementById(`compact-input-${i}-status`);
+                    if (statusEl) statusEl.textContent = 'Disabled';
+                } else {
+                    console.log(`Skipping ${camId}: no signal`);
+                    updateStreamStatus(`compact-input-${i}`, 'disconnected');
+                    const statusEl = document.getElementById(`compact-input-${i}-status`);
+                    if (statusEl) statusEl.textContent = 'No Signal';
                 }
                 
-                // Add click-to-retry for failed streams
+                // Add click-to-retry for failed/disconnected streams
                 input.addEventListener('click', (e) => {
                     const statusEl = document.getElementById(`compact-input-${i}-status`);
-                    if (statusEl && statusEl.classList.contains('status-failed')) {
-                        console.log(`Manual retry for cam${i}`);
+                    if (statusEl && (statusEl.classList.contains('status-failed') || statusEl.classList.contains('status-error'))) {
+                        console.log(`Manual retry for ${camId}`);
                         // Reset retry state
                         if (hlsRetryState[`compact-input-${i}`]) {
                             hlsRetryState[`compact-input-${i}`].retries = 0;
                         }
-                        loadStreamWithWebRTC(video, `cam${i}`, `compact-input-${i}`);
+                        if (video) {
+                            loadStreamWithWebRTC(video, camId, `compact-input-${i}`);
+                        }
                     }
                 });
             }

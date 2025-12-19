@@ -305,6 +305,43 @@
             color: #60a5fa;
         }
 
+        .camera-signal {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.7rem;
+            margin-top: 6px;
+            color: #9ca3af;
+        }
+
+        .signal-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #6b7280;
+            transition: all 0.3s ease;
+        }
+
+        .signal-dot.live {
+            background: #10b981;
+            box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+        }
+
+        .signal-dot.no-signal {
+            background: #ef4444;
+            box-shadow: 0 0 6px rgba(239, 68, 68, 0.6);
+            animation: pulse-signal 2s infinite;
+        }
+
+        .signal-dot.disabled {
+            background: #4b5563;
+        }
+
+        @keyframes pulse-signal {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
         .camera-controls {
             display: flex;
             gap: 8px;
@@ -651,6 +688,7 @@
             await Promise.all([
                 checkSystemStatus(),
                 checkCameraStatus(),
+                updateCameraSignalStatus(),
                 checkMixerStatus()
             ]);
         }
@@ -674,7 +712,9 @@
             }
         }
 
-        // Camera status
+        // Camera status with signal detection
+        let cameraSignalStatus = {};
+        
         async function checkCameraStatus() {
             try {
                 const response = await fetch(`${API_BASE}/status`);
@@ -684,6 +724,17 @@
                 updateDashboard();
             } catch (error) {
                 console.error('Failed to check camera status:', error);
+            }
+        }
+        
+        async function updateCameraSignalStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/api/ingest/status`);
+                const data = await response.json();
+                cameraSignalStatus = data.cameras || {};
+                updateCameraDisplays();
+            } catch (error) {
+                console.error('Failed to check camera signal status:', error);
             }
         }
 
@@ -732,10 +783,34 @@
                     }
                 }
 
+                // Get signal status
+                const signalData = cameraSignalStatus[camId];
+                const hasSignal = signalData?.has_signal === true;
+                const isEnabled = signalData?.status !== 'idle';
+                let signalClass = '';
+                let signalText = 'Unknown';
+                
+                if (!isEnabled) {
+                    signalClass = 'disabled';
+                    signalText = 'Disabled';
+                } else if (hasSignal && signalData?.status === 'streaming') {
+                    signalClass = 'live';
+                    signalText = signalData?.resolution?.formatted || 'Live';
+                } else if (signalData?.status === 'no_signal' || !hasSignal) {
+                    signalClass = 'no-signal';
+                    signalText = 'No Signal';
+                } else {
+                    signalText = 'Idle';
+                }
+                
                 card.innerHTML = `
                     <div class="camera-header">
                         <div class="camera-name">CAM ${camNumber}</div>
                         <div class="camera-status ${status}">${status.toUpperCase()}</div>
+                    </div>
+                    <div class="camera-signal">
+                        <span class="signal-dot ${signalClass}"></span>
+                        <span>${signalText}</span>
                     </div>
                     ${controls}
                 `;
@@ -989,6 +1064,7 @@
         function startStatusPolling() {
             statusInterval = setInterval(async () => {
                 await checkCameraStatus();
+                await updateCameraSignalStatus();
                 await checkMixerStatus();
             }, 2000);
         }

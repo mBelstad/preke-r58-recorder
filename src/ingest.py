@@ -397,7 +397,12 @@ class IngestManager:
     def _check_all_pipelines_health(self):
         """Check health of all active pipelines and monitor signal status."""
         for cam_id, state in list(self.states.items()):
-            # Check signal status for all cameras
+            # Skip disabled cameras entirely to save resources
+            cam_config = self.config.cameras.get(cam_id)
+            if not cam_config or not cam_config.enabled:
+                continue
+            
+            # Check signal status for enabled cameras only
             signal_res = self._check_signal_status(cam_id)
             had_signal = self.signal_states.get(cam_id, True)
             
