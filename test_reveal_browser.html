@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reveal.js Video Source - Browser Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a1a;
+            color: #e0e0e0;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            color: #4CAF50;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #888;
+            margin-bottom: 30px;
+        }
+        
+        .section {
+            background: #2a2a2a;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #333;
+        }
+        
+        .section h2 {
+            color: #64B5F6;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+        
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+        
+        button:hover {
+            background: #45a049;
+        }
+        
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
+        
+        button.secondary {
+            background: #2196F3;
+        }
+        
+        button.secondary:hover {
+            background: #1976D2;
+        }
+        
+        button.danger {
+            background: #f44336;
+        }
+        
+        button.danger:hover {
+            background: #da190b;
+        }
+        
+        input, select {
+            background: #333;
+            color: #e0e0e0;
+            border: 1px solid #555;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .status {
+            background: #333;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .status.success {
+            border-left: 4px solid #4CAF50;
+        }
+        
+        .status.error {
+            border-left: 4px solid #f44336;
+        }
+        
+        .status.info {
+            border-left: 4px solid #2196F3;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        
+        .test-result {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 5px 0;
+        }
+        
+        .test-result.pass {
+            background: #1b5e20;
+            color: #a5d6a7;
+        }
+        
+        .test-result.fail {
+            background: #b71c1c;
+            color: #ef9a9a;
+        }
+        
+        .test-result.pending {
+            background: #e65100;
+            color: #ffcc80;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: bold;
+            margin-left: 8px;
+        }
+        
+        .badge.running {
+            background: #4CAF50;
+        }
+        
+        .badge.idle {
+            background: #666;
+        }
+        
+        .badge.error {
+            background: #f44336;
+        }
+        
+        .video-preview {
+            width: 100%;
+            max-width: 640px;
+            background: #000;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        
+        .log-entry {
+            padding: 5px;
+            border-bottom: 1px solid #444;
+        }
+        
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+        
+        .log-time {
+            color: #888;
+            font-size: 11px;
+        }
+        
+        .log-level-info {
+            color: #64B5F6;
+        }
+        
+        .log-level-success {
+            color: #4CAF50;
+        }
+        
+        .log-level-error {
+            color: #f44336;
+        }
+        
+        .log-level-warning {
+            color: #FFA726;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎬 Reveal.js Video Source - Browser Test</h1>
+        <p class="subtitle">Test the Reveal.js video source integration on R58</p>
+        
+        <!-- Configuration -->
+        <div class="section">
+            <h2>⚙️ Configuration</h2>
+            <div class="controls">
+                <label>
+                    API Base URL:
+                    <input type="text" id="apiUrl" value="http://recorder.itagenten.no" style="width: 300px;">
+                </label>
+                <label>
+                    Presentation ID:
+                    <input type="text" id="presentationId" value="demo" style="width: 150px;">
+                </label>
+                <button onclick="saveConfig()">Save Config</button>
+            </div>
+        </div>
+        
+        <!-- Quick Tests -->
+        <div class="section">
+            <h2>🚀 Quick Tests</h2>
+            <div class="controls">
+                <button onclick="runAllTests()">Run All Tests</button>
+                <button onclick="testConnection()" class="secondary">Test Connection</button>
+                <button onclick="testRevealStatus()" class="secondary">Check Reveal Status</button>
+                <button onclick="testMixerStatus()" class="secondary">Check Mixer Status</button>
+                <button onclick="clearLog()" class="danger">Clear Log</button>
+            </div>
+            <div id="quickTestResults" class="status info"></div>
+        </div>
+        
+        <!-- Reveal.js Control -->
+        <div class="section">
+            <h2>🎯 Reveal.js Control</h2>
+            <div class="controls">
+                <button onclick="startReveal()">Start Reveal.js</button>
+                <button onclick="stopReveal()" class="danger">Stop Reveal.js</button>
+                <button onclick="getRevealStatus()" class="secondary">Get Status</button>
+            </div>
+            <div id="revealStatus" class="status"></div>
+        </div>
+        
+        <!-- Mixer Control -->
+        <div class="section">
+            <h2>🎛️ Mixer Control</h2>
+            <div class="controls">
+                <button onclick="startMixer()">Start Mixer</button>
+                <button onclick="stopMixer()" class="danger">Stop Mixer</button>
+                <label>
+                    Scene:
+                    <select id="sceneSelect">
+                        <option value="presentation_focus">Presentation Focus (Full Screen)</option>
+                        <option value="presentation_speaker">Presentation + Speaker (70/30)</option>
+                        <option value="presentation_pip">Presentation + PiP</option>
+                        <option value="cam1_full">Camera 1 Full</option>
+                        <option value="cam0_full">Camera 0 Full</option>
+                    </select>
+                </label>
+                <button onclick="setScene()" class="secondary">Set Scene</button>
+                <button onclick="getMixerStatus()" class="secondary">Get Status</button>
+            </div>
+            <div id="mixerStatus" class="status"></div>
+        </div>
+        
+        <!-- Stream Preview -->
+        <div class="section">
+            <h2>📺 Stream Preview</h2>
+            <div class="controls">
+                <label>
+                    Stream:
+                    <select id="streamSelect">
+                        <option value="mixer_program">Mixer Program Output</option>
+                        <option value="slides">Reveal.js Slides</option>
+                        <option value="cam0">Camera 0</option>
+                        <option value="cam1">Camera 1</option>
+                        <option value="cam2">Camera 2</option>
+                    </select>
+                </label>
+                <button onclick="loadStream()" class="secondary">Load Stream</button>
+            </div>
+            <video id="videoPreview" class="video-preview" controls autoplay muted></video>
+            <p style="margin-top: 10px; color: #888; font-size: 12px;">
+                Note: HLS playback requires browser support. Use VLC or ffplay for RTSP streams.
+            </p>
+        </div>
+        
+        <!-- Test Results -->
+        <div class="section">
+            <h2>📊 Test Results</h2>
+            <div id="testResults"></div>
+        </div>
+        
+        <!-- Activity Log -->
+        <div class="section">
+            <h2>📝 Activity Log</h2>
+            <div id="activityLog" class="status"></div>
+        </div>
+    </div>
+    
+    <script>
+        // Configuration
+        let config = {
+            apiUrl: 'http://recorder.itagenten.no',
+            presentationId: 'demo'
+        };
+        
+        // Load config from localStorage
+        function loadConfig() {
+            const saved = localStorage.getItem('revealTestConfig');
+            if (saved) {
+                config = JSON.parse(saved);
+                document.getElementById('apiUrl').value = config.apiUrl;
+                document.getElementById('presentationId').value = config.presentationId;
+            }
+        }
+        
+        function saveConfig() {
+            config.apiUrl = document.getElementById('apiUrl').value;
+            config.presentationId = document.getElementById('presentationId').value;
+            localStorage.setItem('revealTestConfig', JSON.stringify(config));
+            log('success', 'Configuration saved');
+        }
+        
+        // Logging
+        function log(level, message, data = null) {
+            const logDiv = document.getElementById('activityLog');
+            const time = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            
+            let content = `<span class="log-time">[${time}]</span> <span class="log-level-${level}">${message}</span>`;
+            if (data) {
+                content += `\n${JSON.stringify(data, null, 2)}`;
+            }
+            entry.innerHTML = content;
+            
+            logDiv.insertBefore(entry, logDiv.firstChild);
+            
+            // Keep only last 50 entries
+            while (logDiv.children.length > 50) {
+                logDiv.removeChild(logDiv.lastChild);
+            }
+        }
+        
+        function clearLog() {
+            document.getElementById('activityLog').innerHTML = '';
+            log('info', 'Log cleared');
+        }
+        
+        // API Calls
+        async function apiCall(endpoint, method = 'GET', body = null) {
+            const url = `${config.apiUrl}${endpoint}`;
+            log('info', `${method} ${endpoint}`);
+            
+            try {
+                const options = {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                };
+                
+                if (body) {
+                    options.body = JSON.stringify(body);
+                }
+                
+                const response = await fetch(url, options);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    log('success', `✓ ${endpoint} succeeded`, data);
+                    return { success: true, data };
+                } else {
+                    log('error', `✗ ${endpoint} failed`, data);
+                    return { success: false, error: data };
+                }
+            } catch (error) {
+                log('error', `✗ ${endpoint} error: ${error.message}`);
+                return { success: false, error: error.message };
+            }
+        }
+        
+        // Test Functions
+        async function testConnection() {
+            const result = document.getElementById('quickTestResults');
+            result.className = 'status info';
+            result.textContent = 'Testing connection...';
+            
+            const response = await apiCall('/api/reveal/status');
+            
+            if (response.success) {
+                result.className = 'status success';
+                result.textContent = '✓ Connection successful!\n' + JSON.stringify(response.data, null, 2);
+            } else {
+                result.className = 'status error';
+                result.textContent = '✗ Connection failed!\n' + JSON.stringify(response.error, null, 2);
+            }
+        }
+        
+        async function testRevealStatus() {
+            const result = document.getElementById('quickTestResults');
+            result.className = 'status info';
+            result.textContent = 'Checking Reveal.js status...';
+            
+            const response = await apiCall('/api/reveal/status');
+            
+            if (response.success) {
+                result.className = 'status success';
+                result.textContent = '✓ Reveal.js Status:\n' + JSON.stringify(response.data, null, 2);
+            } else {
+                result.className = 'status error';
+                result.textContent = '✗ Failed to get status:\n' + JSON.stringify(response.error, null, 2);
+            }
+        }
+        
+        async function testMixerStatus() {
+            const result = document.getElementById('quickTestResults');
+            result.className = 'status info';
+            result.textContent = 'Checking mixer status...';
+            
+            const response = await apiCall('/api/mixer/status');
+            
+            if (response.success) {
+                result.className = 'status success';
+                result.textContent = '✓ Mixer Status:\n' + JSON.stringify(response.data, null, 2);
+            } else {
+                result.className = 'status error';
+                result.textContent = '✗ Failed to get status:\n' + JSON.stringify(response.error, null, 2);
+            }
+        }
+        
+        async function runAllTests() {
+            const resultsDiv = document.getElementById('testResults');
+            resultsDiv.innerHTML = '<p>Running tests...</p>';
+            
+            const tests = [
+                { name: 'API Connection', fn: () => apiCall('/api/reveal/status') },
+                { name: 'Reveal.js Status', fn: () => apiCall('/api/reveal/status') },
+                { name: 'Mixer Status', fn: () => apiCall('/api/mixer/status') },
+                { name: 'Scenes List', fn: () => apiCall('/api/scenes') },
+                { name: 'MediaMTX Paths', fn: () => fetch(`${config.apiUrl}:9997/v3/paths/list`).then(r => r.json()) }
+            ];
+            
+            let html = '<h3>Test Results:</h3>';
+            let passed = 0;
+            let failed = 0;
+            
+            for (const test of tests) {
+                try {
+                    const result = await test.fn();
+                    if (result.success || result.items) {
+                        html += `<div class="test-result pass">✓ ${test.name}</div>`;
+                        passed++;
+                    } else {
+                        html += `<div class="test-result fail">✗ ${test.name}</div>`;
+                        failed++;
+                    }
+                } catch (error) {
+                    html += `<div class="test-result fail">✗ ${test.name}: ${error.message}</div>`;
+                    failed++;
+                }
+            }
+            
+            html += `<p style="margin-top: 15px; font-weight: bold;">Results: ${passed} passed, ${failed} failed</p>`;
+            resultsDiv.innerHTML = html;
+        }
+        
+        // Reveal.js Control
+        async function startReveal() {
+            const statusDiv = document.getElementById('revealStatus');
+            statusDiv.className = 'status info';
+            statusDiv.textContent = 'Starting Reveal.js...';
+            
+            const response = await apiCall(`/api/reveal/start?presentation_id=${config.presentationId}`, 'POST');
+            
+            if (response.success) {
+                statusDiv.className = 'status success';
+                statusDiv.textContent = '✓ Reveal.js started!\n' + JSON.stringify(response.data, null, 2);
+            } else {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = '✗ Failed to start:\n' + JSON.stringify(response.error, null, 2);
+            }
+        }
+        
+        async function stopReveal() {
+            const statusDiv = document.getElementById('revealStatus');
+            statusDiv.className = 'status info';
+            statusDiv.textContent = 'Stopping Reveal.js...';
+            
+            const response = await apiCall('/api/reveal/stop', 'POST');
+            
+            if (response.success) {
+                statusDiv.className = 'status success';
+                statusDiv.textContent = '✓ Reveal.js stopped!\n' + JSON.stringify(response.data, null, 2);
+            } else {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = '✗ Failed to stop:\n' + JSON.stringify(response.error, null, 2);
+            }
+        }
+        
+        async function getRevealStatus() {
+            const statusDiv = document.getElementById('revealStatus');
+            statusDiv.className = 'status info';
+            statusDiv.textContent = 'Getting status...';
+            
+            const response = await apiCall('/api/reveal/status');
+            
+            if (response.success) {
+                const state = response.data.state;
+                const badge = state === 'running' ? 'running' : state === 'idle' ? 'idle' : 'error';
+                
+                statusDiv.className = 'status success';
+                statusDiv.innerHTML = `<strong>State: <span class="badge ${badge}">${state}</span></strong>\n` + 
+                                     JSON.stringify(response.data, null, 2);
+            } else {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = '✗ Failed to get status:\n' + JSON.stringify(response.error, null, 2);
+            }
+        }
+        
+        // Mixer Control
+        async function startMixer() {
+            const statusDiv = document.getElementById('mixerStatus');
+            statusDiv.className = 'status info';
+            statusDiv.textContent = 'Starting mixer...';
+            
+            const response = await apiCall('/api/mixer/start', 'POST');
+            
+            if (response.success) {
+                statusDiv.className = 'status success';
+                statusDiv.textContent = '✓ Mixer started!\n' + JSON.stringify(response.data, null, 2);
+            } else {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = '✗ Failed to start:\n' + JSON.stringify(response.error, null, 2);
+            }
+        }
+        
+        async function stopMixer() {
+            const statusDiv = document.getElementById('mixerStatus');
+            statusDiv.className = 'status info';
+            statusDiv.textContent = 'Stopping mixer...';
+            
+            const response = await apiCall('/api/mixer/stop', 'POST');
+            
+            if (response.success) {
+                statusDiv.className = 'status success';
+                statusDiv.textContent = '✓ Mixer stopped!\n' + JSON.stringify(response.data, null, 2);
+            } else {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = '✗ Failed to stop:\n' + JSON.stringify(response.error, null, 2);
+            }
+        }
+        
+        async function setScene() {
+            const sceneId = document.getElementById('sceneSelect').value;
+            const statusDiv = document.getElementById('mixerStatus');
+            statusDiv.className = 'status info';
+            statusDiv.textContent = `Setting scene to ${sceneId}...`;
+            
+            const response = await apiCall('/api/mixer/set_scene', 'POST', { scene_id: sceneId });
+            
+            if (response.success) {
+                statusDiv.className = 'status success';
+                statusDiv.textContent = `✓ Scene set to ${sceneId}!\n` + JSON.stringify(response.data, null, 2);
+            } else {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = '✗ Failed to set scene:\n' + JSON.stringify(response.error, null, 2);
+            }
+        }
+        
+        async function getMixerStatus() {
+            const statusDiv = document.getElementById('mixerStatus');
+            statusDiv.className = 'status info';
+            statusDiv.textContent = 'Getting mixer status...';
+            
+            const response = await apiCall('/api/mixer/status');
+            
+            if (response.success) {
+                const state = response.data.state;
+                const badge = state === 'PLAYING' ? 'running' : state === 'NULL' ? 'idle' : 'error';
+                
+                statusDiv.className = 'status success';
+                statusDiv.innerHTML = `<strong>State: <span class="badge ${badge}">${state}</span></strong>\n` + 
+                                     JSON.stringify(response.data, null, 2);
+            } else {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = '✗ Failed to get status:\n' + JSON.stringify(response.error, null, 2);
+            }
+        }
+        
+        // Stream Preview
+        function loadStream() {
+            const streamId = document.getElementById('streamSelect').value;
+            const video = document.getElementById('videoPreview');
+            
+            // Try HLS first
+            const hlsUrl = `${config.apiUrl}:8888/${streamId}/index.m3u8`;
+            
+            log('info', `Loading stream: ${streamId}`);
+            log('info', `HLS URL: ${hlsUrl}`);
+            
+            if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                // Native HLS support (Safari)
+                video.src = hlsUrl;
+            } else if (typeof Hls !== 'undefined') {
+                // HLS.js support
+                const hls = new Hls();
+                hls.loadSource(hlsUrl);
+                hls.attachMedia(video);
+            } else {
+                log('warning', 'HLS not supported in this browser. Use VLC or ffplay for RTSP streams.');
+                alert('HLS not supported. Use VLC or ffplay:\nffplay ' + `rtsp://${config.apiUrl.replace('http://', '')}:8554/${streamId}`);
+            }
+        }
+        
+        // Initialize
+        loadConfig();
+        log('info', 'Test page loaded');
+        log('info', 'Ready to test Reveal.js video source integration');
+    </script>
+</body>
+</html>

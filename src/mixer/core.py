@@ -995,8 +995,55 @@ class MixerCore:
                 logger.info(f"Added image source branch: {file_path}")
                 continue
             
+            # Handle Reveal.js slides source (MUST come before generic graphics handler)
+            if slot.source == "slides" or slot.source_type == "reveal":
+                # Check if Reveal.js is enabled and streaming
+                if not self.config.reveal.enabled:
+                    logger.debug("Reveal.js source disabled in config, skipping")
+                    continue
+                
+                # Check if slides stream is available via MediaMTX API
+                if not self._check_mediamtx_stream(self.config.reveal.mediamtx_path):
+                    logger.info(f"Reveal.js stream not available at {self.config.reveal.mediamtx_path}, skipping")
+                    continue
+                
+                rtsp_port = self.config.mediamtx.rtsp_port
+                rtsp_url = f"rtsp://127.0.0.1:{rtsp_port}/{self.config.reveal.mediamtx_path}"
+                
+                logger.info(f"Using RTSP source for Reveal.js slides from MediaMTX: {rtsp_url}")
+                
+                # Source from MediaMTX RTSP stream (H.265 via RTP)
+                source_str = (
+                    f"rtspsrc location={rtsp_url} latency=50 protocols=udp buffer-mode=auto ! "
+                    f"rtph265depay ! "
+                    f"h265parse ! "
+                    f"mppvideodec ! "
+                    f"videoconvert ! "
+                    f"videoscale ! "
+                    f"video/x-raw,width={width},height={height} ! "
+                    f"queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream"
+                )
+                
+                # Apply crop if specified
+                if slot.crop_w < 1.0 or slot.crop_h < 1.0 or slot.crop_x > 0.0 or slot.crop_y > 0.0:
+                    source_width = int(width)
+                    source_height = int(height)
+                    crop_left = int(slot.crop_x * source_width)
+                    crop_top = int(slot.crop_y * source_height)
+                    crop_right = int((1.0 - slot.crop_x - slot.crop_w) * source_width)
+                    crop_bottom = int((1.0 - slot.crop_y - slot.crop_h) * source_height)
+                    source_str = source_str.replace(
+                        f"queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream",
+                        f"videocrop left={crop_left} top={crop_top} right={crop_right} bottom={crop_bottom} ! queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream"
+                    )
+                
+                source_branches.append((i, source_str, slot))
+                logger.info(f"Added Reveal.js slides source branch from RTSP")
+                continue
+            
             # Handle graphics sources (image, presentation, lower_third, graphics)
-            if slot.source_type not in ["camera", "file", "image"]:
+            # Note: "reveal" type is handled above, so this won't catch it
+            if slot.source_type not in ["camera", "file", "image", "reveal"]:
                 graphics_pipeline = self.graphics_renderer.get_source_pipeline(slot.source)
                 if graphics_pipeline:
                     # Apply crop if specified
@@ -1075,52 +1122,6 @@ class MixerCore:
                 
                 source_branches.append((i, source_str, slot))
                 logger.info(f"Added guest source branch for {guest_id} from RTSP")
-                continue
-            
-            # Handle Reveal.js slides source
-            if slot.source == "slides" or slot.source_type == "reveal":
-                # Check if Reveal.js is enabled and streaming
-                if not self.config.reveal.enabled:
-                    logger.debug("Reveal.js source disabled in config, skipping")
-                    continue
-                
-                # Check if slides stream is available via MediaMTX API
-                if not self._check_mediamtx_stream(self.config.reveal.mediamtx_path):
-                    logger.info(f"Reveal.js stream not available at {self.config.reveal.mediamtx_path}, skipping")
-                    continue
-                
-                rtsp_port = self.config.mediamtx.rtsp_port
-                rtsp_url = f"rtsp://127.0.0.1:{rtsp_port}/{self.config.reveal.mediamtx_path}"
-                
-                logger.info(f"Using RTSP source for Reveal.js slides from MediaMTX: {rtsp_url}")
-                
-                # Source from MediaMTX RTSP stream (H.265 via RTP)
-                source_str = (
-                    f"rtspsrc location={rtsp_url} latency=50 protocols=udp buffer-mode=auto ! "
-                    f"rtph265depay ! "
-                    f"h265parse ! "
-                    f"mppvideodec ! "
-                    f"videoconvert ! "
-                    f"videoscale ! "
-                    f"video/x-raw,width={width},height={height} ! "
-                    f"queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream"
-                )
-                
-                # Apply crop if specified
-                if slot.crop_w < 1.0 or slot.crop_h < 1.0 or slot.crop_x > 0.0 or slot.crop_y > 0.0:
-                    source_width = int(width)
-                    source_height = int(height)
-                    crop_left = int(slot.crop_x * source_width)
-                    crop_top = int(slot.crop_y * source_height)
-                    crop_right = int((1.0 - slot.crop_x - slot.crop_w) * source_width)
-                    crop_bottom = int((1.0 - slot.crop_y - slot.crop_h) * source_height)
-                    source_str = source_str.replace(
-                        f"queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream",
-                        f"videocrop left={crop_left} top={crop_top} right={crop_right} bottom={crop_bottom} ! queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream"
-                    )
-                
-                source_branches.append((i, source_str, slot))
-                logger.info(f"Added Reveal.js slides source branch from RTSP")
                 continue
             
             # Handle camera sources
