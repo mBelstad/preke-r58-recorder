@@ -1070,16 +1070,17 @@ class MixerCore:
         logger.info(f"Building mixer pipeline with {len(source_branches)} valid source(s) out of {len(scene.slots)} scene slot(s)")
 
         # Encoder - use hardware encoders for low CPU usage
+        # NOTE: MediaMTX RTMP requires H.264 (FLV doesn't support H.265)
+        # So we always encode with H.264 for simplicity
+        encoder_str = f"x264enc tune=zerolatency bitrate={self.output_bitrate} speed-preset=superfast"
+        caps_str = "video/x-h264"
+        parse_str = "h264parse"
+        
+        # Mux format depends on output codec config (for recording)
         if self.output_codec == "h265":
-            encoder_str = f"mpph265enc bps={self.output_bitrate * 1000} bps-max={self.output_bitrate * 2000}"
-            caps_str = "video/x-h265"
-            parse_str = "h265parse"
             mux_str = "matroskamux"
-        else:  # h264
-            # TEMPORARY: Revert to software encoder due to mpph264enc kernel crashes
-            encoder_str = f"x264enc tune=zerolatency bitrate={self.output_bitrate} speed-preset=superfast"
-            caps_str = "video/x-h264"
-            parse_str = "h264parse"
+            logger.warning("Mixer configured for H.265 output, but using H.264 for MediaMTX compatibility")
+        else:
             mux_str = "mp4mux"
 
         # Output branches
@@ -1096,7 +1097,7 @@ class MixerCore:
                 f"queue ! {parse_str} ! {mux_str} ! filesink location={output_path}"
             )
 
-        # MediaMTX branch
+        # MediaMTX branch (RTMP requires H.264)
         if self.mediamtx_enabled:
             rtmp_url = f"rtmp://127.0.0.1:1935/{self.mediamtx_path}"
             output_branches.append(
