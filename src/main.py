@@ -161,7 +161,7 @@ async def startup_event():
             logger.info(f"✓ Ingest started for {cam_id}")
         else:
             logger.warning(f"✗ Failed to start ingest for {cam_id}")
-    
+
 @app.get("/", response_class=HTMLResponse)
 async def root():
     """Serve the frontend."""
@@ -1358,7 +1358,7 @@ async def get_mixer_status() -> Dict[str, Any]:
     """Get mixer status."""
     if not mixer_core:
         raise HTTPException(status_code=503, detail="Mixer not enabled")
-
+    
     return mixer_core.get_status()
 
 
