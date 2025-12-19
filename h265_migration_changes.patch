@@ -1,0 +1,344 @@
+# H.265 Migration Code Changes
+# Apply these changes ONLY if mpph265enc stability tests pass
+
+## File 1: src/pipelines.py
+
+### Change 1: Replace get_h264_encoder() with get_h265_encoder()
+
+BEFORE (lines 11-34):
+```python
+def get_h264_encoder(bitrate: int, platform: str = "r58", is_4k_source: bool = False) -> tuple[str, str]:
+    """Get H.264 encoder string based on platform.
+    
+    Args:
+        bitrate: Bitrate in kbps
+        platform: Platform ("macos" or "r58")
+        is_4k_source: Whether source is 4K (for optimization)
+    
+    Returns:
+        Tuple of (encoder_str, caps_str)
+    """
+    # TEMPORARY: Revert to software encoder due to mpph264enc kernel crashes
+    # TODO: Investigate MPP driver stability before re-enabling hardware encoder
+    if is_4k_source:
+        encoder_str = (
+            f"x264enc tune=zerolatency bitrate={bitrate} speed-preset=ultrafast "
+            f"key-int-max=30 bframes=0 threads=6 sliced-threads=true"
+        )
+    else:
+        encoder_str = (
+            f"x264enc tune=zerolatency bitrate={bitrate} speed-preset=superfast "
+            f"key-int-max=30 bframes=0 threads=4 sliced-threads=true"
+        )
+    caps_str = "video/x-h264"
+    return encoder_str, caps_str
+```
+
+AFTER:
+```python
+def get_h265_encoder(bitrate: int) -> tuple[str, str]:
+    """Get H.265 hardware encoder string for R58 VPU.
+    
+    Uses mpph265enc (Rockchip MPP H.265 encoder) for hardware acceleration.
+    
+    Args:
+        bitrate: Bitrate in kbps
+    
+    Returns:
+        Tuple of (encoder_str, caps_str, parse_str)
+    """
+    bps = bitrate * 1000  # Convert kbps to bps
+    encoder_str = f"mpph265enc bps={bps} bps-max={bps * 2}"
+    caps_str = "video/x-h265"
+    parse_str = "h265parse"
+    return encoder_str, caps_str, parse_str
+```
+
+### Change 2: Update build_r58_pipeline() to use H.265 and RTSP
+
+BEFORE (lines 188-250):
+```python
+    # Hardware encoder selection
+    if codec == "h265":
+        # bps is in bits per second (bitrate is in kbps, so multiply by 1000)
+        bps = bitrate * 1000
+        encoder_str = f"mpph265enc bps={bps} bps-max={bps * 2}"
+        caps_str = "video/x-h265"
+        parse_str = "h265parse"
+        mux_str = "matroskamux"
+    else:  # h264
+        # Use hardware mpph264enc (Rockchip VPU) for low CPU usage
+        encoder_str, caps_str = get_h264_encoder(bitrate, platform="r58")
+        parse_str = "h264parse"
+        mux_str = "mp4mux"
+
+    # Build pipeline with optional tee for MediaMTX streaming
+    # CRITICAL: Use tee in single pipeline to avoid dual device access crashes
+    if mediamtx_path:
+        # Tee to both file recording and RTMP streaming (single pipeline, single device access)
+        # Stream goes to MediaMTX via RTMP on port 1935
+        # Extract path from mediamtx_path (e.g., rtsp://localhost:8554/cam0 -> cam0)
+        stream_path = mediamtx_path.split("/")[-1] if "/" in mediamtx_path else cam_id
+        rtmp_url = f"rtmp://127.0.0.1:1935/{stream_path}"
+        
+        if codec == "h265":
+            # H.265 recording but H.264 streaming (flvmux doesn't support H.265)
+            # Use tee after source, encode separately for recording and streaming
+            pipeline_str = (
+                f"{source_str} ! "
+                f"timeoverlay ! "
+                f"tee name=source_tee ! "
+                f"queue max-size-buffers=0 max-size-time=0 max-size-bytes=0 ! "
+                f"{encoder_str} ! "
+                f"{caps_str} ! "
+                f"{parse_str} ! "
+                f"{mux_str} ! "
+                f"filesink location={output_path} "
+                f"source_tee. ! "
+                f"queue max-size-buffers=0 max-size-time=0 max-size-bytes=0 ! "
+            )
+            # Use hardware encoder for streaming too
+            stream_encoder_str, stream_caps_str = get_h264_encoder(bitrate, platform="r58")
+            pipeline_str += (
+                f"{stream_encoder_str} ! "
+                f"{stream_caps_str} ! "
+                f"h264parse ! "
+                f"flvmux streamable=true ! "
+                f"rtmpsink location={rtmp_url}"
+            )
+        else:
+            # H.264 for both recording and streaming
+            pipeline_str = (
+                f"{source_str} ! "
+                f"timeoverlay ! "
+                f"{encoder_str} ! "
+                f"{caps_str} ! "
+                f"tee name=t ! "
+                f"queue max-size-buffers=0 max-size-time=0 max-size-bytes=0 ! "
+                f"{parse_str} ! "
+                f"{mux_str} ! "
+                f"filesink location={output_path} "
+                f"t. ! "
+                f"queue max-size-buffers=0 max-size-time=0 max-size-bytes=0 ! "
+                f"flvmux streamable=true ! "
+                f"rtmpsink location={rtmp_url}"
+            )
+```
+
+AFTER:
+```python
+    # Use H.265 hardware encoder (mpph265enc)
+    encoder_str, caps_str, parse_str = get_h265_encoder(bitrate)
+    mux_str = "matroskamux"
+
+    # Build pipeline with optional tee for MediaMTX streaming via RTSP
+    if mediamtx_path:
+        # Tee to both file recording and RTSP streaming
+        # Extract path from mediamtx_path
+        stream_path = mediamtx_path.split("/")[-1] if "/" in mediamtx_path else cam_id
+        rtsp_url = f"rtsp://127.0.0.1:8554/{stream_path}"
+        
+        # Single encoder, tee to file and RTSP
+        pipeline_str = (
+            f"{source_str} ! "
+            f"timeoverlay ! "
+            f"{encoder_str} ! "
+            f"{caps_str} ! "
+            f"tee name=t ! "
+            f"queue max-size-buffers=0 max-size-time=0 max-size-bytes=0 ! "
+            f"{parse_str} ! "
+            f"{mux_str} ! "
+            f"filesink location={output_path} "
+            f"t. ! "
+            f"queue max-size-buffers=0 max-size-time=0 max-size-bytes=0 ! "
+            f"{parse_str} ! "
+            f"rtspclientsink location={rtsp_url}"
+        )
+```
+
+### Change 3: Update build_r58_ingest_pipeline() to use H.265 and RTSP
+
+BEFORE (lines 568-590):
+```python
+    # Encoder - always H.264 for compatibility
+    # Use hardware encoder for low CPU usage
+    # Detect if source is 4K for potential future optimizations
+    is_4k_source = (int(width) >= 3840 or cam_id == "cam2")
+    encoder_str, caps_str = get_h264_encoder(bitrate, platform="r58", is_4k_source=is_4k_source)
+
+    # Stream to MediaMTX only
+    if mediamtx_path:
+        stream_path = mediamtx_path.split("/")[-1] if "/" in mediamtx_path else cam_id
+        rtmp_url = f"rtmp://127.0.0.1:1935/{stream_path}"
+    else:
+        rtmp_url = f"rtmp://127.0.0.1:1935/{cam_id}"
+
+    # Pipeline with larger queues for 4K sources to prevent frame drops
+    # leaky=downstream drops old frames if queue fills (prevents latency buildup)
+    pipeline_str = (
+        f"{source_str} ! "
+        f"queue max-size-buffers=5 max-size-time=0 max-size-bytes=0 leaky=downstream ! "
+        f"{encoder_str} ! "
+        f"{caps_str} ! "
+        f"queue max-size-buffers=5 max-size-time=0 max-size-bytes=0 leaky=downstream ! "
+        f"flvmux streamable=true ! "
+        f"rtmpsink location={rtmp_url} sync=false"
+    )
+```
+
+AFTER:
+```python
+    # Use H.265 hardware encoder
+    encoder_str, caps_str, parse_str = get_h265_encoder(bitrate)
+
+    # Stream to MediaMTX via RTSP
+    if mediamtx_path:
+        stream_path = mediamtx_path.split("/")[-1] if "/" in mediamtx_path else cam_id
+        rtsp_url = f"rtsp://127.0.0.1:8554/{stream_path}"
+    else:
+        rtsp_url = f"rtsp://127.0.0.1:8554/{cam_id}"
+
+    # Pipeline with RTSP push
+    pipeline_str = (
+        f"{source_str} ! "
+        f"queue max-size-buffers=5 max-size-time=0 max-size-bytes=0 leaky=downstream ! "
+        f"{encoder_str} ! "
+        f"{caps_str} ! "
+        f"queue max-size-buffers=5 max-size-time=0 max-size-bytes=0 leaky=downstream ! "
+        f"{parse_str} ! "
+        f"rtspclientsink location={rtsp_url} sync=false"
+    )
+```
+
+### Change 4: Update build_recording_subscriber_pipeline() for H.265
+
+BEFORE (lines 619-621):
+```python
+    # RTSP source with minimal latency
+    # Always use H.264 depay because ingest always streams H.264
+    source_str = f"rtspsrc location={source_url} latency=100 protocols=tcp ! rtph264depay"
+    
+    # Always use H.264 parser and MP4 muxer (ingest streams H.264)
+    # faststart=true moves moov atom to beginning for progressive playback in browsers
+    # fragment-duration=1000 creates 1-second fragments for live editing and crash recovery
+    parse_str = "h264parse"
+    mux_str = "mp4mux faststart=true fragment-duration=1000"
+```
+
+AFTER:
+```python
+    # RTSP source with minimal latency
+    # Use H.265 depay because ingest now streams H.265
+    source_str = f"rtspsrc location={source_url} latency=100 protocols=tcp ! rtph265depay"
+    
+    # Use H.265 parser and Matroska muxer
+    # fragment-duration=1000 creates 1-second fragments for live editing and crash recovery
+    parse_str = "h265parse"
+    mux_str = "matroskamux"
+```
+
+## File 2: src/mixer/core.py
+
+### Change: Update mixer to use H.265
+
+BEFORE (lines 1069-1080):
+```python
+        # Encoder - use hardware encoders for low CPU usage
+        if self.output_codec == "h265":
+            encoder_str = f"mpph265enc bps={self.output_bitrate * 1000} bps-max={self.output_bitrate * 2000}"
+            caps_str = "video/x-h265"
+            parse_str = "h265parse"
+            mux_str = "matroskamux"
+        else:  # h264
+            # TEMPORARY: Revert to software encoder due to mpph264enc kernel crashes
+            encoder_str = f"x264enc tune=zerolatency bitrate={self.output_bitrate} speed-preset=superfast"
+            caps_str = "video/x-h264"
+            parse_str = "h264parse"
+            mux_str = "mp4mux"
+```
+
+AFTER:
+```python
+        # Encoder - use H.265 hardware encoder
+        encoder_str = f"mpph265enc bps={self.output_bitrate * 1000} bps-max={self.output_bitrate * 2000}"
+        caps_str = "video/x-h265"
+        parse_str = "h265parse"
+        mux_str = "matroskamux"
+```
+
+### Change: Update mixer MediaMTX output to RTSP
+
+BEFORE (lines 1096-1102):
+```python
+        # MediaMTX branch
+        if self.mediamtx_enabled:
+            rtmp_url = f"rtmp://127.0.0.1:1935/{self.mediamtx_path}"
+            output_branches.append(
+                f"queue ! {parse_str} ! flvmux streamable=true ! rtmpsink location={rtmp_url} sync=false"
+            )
+            logger.info(f"Mixer will stream to MediaMTX at {rtmp_url}")
+```
+
+AFTER:
+```python
+        # MediaMTX branch via RTSP
+        if self.mediamtx_enabled:
+            rtsp_url = f"rtsp://127.0.0.1:8554/{self.mediamtx_path}"
+            output_branches.append(
+                f"queue ! {parse_str} ! rtspclientsink location={rtsp_url} sync=false"
+            )
+            logger.info(f"Mixer will stream to MediaMTX at {rtsp_url}")
+```
+
+## File 3: config.yml
+
+### Change: Update default codec to h265
+
+BEFORE (lines 54, 64, 74, 84):
+```yaml
+cameras:
+  cam0:
+    codec: h264
+  cam1:
+    codec: h264
+  cam2:
+    codec: h264
+  cam3:
+    codec: h264
+```
+
+AFTER:
+```yaml
+cameras:
+  cam0:
+    codec: h265
+  cam1:
+    codec: h265
+  cam2:
+    codec: h265
+  cam3:
+    codec: h265
+```
+
+### Change: Update mixer codec
+
+BEFORE (line 36):
+```yaml
+mixer:
+  output_codec: h264
+```
+
+AFTER:
+```yaml
+mixer:
+  output_codec: h265
+```
+
+## Deployment Steps
+
+1. Apply changes to files
+2. Commit: "Migrate to H.265 (mpph265enc) hardware encoding with RTSP push"
+3. Deploy to R58: `./deploy.sh r58.itagenten.no linaro`
+4. Restart service: `sudo systemctl restart preke-recorder`
+5. Test with real cameras
+6. Monitor for stability issues

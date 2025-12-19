@@ -26,19 +26,19 @@ webrtcAllowOrigin: "*"
 webrtcEncryption: no
 
 # Paths configuration
-# In always-on ingest architecture, only cam0-cam3 paths are used
-# Ingest pipelines publish to these paths, all consumers subscribe
+# Migrated to RTP sources for H.265 hardware encoding (2025-12-19)
+# Ingest pipelines push H.265 via RTP to these ports, consumers subscribe via RTSP
 paths:
   cam0:
-    source: publisher
+    source: rtp://0.0.0.0:5000  # RTP H.265 from ingest pipeline
   cam1:
-    source: publisher
+    source: rtp://0.0.0.0:5002  # RTP H.265 from ingest pipeline
   cam2:
-    source: publisher
+    source: rtp://0.0.0.0:5004  # RTP H.265 from ingest pipeline
   cam3:
-    source: publisher
+    source: rtp://0.0.0.0:5006  # RTP H.265 from ingest pipeline
   mixer_program:
-    source: publisher
+    source: publisher  # Mixer publishes via RTMP (H.265 not supported in flvmux)
   # Remote guest paths (published via WHIP)
   guest1:
     source: publisher

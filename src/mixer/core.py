@@ -970,12 +970,13 @@ class MixerCore:
                 # Build decoder string with hardware acceleration if available
                 decoder_str = _build_decoder_string(self._hardware_decoder)
                 
-                # Source from MediaMTX RTSP stream
+                # Source from MediaMTX RTSP stream (H.265 via RTP)
                 source_str = (
                     f"rtspsrc location={rtsp_url} latency=50 protocols=udp buffer-mode=auto ! "
-                    f"rtph264depay ! "
-                    f"h264parse ! "
-                    f"{decoder_str} ! "
+                    f"rtph265depay ! "
+                    f"h265parse ! "
+                    f"mppvideodec ! "
+                    f"videoconvert ! "
                     f"videoscale ! "
                     f"video/x-raw,width={width},height={height} ! "
                     f"queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream"
@@ -1031,11 +1032,13 @@ class MixerCore:
             
             # Source from MediaMTX RTSP stream with optimized low latency settings
             # UDP is faster than TCP for local connections, 50ms latency for mixer
+            # Now using H.265 via RTP with hardware decoder (mppvideodec)
             source_str = (
                 f"rtspsrc location={rtsp_url} latency=50 protocols=udp buffer-mode=auto ! "
-                f"rtph264depay ! "
-                f"h264parse ! "
-                f"{decoder_str} ! "
+                f"rtph265depay ! "
+                f"h265parse ! "
+                f"mppvideodec ! "
+                f"videoconvert ! "
                 f"videoscale ! "
                 f"video/x-raw,width={width},height={height} ! "
                 f"queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream"

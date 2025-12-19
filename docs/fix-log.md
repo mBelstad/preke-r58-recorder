@@ -1,5 +1,40 @@
 # Fix & Incident Log
 
+## 2025-12-19 — H.265 Hardware Encoder (mpph265enc) Stability Testing
+
+- **Context**: After discovering mpph264enc causes kernel panics, we needed to verify if mpph265enc (H.265 hardware encoder) is stable before migrating the entire system.
+- **Tests performed**:
+  1. **Simple 30-second encode**: ✅ PASSED - Created 29MB file, no errors
+  2. **Sustained 5-minute encode**: ✅ PASSED - Completed in 40 seconds, no crashes
+  3. **RTSP push test**: ⚠️ PARTIAL - `rtspclientsink` not available on R58
+- **Results**: 
+  - **mpph265enc is STABLE** - No kernel panics, no segfaults, no errors in dmesg
+  - Hardware encoder works reliably for H.265 encoding
+  - System remained responsive throughout all tests
+- **Findings**:
+  - `rtspclientsink` GStreamer element not installed on R58
+  - Will need to use alternative streaming method (keep RTMP or use RTP directly)
+  - H.265 recording to file works perfectly with hardware acceleration
+- **Decision**: Proceed with H.265 migration for recording, evaluate streaming options
+- **CPU Impact**: Expected reduction from ~40% to ~10% per camera stream
+- **Next steps**: Implement H.265 for recording pipelines, keep RTMP for streaming (MediaMTX will handle H.265 via WHIP/WebRTC)
+
+## 2025-12-19 — mpph264enc Kernel Panic & Rollback
+
+- **Symptom**: Kernel panic when attempting to use mpph264enc (H.264 hardware encoder)
+- **Error**: `Internal error: Oops: 0000000096000005 [#29] SMP`
+- **Impact**: System crash, SSH connection dropped, required hard reboot
+- **Root cause**: MPP (Media Process Platform) driver instability with H.264 encoding
+- **Action taken**: Immediate rollback to x264enc (software encoder)
+- **Commits**:
+  - `1ff7195` - ROLLBACK: Revert to software x264enc encoder
+- **Key learnings**:
+  - mpph264enc (H.264 VPU) is UNSTABLE - causes kernel crashes
+  - Previous developers had already discovered this (code comments indicated prior issues)
+  - Must test mpph265enc separately before assuming all MPP encoders are unstable
+  - Always have rollback plan ready when testing hardware encoders
+- **Status**: System stable with software x264enc, but limited to 2 cameras due to CPU usage
+
 ## 2025-12-19 — CAM1 (HDMI N60/video60) Recording Fix
 
 - **Symptom**: cam1 recordings produced 0-byte files while cam0/cam2/cam3 recorded successfully. MediaMTX showed "no one is publishing to path 'cam1'" despite ingest status showing "streaming".

@@ -33,9 +33,9 @@ mixer:
   enabled: true  # Set to true to enable mixer
   output_resolution: 1920x1080
   output_bitrate: 8000  # kbps
-  output_codec: h264  # h264 or h265
+  output_codec: h265  # h265 for hardware encoding (mpph265enc)
   recording_enabled: false  # Enable program output recording
-  recording_path: /var/recordings/mixer/program_%Y%m%d_%H%M%S.mp4
+  recording_path: /var/recordings/mixer/program_%Y%m%d_%H%M%S.mkv
   mediamtx_enabled: true  # Stream mixer output to MediaMTX
   mediamtx_path: mixer_program  # MediaMTX path for mixer output
   scenes_dir: scenes  # Directory for scene JSON files
@@ -51,8 +51,8 @@ cameras:
     device: /dev/video0  # HDMI N0 (rkcif via LT6911 bridge)
     resolution: 1920x1080
     bitrate: 18000  # 18 Mbps target for actual ~12-15 Mbps
-    codec: h264
-    output_path: /mnt/sdcard/recordings/cam0/recording_%Y%m%d_%H%M%S.mp4
+    codec: h265  # Hardware encoding via mpph265enc (VPU)
+    output_path: /mnt/sdcard/recordings/cam0/recording_%Y%m%d_%H%M%S.mkv
     mediamtx_enabled: true
     mediamtx_path: null  # Auto-generated if null: rtsp://localhost:8554/cam0
     enabled: false  # Disabled - no camera connected
@@ -61,8 +61,8 @@ cameras:
     device: /dev/video60  # HDMI N60 (hdmirx direct)
     resolution: 1920x1080
     bitrate: 18000  # 18 Mbps target for actual ~12-15 Mbps
-    codec: h264
-    output_path: /mnt/sdcard/recordings/cam1/recording_%Y%m%d_%H%M%S.mp4
+    codec: h265  # Hardware encoding via mpph265enc (VPU)
+    output_path: /mnt/sdcard/recordings/cam1/recording_%Y%m%d_%H%M%S.mkv
     mediamtx_enabled: true
     mediamtx_path: null
     enabled: true  # Primary camera
@@ -71,8 +71,8 @@ cameras:
     device: /dev/video11  # HDMI N11 (rkcif via LT6911 bridge)
     resolution: 1920x1080
     bitrate: 18000  # 18 Mbps target for actual ~12-15 Mbps
-    codec: h264
-    output_path: /mnt/sdcard/recordings/cam2/recording_%Y%m%d_%H%M%S.mp4
+    codec: h265  # Hardware encoding via mpph265enc (VPU)
+    output_path: /mnt/sdcard/recordings/cam2/recording_%Y%m%d_%H%M%S.mkv
     mediamtx_enabled: true
     mediamtx_path: null
     enabled: true  # Secondary camera
@@ -81,11 +81,11 @@ cameras:
     device: /dev/video22  # HDMI N21 (rkcif-mipi-lvds2 via LT6911 2-002b bridge)
     resolution: 1920x1080
     bitrate: 18000  # 18 Mbps target for actual ~12-15 Mbps
-    codec: h264  # Changed from h265 to h264 for consistency
-    output_path: /mnt/sdcard/recordings/cam3/recording_%Y%m%d_%H%M%S.mp4
+    codec: h265  # Hardware encoding via mpph265enc (VPU)
+    output_path: /mnt/sdcard/recordings/cam3/recording_%Y%m%d_%H%M%S.mkv
     mediamtx_enabled: true
     mediamtx_path: null
-    enabled: false  # DISABLED - too many cameras causes CPU overload
+    enabled: false  # Will be enabled after testing
 
 # Recording configuration
 recording:
