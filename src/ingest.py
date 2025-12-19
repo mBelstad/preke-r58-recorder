@@ -278,7 +278,8 @@ class IngestManager:
 
             stream_url = None
             if state == "streaming":
-                stream_url = f"rtsp://localhost:{self.config.mediamtx.rtsp_port}/{cam_id}"
+                # Use 127.0.0.1 instead of localhost to avoid IPv6 issues
+                stream_url = f"rtsp://127.0.0.1:{self.config.mediamtx.rtsp_port}/{cam_id}"
 
             status_dict[cam_id] = IngestStatus(
                 status=state,

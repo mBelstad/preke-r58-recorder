@@ -6,14 +6,8 @@ from .gst_utils import get_gst, ensure_gst_initialized
 
 logger = logging.getLogger(__name__)
 
-# RTP port mapping for MediaMTX H.265 streams
-# Each camera gets a dedicated RTP port (even numbers, odd for RTCP)
-RTP_PORT_MAP = {
-    "cam0": 5000,
-    "cam1": 5002,
-    "cam2": 5004,
-    "cam3": 5006,
-}
+# Note: Previously used RTP_PORT_MAP for raw UDP streaming
+# Now using rtspclientsink which handles RTSP publishing automatically
 
 
 def get_h265_encoder(bitrate: int) -> tuple[str, str, str]:
@@ -558,13 +552,11 @@ def build_r58_ingest_pipeline(
 
     # Use H.265 hardware encoder (mpph265enc - tested stable 2025-12-19)
     encoder_str, caps_str, parse_str = get_h265_encoder(bitrate)
-
-    # Get RTP port for this camera
-    rtp_port = RTP_PORT_MAP.get(cam_id, 5000)
     
-    # Stream to MediaMTX via RTP (H.265 native support)
-    # MediaMTX configured to accept RTP on dedicated ports per camera
-    # Pipeline: encode → parse → RTP payload → UDP sink
+    # Stream to MediaMTX via RTSP (H.265 native support)
+    # Using rtspclientsink with UDP transport for low latency
+    # rtspclientsink handles RTP payloading internally
+    # Pipeline: encode → parse → RTSP client sink
     pipeline_str = (
         f"{source_str} ! "
         f"queue max-size-buffers=5 max-size-time=0 max-size-bytes=0 leaky=downstream ! "
@@ -572,8 +564,7 @@ def build_r58_ingest_pipeline(
         f"{caps_str} ! "
         f"queue max-size-buffers=5 max-size-time=0 max-size-bytes=0 leaky=downstream ! "
         f"{parse_str} ! "
-        f"rtph265pay config-interval=1 pt=96 ! "
-        f"udpsink host=127.0.0.1 port={rtp_port} sync=false"
+        f"rtspclientsink location=rtsp://127.0.0.1:8554/{cam_id} protocols=udp latency=0"
     )
 
     logger.info(f"Building ingest pipeline for {cam_id}: {pipeline_str}")

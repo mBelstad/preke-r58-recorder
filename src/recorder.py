@@ -283,7 +283,8 @@ class Recorder:
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         # Build MediaMTX source URL (subscribe to ingest stream)
-        source_url = f"rtsp://localhost:{self.config.mediamtx.rtsp_port}/{cam_id}"
+        # Use 127.0.0.1 instead of localhost to avoid IPv6 issues
+        source_url = f"rtsp://127.0.0.1:{self.config.mediamtx.rtsp_port}/{cam_id}"
 
         # Build recording subscriber pipeline (reads from MediaMTX, not device)
         try:
