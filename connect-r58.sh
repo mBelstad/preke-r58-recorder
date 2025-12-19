@@ -11,6 +11,7 @@ R58_HOST="${R58_HOST:-r58.itagenten.no}"
 R58_USER="${R58_USER:-linaro}"
 
 # Check if SSH key is set up
+SSH_CMD=(ssh)
 if ! ssh -o BatchMode=yes -o ConnectTimeout=5 "${R58_USER}@${R58_HOST}" exit 2>/dev/null; then
     # SSH keys not set up - try password if provided
     if [ -n "${R58_PASSWORD}" ]; then
@@ -22,7 +23,7 @@ if ! ssh -o BatchMode=yes -o ConnectTimeout=5 "${R58_USER}@${R58_HOST}" exit 2>/
             exit 1
         fi
         echo "Using password authentication (set up SSH keys for better security)"
-        SSH_CMD="sshpass -p '${R58_PASSWORD}' ssh -o StrictHostKeyChecking=no"
+        SSH_CMD=(sshpass -p "${R58_PASSWORD}" ssh -o StrictHostKeyChecking=no)
     else
         echo "Error: SSH key authentication not set up."
         echo ""
@@ -33,17 +34,15 @@ if ! ssh -o BatchMode=yes -o ConnectTimeout=5 "${R58_USER}@${R58_HOST}" exit 2>/
         echo "Example: R58_PASSWORD=yourpassword ./connect-r58.sh"
         exit 1
     fi
-else
-    SSH_CMD="ssh"
 fi
 
 # If a command is provided, execute it remotely
 if [ -n "$1" ]; then
-    ${SSH_CMD} "${R58_USER}@${R58_HOST}" "$@"
+    "${SSH_CMD[@]}" "${R58_USER}@${R58_HOST}" "$@"
 else
     # Interactive SSH session
     echo "Connecting to ${R58_USER}@${R58_HOST}..."
     echo "Press Ctrl+D or type 'exit' to disconnect"
-    ${SSH_CMD} "${R58_USER}@${R58_HOST}"
+    "${SSH_CMD[@]}" "${R58_USER}@${R58_HOST}"
 fi
 
