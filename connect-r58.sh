@@ -10,31 +10,15 @@ set -e
 R58_HOST="${R58_HOST:-r58.itagenten.no}"
 R58_USER="${R58_USER:-linaro}"
 
-# Check if SSH key is set up
-SSH_CMD=(ssh)
-if ! ssh -o BatchMode=yes -o ConnectTimeout=5 "${R58_USER}@${R58_HOST}" exit 2>/dev/null; then
-    # SSH keys not set up - try password if provided
-    if [ -n "${R58_PASSWORD}" ]; then
-        if ! command -v sshpass >/dev/null 2>&1; then
-            echo "Error: sshpass required for password auth."
-            echo "Install: brew install sshpass"
-            echo ""
-            echo "Or set up SSH keys: ./ssh-setup.sh"
-            exit 1
-        fi
-        echo "Using password authentication (set up SSH keys for better security)"
-        SSH_CMD=(sshpass -p "${R58_PASSWORD}" ssh -o StrictHostKeyChecking=no)
-    else
-        echo "Error: SSH key authentication not set up."
-        echo ""
-        echo "Options:"
-        echo "  1. Run ./ssh-setup.sh to configure SSH keys (recommended)"
-        echo "  2. Set R58_PASSWORD environment variable (temporary)"
-        echo ""
-        echo "Example: R58_PASSWORD=yourpassword ./connect-r58.sh"
-        exit 1
-    fi
+# Set up SSH command with password authentication
+# Uses password-only to avoid SSH key passphrase prompts
+R58_PASSWORD="${R58_PASSWORD:-linaro}"
+if ! command -v sshpass >/dev/null 2>&1; then
+    echo "Error: sshpass required for password auth."
+    echo "Install: brew install sshpass"
+    exit 1
 fi
+SSH_CMD=(sshpass -p "${R58_PASSWORD}" ssh -o StrictHostKeyChecking=no -o PreferredAuthentications=password -o PubkeyAuthentication=no)
 
 # If a command is provided, execute it remotely
 if [ -n "$1" ]; then
