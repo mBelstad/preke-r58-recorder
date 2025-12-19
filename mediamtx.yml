@@ -8,13 +8,13 @@ rtspAddress: :8554
 # RTMP settings
 rtmpAddress: :1935
 
-# HLS settings - optimized for FAST STARTUP while maintaining reliability
-# Balance between startup speed and connection stability
+# HLS settings - optimized for STABILITY under high load
+# Increased buffer to prevent 404 errors when system is busy
 hlsAddress: :8888
 hlsAlwaysRemux: yes
-hlsSegmentCount: 7          # Reduced from 15 - less buffering needed, faster manifest load
-hlsSegmentDuration: 1s      # Reduced from 3s - MUCH faster startup (1s vs 6-9s)
-hlsPartDuration: 200ms      # Reduced from 300ms - faster LL-HLS startup
+hlsSegmentCount: 10         # 20-second buffer (10 x 2s) - prevents segment expiry under load
+hlsSegmentDuration: 2s      # Longer segments reduce generation frequency and CPU load
+hlsPartDuration: 400ms      # Balanced LL-HLS - still fast but more stable
 hlsAllowOrigin: "*"
 
 # SRT settings
