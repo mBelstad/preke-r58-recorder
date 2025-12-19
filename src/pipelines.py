@@ -82,11 +82,17 @@ def build_r58_pipeline(
     if device_type == "hdmirx":
         # HDMI input: RK hdmirx currently exposes NV16 (4:2:2); convert to NV12 for encoders
         # Must use io-mode=mmap for hdmirx
+        # Use actual detected resolution, not configured resolution
+        src_width = caps.get('width') or int(width)
+        src_height = caps.get('height') or int(height)
+        src_fps = caps.get('framerate') or 60
+        logger.info(f"{cam_id}: hdmirx recording using detected resolution {src_width}x{src_height}@{src_fps}fps")
         source_str = (
             f"v4l2src device={device} io-mode=mmap ! "
-            f"video/x-raw,format=NV16,width={width},height={height},framerate=60/1 ! "
+            f"video/x-raw,format=NV16,width={src_width},height={src_height},framerate={src_fps}/1 ! "
             f"videoconvert ! "
-            f"video/x-raw,format=NV12"
+            f"videoscale ! "
+            f"video/x-raw,width={width},height={height},format=NV12"
         )
     elif device_type == "hdmi_rkcif":
         # HDMI input via rkcif (LT6911 bridge): Use explicit format like hdmirx
@@ -294,12 +300,18 @@ def build_r58_preview_pipeline(
     logger.info(f"Building preview pipeline for {cam_id}: device_type={device_type}, caps={caps}")
     
     if device_type == "hdmirx":
+        # Use actual detected resolution, not configured resolution
+        src_width = caps.get('width') or int(width)
+        src_height = caps.get('height') or int(height)
+        src_fps = caps.get('framerate') or 60
+        logger.info(f"{cam_id}: hdmirx preview using detected resolution {src_width}x{src_height}@{src_fps}fps")
         source_str = (
             f"v4l2src device={device} io-mode=mmap ! "
-            f"video/x-raw,format=NV16,width={width},height={height},framerate=60/1 ! "
+            f"video/x-raw,format=NV16,width={src_width},height={src_height},framerate={src_fps}/1 ! "
             f"videorate ! video/x-raw,framerate=30/1 ! "
             f"videoconvert ! "
-            f"video/x-raw,format=NV12"
+            f"videoscale ! "
+            f"video/x-raw,width={width},height={height},format=NV12"
         )
     elif device_type == "hdmi_rkcif":
         # HDMI input via rkcif (LT6911 bridge): Use explicit format like hdmirx
@@ -460,12 +472,19 @@ def build_r58_ingest_pipeline(
     logger.info(f"Building ingest pipeline for {cam_id}: device_type={device_type}, caps={caps}")
     
     if device_type == "hdmirx":
+        # Use actual detected resolution, not configured resolution
+        # This is critical for hdmirx which may receive 4K even if config says 1080p
+        src_width = caps.get('width') or int(width)
+        src_height = caps.get('height') or int(height)
+        src_fps = caps.get('framerate') or 60
+        logger.info(f"{cam_id}: hdmirx using detected resolution {src_width}x{src_height}@{src_fps}fps")
         source_str = (
             f"v4l2src device={device} io-mode=mmap ! "
-            f"video/x-raw,format=NV16,width={width},height={height},framerate=60/1 ! "
+            f"video/x-raw,format=NV16,width={src_width},height={src_height},framerate={src_fps}/1 ! "
             f"videorate ! video/x-raw,framerate=30/1 ! "
             f"videoconvert ! "
-            f"video/x-raw,format=NV12"
+            f"videoscale ! "
+            f"video/x-raw,width={width},height={height},format=NV12"
         )
     elif device_type == "hdmi_rkcif":
         if not caps['has_signal']:
