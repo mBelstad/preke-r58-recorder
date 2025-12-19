@@ -125,6 +125,11 @@ class MixerCore:
         # This eliminates pipeline rebuilds at the cost of more resources
         self.preallocate_sources = True  # Enable by default for best latency
         
+        # Overlay layer support (for Reveal.js and other graphics)
+        self.overlay_enabled: bool = False
+        self.overlay_source: Optional[str] = None  # e.g., "slides"
+        self.overlay_alpha: float = 1.0  # 0.0 to 1.0
+        
         # Watchdog
         self.watchdog = MixerWatchdog(
             on_unhealthy=self._handle_unhealthy
@@ -765,7 +770,80 @@ class MixerCore:
                 "last_buffer_seconds_ago": watchdog_status["last_buffer_seconds_ago"],
                 "recording_enabled": self.recording_enabled,
                 "mediamtx_enabled": self.mediamtx_enabled,
+                "overlay_enabled": self.overlay_enabled,
+                "overlay_source": self.overlay_source,
+                "overlay_alpha": self.overlay_alpha,
             }
+    
+    def enable_overlay(self, source: str = "slides", alpha: float = 1.0) -> bool:
+        """Enable overlay layer on top of the current scene.
+        
+        Args:
+            source: Source to overlay (e.g., "slides" for Reveal.js)
+            alpha: Transparency (0.0 = transparent, 1.0 = opaque)
+        
+        Returns:
+            True if overlay enabled successfully
+        """
+        with self._lock:
+            if not self.pipeline or self.state != "PLAYING":
+                logger.warning("Cannot enable overlay - mixer not running")
+                return False
+            
+            # For now, overlay requires pipeline rebuild
+            # In the future, we could add a dedicated overlay compositor pad
+            logger.warning("Overlay feature requires pipeline rebuild - not yet implemented")
+            self.overlay_enabled = True
+            self.overlay_source = source
+            self.overlay_alpha = alpha
+            
+            # TODO: Implement dynamic overlay by rebuilding pipeline with overlay slot
+            return False
+    
+    def disable_overlay(self) -> bool:
+        """Disable overlay layer.
+        
+        Returns:
+            True if overlay disabled successfully
+        """
+        with self._lock:
+            if not self.overlay_enabled:
+                return True
+            
+            self.overlay_enabled = False
+            self.overlay_source = None
+            
+            # TODO: Implement dynamic overlay removal
+            logger.info("Overlay disabled")
+            return True
+    
+    def set_overlay_alpha(self, alpha: float) -> bool:
+        """Set overlay transparency.
+        
+        Args:
+            alpha: Transparency (0.0 = transparent, 1.0 = opaque)
+        
+        Returns:
+            True if alpha set successfully
+        """
+        if alpha < 0.0 or alpha > 1.0:
+            logger.error(f"Invalid alpha value: {alpha} (must be 0.0-1.0)")
+            return False
+        
+        with self._lock:
+            if not self.overlay_enabled:
+                logger.warning("Cannot set overlay alpha - overlay not enabled")
+                return False
+            
+            if not self.pipeline or self.state != "PLAYING":
+                logger.warning("Cannot set overlay alpha - mixer not running")
+                return False
+            
+            self.overlay_alpha = alpha
+            
+            # TODO: Update compositor pad alpha dynamically
+            logger.warning("Dynamic overlay alpha not yet implemented")
+            return False
     
     def _check_ingest_status(self, cam_id: str) -> bool:
         """Check if a camera's ingest stream is available.
@@ -997,6 +1075,52 @@ class MixerCore:
                 
                 source_branches.append((i, source_str, slot))
                 logger.info(f"Added guest source branch for {guest_id} from RTSP")
+                continue
+            
+            # Handle Reveal.js slides source
+            if slot.source == "slides" or slot.source_type == "reveal":
+                # Check if Reveal.js is enabled and streaming
+                if not self.config.reveal.enabled:
+                    logger.debug("Reveal.js source disabled in config, skipping")
+                    continue
+                
+                # Check if slides stream is available via MediaMTX API
+                if not self._check_mediamtx_stream(self.config.reveal.mediamtx_path):
+                    logger.info(f"Reveal.js stream not available at {self.config.reveal.mediamtx_path}, skipping")
+                    continue
+                
+                rtsp_port = self.config.mediamtx.rtsp_port
+                rtsp_url = f"rtsp://127.0.0.1:{rtsp_port}/{self.config.reveal.mediamtx_path}"
+                
+                logger.info(f"Using RTSP source for Reveal.js slides from MediaMTX: {rtsp_url}")
+                
+                # Source from MediaMTX RTSP stream (H.265 via RTP)
+                source_str = (
+                    f"rtspsrc location={rtsp_url} latency=50 protocols=udp buffer-mode=auto ! "
+                    f"rtph265depay ! "
+                    f"h265parse ! "
+                    f"mppvideodec ! "
+                    f"videoconvert ! "
+                    f"videoscale ! "
+                    f"video/x-raw,width={width},height={height} ! "
+                    f"queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream"
+                )
+                
+                # Apply crop if specified
+                if slot.crop_w < 1.0 or slot.crop_h < 1.0 or slot.crop_x > 0.0 or slot.crop_y > 0.0:
+                    source_width = int(width)
+                    source_height = int(height)
+                    crop_left = int(slot.crop_x * source_width)
+                    crop_top = int(slot.crop_y * source_height)
+                    crop_right = int((1.0 - slot.crop_x - slot.crop_w) * source_width)
+                    crop_bottom = int((1.0 - slot.crop_y - slot.crop_h) * source_height)
+                    source_str = source_str.replace(
+                        f"queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream",
+                        f"videocrop left={crop_left} top={crop_top} right={crop_right} bottom={crop_bottom} ! queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream"
+                    )
+                
+                source_branches.append((i, source_str, slot))
+                logger.info(f"Added Reveal.js slides source branch from RTSP")
                 continue
             
             # Handle camera sources

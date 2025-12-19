@@ -95,6 +95,25 @@ if config.mixer.enabled:
 else:
     logger.info("Mixer plugin disabled in configuration")
 
+# Initialize Reveal.js source manager (optional)
+reveal_source_manager = None
+if config.reveal.enabled:
+    try:
+        from .reveal_source import RevealSourceManager
+        reveal_source_manager = RevealSourceManager(
+            resolution=config.reveal.resolution,
+            framerate=config.reveal.framerate,
+            bitrate=config.reveal.bitrate,
+            mediamtx_path=config.reveal.mediamtx_path,
+            renderer=config.reveal.renderer
+        )
+        logger.info(f"Reveal.js source manager initialized (renderer: {reveal_source_manager.renderer_type})")
+    except Exception as e:
+        logger.error(f"Failed to initialize Reveal.js source manager: {e}")
+        reveal_source_manager = None
+else:
+    logger.info("Reveal.js source disabled in configuration")
+
 # Initialize Cloudflare Calls manager (for remote guests)
 calls_manager: Optional[Any] = None
 calls_relay: Optional[Any] = None
@@ -1385,6 +1404,143 @@ async def get_mixer_status() -> Dict[str, Any]:
         raise HTTPException(status_code=503, detail="Mixer not enabled")
     
     return mixer_core.get_status()
+
+
+# Mixer overlay API endpoints
+@app.post("/api/mixer/overlay/{source}")
+async def enable_mixer_overlay(source: str, alpha: float = 1.0) -> Dict[str, Any]:
+    """Enable overlay layer on mixer output.
+    
+    Args:
+        source: Overlay source (e.g., "slides")
+        alpha: Transparency (0.0-1.0)
+    """
+    if not mixer_core:
+        raise HTTPException(status_code=503, detail="Mixer not enabled")
+    
+    success = mixer_core.enable_overlay(source, alpha)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to enable overlay")
+    
+    return {"status": "overlay_enabled", "source": source, "alpha": alpha}
+
+
+@app.delete("/api/mixer/overlay/{source}")
+async def disable_mixer_overlay(source: str) -> Dict[str, str]:
+    """Disable overlay layer on mixer output."""
+    if not mixer_core:
+        raise HTTPException(status_code=503, detail="Mixer not enabled")
+    
+    success = mixer_core.disable_overlay()
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to disable overlay")
+    
+    return {"status": "overlay_disabled"}
+
+
+@app.put("/api/mixer/overlay/{source}/alpha")
+async def set_mixer_overlay_alpha(source: str, alpha: float) -> Dict[str, Any]:
+    """Set overlay transparency.
+    
+    Args:
+        source: Overlay source
+        alpha: Transparency (0.0-1.0)
+    """
+    if not mixer_core:
+        raise HTTPException(status_code=503, detail="Mixer not enabled")
+    
+    success = mixer_core.set_overlay_alpha(alpha)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to set overlay alpha")
+    
+    return {"status": "alpha_updated", "alpha": alpha}
+
+
+# Reveal.js API endpoints
+@app.post("/api/reveal/start")
+async def start_reveal(presentation_id: str, url: Optional[str] = None) -> Dict[str, Any]:
+    """Start Reveal.js video source.
+    
+    Args:
+        presentation_id: Presentation identifier
+        url: Optional URL to render (defaults to /graphics?presentation={presentation_id})
+    """
+    if not reveal_source_manager:
+        raise HTTPException(status_code=503, detail="Reveal.js not enabled")
+    
+    # Default URL if not provided
+    if not url:
+        url = f"http://localhost:8000/graphics?presentation={presentation_id}"
+    
+    success = reveal_source_manager.start(presentation_id, url)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to start Reveal.js source")
+    
+    return {
+        "status": "started",
+        "presentation_id": presentation_id,
+        "url": url,
+        "stream_url": reveal_source_manager.get_status()["stream_url"]
+    }
+
+
+@app.post("/api/reveal/stop")
+async def stop_reveal() -> Dict[str, str]:
+    """Stop Reveal.js video source."""
+    if not reveal_source_manager:
+        raise HTTPException(status_code=503, detail="Reveal.js not enabled")
+    
+    success = reveal_source_manager.stop()
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to stop Reveal.js source")
+    
+    return {"status": "stopped"}
+
+
+@app.post("/api/reveal/navigate/{direction}")
+async def navigate_reveal(direction: str) -> Dict[str, str]:
+    """Navigate slides in Reveal.js presentation.
+    
+    Args:
+        direction: Navigation direction (next, prev, first, last)
+    """
+    if not reveal_source_manager:
+        raise HTTPException(status_code=503, detail="Reveal.js not enabled")
+    
+    if direction not in ["next", "prev", "first", "last"]:
+        raise HTTPException(status_code=400, detail="Invalid direction")
+    
+    success = reveal_source_manager.navigate(direction)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to navigate slides")
+    
+    return {"status": "navigated", "direction": direction}
+
+
+@app.post("/api/reveal/goto/{slide}")
+async def goto_reveal_slide(slide: int) -> Dict[str, Any]:
+    """Go to specific slide in Reveal.js presentation.
+    
+    Args:
+        slide: Slide index
+    """
+    if not reveal_source_manager:
+        raise HTTPException(status_code=503, detail="Reveal.js not enabled")
+    
+    success = reveal_source_manager.goto_slide(slide)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to go to slide")
+    
+    return {"status": "navigated", "slide": slide}
+
+
+@app.get("/api/reveal/status")
+async def get_reveal_status() -> Dict[str, Any]:
+    """Get Reveal.js source status."""
+    if not reveal_source_manager:
+        raise HTTPException(status_code=503, detail="Reveal.js not enabled")
+    
+    return reveal_source_manager.get_status()
 
 
 @app.get("/api/guests/status")

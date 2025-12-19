@@ -55,3 +55,8 @@ paths:
   # Ninja program output (if using Ninja mixer)
   ninja_program:
     source: publisher
+  # Reveal.js presentation streams
+  slides:
+    source: publisher
+  slides_overlay:
+    source: publisher

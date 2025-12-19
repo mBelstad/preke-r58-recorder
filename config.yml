@@ -28,6 +28,15 @@ graphics:
   templates_dir: graphics_templates
   output_dir: /tmp/graphics_output
 
+# Reveal.js video source configuration
+reveal:
+  enabled: true
+  resolution: 1920x1080
+  framerate: 30
+  bitrate: 4000  # kbps
+  mediamtx_path: slides  # MediaMTX path for Reveal.js stream
+  renderer: auto  # auto, wpe, chromium
+
 # Mixer configuration (optional)
 mixer:
   enabled: true  # Set to true to enable mixer

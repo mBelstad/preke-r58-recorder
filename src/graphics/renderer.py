@@ -30,16 +30,18 @@ class GraphicsSource:
 class GraphicsRenderer:
     """Renders graphics sources to video streams for mixer input."""
     
-    def __init__(self, output_dir: str = "/tmp/mixer_graphics"):
+    def __init__(self, output_dir: str = "/tmp/mixer_graphics", reveal_source_manager: Optional[Any] = None):
         """Initialize graphics renderer.
         
         Args:
             output_dir: Directory for temporary graphics outputs
+            reveal_source_manager: Optional RevealSourceManager instance for presentation rendering
         """
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.active_sources: Dict[str, GraphicsSource] = {}
         self.pipelines: Dict[str, Any] = {}  # GStreamer pipelines
+        self.reveal_source_manager = reveal_source_manager
         self._lock = threading.Lock()
         
     def create_presentation_source(self, source_id: str, presentation_data: Dict[str, Any]) -> Optional[str]:
