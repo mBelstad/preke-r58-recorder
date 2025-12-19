@@ -65,6 +65,7 @@ cameras:
     output_path: /mnt/sdcard/recordings/cam1/recording_%Y%m%d_%H%M%S.mp4
     mediamtx_enabled: true
     mediamtx_path: null
+    enabled: true  # Primary camera
 
   cam2:
     device: /dev/video11  # HDMI N11 (rkcif via LT6911 bridge)
@@ -74,6 +75,7 @@ cameras:
     output_path: /mnt/sdcard/recordings/cam2/recording_%Y%m%d_%H%M%S.mp4
     mediamtx_enabled: true
     mediamtx_path: null
+    enabled: true  # Secondary camera
 
   cam3:
     device: /dev/video22  # HDMI N21 (rkcif-mipi-lvds2 via LT6911 2-002b bridge)
@@ -83,6 +85,7 @@ cameras:
     output_path: /mnt/sdcard/recordings/cam3/recording_%Y%m%d_%H%M%S.mp4
     mediamtx_enabled: true
     mediamtx_path: null
+    enabled: false  # DISABLED - too many cameras causes CPU overload
 
 # Recording configuration
 recording:
