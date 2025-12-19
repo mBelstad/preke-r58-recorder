@@ -21,14 +21,29 @@ echo "Deploying to ${R58_USER}@${R58_HOST}..."
 
 # Check SSH key authentication
 if ! ssh -o BatchMode=yes -o ConnectTimeout=5 "${R58_USER}@${R58_HOST}" exit 2>/dev/null; then
-    echo "Error: SSH key authentication not set up."
-    echo ""
-    echo "To set up SSH keys:"
-    echo "  1. Generate key: ssh-keygen -t ed25519"
-    echo "  2. Copy to R58: ssh-copy-id ${R58_USER}@${R58_HOST}"
-    echo "  3. Run this script again"
-    echo ""
-    exit 1
+    # SSH keys not set up - try password if provided
+    if [ -n "${R58_PASSWORD}" ]; then
+        if ! command -v sshpass >/dev/null 2>&1; then
+            echo "Error: sshpass required for password auth."
+            echo "Install: brew install sshpass"
+            echo ""
+            echo "Or set up SSH keys: ./ssh-setup.sh"
+            exit 1
+        fi
+        echo "Using password authentication (set up SSH keys for better security)"
+        SSH_CMD="sshpass -p '${R58_PASSWORD}' ssh -o StrictHostKeyChecking=no"
+    else
+        echo "Error: SSH key authentication not set up."
+        echo ""
+        echo "Options:"
+        echo "  1. Run ./ssh-setup.sh to configure SSH keys (recommended)"
+        echo "  2. Set R58_PASSWORD environment variable (temporary)"
+        echo ""
+        echo "Example: R58_PASSWORD=yourpassword ./deploy.sh"
+        exit 1
+    fi
+else
+    SSH_CMD="ssh"
 fi
 
 # Push to git (if in a git repo)
@@ -42,7 +57,7 @@ fi
 # Deploy to R58
 echo "Connecting to ${R58_USER}@${R58_HOST}..."
 
-ssh "${R58_USER}@${R58_HOST}" << EOF
+${SSH_CMD} "${R58_USER}@${R58_HOST}" << EOF
     set -e
     
     # Create directory if it doesn't exist
