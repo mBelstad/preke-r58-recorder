@@ -133,11 +133,13 @@ The R58 device is accessible remotely via Cloudflare Tunnel. See [docs/remote-ac
 
 **Quick connection:**
 ```bash
-# Use the helper script
+# Use the helper script (uses SSH keys)
 ./connect-r58.sh
 
 # Or connect directly
-sshpass -p 'linaro' ssh -o StrictHostKeyChecking=no linaro@r58.itagenten.no
+ssh linaro@r58.itagenten.no
+
+# First time setup: ssh-copy-id linaro@r58.itagenten.no
 ```
 
 **Web Interface:**

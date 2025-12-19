@@ -61,7 +61,7 @@ Multi-camera video recording system for Mekotronics R58 4x4 3S (RK3588). Records
 
 ## Remote Access
 - **Web GUI**: https://recorder.itagenten.no
-- **SSH**: `sshpass -p "linaro" ssh linaro@r58.itagenten.no`
+- **SSH**: `ssh linaro@r58.itagenten.no` (use SSH keys - see SECURITY_FIX.md)
 
 ## Key Technical Notes
 1. Recording subscribes to MediaMTX RTSP streams (not direct V4L2)

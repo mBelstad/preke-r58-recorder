@@ -1,8 +1,10 @@
 #!/bin/bash
 # Deployment script for R58 recorder
 # Usage: ./deploy.sh [r58_host] [r58_user]
-# Optional: export R58_PASSWORD='your-password' to force sshpass-based auth
 # 
+# SECURITY: Uses SSH key authentication (no passwords)
+# Setup: ssh-copy-id linaro@r58.itagenten.no
+#
 # Remote access via Cloudflare Tunnel:
 #   ./deploy.sh r58.itagenten.no linaro
 #   Or use: ./connect-r58.sh
@@ -12,11 +14,22 @@ set -e
 # Configuration
 R58_HOST="${1:-r58.itagenten.no}"
 R58_USER="${2:-linaro}"
-R58_PASSWORD="${R58_PASSWORD:-linaro}"
 REMOTE_DIR="/opt/preke-r58-recorder"
 SERVICE_NAME="preke-recorder.service"
 
 echo "Deploying to ${R58_USER}@${R58_HOST}..."
+
+# Check SSH key authentication
+if ! ssh -o BatchMode=yes -o ConnectTimeout=5 "${R58_USER}@${R58_HOST}" exit 2>/dev/null; then
+    echo "Error: SSH key authentication not set up."
+    echo ""
+    echo "To set up SSH keys:"
+    echo "  1. Generate key: ssh-keygen -t ed25519"
+    echo "  2. Copy to R58: ssh-copy-id ${R58_USER}@${R58_HOST}"
+    echo "  3. Run this script again"
+    echo ""
+    exit 1
+fi
 
 # Push to git (if in a git repo)
 if [ -d ".git" ]; then
@@ -28,16 +41,8 @@ fi
 
 # Deploy to R58
 echo "Connecting to ${R58_USER}@${R58_HOST}..."
-SSH_CMD=(ssh)
-if [ -n "${R58_PASSWORD}" ]; then
-    if ! command -v sshpass >/dev/null 2>&1; then
-        echo "Error: sshpass is required for password deployments. Install it or set up SSH keys."
-        exit 1
-    fi
-    SSH_CMD=(sshpass -p "${R58_PASSWORD}" ssh -o StrictHostKeyChecking=no)
-fi
 
-"${SSH_CMD[@]}" "${R58_USER}@${R58_HOST}" << EOF
+ssh "${R58_USER}@${R58_HOST}" << EOF
     set -e
     
     # Create directory if it doesn't exist

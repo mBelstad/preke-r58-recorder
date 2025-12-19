@@ -185,7 +185,11 @@ PLANNED:
 
 ### SSH to R58:
 ```bash
-sshpass -p 'linaro' ssh linaro@r58.itagenten.no
+# Using SSH keys (recommended - see SECURITY_FIX.md)
+ssh linaro@r58.itagenten.no
+
+# Or use helper script
+./connect-r58.sh
 ```
 
 ### Check MediaMTX:
@@ -202,15 +206,15 @@ ssh linaro@r58.itagenten.no "systemctl status preke-recorder"
 ```bash
 cd "/Users/mariusbelstad/R58 app/preke-r58-recorder"
 tar czf /tmp/file.tar.gz <file>
-sshpass -p 'linaro' scp /tmp/file.tar.gz linaro@r58.itagenten.no:/tmp/
-sshpass -p 'linaro' ssh linaro@r58.itagenten.no "cd /opt/preke-r58-recorder && sudo tar xzf /tmp/file.tar.gz"
+scp /tmp/file.tar.gz linaro@r58.itagenten.no:/tmp/
+ssh linaro@r58.itagenten.no "cd /opt/preke-r58-recorder && sudo tar xzf /tmp/file.tar.gz"
 ```
 
 ---
 
-## 🔑 Key Credentials/Endpoints
+## 🔑 Key Endpoints
 
-- **R58 SSH:** `linaro@r58.itagenten.no` (password: `linaro`)
+- **R58 SSH:** `linaro@r58.itagenten.no` (use SSH keys - see SECURITY_FIX.md)
 - **Web Interface:** `https://recorder.itagenten.no`
 - **Switcher:** `https://recorder.itagenten.no/switcher`
 - **API Docs:** `https://recorder.itagenten.no/docs`
