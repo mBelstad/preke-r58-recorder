@@ -204,7 +204,7 @@ sudo cp switcher.html switcher.html.backup.$(date +%Y%m%d_%H%M%S)
 # From local machine
 cd "/Users/mariusbelstad/R58 app/preke-r58-recorder"
 tar czf /tmp/switcher_phase2.tar.gz src/static/switcher.html
-sshpass -p 'linaro' scp -o StrictHostKeyChecking=no /tmp/switcher_phase2.tar.gz linaro@r58.itagenten.no:/tmp/
+scp -o StrictHostKeyChecking=no /tmp/switcher_phase2.tar.gz linaro@r58.itagenten.no:/tmp/
 ```
 
 ### 4. Extract on R58

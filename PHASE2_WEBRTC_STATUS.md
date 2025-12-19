@@ -178,7 +178,7 @@ Try a different WebRTC client library that's more widely available.
 curl -o /tmp/whip-web-client.min.js https://cdn.jsdelivr.net/npm/@eyevinn/whip-web-client@2/dist/whip-web-client.min.js
 
 # Upload to R58
-sshpass -p 'linaro' scp /tmp/whip-web-client.min.js linaro@r58.itagenten.no:/tmp/
+scp /tmp/whip-web-client.min.js linaro@r58.itagenten.no:/tmp/
 
 # Move to static directory
 ssh linaro@r58.itagenten.no "sudo mv /tmp/whip-web-client.min.js /opt/preke-r58-recorder/src/static/"
