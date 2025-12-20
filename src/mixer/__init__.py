@@ -40,7 +40,8 @@ class MixerPlugin:
         config: "AppConfig", 
         ingest_manager: "IngestManager",
         database: "Database",
-        graphics_plugin: Optional["GraphicsPlugin"] = None
+        graphics_plugin: Optional["GraphicsPlugin"] = None,
+        cairo_manager: Optional[Any] = None
     ) -> bool:
         """Initialize mixer components.
         
@@ -49,6 +50,7 @@ class MixerPlugin:
             ingest_manager: Ingest manager for stream status
             database: Shared database instance
             graphics_plugin: Optional graphics plugin for presentation sources
+            cairo_manager: Optional Cairo graphics manager for overlays
         """
         if self._initialized:
             return True
@@ -90,6 +92,7 @@ class MixerPlugin:
             scene_manager=self.scene_manager,
             ingest_manager=ingest_manager,
             graphics_renderer=graphics_renderer,  # Pass graphics renderer
+            cairo_manager=cairo_manager,  # Pass Cairo manager for overlays
             output_resolution=config.mixer.output_resolution,
             output_bitrate=config.mixer.output_bitrate,
             output_codec=config.mixer.output_codec,

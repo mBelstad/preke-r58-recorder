@@ -78,6 +78,7 @@ class MixerCore:
         scene_manager: SceneManager,
         ingest_manager: Optional[Any] = None,  # IngestManager instance
         graphics_renderer: Optional[Any] = None,  # Optional GraphicsRenderer from graphics plugin
+        cairo_manager: Optional[Any] = None,  # Optional CairoGraphicsManager
         output_resolution: str = "1920x1080",
         output_bitrate: int = 8000,
         output_codec: str = "h264",
@@ -93,6 +94,7 @@ class MixerCore:
             scene_manager: Scene manager instance
             ingest_manager: Ingest manager instance (for checking stream availability)
             graphics_renderer: Optional graphics renderer from graphics plugin
+            cairo_manager: Optional Cairo graphics manager for overlays
             output_resolution: Output resolution (e.g., "1920x1080")
             output_bitrate: Output bitrate in kbps
             output_codec: Codec ("h264" or "h265")
@@ -105,6 +107,7 @@ class MixerCore:
         self.scene_manager = scene_manager
         self.ingest_manager = ingest_manager
         self.graphics_renderer = graphics_renderer  # Store optional graphics renderer
+        self.cairo_manager = cairo_manager  # Store optional Cairo graphics manager
         self.output_resolution = output_resolution
         self.output_bitrate = output_bitrate
         self.output_codec = output_codec
@@ -224,6 +227,15 @@ class MixerCore:
                 bus = self.pipeline.get_bus()
                 bus.add_signal_watch()
                 bus.connect("message", self._on_bus_message)
+                
+                # Connect Cairo graphics overlay if available
+                if self.cairo_manager and self.cairo_manager.enabled:
+                    overlay = self.pipeline.get_by_name("graphics_overlay")
+                    if overlay:
+                        overlay.connect("draw", self.cairo_manager.draw_callback)
+                        logger.info("Cairo graphics overlay connected")
+                    else:
+                        logger.warning("Cairo overlay element not found in pipeline")
 
                 # Start pipeline with timeout (will check bus for errors)
                 if not self._set_state_with_timeout(self.Gst.State.PLAYING):
@@ -1261,11 +1273,13 @@ class MixerCore:
             
             compositor_pad_props.append(" ".join(pad_props))
 
-        # Build complete pipeline
+        # Build complete pipeline with Cairo overlay
+        # Cairo overlay is inserted after compositor for broadcast graphics
         pipeline_str = (
             " ".join(source_parts) + " "
             f"compositor name=compositor {' '.join(compositor_pad_props)} ! "
             f"video/x-raw,width={width},height={height} ! "
+            f"cairooverlay name=graphics_overlay ! "
             f"timeoverlay ! "
             f"{encoder_str} ! "
             f"{caps_str} ! "

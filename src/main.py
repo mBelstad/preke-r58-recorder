@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, UploadFile, File, Response, Request
+from fastapi import FastAPI, HTTPException, UploadFile, File, Response, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse, FileResponse, HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 import shutil
@@ -21,6 +21,7 @@ from .preview import PreviewManager
 from .database import Database
 from .files import FileManager
 from .camera_control import CameraControlManager
+from .mse_stream import router as mse_router
 
 # Configure logging
 logging.basicConfig(
@@ -82,6 +83,20 @@ if config.reveal.enabled:
 else:
     logger.info("Reveal.js source disabled in configuration")
 
+# Initialize Cairo graphics manager (for real-time overlays)
+cairo_manager = None
+try:
+    from .cairo_graphics import CairoGraphicsManager
+    cairo_manager = CairoGraphicsManager()
+    if cairo_manager.enabled:
+        logger.info("Cairo graphics manager initialized")
+    else:
+        logger.warning("Cairo not available - graphics overlays disabled")
+        cairo_manager = None
+except Exception as e:
+    logger.error(f"Failed to initialize Cairo graphics manager: {e}")
+    cairo_manager = None
+
 # Initialize Graphics plugin (optional)
 graphics_plugin = None
 graphics_renderer = None
@@ -105,7 +120,7 @@ if config.mixer.enabled:
     try:
         from .mixer import create_mixer_plugin
         mixer_plugin = create_mixer_plugin()
-        mixer_plugin.initialize(config, ingest_manager, database, graphics_plugin)
+        mixer_plugin.initialize(config, ingest_manager, database, graphics_plugin, cairo_manager)
         mixer_core = mixer_plugin.core
         scene_manager = mixer_plugin.scene_manager
         scene_queue = mixer_plugin.scene_queue
@@ -207,6 +222,10 @@ videos_dir.mkdir(exist_ok=True)
 # Mount uploads directory for serving files
 app.mount("/uploads", StaticFiles(directory=str(uploads_dir)), name="uploads")
 
+# Include MSE streaming router
+app.include_router(mse_router)
+logger.info("MSE streaming endpoints registered")
+
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
@@ -223,6 +242,15 @@ async def switcher():
     switcher_path = Path(__file__).parent / "static" / "switcher.html"
     if switcher_path.exists():
         return switcher_path.read_text()
+    raise HTTPException(status_code=404, detail="Switcher interface not found")
+
+
+@app.get("/cairo", response_class=HTMLResponse)
+async def cairo_control():
+    """Serve the Cairo graphics control panel."""
+    cairo_path = Path(__file__).parent / "static" / "cairo_control.html"
+    if cairo_path.exists():
+        return cairo_path.read_text()
     return "<h1>Switcher Interface</h1><p>Switcher interface not found.</p>"
 
 
@@ -1618,6 +1646,705 @@ async def get_reveal_status() -> Dict[str, Any]:
         raise HTTPException(status_code=503, detail="Reveal.js not enabled")
     
     return reveal_source_manager.get_status()
+
+
+# Cairo Graphics API endpoints - real-time broadcast graphics
+@app.get("/api/cairo/status")
+async def get_cairo_status() -> Dict[str, Any]:
+    """Get Cairo graphics manager status."""
+    if not cairo_manager:
+        raise HTTPException(status_code=503, detail="Cairo graphics not available")
+    
+    return cairo_manager.get_status()
+
+
+@app.get("/api/cairo/elements")
+async def list_cairo_elements() -> Dict[str, Any]:
+    """List all Cairo graphics elements."""
+    if not cairo_manager:
+        raise HTTPException(status_code=503, detail="Cairo graphics not available")
+    
+    return {"elements": cairo_manager.list_elements()}
+
+
+@app.post("/api/cairo/lower_third")
+async def create_cairo_lower_third(request: Dict[str, Any]) -> Dict[str, Any]:
+    """Create or update a Cairo lower third.
+    
+    Request body:
+        - element_id: Unique identifier (required)
+        - name: Name text (required)
+        - title: Title text (optional)
+        - x: X position (default: 50)
+        - y: Y position (default: 900)
+        - width: Width (default: 600)
+        - height: Height (default: 120)
+        - bg_color: Background color hex (default: "#000000")
+        - bg_alpha: Background alpha (default: 0.8)
+        - text_color: Text color hex (default: "#FFFFFF")
+        - name_font_size: Name font size (default: 48)
+        - title_font_size: Title font size (default: 28)
+        - logo_path: Optional logo image path
+    """
+    if not cairo_manager:
+        raise HTTPException(status_code=503, detail="Cairo graphics not available")
+    
+    element_id = request.get("element_id")
+    name = request.get("name")
+    
+    if not element_id:
+        raise HTTPException(status_code=400, detail="element_id required")
+    if not name:
+        raise HTTPException(status_code=400, detail="name required")
+    
+    try:
+        from .cairo_graphics import LowerThird
+        
+        lower_third = LowerThird(
+            element_id=element_id,
+            name=name,
+            title=request.get("title", ""),
+            x=request.get("x", 50),
+            y=request.get("y", 900),
+            width=request.get("width", 600),
+            height=request.get("height", 120),
+            bg_color=request.get("bg_color", "#000000"),
+            bg_alpha=request.get("bg_alpha", 0.8),
+            text_color=request.get("text_color", "#FFFFFF"),
+            name_font_size=request.get("name_font_size", 48),
+            title_font_size=request.get("title_font_size", 28),
+            logo_path=request.get("logo_path")
+        )
+        
+        cairo_manager.add_element(element_id, lower_third)
+        
+        return {
+            "status": "created",
+            "element_id": element_id,
+            "type": "lower_third",
+            "name": name,
+            "title": request.get("title", "")
+        }
+    except Exception as e:
+        logger.error(f"Failed to create lower third: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create lower third: {e}")
+
+
+@app.post("/api/cairo/lower_third/{element_id}/show")
+async def show_cairo_lower_third(element_id: str) -> Dict[str, str]:
+    """Show a Cairo lower third with animation."""
+    if not cairo_manager:
+        raise HTTPException(status_code=503, detail="Cairo graphics not available")
+    
+    # Use current time as timestamp (will be synced on first draw)
+    timestamp = int(time.time() * 1_000_000_000)
+    
+    success = cairo_manager.show_element(element_id, timestamp)
+    if not success:
+        raise HTTPException(status_code=404, detail=f"Element {element_id} not found")
+    
+    return {"status": "shown", "element_id": element_id}
+
+
+@app.post("/api/cairo/lower_third/{element_id}/hide")
+async def hide_cairo_lower_third(element_id: str) -> Dict[str, str]:
+    """Hide a Cairo lower third with animation."""
+    if not cairo_manager:
+        raise HTTPException(status_code=503, detail="Cairo graphics not available")
+    
+    timestamp = int(time.time() * 1_000_000_000)
+    
+    success = cairo_manager.hide_element(element_id, timestamp)
+    if not success:
+        raise HTTPException(status_code=404, detail=f"Element {element_id} not found")
+    
+    return {"status": "hidden", "element_id": element_id}
+
+
+@app.post("/api/cairo/lower_third/{element_id}/update")
+async def update_cairo_lower_third(element_id: str, request: Dict[str, Any]) -> Dict[str, Any]:
+    """Update Cairo lower third text."""
+    if not cairo_manager:
+        raise HTTPException(status_code=503, detail="Cairo graphics not available")
+    
+    element = cairo_manager.get_element(element_id)
+    if not element:
+        raise HTTPException(status_code=404, detail=f"Element {element_id} not found")
+    
+    from .cairo_graphics import LowerThird
+    if not isinstance(element, LowerThird):
+        raise HTTPException(status_code=400, detail=f"Element {element_id} is not a lower third")
+    
+    element.update(
+        name=request.get("name"),
+        title=request.get("title")
+    )
+    
+    return {
+        "status": "updated",
+        "element_id": element_id,
+        "name": element.name,
+        "title": element.title
+    }
+
+
+@app.post("/api/cairo/scoreboard")
+async def create_cairo_scoreboard(request: Dict[str, Any]) -> Dict[str, Any]:
+    """Create or update a Cairo scoreboard.
+    
+    Request body:
+        - element_id: Unique identifier (required)
+        - team1_name: Team 1 name (default: "Team 1")
+        - team2_name: Team 2 name (default: "Team 2")
+        - team1_score: Team 1 score (default: 0)
+        - team2_score: Team 2 score (default: 0)
+        - x: X position (default: 1600)
+        - y: Y position (default: 50)
+        - width: Width (default: 250)
+        - height: Height (default: 150)
+    """
+    if not cairo_manager:
+        raise HTTPException(status_code=503, detail="Cairo graphics not available")
+    
+    element_id = request.get("element_id")
+    if not element_id:
+        raise HTTPException(status_code=400, detail="element_id required")
+    
+    try:
+        from .cairo_graphics import Scoreboard
+        
+        scoreboard = Scoreboard(
+            element_id=element_id,
+            team1_name=request.get("team1_name", "Team 1"),
+            team2_name=request.get("team2_name", "Team 2"),
+            team1_score=request.get("team1_score", 0),
+            team2_score=request.get("team2_score", 0),
+            x=request.get("x", 1600),
+            y=request.get("y", 50),
+            width=request.get("width", 250),
+            height=request.get("height", 150)
+        )
+        
+        cairo_manager.add_element(element_id, scoreboard)
+        
+        return {
+            "status": "created",
+            "element_id": element_id,
+            "type": "scoreboard"
+        }
+    except Exception as e:
+        logger.error(f"Failed to create scoreboard: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create scoreboard: {e}")
+
+
+@app.post("/api/cairo/scoreboard/{element_id}/score")
+async def update_cairo_scoreboard(element_id: str, request: Dict[str, Any]) -> Dict[str, Any]:
+    """Update scoreboard scores.
+    
+    Request body:
+        - team1_score: Team 1 score (optional)
+        - team2_score: Team 2 score (optional)
+    """
+    if not cairo_manager:
+        raise HTTPException(status_code=503, detail="Cairo graphics not available")
+    
+    element = cairo_manager.get_element(element_id)
+    if not element:
+        raise HTTPException(status_code=404, detail=f"Element {element_id} not found")
+    
+    from .cairo_graphics import Scoreboard
+    if not isinstance(element, Scoreboard):
+        raise HTTPException(status_code=400, detail=f"Element {element_id} is not a scoreboard")
+    
+    element.update_score(
+        team1_score=request.get("team1_score"),
+        team2_score=request.get("team2_score")
+    )
+    
+    return {
+        "status": "updated",
+        "element_id": element_id,
+        "team1_score": element.team1_score,
+        "team2_score": element.team2_score
+    }
+
+
+@app.post("/api/cairo/ticker")
+async def create_cairo_ticker(request: Dict[str, Any]) -> Dict[str, Any]:
+    """Create or update a Cairo ticker.
+    
+    Request body:
+        - element_id: Unique identifier (required)
+        - text: Ticker text (required)
+        - x: X position (default: 0)
+        - y: Y position (default: 0)
+        - width: Width (default: 1920)
+        - height: Height (default: 60)
+        - scroll_speed: Scroll speed in pixels/second (default: 100)
+    """
+    if not cairo_manager:
+        raise HTTPException(status_code=503, detail="Cairo graphics not available")
+    
+    element_id = request.get("element_id")
+    text = request.get("text")
+    
+    if not element_id:
+        raise HTTPException(status_code=400, detail="element_id required")
+    if not text:
+        raise HTTPException(status_code=400, detail="text required")
+    
+    try:
+        from .cairo_graphics import Ticker
+        
+        ticker = Ticker(
+            element_id=element_id,
+            text=text,
+            x=request.get("x", 0),
+            y=request.get("y", 0),
+            width=request.get("width", 1920),
+            height=request.get("height", 60),
+            scroll_speed=request.get("scroll_speed", 100.0)
+        )
+        
+        cairo_manager.add_element(element_id, ticker)
+        
+        return {
+            "status": "created",
+            "element_id": element_id,
+            "type": "ticker",
+            "text": text
+        }
+    except Exception as e:
+        logger.error(f"Failed to create ticker: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create ticker: {e}")
+
+
+@app.post("/api/cairo/ticker/{element_id}/text")
+async def update_cairo_ticker(element_id: str, request: Dict[str, Any]) -> Dict[str, Any]:
+    """Update ticker text.
+    
+    Request body:
+        - text: New ticker text (required)
+    """
+    if not cairo_manager:
+        raise HTTPException(status_code=503, detail="Cairo graphics not available")
+    
+    text = request.get("text")
+    if not text:
+        raise HTTPException(status_code=400, detail="text required")
+    
+    element = cairo_manager.get_element(element_id)
+    if not element:
+        raise HTTPException(status_code=404, detail=f"Element {element_id} not found")
+    
+    from .cairo_graphics import Ticker
+    if not isinstance(element, Ticker):
+        raise HTTPException(status_code=400, detail=f"Element {element_id} is not a ticker")
+    
+    element.update_text(text)
+    
+    return {
+        "status": "updated",
+        "element_id": element_id,
+        "text": text
+    }
+
+
+@app.post("/api/cairo/timer")
+async def create_cairo_timer(request: Dict[str, Any]) -> Dict[str, Any]:
+    """Create or update a Cairo timer.
+    
+    Request body:
+        - element_id: Unique identifier (required)
+        - duration: Duration in seconds (required)
+        - mode: "countdown" or "countup" (default: "countdown")
+        - x: X position (default: 1700)
+        - y: Y position (default: 50)
+    """
+    if not cairo_manager:
+        raise HTTPException(status_code=503, detail="Cairo graphics not available")
+    
+    element_id = request.get("element_id")
+    duration = request.get("duration")
+    
+    if not element_id:
+        raise HTTPException(status_code=400, detail="element_id required")
+    if duration is None:
+        raise HTTPException(status_code=400, detail="duration required")
+    
+    try:
+        from .cairo_graphics import Timer
+        
+        timer = Timer(
+            element_id=element_id,
+            duration=float(duration),
+            mode=request.get("mode", "countdown"),
+            x=request.get("x", 1700),
+            y=request.get("y", 50)
+        )
+        
+        cairo_manager.add_element(element_id, timer)
+        
+        return {
+            "status": "created",
+            "element_id": element_id,
+            "type": "timer",
+            "duration": duration,
+            "mode": request.get("mode", "countdown")
+        }
+    except Exception as e:
+        logger.error(f"Failed to create timer: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create timer: {e}")
+
+
+@app.post("/api/cairo/timer/{element_id}/start")
+async def start_cairo_timer(element_id: str) -> Dict[str, str]:
+    """Start a Cairo timer."""
+    if not cairo_manager:
+        raise HTTPException(status_code=503, detail="Cairo graphics not available")
+    
+    element = cairo_manager.get_element(element_id)
+    if not element:
+        raise HTTPException(status_code=404, detail=f"Element {element_id} not found")
+    
+    from .cairo_graphics import Timer
+    if not isinstance(element, Timer):
+        raise HTTPException(status_code=400, detail=f"Element {element_id} is not a timer")
+    
+    timestamp = int(time.time() * 1_000_000_000)
+    element.start(timestamp)
+    
+    return {"status": "started", "element_id": element_id}
+
+
+@app.post("/api/cairo/timer/{element_id}/pause")
+async def pause_cairo_timer(element_id: str) -> Dict[str, str]:
+    """Pause a Cairo timer."""
+    if not cairo_manager:
+        raise HTTPException(status_code=503, detail="Cairo graphics not available")
+    
+    element = cairo_manager.get_element(element_id)
+    if not element:
+        raise HTTPException(status_code=404, detail=f"Element {element_id} not found")
+    
+    from .cairo_graphics import Timer
+    if not isinstance(element, Timer):
+        raise HTTPException(status_code=400, detail=f"Element {element_id} is not a timer")
+    
+    timestamp = int(time.time() * 1_000_000_000)
+    element.pause(timestamp)
+    
+    return {"status": "paused", "element_id": element_id}
+
+
+@app.post("/api/cairo/timer/{element_id}/resume")
+async def resume_cairo_timer(element_id: str) -> Dict[str, str]:
+    """Resume a Cairo timer."""
+    if not cairo_manager:
+        raise HTTPException(status_code=503, detail="Cairo graphics not available")
+    
+    element = cairo_manager.get_element(element_id)
+    if not element:
+        raise HTTPException(status_code=404, detail=f"Element {element_id} not found")
+    
+    from .cairo_graphics import Timer
+    if not isinstance(element, Timer):
+        raise HTTPException(status_code=400, detail=f"Element {element_id} is not a timer")
+    
+    timestamp = int(time.time() * 1_000_000_000)
+    element.resume(timestamp)
+    
+    return {"status": "resumed", "element_id": element_id}
+
+
+@app.post("/api/cairo/timer/{element_id}/reset")
+async def reset_cairo_timer(element_id: str) -> Dict[str, str]:
+    """Reset a Cairo timer."""
+    if not cairo_manager:
+        raise HTTPException(status_code=503, detail="Cairo graphics not available")
+    
+    element = cairo_manager.get_element(element_id)
+    if not element:
+        raise HTTPException(status_code=404, detail=f"Element {element_id} not found")
+    
+    from .cairo_graphics import Timer
+    if not isinstance(element, Timer):
+        raise HTTPException(status_code=400, detail=f"Element {element_id} is not a timer")
+    
+    element.reset()
+    
+    return {"status": "reset", "element_id": element_id}
+
+
+@app.post("/api/cairo/logo")
+async def create_cairo_logo(request: Dict[str, Any]) -> Dict[str, Any]:
+    """Create or update a Cairo logo overlay.
+    
+    Request body:
+        - element_id: Unique identifier (required)
+        - logo_path: Path to logo image (required)
+        - x: X position (default: 1700)
+        - y: Y position (default: 50)
+        - scale: Scale factor (default: 1.0)
+        - pulse: Enable pulse animation (default: false)
+    """
+    if not cairo_manager:
+        raise HTTPException(status_code=503, detail="Cairo graphics not available")
+    
+    element_id = request.get("element_id")
+    logo_path = request.get("logo_path")
+    
+    if not element_id:
+        raise HTTPException(status_code=400, detail="element_id required")
+    if not logo_path:
+        raise HTTPException(status_code=400, detail="logo_path required")
+    
+    try:
+        from .cairo_graphics import LogoOverlay
+        
+        logo = LogoOverlay(
+            element_id=element_id,
+            logo_path=logo_path,
+            x=request.get("x", 1700),
+            y=request.get("y", 50),
+            scale=request.get("scale", 1.0),
+            pulse=request.get("pulse", False)
+        )
+        
+        cairo_manager.add_element(element_id, logo)
+        
+        return {
+            "status": "created",
+            "element_id": element_id,
+            "type": "logo",
+            "logo_path": logo_path
+        }
+    except Exception as e:
+        logger.error(f"Failed to create logo: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create logo: {e}")
+
+
+@app.delete("/api/cairo/element/{element_id}")
+async def delete_cairo_element(element_id: str) -> Dict[str, str]:
+    """Delete a Cairo graphics element."""
+    if not cairo_manager:
+        raise HTTPException(status_code=503, detail="Cairo graphics not available")
+    
+    success = cairo_manager.remove_element(element_id)
+    if not success:
+        raise HTTPException(status_code=404, detail=f"Element {element_id} not found")
+    
+    return {"status": "deleted", "element_id": element_id}
+
+
+@app.post("/api/cairo/clear")
+async def clear_all_cairo_elements() -> Dict[str, str]:
+    """Clear all Cairo graphics elements."""
+    if not cairo_manager:
+        raise HTTPException(status_code=503, detail="Cairo graphics not available")
+    
+    cairo_manager.clear_all()
+    
+    return {"status": "cleared"}
+
+
+@app.websocket("/ws/cairo")
+async def cairo_websocket(websocket: WebSocket):
+    """WebSocket endpoint for real-time Cairo graphics control.
+    
+    Message format:
+        {
+            "type": "lower_third_show" | "lower_third_hide" | "lower_third_update" |
+                    "scoreboard_update" | "ticker_update" | "timer_start" | "get_status",
+            "element_id": "element_id",
+            ... (element-specific fields)
+        }
+    
+    Response format:
+        {
+            "status": "success" | "error",
+            "message": "...",
+            "data": {...}
+        }
+    """
+    if not cairo_manager:
+        await websocket.close(code=1008, reason="Cairo graphics not available")
+        return
+    
+    await websocket.accept()
+    logger.info("Cairo WebSocket client connected")
+    
+    try:
+        while True:
+            # Receive command
+            data = await websocket.receive_json()
+            msg_type = data.get("type")
+            element_id = data.get("element_id")
+            timestamp = int(time.time() * 1_000_000_000)
+            
+            try:
+                # Lower third commands
+                if msg_type == "lower_third_show":
+                    if not element_id:
+                        await websocket.send_json({"status": "error", "message": "element_id required"})
+                        continue
+                    
+                    success = cairo_manager.show_element(element_id, timestamp)
+                    if success:
+                        await websocket.send_json({"status": "success", "element_id": element_id})
+                    else:
+                        await websocket.send_json({"status": "error", "message": f"Element {element_id} not found"})
+                
+                elif msg_type == "lower_third_hide":
+                    if not element_id:
+                        await websocket.send_json({"status": "error", "message": "element_id required"})
+                        continue
+                    
+                    success = cairo_manager.hide_element(element_id, timestamp)
+                    if success:
+                        await websocket.send_json({"status": "success", "element_id": element_id})
+                    else:
+                        await websocket.send_json({"status": "error", "message": f"Element {element_id} not found"})
+                
+                elif msg_type == "lower_third_update":
+                    if not element_id:
+                        await websocket.send_json({"status": "error", "message": "element_id required"})
+                        continue
+                    
+                    element = cairo_manager.get_element(element_id)
+                    if not element:
+                        await websocket.send_json({"status": "error", "message": f"Element {element_id} not found"})
+                        continue
+                    
+                    from .cairo_graphics import LowerThird
+                    if isinstance(element, LowerThird):
+                        element.update(name=data.get("name"), title=data.get("title"))
+                        await websocket.send_json({
+                            "status": "success",
+                            "element_id": element_id,
+                            "name": element.name,
+                            "title": element.title
+                        })
+                    else:
+                        await websocket.send_json({"status": "error", "message": "Element is not a lower third"})
+                
+                # Scoreboard commands
+                elif msg_type == "scoreboard_update":
+                    if not element_id:
+                        await websocket.send_json({"status": "error", "message": "element_id required"})
+                        continue
+                    
+                    element = cairo_manager.get_element(element_id)
+                    if not element:
+                        await websocket.send_json({"status": "error", "message": f"Element {element_id} not found"})
+                        continue
+                    
+                    from .cairo_graphics import Scoreboard
+                    if isinstance(element, Scoreboard):
+                        element.update_score(
+                            team1_score=data.get("team1_score"),
+                            team2_score=data.get("team2_score")
+                        )
+                        await websocket.send_json({
+                            "status": "success",
+                            "element_id": element_id,
+                            "team1_score": element.team1_score,
+                            "team2_score": element.team2_score
+                        })
+                    else:
+                        await websocket.send_json({"status": "error", "message": "Element is not a scoreboard"})
+                
+                # Ticker commands
+                elif msg_type == "ticker_update":
+                    if not element_id:
+                        await websocket.send_json({"status": "error", "message": "element_id required"})
+                        continue
+                    
+                    text = data.get("text")
+                    if not text:
+                        await websocket.send_json({"status": "error", "message": "text required"})
+                        continue
+                    
+                    element = cairo_manager.get_element(element_id)
+                    if not element:
+                        await websocket.send_json({"status": "error", "message": f"Element {element_id} not found"})
+                        continue
+                    
+                    from .cairo_graphics import Ticker
+                    if isinstance(element, Ticker):
+                        element.update_text(text)
+                        await websocket.send_json({"status": "success", "element_id": element_id, "text": text})
+                    else:
+                        await websocket.send_json({"status": "error", "message": "Element is not a ticker"})
+                
+                # Timer commands
+                elif msg_type == "timer_start":
+                    if not element_id:
+                        await websocket.send_json({"status": "error", "message": "element_id required"})
+                        continue
+                    
+                    element = cairo_manager.get_element(element_id)
+                    if not element:
+                        await websocket.send_json({"status": "error", "message": f"Element {element_id} not found"})
+                        continue
+                    
+                    from .cairo_graphics import Timer
+                    if isinstance(element, Timer):
+                        element.start(timestamp)
+                        await websocket.send_json({"status": "success", "element_id": element_id})
+                    else:
+                        await websocket.send_json({"status": "error", "message": "Element is not a timer"})
+                
+                elif msg_type == "timer_pause":
+                    if not element_id:
+                        await websocket.send_json({"status": "error", "message": "element_id required"})
+                        continue
+                    
+                    element = cairo_manager.get_element(element_id)
+                    if not element:
+                        await websocket.send_json({"status": "error", "message": f"Element {element_id} not found"})
+                        continue
+                    
+                    from .cairo_graphics import Timer
+                    if isinstance(element, Timer):
+                        element.pause(timestamp)
+                        await websocket.send_json({"status": "success", "element_id": element_id})
+                    else:
+                        await websocket.send_json({"status": "error", "message": "Element is not a timer"})
+                
+                elif msg_type == "timer_resume":
+                    if not element_id:
+                        await websocket.send_json({"status": "error", "message": "element_id required"})
+                        continue
+                    
+                    element = cairo_manager.get_element(element_id)
+                    if not element:
+                        await websocket.send_json({"status": "error", "message": f"Element {element_id} not found"})
+                        continue
+                    
+                    from .cairo_graphics import Timer
+                    if isinstance(element, Timer):
+                        element.resume(timestamp)
+                        await websocket.send_json({"status": "success", "element_id": element_id})
+                    else:
+                        await websocket.send_json({"status": "error", "message": "Element is not a timer"})
+                
+                # Status query
+                elif msg_type == "get_status":
+                    status = cairo_manager.get_status()
+                    await websocket.send_json({"status": "success", "data": status})
+                
+                else:
+                    await websocket.send_json({"status": "error", "message": f"Unknown message type: {msg_type}"})
+            
+            except Exception as e:
+                logger.error(f"Error processing WebSocket message: {e}")
+                await websocket.send_json({"status": "error", "message": str(e)})
+    
+    except WebSocketDisconnect:
+        logger.info("Cairo WebSocket client disconnected")
+    except Exception as e:
+        logger.error(f"Cairo WebSocket error: {e}")
 
 
 @app.get("/api/guests/status")
