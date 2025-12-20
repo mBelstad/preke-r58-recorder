@@ -363,7 +363,7 @@
             background: #000;
             border-radius: 10px;
             overflow: hidden;
-            aspect-ratio: 16/9; /* Default, will be updated dynamically by JavaScript */
+            aspect-ratio: 16/9;
             box-shadow: 0 4px 16px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05);
             border: 1px solid rgba(255,255,255,0.1);
             cursor: pointer;
@@ -844,17 +844,6 @@
                     </select>
                     <div class="mode-hint" id="modeHint">Balanced mode for most connections</div>
                 </div>
-                
-                <h2 style="margin-top: 15px;">Stream Protocol</h2>
-                <div class="stream-mode-selector">
-                    <select id="streamProtocolSelect" onchange="changeStreamProtocol(this.value)">
-                        <option value="auto" selected>Auto (Best Available)</option>
-                        <option value="mse">MSE (H.265, Low Latency)</option>
-                        <option value="webrtc">WebRTC (Ultra Low Latency)</option>
-                        <option value="hls">HLS (Universal)</option>
-                    </select>
-                    <div class="mode-hint" id="protocolHint">Auto-select best protocol</div>
-                </div>
             </div>
 
             <div class="stats-section">
@@ -915,7 +904,6 @@
         let recordingState = false;
         let hlsPlayers = {};
         let webrtcConnections = {};
-        let mseConnections = {}; // MSE WebSocket connections
         let fullscreenCamera = null;
         let recordingStartTime = null;
         let previousResolutions = {};
@@ -925,7 +913,6 @@
         
         // Stream optimization settings
         let streamMode = localStorage.getItem('streamMode') || 'balanced'; // 'lowlatency', 'balanced', 'stable'
-        let streamProtocol = localStorage.getItem('streamProtocol') || 'auto'; // 'auto', 'mse', 'webrtc', 'hls'
         let lastVideoTimes = {}; // Track video.currentTime for freeze detection
         let freezeCheckInterval = null;
         
@@ -966,81 +953,6 @@
             }
         };
         
-        // Debounced placeholder manager to prevent flickering
-        const placeholderManager = {
-            states: {},           // Track consecutive failure/success counts
-            timers: {},           // Debounce timers
-            SHOW_THRESHOLD: 3,    // Need 3 consecutive failures to show
-            HIDE_DELAY: 100,      // 100ms delay before hiding
-            
-            hide(camId) {
-                // Clear any pending show timer
-                if (this.timers[camId]) {
-                    clearTimeout(this.timers[camId]);
-                    delete this.timers[camId];
-                }
-                
-                // Reset failure count
-                if (!this.states[camId]) this.states[camId] = { failures: 0, successes: 0 };
-                this.states[camId].successes++;
-                this.states[camId].failures = 0;
-                
-                // Debounce hiding to ensure stream is stable
-                this.timers[camId] = setTimeout(() => {
-                    const placeholder = document.getElementById(`placeholder-${camId}`);
-                    if (placeholder) {
-                        placeholder.classList.add('hidden');
-                        placeholder.style.display = 'none';
-                        placeholder.style.visibility = 'hidden';
-                        placeholder.style.opacity = '0';
-                        placeholder.style.pointerEvents = 'none';
-                    }
-                    delete this.timers[camId];
-                }, this.HIDE_DELAY);
-            },
-            
-            show(camId, reason = 'Loading preview...') {
-                // Clear any pending hide timer
-                if (this.timers[camId]) {
-                    clearTimeout(this.timers[camId]);
-                    delete this.timers[camId];
-                }
-                
-                // Track consecutive failures
-                if (!this.states[camId]) this.states[camId] = { failures: 0, successes: 0 };
-                this.states[camId].failures++;
-                this.states[camId].successes = 0;
-                
-                // Only show after threshold failures (prevents flickering)
-                if (this.states[camId].failures >= this.SHOW_THRESHOLD) {
-                    const placeholder = document.getElementById(`placeholder-${camId}`);
-                    if (placeholder) {
-                        placeholder.classList.remove('hidden');
-                        placeholder.style.display = 'flex';
-                        placeholder.style.visibility = 'visible';
-                        placeholder.style.opacity = '1';
-                        placeholder.style.pointerEvents = 'auto';
-                        
-                        const textEl = placeholder.querySelector('.text');
-                        if (textEl) {
-                            textEl.innerHTML = reason;
-                        }
-                    }
-                }
-            },
-            
-            reset(camId) {
-                if (this.timers[camId]) {
-                    clearTimeout(this.timers[camId]);
-                    delete this.timers[camId];
-                }
-                if (this.states[camId]) {
-                    this.states[camId].failures = 0;
-                    this.states[camId].successes = 0;
-                }
-            }
-        };
-        
         // Get current HLS config based on mode
         function getHLSConfig() {
             const profile = hlsProfiles[streamMode] || hlsProfiles.balanced;
@@ -1053,27 +965,11 @@
                 startLevel: -1,
                 startFragPrefetch: true,
                 testBandwidth: false,
-                progressive: false,
-                // Add more robust error handling
-                manifestLoadingTimeOut: 10000,
-                manifestLoadingMaxRetry: 3,
-                manifestLoadingRetryDelay: 1000,
-                levelLoadingTimeOut: 10000,
-                levelLoadingMaxRetry: 3,
-                levelLoadingRetryDelay: 1000,
-                fragLoadingTimeOut: 20000,
-                fragLoadingMaxRetry: 6,
-                fragLoadingRetryDelay: 1000,
-                // Enable more aggressive fragment loading for unstable streams
-                enableWorker: true,
-                enableSoftwareAES: true,
-                // Prevent stalling on missing segments
-                maxFragLookUpTolerance: 0.5,
-                maxBufferHole: 0.5
+                progressive: false
             };
         }
         
-        // Freeze detection - restart frozen streams (less aggressive)
+        // Freeze detection - restart frozen streams
         function startFreezeDetection() {
             if (freezeCheckInterval) clearInterval(freezeCheckInterval);
             
@@ -1093,12 +989,13 @@
                     // Check if video is playing but time hasn't changed
                     if (!video.paused && !video.ended && currentTime === lastTime && currentTime > 0) {
                         freezeCount[camId]++;
-                        console.warn(`${camId} appears frozen (time stuck at ${currentTime}, count: ${freezeCount[camId]})`);
+                        const placeholder = document.getElementById(`placeholder-${camId}`);
+                        console.warn(`${camId} appears frozen (time stuck at ${currentTime}, count: ${freezeCount[camId]}), attempting recovery...`);
                         
-                        // Only restart after 3+ consecutive freezes (15 seconds total)
-                        if (freezeCount[camId] >= 3) {
-                            const placeholder = document.getElementById(`placeholder-${camId}`);
-                            console.warn(`${camId} frozen for 15+ seconds, doing full HLS restart...`);
+                        // More aggressive recovery for repeated freezes
+                        if (freezeCount[camId] >= 2) {
+                            // After 2 consecutive freezes, do full restart
+                            console.warn(`${camId} frozen multiple times, doing full HLS restart...`);
                             try {
                                 hls.destroy();
                                 delete hlsPlayers[camId];
@@ -1112,9 +1009,8 @@
                                 console.error(`Failed to restart ${camId}:`, e);
                             }
                             freezeCount[camId] = 0;
-                        } else if (freezeCount[camId] === 2) {
-                            // Second freeze, try gentle recovery
-                            console.log(`${camId} attempting gentle recovery...`);
+                        } else {
+                            // First freeze, try gentle recovery
                             try {
                                 hls.recoverMediaError();
                             } catch (e) {
@@ -1124,7 +1020,6 @@
                                 hls.startLoad();
                             }
                         }
-                        // First freeze: just log, don't take action yet
                     } else {
                         // Video is progressing, reset freeze counter
                         if (freezeCount[camId] > 0) {
@@ -1135,7 +1030,7 @@
                     
                     lastVideoTimes[camId] = currentTime;
                 }
-            }, 5000); // Check every 5 seconds (less aggressive)
+            }, 2000); // Check every 2 seconds (more frequent)
         }
         
         // Stream sync manager - keeps streams approximately in sync
@@ -1227,20 +1122,20 @@
                                 playedCount++;
                                 console.log(`✅ Video playing: ${video.id}`);
                                 if (placeholder) {
-                                    placeholderManager.hide(camId);
+                                    placeholder.style.display = 'none';
                                 }
                             }).catch(e => {
                                 console.error(`❌ Failed to play ${video.id}:`, e);
                                 // Try again after a short delay
                                 setTimeout(() => {
                                     video.play().then(() => {
-                                        if (placeholder) placeholderManager.hide(camId);
+                                        if (placeholder) placeholder.style.display = 'none';
                                     }).catch(() => {});
                                 }, 100);
                             });
                         } else {
                             // Already playing, just hide placeholder
-                            if (placeholder) placeholderManager.hide(camId);
+                            if (placeholder) placeholder.style.display = 'none';
                         }
                     } else {
                         console.log(`Video ${video.id} has no source yet`);
@@ -1449,47 +1344,13 @@
             // In always-on ingest architecture, all streams use cam0, cam1, etc.
             const streamPath = `${camId}`;
             
-            // Determine which protocol to use based on streamProtocol setting
-            if (streamProtocol === 'webrtc') {
-                // Force WebRTC
-                if (window.RTCPeerConnection && !IS_REMOTE) {
-                    const webrtcUrl = getWebRTCUrl(streamPath);
-                    startWebRTCPreview(video, webrtcUrl, camId, placeholder);
-                } else {
-                    console.warn('WebRTC not available, falling back to MSE/HLS');
-                    startMSEPreview(video, camId, placeholder, streamPath);
-                }
-            } else if (streamProtocol === 'mse') {
-                // Force MSE
-                startMSEPreview(video, camId, placeholder, streamPath);
-            } else if (streamProtocol === 'hls') {
-                // Force HLS
-                startHLSPreview(video, camId, placeholder, streamPath);
+            // Try WebRTC first for ultra-low latency (local access only)
+            if (window.RTCPeerConnection && !IS_REMOTE) {
+                const webrtcUrl = getWebRTCUrl(streamPath);
+                startWebRTCPreview(video, webrtcUrl, camId, placeholder);
             } else {
-                // Auto mode: choose best protocol
-                if (IS_REMOTE) {
-                    // Remote access: prefer MSE (H.265, low latency) over HLS
-                    if (window.MediaSource && MediaSource.isTypeSupported('video/mp4; codecs="hev1.1.6.L120.90"')) {
-                        console.log(`Auto-selecting MSE for ${camId} (remote + H.265 support)`);
-                        startMSEPreview(video, camId, placeholder, streamPath);
-                    } else if (window.MediaSource && MediaSource.isTypeSupported('video/mp4; codecs="avc1.42E01E"')) {
-                        console.log(`Auto-selecting MSE with H.264 for ${camId} (remote, no H.265 support)`);
-                        startMSEPreview(video, camId, placeholder, streamPath);
-                    } else {
-                        console.log(`Auto-selecting HLS for ${camId} (remote, no MSE support)`);
-                        startHLSPreview(video, camId, placeholder, streamPath);
-                    }
-                } else {
-                    // Local access: prefer WebRTC for ultra-low latency
-                    if (window.RTCPeerConnection) {
-                        console.log(`Auto-selecting WebRTC for ${camId} (local)`);
-                        const webrtcUrl = getWebRTCUrl(streamPath);
-                        startWebRTCPreview(video, webrtcUrl, camId, placeholder);
-                    } else {
-                        console.log(`Auto-selecting HLS for ${camId} (local, no WebRTC)`);
-                        startHLSPreview(video, camId, placeholder, streamPath);
-                    }
-                }
+                // Use HLS for remote access or no WebRTC support
+                startHLSPreview(video, camId, placeholder, streamPath);
             }
         }
 
@@ -1565,15 +1426,6 @@
                 video.onloadedmetadata = () => {
                     console.log(`✅ Video metadata loaded for ${camId}, dimensions: ${video.videoWidth}x${video.videoHeight}`);
                     
-                    // Update container aspect ratio to match video source
-                    if (video.videoWidth > 2 && video.videoHeight > 2) {
-                        const container = document.getElementById(`view-${camId}`);
-                        if (container) {
-                            container.style.aspectRatio = `${video.videoWidth}/${video.videoHeight}`;
-                            console.log(`✅ Container aspect ratio set to ${video.videoWidth}/${video.videoHeight}`);
-                        }
-                    }
-                    
                     // Check if video has actual dimensions (not 0x0 or placeholder 2x2)
                     if (video.videoWidth === 0 || video.videoHeight === 0 || 
                         (video.videoWidth === 2 && video.videoHeight === 2)) {
@@ -1582,11 +1434,6 @@
                         setTimeout(() => {
                             if (video.videoWidth > 2 && video.videoHeight > 2) {
                                 console.log(`✅ Video dimensions now: ${video.videoWidth}x${video.videoHeight}`);
-                                // Update container aspect ratio
-                                const container = document.getElementById(`view-${camId}`);
-                                if (container) {
-                                    container.style.aspectRatio = `${video.videoWidth}/${video.videoHeight}`;
-                                }
                                 tryPlayVideo();
                             } else {
                                 console.error(`❌ Video still has invalid dimensions after wait`);
@@ -1675,7 +1522,7 @@
                     cameraStreamStates[camId] = 'disconnected';
                     updatePlaceholderStatus(camId, 'disconnected');
                     updateStats();
-                    placeholderManager.show(camId, 'Track ended');
+                    placeholder.style.display = 'flex';
                     // Restart preview with correct path (will check recording status)
                     setTimeout(() => {
                         startCameraPreview(camId);
@@ -1686,7 +1533,11 @@
                 const tryPlayVideo = () => {
                     // Force placeholder to be hidden when video is ready
                     if (video.videoWidth > 0 && video.videoHeight > 0) {
-                        placeholderManager.hide(camId);
+                        placeholder.classList.add('hidden');
+                        placeholder.style.display = 'none';
+                        placeholder.style.visibility = 'hidden';
+                        placeholder.style.opacity = '0';
+                        placeholder.style.pointerEvents = 'none';
                         console.log(`✅ Video has dimensions ${video.videoWidth}x${video.videoHeight}, hiding placeholder`);
                         
                         // Ensure video is visible and on top
@@ -1708,7 +1559,10 @@
                     
                     if (video.paused) {
                         video.play().then(() => {
-                            placeholderManager.hide(camId);
+                            placeholder.style.display = 'none';
+                            placeholder.style.visibility = 'hidden';
+                            placeholder.style.opacity = '0';
+                            placeholder.style.pointerEvents = 'none';
                             video.style.zIndex = '1';
                             console.log(`✅ WebRTC playing for ${camId} - real-time latency! Video element:`, {
                                 width: video.videoWidth,
@@ -1724,12 +1578,19 @@
                             }
                             // Show placeholder with click instruction
                             if (placeholder && placeholder.querySelector('.text')) {
-                                placeholderManager.show(camId, 'WebRTC Ready!<br><small style="color: #10b981;">Click anywhere to start</small>');
+                                placeholder.style.display = 'flex';
+                                placeholder.style.visibility = 'visible';
+                                placeholder.style.opacity = '1';
+                                placeholder.style.pointerEvents = 'auto';
+                                placeholder.querySelector('.text').innerHTML = 'WebRTC Ready!<br><small style="color: #10b981;">Click anywhere to start</small>';
                                 placeholder.style.cursor = 'pointer';
                             }
                         });
                     } else {
-                        placeholderManager.hide(camId);
+                        placeholder.style.display = 'none';
+                        placeholder.style.visibility = 'hidden';
+                        placeholder.style.opacity = '0';
+                        placeholder.style.pointerEvents = 'none';
                         video.style.zIndex = '1';
                         console.log(`Video already playing for ${camId}`);
                     }
@@ -1751,16 +1612,12 @@
                         if (!dimensionsDetected) {
                             console.log(`✅ Video dimensions detected: ${video.videoWidth}x${video.videoHeight}`);
                             dimensionsDetected = true;
-                            // Update container aspect ratio to match video source
-                            const container = document.getElementById(`view-${camId}`);
-                            if (container) {
-                                container.style.aspectRatio = `${video.videoWidth}/${video.videoHeight}`;
-                                console.log(`✅ Container aspect ratio set to ${video.videoWidth}/${video.videoHeight}`);
-                            }
                         }
                         cameraStreamStates[camId] = 'ready';
                         updatePlaceholderStatus(camId, 'ready');
-                        placeholderManager.hide(camId);
+                        placeholder.style.display = 'none';
+                        placeholder.style.visibility = 'hidden';
+                        placeholder.style.opacity = '0';
                         clearInterval(checkDimensions);
                     } else if (dimensionCheckCount > 50) {
                         // Stop checking after 5 seconds (increased from 2s for slower streams)
@@ -1849,221 +1706,6 @@
             });
         }
 
-        function startMSEPreview(video, camId, placeholder, streamPath = null) {
-            // Close existing MSE connection if any
-            if (mseConnections[camId]) {
-                console.log(`Closing existing MSE connection for ${camId}`);
-                if (mseConnections[camId].ws) {
-                    mseConnections[camId].ws.close();
-                }
-                if (mseConnections[camId].mediaSource) {
-                    try {
-                        mseConnections[camId].mediaSource.endOfStream();
-                    } catch (e) {
-                        // Ignore
-                    }
-                }
-                delete mseConnections[camId];
-            }
-            
-            if (!streamPath) {
-                streamPath = `${camId}`;
-            }
-            
-            updatePlaceholderStatus(camId, 'connecting');
-            console.log(`Starting MSE stream for ${camId}`);
-            
-            // Detect codec support
-            let codec = 'hevc';
-            let mimeCodec = 'video/mp4; codecs="hev1.1.6.L120.90"';
-            
-            if (MediaSource.isTypeSupported('video/mp4; codecs="hev1.1.6.L120.90"')) {
-                codec = 'hevc';
-                mimeCodec = 'video/mp4; codecs="hev1.1.6.L120.90"';
-            } else if (MediaSource.isTypeSupported('video/mp4; codecs="hvc1.1.6.L120.90"')) {
-                codec = 'hevc';
-                mimeCodec = 'video/mp4; codecs="hvc1.1.6.L120.90"';
-            } else {
-                codec = 'h264';
-                mimeCodec = 'video/mp4; codecs="avc1.42E01E"';
-                console.log(`H.265 not supported for ${camId}, using H.264`);
-            }
-            
-            if (!MediaSource.isTypeSupported(mimeCodec)) {
-                console.error(`MSE codec not supported for ${camId}: ${mimeCodec}`);
-                cameraStreamStates[camId] = 'error';
-                updatePlaceholderStatus(camId, 'error');
-                // Fallback to HLS
-                startHLSPreview(video, camId, placeholder, streamPath);
-                return;
-            }
-            
-            const mediaSource = new MediaSource();
-            video.src = URL.createObjectURL(mediaSource);
-            
-            const connection = {
-                ws: null,
-                mediaSource: mediaSource,
-                sourceBuffer: null,
-                queue: [],
-                isAppending: false,
-                codec: codec
-            };
-            
-            mseConnections[camId] = connection;
-            
-            mediaSource.addEventListener('sourceopen', () => {
-                console.log(`MediaSource opened for ${camId}`);
-                
-                try {
-                    connection.sourceBuffer = mediaSource.addSourceBuffer(mimeCodec);
-                    console.log(`SourceBuffer created for ${camId} with ${mimeCodec}`);
-                    
-                    connection.sourceBuffer.addEventListener('updateend', () => {
-                        connection.isAppending = false;
-                        
-                        // Trim buffer to prevent memory issues
-                        if (video.buffered.length > 0) {
-                            const buffered = video.buffered.end(0) - video.currentTime;
-                            if (buffered > 30) {
-                                try {
-                                    const removeEnd = video.buffered.end(0) - 30;
-                                    connection.sourceBuffer.remove(0, removeEnd);
-                                } catch (e) {
-                                    // Ignore remove errors
-                                }
-                            }
-                        }
-                        
-                        // Process next chunk in queue
-                        if (connection.queue.length > 0 && !connection.isAppending) {
-                            connection.isAppending = true;
-                            const chunk = connection.queue.shift();
-                            try {
-                                connection.sourceBuffer.appendBuffer(chunk);
-                            } catch (e) {
-                                console.error(`Error appending buffer for ${camId}:`, e);
-                                connection.isAppending = false;
-                            }
-                        }
-                    });
-                    
-                    connection.sourceBuffer.addEventListener('error', (e) => {
-                        console.error(`SourceBuffer error for ${camId}:`, e);
-                        cameraStreamStates[camId] = 'error';
-                        updatePlaceholderStatus(camId, 'error');
-                    });
-                    
-                    // Connect WebSocket
-                    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                    const wsUrl = `${protocol}//${window.location.host}/ws/mse/${streamPath}`;
-                    
-                    console.log(`Connecting MSE WebSocket for ${camId}: ${wsUrl}`);
-                    connection.ws = new WebSocket(wsUrl);
-                    connection.ws.binaryType = 'arraybuffer';
-                    
-                    connection.ws.onopen = () => {
-                        console.log(`MSE WebSocket connected for ${camId}`);
-                        
-                        // Send codec preference if H.264
-                        if (codec === 'h264') {
-                            connection.ws.send('h264');
-                            console.log(`Requested H.264 transcoding for ${camId}`);
-                        }
-                    };
-                    
-                    connection.ws.onmessage = (event) => {
-                        if (typeof event.data === 'string') {
-                            // Text message (codec info or error)
-                            if (event.data.startsWith('codec:')) {
-                                const serverCodec = event.data.split(':')[1];
-                                console.log(`Server using codec for ${camId}: ${serverCodec}`);
-                            } else if (event.data.startsWith('error:')) {
-                                const error = event.data.split(':')[1];
-                                console.error(`MSE server error for ${camId}: ${error}`);
-                                cameraStreamStates[camId] = 'error';
-                                updatePlaceholderStatus(camId, 'error');
-                            }
-                        } else {
-                            // Binary data (fMP4 chunk)
-                            connection.queue.push(new Uint8Array(event.data));
-                            
-                            // Process queue
-                            if (!connection.isAppending && connection.queue.length > 0) {
-                                connection.isAppending = true;
-                                const chunk = connection.queue.shift();
-                                try {
-                                    connection.sourceBuffer.appendBuffer(chunk);
-                                } catch (e) {
-                                    console.error(`Error appending buffer for ${camId}:`, e);
-                                    connection.isAppending = false;
-                                }
-                            }
-                        }
-                    };
-                    
-                    connection.ws.onerror = (error) => {
-                        console.error(`MSE WebSocket error for ${camId}:`, error);
-                        cameraStreamStates[camId] = 'error';
-                        updatePlaceholderStatus(camId, 'error');
-                    };
-                    
-                    connection.ws.onclose = () => {
-                        console.log(`MSE WebSocket closed for ${camId}`);
-                        cameraStreamStates[camId] = 'disconnected';
-                        updatePlaceholderStatus(camId, 'disconnected');
-                        
-                        // Try to reconnect after delay
-                        setTimeout(() => {
-                            if (mseConnections[camId]) {
-                                console.log(`Reconnecting MSE for ${camId}...`);
-                                startCameraPreview(camId);
-                            }
-                        }, 3000);
-                    };
-                    
-                } catch (e) {
-                    console.error(`Failed to create SourceBuffer for ${camId}:`, e);
-                    cameraStreamStates[camId] = 'error';
-                    updatePlaceholderStatus(camId, 'error');
-                    // Fallback to HLS
-                    startHLSPreview(video, camId, placeholder, streamPath);
-                }
-            });
-            
-            // Video events
-            video.onloadedmetadata = () => {
-                console.log(`MSE video metadata loaded for ${camId}: ${video.videoWidth}x${video.videoHeight}`);
-                
-                // Update container aspect ratio
-                if (video.videoWidth > 2 && video.videoHeight > 2) {
-                    const container = document.getElementById(`view-${camId}`);
-                    if (container) {
-                        container.style.aspectRatio = `${video.videoWidth}/${video.videoHeight}`;
-                        console.log(`✅ MSE container aspect ratio set to ${video.videoWidth}/${video.videoHeight}`);
-                    }
-                }
-            };
-            
-            video.oncanplay = () => {
-                video.play().catch(e => console.debug(`MSE autoplay blocked for ${camId}`));
-            };
-            
-            video.onplaying = () => {
-                console.log(`MSE video playing for ${camId}`);
-                cameraStreamStates[camId] = 'ready';
-                placeholderManager.hide(camId);
-                updatePlaceholderStatus(camId, 'ready');
-                updateStats();
-            };
-            
-            video.onerror = (e) => {
-                console.error(`MSE video error for ${camId}:`, e);
-                cameraStreamStates[camId] = 'error';
-                updatePlaceholderStatus(camId, 'error');
-            };
-        }
-
         function startHLSPreview(video, camId, placeholder, streamPath = null) {
             // Use provided streamPath or default to preview path
             if (!streamPath) {
@@ -2095,7 +1737,7 @@
                 hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
                     const tryPlay = () => {
                         video.play().then(() => {
-                            placeholderManager.hide(camId);
+                            placeholder.style.display = 'none';
                             console.log(`HLS preview started for ${camId} (low latency)`);
                             cameraStreamStates[camId] = 'ready';
                             updatePlaceholderStatus(camId, 'ready');
@@ -2108,17 +1750,6 @@
                     tryPlay();
                     requestAnimationFrame(() => tryPlay());
                 });
-                
-                video.onloadedmetadata = () => {
-                    // Update container aspect ratio to match video source
-                    if (video.videoWidth > 2 && video.videoHeight > 2) {
-                        const container = document.getElementById(`view-${camId}`);
-                        if (container) {
-                            container.style.aspectRatio = `${video.videoWidth}/${video.videoHeight}`;
-                            console.log(`✅ HLS container aspect ratio set to ${video.videoWidth}/${video.videoHeight}`);
-                        }
-                    }
-                };
                 
                 video.onplaying = () => {
                     cameraStreamStates[camId] = 'ready';
@@ -2133,44 +1764,26 @@
                 };
                 
                 video.onstalled = () => {
-                    // Don't spam recovery attempts - let the error handler deal with it
-                    console.debug(`Video stalled for ${camId} (will be handled by error handler if needed)`);
+                    console.warn(`Video stalled for ${camId}, attempting recovery...`);
+                    if (hlsPlayers[camId]) {
+                        hlsPlayers[camId].recoverMediaError();
+                    }
                 };
                 
                 // Track retry count to avoid infinite retries
                 if (!hls.retryCount) hls.retryCount = 0;
-                if (!hls.mediaErrorCount) hls.mediaErrorCount = 0;
-                if (!hls.lastMediaErrorTime) hls.lastMediaErrorTime = 0;
                 
                 hls.on(window.Hls.Events.ERROR, (event, data) => {
-                    // Only log fatal errors to avoid console spam
-                    if (data.fatal) {
-                        console.error(`HLS fatal error for ${camId}:`, data.type, data.details);
-                    } else {
-                        // Non-fatal errors are usually handled automatically by HLS.js
-                        console.debug(`HLS non-fatal error for ${camId}:`, data.type, data.details);
-                        return; // Let HLS.js handle non-fatal errors automatically
-                    }
-                    
+                    console.error(`HLS error for ${camId}:`, data);
                     if (data.fatal) {
                         if (data.type === window.Hls.ErrorTypes.NETWORK_ERROR) {
-                            // Check if this was a manifest error (404/500 on manifest = no signal)
-                            const isManifestError = data.details === window.Hls.ErrorDetails.MANIFEST_LOAD_ERROR;
-                            const isFragmentError = data.details === window.Hls.ErrorDetails.FRAG_LOAD_ERROR;
-                            
-                            if (isManifestError && data.response && (data.response.code === 404 || data.response.code === 500)) {
-                                console.log(`Stream manifest not available for ${camId} (HTTP ${data.response.code}) - no signal`);
+                            // Check if this was a 404/500 - stream doesn't exist
+                            if (data.response && (data.response.code === 404 || data.response.code === 500)) {
+                                console.log(`Stream not available for ${camId} (HTTP ${data.response.code}) - no signal`);
                                 cameraStreamStates[camId] = 'disconnected';
                                 updatePlaceholderStatus(camId, 'no_signal');
                                 updateStats();
                                 return; // Don't retry
-                            }
-                            
-                            // Fragment errors (including 500) should be retried - they're transient
-                            if (isFragmentError && data.response && data.response.code === 500) {
-                                console.warn(`Fragment load failed for ${camId} (HTTP 500) - will retry`);
-                                // Let HLS.js retry automatically, don't treat as fatal
-                                return;
                             }
                             
                             // Limit retries to avoid infinite loops
@@ -2193,44 +1806,8 @@
                                 hls.startLoad();
                             }, 2000);
                         } else if (data.type === window.Hls.ErrorTypes.MEDIA_ERROR) {
-                            const now = Date.now();
-                            // Reset counter if it's been more than 10 seconds since last error
-                            if (now - hls.lastMediaErrorTime > 10000) {
-                                hls.mediaErrorCount = 0;
-                            }
-                            hls.lastMediaErrorTime = now;
-                            hls.mediaErrorCount++;
-                            
-                            console.log(`HLS media error for ${camId}: ${data.details} (attempt ${hls.mediaErrorCount}/4)`);
-                            
-                            // Special handling for buffer stall errors (often caused by 500 errors on segments)
-                            if (data.details === window.Hls.ErrorDetails.BUFFER_STALLED_ERROR) {
-                                console.warn(`Buffer stalled for ${camId} - likely due to segment loading issues`);
-                                // Skip a segment and continue
-                                if (hls.mediaErrorCount <= 3) {
-                                    hls.startLoad();
-                                    return;
-                                }
-                            }
-                            
-                            if (hls.mediaErrorCount <= 2) {
-                                // First two attempts: try to recover
-                                console.log(`Attempting media error recovery for ${camId}...`);
-                                hls.recoverMediaError();
-                            } else if (hls.mediaErrorCount === 3) {
-                                // Third attempt: try swapping audio codec
-                                console.log(`Attempting audio codec swap for ${camId}...`);
-                                hls.swapAudioCodec();
-                                hls.recoverMediaError();
-                            } else {
-                                // After 4 attempts, destroy and recreate player
-                                console.warn(`Media error recovery failed for ${camId}, recreating player...`);
-                                hls.destroy();
-                                delete hlsPlayers[camId];
-                                setTimeout(() => {
-                                    startHLSPreview(video, camId, placeholder);
-                                }, 1000);
-                            }
+                            console.log(`HLS media error for ${camId}, recovering...`);
+                            hls.recoverMediaError();
                         } else {
                             console.error(`HLS fatal error for ${camId}:`, data);
                             cameraStreamStates[camId] = 'disconnected';
@@ -2253,7 +1830,7 @@
                 video.src = hlsUrl;
                 const tryPlay = () => {
                     video.play().then(() => {
-                        placeholderManager.hide(camId);
+                        placeholder.style.display = 'none';
                     }).catch(e => {
                         console.debug(`Native HLS autoplay blocked for ${camId}`);
                     });
@@ -2261,9 +1838,7 @@
                 tryPlay();
                 requestAnimationFrame(() => tryPlay());
             } else {
-                const textEl = placeholder.querySelector('.text');
-                if (textEl) textEl.textContent = 'HLS not supported';
-                placeholderManager.show(camId, 'HLS not supported');
+                placeholder.querySelector('.text').textContent = 'HLS not supported';
             }
         }
 
@@ -2313,74 +1888,12 @@
             }
         }
         
-        // Change stream protocol and restart all streams
-        function changeStreamProtocol(protocol) {
-            streamProtocol = protocol;
-            localStorage.setItem('streamProtocol', protocol);
-
-            // Update hint text
-            const hints = {
-                auto: 'Auto-select best protocol (MSE for remote, WebRTC for local)',
-                mse: 'MSE over WebSocket - H.265 support, 500ms-2s latency',
-                webrtc: 'WebRTC WHEP - Ultra low latency, local only',
-                hls: 'HLS - Universal compatibility, 2-10s latency'
-            };
-            
-            const hintEl = document.getElementById('protocolHint');
-            if (hintEl) {
-                hintEl.textContent = hints[protocol] || 'Unknown protocol';
-            }
-
-            console.log(`Switching to ${protocol} protocol, restarting all streams...`);
-            
-            // Get all active camera IDs
-            const activeCamIds = [
-                ...Object.keys(hlsPlayers),
-                ...Object.keys(webrtcConnections),
-                ...Object.keys(mseConnections)
-            ];
-            
-            // Remove duplicates
-            const uniqueCamIds = [...new Set(activeCamIds)];
-            
-            uniqueCamIds.forEach(camId => {
-                const video = document.getElementById(`video-${camId}`);
-                const placeholder = document.getElementById(`placeholder-${camId}`);
-                if (video && placeholder) {
-                    // Clean up existing connections
-                    if (hlsPlayers[camId]) {
-                        hlsPlayers[camId].destroy();
-                        delete hlsPlayers[camId];
-                    }
-                    if (webrtcConnections[camId]) {
-                        webrtcConnections[camId].close();
-                        delete webrtcConnections[camId];
-                    }
-                    if (mseConnections[camId]) {
-                        if (mseConnections[camId].ws) {
-                            mseConnections[camId].ws.close();
-                        }
-                        delete mseConnections[camId];
-                    }
-                    
-                    // Restart with new protocol
-                    startCameraPreview(camId);
-                }
-            });
-        }
-
         // Initialize stream mode UI on page load
         function initStreamModeUI() {
-            const modeSelect = document.getElementById('streamModeSelect');
-            if (modeSelect) {
-                modeSelect.value = streamMode;
+            const select = document.getElementById('streamModeSelect');
+            if (select) {
+                select.value = streamMode;
                 changeStreamMode(streamMode); // Update hint
-            }
-            
-            const protocolSelect = document.getElementById('streamProtocolSelect');
-            if (protocolSelect) {
-                protocolSelect.value = streamProtocol;
-                changeStreamProtocol(streamProtocol); // Update hint (without restarting)
             }
         }
 
@@ -2723,22 +2236,24 @@
             const video = document.getElementById(`video-${camId}`);
             // Check for valid dimensions (not 0x0 or placeholder 2x2)
             if (video && video.videoWidth > 2 && video.videoHeight > 2 && !video.paused) {
-                // Video is playing, hide placeholder
-                placeholderManager.hide(camId);
+                // Video is playing, placeholder should be hidden
                 return;
             }
             
             if (status === 'ready') {
-                // Video is ready but not playing yet - hide placeholder
-                placeholderManager.hide(camId);
+                textEl.innerHTML = '<span style="color: #10b981;">READY</span><br><small>Stream active</small>';
+                placeholder.style.display = 'flex';
             } else if (status === 'no_signal') {
-                placeholderManager.show(camId, '<span style="color: #ef4444;">NO SIGNAL</span><br><small>Check HDMI connection</small>');
+                textEl.innerHTML = '<span style="color: #ef4444;">NO SIGNAL</span><br><small>Check HDMI connection</small>';
+                placeholder.style.display = 'flex';
             } else if (status === 'disconnected') {
-                placeholderManager.show(camId, '<span style="color: #6b7280;">DISCONNECTED</span><br><small>Connection lost</small>');
+                textEl.innerHTML = '<span style="color: #6b7280;">DISCONNECTED</span><br><small>Connection lost</small>';
+                placeholder.style.display = 'flex';
             } else if (status === 'connecting') {
-                placeholderManager.show(camId, '<span style="color: #60a5fa;">CONNECTING...</span><br><small>Please wait</small>');
+                textEl.innerHTML = '<span style="color: #60a5fa;">CONNECTING...</span><br><small>Please wait</small>';
+                placeholder.style.display = 'flex';
             } else {
-                placeholderManager.show(camId, 'Loading preview...');
+                textEl.innerHTML = 'Loading preview...';
             }
         }
 
