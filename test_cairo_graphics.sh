@@ -134,3 +134,4 @@ else
     echo "  3. Mixer is initialized"
     exit 1
 fi
+

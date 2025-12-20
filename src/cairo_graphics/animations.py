@@ -136,3 +136,4 @@ def timestamp_to_seconds(timestamp: int) -> float:
         Time in seconds
     """
     return timestamp / 1_000_000_000.0
+

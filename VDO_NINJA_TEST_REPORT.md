@@ -1,277 +1,287 @@
-# VDO.Ninja Deployment - Test Report
+# VDO.Ninja WebRTC Mixer - Test Report
 
-**Date**: December 18, 2025  
-**Tester**: AI Agent (Remote Testing)  
-**Status**: ✅ All Core Services Operational
-
-## Test Results Summary
-
-| Component | Status | Details |
-|-----------|--------|---------|
-| VDO.Ninja Server | ✅ PASS | Running on port 8443, serving HTTPS |
-| WebSocket Signaling | ✅ PASS | 1 connection received |
-| SSL Certificates | ✅ PASS | Self-signed certs working |
-| Raspberry.Ninja Publisher | ✅ PASS | cam1 streaming (PID 728915) |
-| Camera Hardware | ✅ PASS | /dev/video60 active, 1920x1080 signal |
-| MediaMTX Ports | ✅ PASS | 8889, 8888, 8554 listening |
-| System Resources | ✅ PASS | 4GB/7.7GB RAM used, 64% disk |
-
-## Detailed Test Results
-
-### 1. VDO.Ninja Server (Port 8443)
-
-**Test**: HTTP/HTTPS endpoint responding
-```bash
-curl -k https://localhost:8443/ -I
-```
-
-**Result**: ✅ PASS
-```
-HTTP/1.1 200 OK
-X-Powered-By: Express
-Content-Type: text/html; charset=UTF-8
-```
-
-**Service Status**:
-```
-● vdo-ninja.service - VDO.Ninja Server
-   Active: active (running) since Thu 2025-12-18 22:41:45 UTC
-   Memory: 17.4M
-   CPU: 381ms
-```
-
-### 2. WebSocket Signaling
-
-**Test**: WebSocket connections
-**Result**: ✅ PASS
-- Server log shows: `[2025-12-18T22:43:39.655Z] New connection: prr8ic (total: 1)`
-- WebSocket server accepting connections on wss://localhost:8443
-
-### 3. Raspberry.Ninja Publisher (cam1)
-
-**Test**: Camera streaming service
-**Result**: ✅ PASS
-
-**Process**:
-```
-linaro 728915 /opt/preke-r58-recorder/venv/bin/python3 /opt/raspberry_ninja/publish.py
-  --v4l2 /dev/video60
-  --streamid r58-cam1
-  --server wss://localhost:8443
-  --h264 --bitrate 8000
-  --width 1920 --height 1080
-  --framerate 30
-```
-
-**Service Status**:
-```
-● ninja-publish-cam1.service
-   Active: active (running) since Thu 2025-12-18 22:43:38 UTC
-   Memory: 47.4M
-   CPU: 648ms
-```
-
-### 4. Camera Hardware (HDMI N60)
-
-**Test**: Video device availability and signal detection
-**Result**: ✅ PASS
-
-**Device**: `/dev/video60` (rk_hdmirx)
-**Signal Detected**:
-- Resolution: 1920x1080
-- Active width: 1920
-- Active height: 1080
-- Total width: 2200
-- Total height: 1125
-
-### 5. Network Ports
-
-**Test**: All required ports listening
-**Result**: ✅ PASS
-
-| Port | Service | Status |
-|------|---------|--------|
-| 8443 | VDO.Ninja HTTPS/WSS | ✅ Listening (node PID 727789) |
-| 8889 | MediaMTX WebRTC | ✅ Listening |
-| 8888 | MediaMTX HLS | ✅ Listening |
-| 8554 | MediaMTX RTSP | ✅ Listening |
-
-### 6. System Resources
-
-**Test**: Resource utilization
-**Result**: ✅ PASS - Well within limits
-
-**Memory**:
-- Total: 7.7 GB
-- Used: 4.0 GB (52%)
-- Available: 3.8 GB
-- **VDO.Ninja**: 17.4 MB
-- **Raspberry.Ninja cam1**: 47.4 MB
-
-**Disk**:
-- Root: 14GB total, 8.4GB used (64%)
-- SD Card: 469GB total, 2.1GB used (1%)
-
-**CPU**: Minimal usage (~1% combined for VDO.Ninja services)
-
-## Known Issues & Limitations
-
-### 1. WHIP Not Available ⚠️
-
-**Issue**: Raspberry.Ninja cannot publish directly to MediaMTX via WHIP
-**Reason**: `gst-plugins-rs webrtchttp` plugin not installed
-**Impact**: Using VDO.Ninja signaling instead (works fine)
-**Workaround**: ✅ Services updated to use `--server wss://localhost:8443` instead of `--whip`
-
-**Error Message** (resolved):
-```
-WHIP SINK not installed. Please install (build if needed) the gst-plugins-rs 
-webrtchttp plugin for your specific version of Gstreamer; 1.22 or newer required
-```
-
-### 2. Remote Access Requires Cloudflare Tunnel
-
-**Issue**: WebRTC media cannot traverse Cloudflare Tunnel (UDP blocked)
-**Impact**: Remote testing not possible via tunnel alone
-**Solutions**:
-- ✅ LAN access works: `https://192.168.1.25:8443`
-- 📋 Need TURN server for remote WebRTC relay
-- 📋 Cloudflare Tunnel can serve the web UI, but media needs TURN
-
-### 3. Self-Signed SSL Certificate
-
-**Issue**: Browsers show security warning
-**Impact**: Users must manually accept certificate
-**Workaround**: Click "Advanced" → "Proceed to 192.168.1.25 (unsafe)"
-**Future**: Could use Let's Encrypt with domain name
-
-## Services Not Started (By Design)
-
-The following services are configured but not started:
-- `ninja-publish-cam0.service` - No camera connected to HDMI N0
-- `ninja-publish-cam2.service` - Not started yet
-- `ninja-publish-cam3.service` - Not started yet
-
-These can be started when needed:
-```bash
-sudo systemctl start ninja-publish-cam2
-sudo systemctl start ninja-publish-cam3
-```
-
-## Access URLs (Verified Working)
-
-### Local Network (LAN)
-- **Director/Mixer**: `https://192.168.1.25:8443/?director=r58studio`
-- **Guest Join**: `https://192.168.1.25:8443/?room=r58studio`
-- **View cam1**: `https://192.168.1.25:8443/?view=r58-cam1`
-
-### Remote Access (Requires TURN)
-- **Via Cloudflare Tunnel**: `https://vdoninja.itagenten.no/?director=r58studio`
-- **Note**: Add `&turn=turn:relay.metered.ca:443` for remote guests
-
-## Automated Tests Performed
-
-1. ✅ Service status checks (systemctl)
-2. ✅ Port availability (netstat/ss)
-3. ✅ HTTP/HTTPS endpoint response
-4. ✅ WebSocket connection logging
-5. ✅ Process verification (ps aux)
-6. ✅ Video device detection (v4l2-ctl)
-7. ✅ System resource monitoring (free, df)
-8. ✅ Log analysis (journalctl)
-
-## Manual Tests Required (User Action)
-
-Since you're remote, these tests require browser access:
-
-### Test 1: Director Interface
-1. Open: `https://192.168.1.25:8443/?director=r58studio` (or via Cloudflare)
-2. Accept SSL certificate warning
-3. **Expected**: VDO.Ninja director interface loads
-4. **Expected**: See "r58-cam1" stream appear (if camera is connected)
-
-### Test 2: View Camera Feed
-1. Open: `https://192.168.1.25:8443/?view=r58-cam1`
-2. **Expected**: See live video from cam1
-
-### Test 3: Guest Join
-1. Open: `https://192.168.1.25:8443/?room=r58studio`
-2. Allow camera/microphone
-3. **Expected**: Your feed appears in the room
-4. **Expected**: Director can see your feed
-
-### Test 4: Remote Access (Optional)
-1. Open: `https://vdoninja.itagenten.no/?director=r58studio`
-2. Add TURN parameter if needed: `&turn=turn:relay.metered.ca:443`
-3. **Expected**: Same as local access
-
-## Recommendations
-
-### Immediate Actions
-1. ✅ **DONE**: All core services deployed and running
-2. 📋 **TODO**: Test from browser (requires user)
-3. 📋 **TODO**: Configure TURN server for remote access
-
-### Optional Enhancements
-1. **Install WHIP support**: Build `gst-plugins-rs` for direct MediaMTX publishing
-2. **Let's Encrypt SSL**: Replace self-signed certs for production
-3. **Start additional cameras**: Enable cam2 and cam3 services
-4. **Build Mac Electron app**: For OBS integration
-
-### Production Readiness
-- ✅ Services auto-start on boot (enabled)
-- ✅ Services auto-restart on failure
-- ✅ Logs available via journalctl
-- ✅ Resource usage is minimal
-- ⚠️ TURN server needed for remote guests
-- ⚠️ SSL certificate warnings (self-signed)
-
-## Troubleshooting Commands
-
-If issues arise:
-
-```bash
-# Check service status
-sudo systemctl status vdo-ninja
-sudo systemctl status ninja-publish-cam1
-
-# View live logs
-sudo journalctl -u vdo-ninja -f
-sudo journalctl -u ninja-publish-cam1 -f
-
-# Restart services
-sudo systemctl restart vdo-ninja
-sudo systemctl restart ninja-publish-cam1
-
-# Check ports
-sudo netstat -tlnp | grep -E '8443|8889'
-
-# Check WebSocket connections
-sudo journalctl -u vdo-ninja | grep connection
-
-# Test HTTPS endpoint
-curl -k https://localhost:8443/ -I
-```
-
-## Conclusion
-
-✅ **All core services are operational and ready for testing.**
-
-The VDO.Ninja hybrid setup has been successfully deployed and all automated tests pass. The system is:
-- Serving the VDO.Ninja web application
-- Running WebSocket signaling server
-- Publishing cam1 via Raspberry.Ninja
-- Using minimal system resources
-- Ready for browser-based testing
-
-**Next Steps**:
-1. Test from your browser (local or remote)
-2. Configure TURN server if remote access is needed
-3. Start additional camera services as needed
-4. Proceed to Phase 2 (Mac Electron app) when ready
+**Date**: December 20, 2025  
+**Status**: ⚠️ Network Configuration Required
 
 ---
 
-**Test completed**: December 18, 2025 23:51 UTC  
-**All automated tests**: ✅ PASS  
-**Ready for user testing**: ✅ YES
+## Test Summary
+
+### Phase 1: Network Connectivity - ❌ BLOCKED
+
+**Issue**: R58 device not reachable at configured IP address (192.168.1.25)
+
+**Your Network**: 192.168.68.52/22 (192.168.68.0 - 192.168.71.255)  
+**Configured R58 IP**: 192.168.1.25 (different subnet)
+
+**Visible Hosts on Your Network**:
+- 192.168.68.1 (gateway)
+- 192.168.68.50
+- 192.168.68.51
+- 192.168.68.52 (your Mac)
+
+---
+
+## Required Actions
+
+### Option 1: Find R58 on Current Network
+
+The R58 device might have a different IP on your network. Try these methods:
+
+#### Method A: Check Router/DHCP
+
+1. Log into your router (usually http://192.168.68.1)
+2. Look for DHCP client list
+3. Find device named "r58" or "rock64" or similar
+4. Note the IP address
+
+#### Method B: Scan for SSH Services
+
+```bash
+# Install nmap if not available
+brew install nmap
+
+# Scan for SSH services on your network
+nmap -p 22 --open 192.168.68.0/22 | grep -B 4 "open"
+```
+
+#### Method C: Try Common Hostnames
+
+```bash
+# Try these hostnames
+ping -c 2 r58.local
+ping -c 2 rock64.local  
+ping -c 2 orangepi.local
+```
+
+### Option 2: Connect R58 to Your Network
+
+If R58 is on a different network:
+
+1. Connect R58 to your current network (192.168.68.x)
+2. R58 should get an IP via DHCP
+3. Find the IP using methods above
+4. Update configuration files
+
+---
+
+## Once R58 IP is Found
+
+### Step 1: Update Configuration Files
+
+Replace `192.168.1.25` with the correct IP in these files:
+
+```bash
+cd "/Users/mariusbelstad/R58 app/preke-r58-recorder"
+
+# Update launch scripts
+sed -i '' 's/192.168.1.25/NEW_IP_HERE/g' launch-director.sh
+sed -i '' 's/192.168.1.25/NEW_IP_HERE/g' launch-cam0.sh
+sed -i '' 's/192.168.1.25/NEW_IP_HERE/g' launch-cam2.sh
+sed -i '' 's/192.168.1.25/NEW_IP_HERE/g' launch-mixer.sh
+sed -i '' 's/192.168.1.25/NEW_IP_HERE/g' test-mac-app.sh
+```
+
+### Step 2: Test Connectivity
+
+```bash
+# Replace NEW_IP with actual R58 IP
+export R58_IP="NEW_IP"
+
+# Test ping
+ping -c 3 $R58_IP
+
+# Test SSH
+ssh linaro@$R58_IP "hostname"
+```
+
+### Step 3: Check VDO.Ninja Services
+
+```bash
+# Check VDO.Ninja server
+ssh linaro@$R58_IP "sudo systemctl status vdo-ninja"
+
+# Check camera publishers
+ssh linaro@$R58_IP "sudo systemctl status ninja-publish-cam1 ninja-publish-cam2"
+
+# Start services if needed
+ssh linaro@$R58_IP "sudo systemctl start vdo-ninja ninja-publish-cam1 ninja-publish-cam2"
+```
+
+### Step 4: Test in Browser
+
+1. Open: `https://$R58_IP:8443/`
+2. Accept SSL certificate warning (click "Advanced" → "Proceed")
+3. Open Director: `https://$R58_IP:8443/?director=r58studio`
+4. Verify camera feeds appear
+
+### Step 5: Test Preke Studio
+
+```bash
+# Launch Preke Studio
+open -a "/Applications/Preke Studio.app"
+
+# In the app:
+# 1. Select "Local R58 Device"
+# 2. Enter IP: $R58_IP
+# 3. Enter Room ID: r58studio
+# 4. Click "Connect"
+# 5. Go to "Live Mixer" tab
+# 6. Verify director interface loads
+```
+
+---
+
+## Alternative: Test via Cloudflare Tunnel
+
+If R58 is accessible via Cloudflare Tunnel, you can test remotely:
+
+### VDO.Ninja via Tunnel
+
+The documentation mentions `vdo.itagenten.no` - try:
+
+```bash
+# Test if VDO.Ninja is accessible via tunnel
+curl -I https://vdo.itagenten.no 2>&1 | head -5
+
+# If accessible, open in browser
+open "https://vdo.itagenten.no/?director=r58studio"
+```
+
+### Preke Studio via Cloud
+
+In Preke Studio:
+1. Select "Preke Cloud"
+2. Enter Room ID: `r58studio`
+3. Click "Connect"
+
+---
+
+## Testing Checklist
+
+Once R58 is accessible, complete these tests:
+
+### ✅ Phase 1: Network & Services
+- [ ] Ping R58 device
+- [ ] SSH to R58
+- [ ] Check vdo-ninja service status
+- [ ] Check ninja-publish-cam1 status
+- [ ] Check ninja-publish-cam2 status
+- [ ] Start services if stopped
+
+### ✅ Phase 2: Browser Testing
+- [ ] Accept SSL certificate
+- [ ] Load VDO.Ninja home page
+- [ ] Load Director interface
+- [ ] Verify cam1 feed appears
+- [ ] Verify cam2 feed appears
+- [ ] Test audio controls
+- [ ] Test video quality settings
+
+### ✅ Phase 3: Preke Studio Testing
+- [ ] Apply bug fixes (if not done)
+- [ ] Launch Preke Studio
+- [ ] Connect to Local R58
+- [ ] Navigate to Live Mixer tab
+- [ ] Verify director interface loads
+- [ ] Verify camera feeds visible
+- [ ] Toggle Director/Mixer view
+- [ ] Test adding cameras to mix
+- [ ] Test audio mixing
+- [ ] Test scene switching
+
+### ✅ Phase 4: Advanced Features
+- [ ] Test guest join (second browser)
+- [ ] Test remote guest connection
+- [ ] Test mixer output view
+- [ ] Test individual camera views
+- [ ] Test in Electron Capture app
+
+---
+
+## Expected Results
+
+| Component | Expected State |
+|-----------|---------------|
+| VDO.Ninja Server | Active on port 8443 |
+| ninja-publish-cam1 | Active, streaming to r58-cam1 |
+| ninja-publish-cam2 | Active, streaming to r58-cam2 |
+| Director Interface | Shows 2 camera feeds |
+| Preke Studio | Connects and displays mixer |
+| WebRTC Connection | Low latency (<500ms) |
+
+---
+
+## Troubleshooting
+
+### Services Not Running
+
+```bash
+# Start VDO.Ninja server
+ssh linaro@$R58_IP "sudo systemctl start vdo-ninja"
+
+# Start camera publishers
+ssh linaro@$R58_IP "sudo systemctl start ninja-publish-cam1 ninja-publish-cam2"
+
+# Enable on boot
+ssh linaro@$R58_IP "sudo systemctl enable vdo-ninja ninja-publish-cam1 ninja-publish-cam2"
+```
+
+### No Camera Feeds in Director
+
+```bash
+# Check logs
+ssh linaro@$R58_IP "sudo journalctl -u ninja-publish-cam1 -n 50"
+
+# Verify HDMI sources connected
+ssh linaro@$R58_IP "ls -l /dev/video60 /dev/video11"
+
+# Restart publishers
+ssh linaro@$R58_IP "sudo systemctl restart ninja-publish-cam1 ninja-publish-cam2"
+```
+
+### SSL Certificate Issues
+
+- Click "Advanced" in browser
+- Click "Proceed to [IP] (unsafe)"
+- This is expected for self-signed certificates on local network
+
+### Preke Studio Connection Failed
+
+```bash
+# Verify IP is correct
+# Verify Room ID is: r58studio
+# Try Cloud connection instead of Local
+```
+
+---
+
+## Next Steps
+
+1. **Find R58 IP address** using methods above
+2. **Update configuration files** with correct IP
+3. **Run connectivity tests** to verify R58 is accessible
+4. **Complete testing checklist** in order
+5. **Document results** for each phase
+
+---
+
+## Contact Information
+
+**R58 Device**:
+- Default User: `linaro`
+- Default Password: `linaro`
+- SSH Port: 22
+- VDO.Ninja Port: 8443
+- Room ID: `r58studio`
+
+**VDO.Ninja Streams**:
+- cam1: `r58-cam1`
+- cam2: `r58-cam2`
+- cam3: `r58-cam3`
+
+---
+
+**Test Status**: Waiting for network configuration  
+**Blocker**: R58 device IP address unknown  
+**Next Action**: Find R58 IP and update configuration

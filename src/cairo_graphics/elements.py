@@ -617,3 +617,4 @@ class LogoOverlay(GraphicsElement):
         context.paint_with_alpha(self.alpha)
         
         context.restore()
+

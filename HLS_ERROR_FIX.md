@@ -213,3 +213,4 @@ MediaMTX was failing to generate HLS segments, likely due to:
 - [HLS.js Error Handling Documentation](https://github.com/video-dev/hls.js/blob/master/docs/API.md#errors)
 - [HLS.js Recovery Methods](https://github.com/video-dev/hls.js/blob/master/docs/API.md#recoverMediaError)
 - [HLS.js Error Details](https://github.com/video-dev/hls.js/blob/master/docs/API.md#fifth-step-error-handling)
+

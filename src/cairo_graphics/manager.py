@@ -204,3 +204,4 @@ class CairoGraphicsManager:
                 "element_count": len(self._elements),
                 "elements": self.list_elements()
             }
+
