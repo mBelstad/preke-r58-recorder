@@ -21,7 +21,6 @@ from .preview import PreviewManager
 from .database import Database
 from .files import FileManager
 from .camera_control import CameraControlManager
-from .mse_stream import router as mse_router
 
 # Configure logging
 logging.basicConfig(
@@ -222,9 +221,6 @@ videos_dir.mkdir(exist_ok=True)
 # Mount uploads directory for serving files
 app.mount("/uploads", StaticFiles(directory=str(uploads_dir)), name="uploads")
 
-# Include MSE streaming router
-app.include_router(mse_router)
-logger.info("MSE streaming endpoints registered")
 
 
 @app.get("/", response_class=HTMLResponse)
