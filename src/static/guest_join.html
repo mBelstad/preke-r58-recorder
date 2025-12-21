@@ -348,8 +348,7 @@
             warning.className = 'status-message info';
             warning.innerHTML = `
                 <strong>🌐 Remote Access Mode</strong><br>
-                Using Cloudflare Calls SFU for WebRTC connection.<br>
-                Your stream will be relayed through Cloudflare's global network to the R58 system.<br>
+                Using Cloudflare TURN relay for WebRTC connection.<br>
                 <small>For lower latency, guests on the local network can use: <strong>http://192.168.1.58:8000/guest_join</strong></small>
             `;
             warning.style.display = 'block';
@@ -493,22 +492,38 @@
                 
                 document.getElementById('joinBtn').disabled = true;
 
-                // Determine WHIP endpoint
+                // Default ICE servers (STUN only)
+                let iceServers = [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' }
+                ];
+
+                // Determine WHIP endpoint and get TURN credentials if remote
                 if (IS_REMOTE) {
-                    // Remote: Use Cloudflare Calls SFU via our proxy
-                    whipUrl = `${API_BASE}/api/calls/whip/${guestId}`;
-                    showStatus('info', 'Connecting to Cloudflare Calls...');
+                    // Remote: Use WHIP proxy with TURN relay
+                    whipUrl = `${API_BASE}/whip/${guestId}`;
+                    showStatus('info', 'Getting TURN credentials...');
+                    
+                    try {
+                        // Fetch TURN credentials from backend
+                        const turnResponse = await fetch(`${API_BASE}/api/turn-credentials`);
+                        if (turnResponse.ok) {
+                            const turnData = await turnResponse.json();
+                            iceServers = turnData.iceServers;
+                            console.log('Using Cloudflare TURN servers for remote access');
+                        } else {
+                            console.warn('Failed to get TURN credentials, using STUN only');
+                        }
+                    } catch (err) {
+                        console.warn('Error fetching TURN credentials:', err);
+                    }
+                    
+                    showStatus('info', 'Connecting via TURN relay...');
                 } else {
                     // Local: Direct to MediaMTX
                     whipUrl = `http://${HOSTNAME}:8889/${guestId}/whip`;
                     showStatus('info', 'Connecting to local MediaMTX...');
                 }
-
-                // Create peer connection with STUN
-                const iceServers = [
-                    { urls: 'stun:stun.l.google.com:19302' },
-                    { urls: 'stun:stun1.l.google.com:19302' }
-                ];
                 
                 peerConnection = new RTCPeerConnection({ iceServers });
 
@@ -593,9 +608,11 @@
 
                 console.log('WHIP connection established');
                 
-                // For Cloudflare Calls, we're now connected to Cloudflare's SFU
+                // Log connection mode
                 if (IS_REMOTE) {
-                    console.log('Connected to Cloudflare Calls SFU - stream will be relayed to R58');
+                    console.log('Connected via Cloudflare TURN relay - stream goes to MediaMTX');
+                } else {
+                    console.log('Connected directly to local MediaMTX');
                 }
 
             } catch (err) {
@@ -616,19 +633,6 @@
             if (peerConnection) {
                 peerConnection.close();
                 peerConnection = null;
-            }
-
-            // Close Cloudflare Calls session if exists
-            if (IS_REMOTE) {
-                try {
-                    const guestId = document.getElementById('guestId').value;
-                    await fetch(`${API_BASE}/api/calls/session/${guestId}`, {
-                        method: 'DELETE'
-                    });
-                    console.log('Cloudflare Calls session closed for', guestId);
-                } catch (err) {
-                    console.warn('Failed to close Calls session:', err);
-                }
             }
 
             if (statsInterval) {
