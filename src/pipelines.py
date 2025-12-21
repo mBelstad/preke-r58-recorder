@@ -10,6 +10,29 @@ logger = logging.getLogger(__name__)
 # Now using rtspclientsink which handles RTSP publishing automatically
 
 
+def get_h264_hardware_encoder(bitrate: int) -> tuple[str, str, str]:
+    """Get H.264 hardware encoder using raspberry.ninja-proven config.
+    
+    Uses mpph264enc (Rockchip MPP H.264 encoder) with QP-based rate control.
+    This configuration was proven stable in raspberry.ninja tests on 2025-12-18.
+    
+    Args:
+        bitrate: Target bitrate in kbps
+        
+    Returns:
+        Tuple of (encoder_str, caps_str, parse_str)
+    """
+    bps = bitrate * 1000  # Convert kbps to bps
+    encoder_str = (
+        f"mpph264enc "
+        f"qp-init=26 qp-min=10 qp-max=51 "
+        f"gop=30 rc-mode=cbr bps={bps}"
+    )
+    caps_str = "video/x-h264,stream-format=byte-stream"
+    parse_str = "h264parse"
+    return encoder_str, caps_str, parse_str
+
+
 def get_h265_encoder(bitrate: int) -> tuple[str, str, str]:
     """Get H.265 hardware encoder string for R58 VPU.
     
@@ -391,7 +414,7 @@ def build_r58_preview_pipeline(
     # Use 80% of recording bitrate for preview (better quality)
     preview_bitrate = max(4000, int(bitrate * 0.8))  # 80% of recording bitrate
     # Use hardware encoder for low CPU usage
-    encoder_str, caps_str = get_h264_encoder(preview_bitrate, platform="r58")
+    encoder_str, caps_str, _ = get_h264_hardware_encoder(preview_bitrate)
 
     # Preview pipeline: stream to MediaMTX only (no recording)
     if mediamtx_path:
@@ -550,10 +573,10 @@ def build_r58_ingest_pipeline(
             f"video/x-raw,width={width},height={height},framerate=30/1,format=NV12"
         )
 
-    # Use H.265 hardware encoder (mpph265enc - tested stable 2025-12-19)
-    encoder_str, caps_str, parse_str = get_h265_encoder(bitrate)
+    # Use H.264 hardware encoder (mpph264enc - raspberry.ninja-proven config)
+    encoder_str, caps_str, parse_str = get_h264_hardware_encoder(bitrate)
     
-    # Stream to MediaMTX via RTSP (H.265 native support)
+    # Stream to MediaMTX via RTSP (H.264 native support)
     # Using rtspclientsink with UDP transport for low latency
     # rtspclientsink handles RTP payloading internally
     # Pipeline: encode → parse → RTSP client sink
@@ -584,24 +607,23 @@ def build_recording_subscriber_pipeline(
     This pipeline reads from an RTSP source (MediaMTX) instead of directly
     from a V4L2 device, allowing recording to be independent of ingest.
     
-    NOTE: The ingest pipeline now streams H.265 to MediaMTX via RTP.
-    This pipeline uses H.265 depay/parse for recording.
+    NOTE: The ingest pipeline now streams H.264 to MediaMTX via RTP.
+    This pipeline uses H.264 depay/parse for recording.
     
     Args:
         cam_id: Camera identifier
         source_url: RTSP URL to subscribe to (e.g., rtsp://localhost:8554/cam0)
         output_path: Path to output file
-        codec: Codec parameter (ignored - always H.265 from ingest)
+        codec: Codec parameter (ignored - always H.264 from ingest)
     """
     # RTSP source with minimal latency
-    # Use H.265 depay because ingest now streams H.265 via RTP
+    # Use H.264 depay because ingest now streams H.264 via RTP
     # UDP protocol is faster for local connections
-    source_str = f"rtspsrc location={source_url} latency=100 protocols=udp ! rtph265depay"
+    source_str = f"rtspsrc location={source_url} latency=100 protocols=udp ! rtph264depay"
     
-    # Use H.265 parser and Matroska muxer (MKV supports H.265 natively)
-    # Matroska is more flexible than MP4 for H.265 and supports fragmentation
-    parse_str = "h265parse"
-    mux_str = "matroskamux"
+    # Use H.264 parser and MP4 muxer (MP4 has excellent H.264 support)
+    parse_str = "h264parse"
+    mux_str = "mp4mux"
     
     # Use splitmuxsink for clean file segments (optional, can segment by time)
     # max-size-time in nanoseconds (3600000000000 = 1 hour)
