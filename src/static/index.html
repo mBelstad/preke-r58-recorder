@@ -965,7 +965,19 @@
                 startLevel: -1,
                 startFragPrefetch: true,
                 testBandwidth: false,
-                progressive: false
+                progressive: false,
+                // Fragment retry settings for network resilience
+                fragLoadingMaxRetry: 6,           // Retry fragment loads up to 6 times
+                fragLoadingRetryDelay: 500,       // Wait 500ms between retries
+                fragLoadingMaxRetryTimeout: 30000, // Max 30s for fragment loading retries
+                manifestLoadingMaxRetry: 4,       // Retry manifest loads up to 4 times
+                manifestLoadingRetryDelay: 1000,  // Wait 1s between manifest retries
+                levelLoadingMaxRetry: 4,          // Retry level loading up to 4 times
+                levelLoadingRetryDelay: 1000,     // Wait 1s between level retries
+                // Increase timeout for slow connections
+                fragLoadingTimeOut: 20000,        // 20s timeout for fragment loading
+                manifestLoadingTimeOut: 15000,    // 15s timeout for manifest loading
+                levelLoadingTimeOut: 15000        // 15s timeout for level loading
             };
         }
         
@@ -1763,64 +1775,98 @@
                     updateStats();
                 };
                 
+                // Only log stalled events - don't aggressively recover as it causes instability
                 video.onstalled = () => {
-                    console.warn(`Video stalled for ${camId}, attempting recovery...`);
-                    if (hlsPlayers[camId]) {
-                        hlsPlayers[camId].recoverMediaError();
-                    }
+                    console.debug(`Video stalled for ${camId} - will recover automatically if needed`);
                 };
                 
-                // Track retry count to avoid infinite retries
+                // Track retry count and last recovery time to avoid infinite retries
                 if (!hls.retryCount) hls.retryCount = 0;
+                if (!hls.lastMediaRecovery) hls.lastMediaRecovery = 0;
+                if (!hls.mediaRecoveryCount) hls.mediaRecoveryCount = 0;
                 
                 hls.on(window.Hls.Events.ERROR, (event, data) => {
-                    console.error(`HLS error for ${camId}:`, data);
-                    if (data.fatal) {
-                        if (data.type === window.Hls.ErrorTypes.NETWORK_ERROR) {
-                            // Check if this was a 404/500 - stream doesn't exist
-                            if (data.response && (data.response.code === 404 || data.response.code === 500)) {
-                                console.log(`Stream not available for ${camId} (HTTP ${data.response.code}) - no signal`);
-                                cameraStreamStates[camId] = 'disconnected';
-                                updatePlaceholderStatus(camId, 'no_signal');
-                                updateStats();
-                                return; // Don't retry
-                            }
-                            
-                            // Limit retries to avoid infinite loops
-                            if (hls.retryCount >= 3) {
-                                console.warn(`HLS network error for ${camId} - max retries reached, giving up`);
-                                cameraStreamStates[camId] = 'disconnected';
-                                updatePlaceholderStatus(camId, 'disconnected');
-                                updateStats();
-                                return;
-                            }
-                            hls.retryCount++;
-                            // Retry on network error - check if stream is available first
-                            console.log(`HLS network error for ${camId}, retrying in 2 seconds... (attempt ${hls.retryCount}/3)`);
-                            setTimeout(() => {
-                                // Use correct stream path (no _preview suffix in new architecture)
-                                const streamPath = camId;
-                                const newHlsUrl = getHLSUrl(streamPath);
-                                console.log(`Retrying HLS for ${camId} with path: ${streamPath}`);
-                                hls.loadSource(newHlsUrl);
-                                hls.startLoad();
-                            }, 2000);
-                        } else if (data.type === window.Hls.ErrorTypes.MEDIA_ERROR) {
-                            console.log(`HLS media error for ${camId}, recovering...`);
-                            hls.recoverMediaError();
-                        } else {
-                            console.error(`HLS fatal error for ${camId}:`, data);
+                    // Log non-fatal errors at debug level to reduce noise
+                    if (!data.fatal) {
+                        console.debug(`HLS non-fatal error for ${camId}:`, data.type, data.details);
+                        return; // Non-fatal errors are handled by hls.js internally
+                    }
+                    
+                    console.warn(`HLS fatal error for ${camId}:`, data.type, data.details);
+                    
+                    if (data.type === window.Hls.ErrorTypes.NETWORK_ERROR) {
+                        // Check if this was manifest 404/500 - stream doesn't exist
+                        if (data.details === 'manifestLoadError' && data.response && 
+                            (data.response.code === 404 || data.response.code === 500)) {
+                            console.log(`Stream not available for ${camId} (HTTP ${data.response.code}) - no signal`);
+                            cameraStreamStates[camId] = 'disconnected';
+                            updatePlaceholderStatus(camId, 'no_signal');
+                            updateStats();
+                            return; // Don't retry - no stream
+                        }
+                        
+                        // For fragment errors (expired segments), just retry loading
+                        if (data.details === 'fragLoadError') {
+                            console.debug(`Fragment load error for ${camId}, hls.js will retry automatically`);
+                            hls.startLoad(); // Just trigger reload, don't count as failure
+                            return;
+                        }
+                        
+                        // Limit retries to avoid infinite loops
+                        if (hls.retryCount >= 3) {
+                            console.warn(`HLS network error for ${camId} - max retries reached, giving up`);
                             cameraStreamStates[camId] = 'disconnected';
                             updatePlaceholderStatus(camId, 'disconnected');
                             updateStats();
-                            // Only retry once for fatal errors
-                            if (hls.retryCount < 1) {
-                                hls.retryCount++;
-                                setTimeout(() => {
-                                    console.log(`Retrying HLS preview for ${camId} after fatal error...`);
-                                    startHLSPreview(video, camId, placeholder);
-                                }, 3000);
-                            }
+                            return;
+                        }
+                        hls.retryCount++;
+                        console.log(`HLS network error for ${camId}, retrying in 2 seconds... (attempt ${hls.retryCount}/3)`);
+                        setTimeout(() => {
+                            const streamPath = camId;
+                            const newHlsUrl = getHLSUrl(streamPath);
+                            console.log(`Retrying HLS for ${camId} with path: ${streamPath}`);
+                            hls.loadSource(newHlsUrl);
+                            hls.startLoad();
+                        }, 2000);
+                    } else if (data.type === window.Hls.ErrorTypes.MEDIA_ERROR) {
+                        // Rate-limit media error recovery to prevent infinite loops
+                        const now = Date.now();
+                        const timeSinceLastRecovery = now - hls.lastMediaRecovery;
+                        
+                        // Reset recovery count if it's been more than 30 seconds
+                        if (timeSinceLastRecovery > 30000) {
+                            hls.mediaRecoveryCount = 0;
+                        }
+                        
+                        // Only recover if not too many recent attempts
+                        if (hls.mediaRecoveryCount < 3 && timeSinceLastRecovery > 2000) {
+                            console.log(`HLS media error for ${camId}, recovering... (attempt ${hls.mediaRecoveryCount + 1}/3)`);
+                            hls.lastMediaRecovery = now;
+                            hls.mediaRecoveryCount++;
+                            hls.recoverMediaError();
+                        } else if (hls.mediaRecoveryCount >= 3) {
+                            // Too many recovery attempts, reload the stream
+                            console.warn(`HLS media error for ${camId} - too many recovery attempts, reloading stream...`);
+                            hls.mediaRecoveryCount = 0;
+                            hls.lastMediaRecovery = now;
+                            const hlsUrl = getHLSUrl(camId);
+                            hls.loadSource(hlsUrl);
+                            hls.startLoad();
+                        }
+                        // If timeSinceLastRecovery < 2000, just skip - too soon to retry
+                    } else {
+                        console.error(`HLS fatal error for ${camId}:`, data);
+                        cameraStreamStates[camId] = 'disconnected';
+                        updatePlaceholderStatus(camId, 'disconnected');
+                        updateStats();
+                        // Only retry once for fatal errors
+                        if (hls.retryCount < 1) {
+                            hls.retryCount++;
+                            setTimeout(() => {
+                                console.log(`Retrying HLS preview for ${camId} after fatal error...`);
+                                startHLSPreview(video, camId, placeholder);
+                            }, 3000);
                         }
                     }
                 });
