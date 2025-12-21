@@ -1363,29 +1363,35 @@
             
             // Try WebRTC first for ultra-low latency (local access only)
             if (window.RTCPeerConnection && !IS_REMOTE) {
+                console.log(`🎥 [${camId}] Attempting WebRTC connection (local access)`);
                 const webrtcUrl = getWebRTCUrl(streamPath);
+                console.log(`🎥 [${camId}] WebRTC URL: ${webrtcUrl}`);
                 startWebRTCPreview(video, webrtcUrl, camId, placeholder);
             } else {
+                console.log(`📺 [${camId}] Using HLS fallback (IS_REMOTE: ${IS_REMOTE}, RTCPeerConnection: ${!!window.RTCPeerConnection})`);
                 // Use HLS for remote access or no WebRTC support
                 startHLSPreview(video, camId, placeholder, streamPath);
             }
         }
 
         function startWebRTCPreview(video, webrtcUrl, camId, placeholder) {
+            console.log(`🔌 [${camId}] startWebRTCPreview called`);
+            
             // Close existing connection if any
             if (webrtcConnections[camId]) {
-                console.log(`Closing existing WebRTC connection for ${camId}`);
+                console.log(`🔌 [${camId}] Closing existing WebRTC connection`);
                 webrtcConnections[camId].close();
                 webrtcConnections[camId] = null;
             }
             
             // Prevent multiple simultaneous connections
             if (video.dataset.connecting === 'true') {
-                console.log(`WebRTC connection already in progress for ${camId}, skipping`);
+                console.log(`⚠️ [${camId}] WebRTC connection already in progress, skipping`);
                 return;
             }
             video.dataset.connecting = 'true';
 
+            console.log(`🔌 [${camId}] Creating RTCPeerConnection`);
             const pc = new RTCPeerConnection({
                 iceServers: [
                     { urls: 'stun:stun.l.google.com:19302' },
@@ -1676,12 +1682,15 @@
 
             let resourceUrl = null;
 
+            console.log(`🔌 [${camId}] Creating WebRTC offer...`);
             pc.createOffer({
                 offerToReceiveVideo: true,
                 offerToReceiveAudio: true
             }).then(offer => {
+                console.log(`🔌 [${camId}] Offer created, setting local description`);
                 return pc.setLocalDescription(offer);
             }).then(() => {
+                console.log(`🔌 [${camId}] Sending WHEP request to: ${webrtcUrl}`);
                 return fetch(webrtcUrl, {
                     method: 'POST',
                     headers: { 
@@ -1691,33 +1700,37 @@
                     body: pc.localDescription.sdp
                 });
             }).then(response => {
+                console.log(`🔌 [${camId}] WHEP response status: ${response.status}`);
                 if (!response.ok) {
-                    throw new Error(`WHEP error: ${response.status}`);
+                    throw new Error(`WHEP error: ${response.status} ${response.statusText}`);
                 }
                 resourceUrl = response.headers.get('Location') || webrtcUrl;
+                console.log(`🔌 [${camId}] Resource URL: ${resourceUrl}`);
                 return response.text();
             }).then(answerSdp => {
-                console.log(`Received SDP answer for ${camId}, setting remote description...`);
+                console.log(`✅ [${camId}] Received SDP answer, setting remote description...`);
                 return pc.setRemoteDescription({ type: 'answer', sdp: answerSdp });
             }).then(() => {
-                console.log(`Remote description set for ${camId}`);
+                console.log(`✅ [${camId}] Remote description set successfully`);
                 pc.onicecandidate = (event) => {
                     if (event.candidate && resourceUrl) {
+                        console.log(`🧊 [${camId}] Sending ICE candidate`);
                         fetch(resourceUrl, {
                             method: 'PATCH',
                             headers: { 'Content-Type': 'application/trickle-ice-sdpfrag' },
                             body: 'a=' + event.candidate.candidate
-                        }).catch(err => console.warn('ICE candidate send failed:', err));
+                        }).catch(err => console.warn(`⚠️ [${camId}] ICE candidate send failed:`, err));
                     }
                 };
                 webrtcConnections[camId] = pc;
                 video.dataset.connecting = 'false';
-                console.log(`WebRTC preview started for ${camId} (ultra-low latency)`);
+                console.log(`✅ [${camId}] WebRTC preview started (ultra-low latency)`);
             }).catch(error => {
                 video.dataset.connecting = 'false';
-                console.error(`WebRTC setup failed for ${camId}:`, error);
+                console.error(`❌ [${camId}] WebRTC setup failed:`, error);
                 cameraStreamStates[camId] = 'disconnected';
                 updatePlaceholderStatus(camId, 'disconnected');
+                console.log(`📺 [${camId}] Falling back to HLS`);
                 // Fallback to HLS with correct path
                 startHLSPreview(video, camId, placeholder);
             });
