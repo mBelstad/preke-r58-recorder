@@ -7,9 +7,9 @@ services:
       dockerfile: Dockerfile
     container_name: r58-turn-api
     restart: unless-stopped
+    env_file:
+      - .env.production
     environment:
-      - CF_TURN_ID=${CF_TURN_ID}
-      - CF_TURN_TOKEN=${CF_TURN_TOKEN}
       - PORT=3000
     networks:
       - coolify
