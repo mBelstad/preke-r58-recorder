@@ -47,14 +47,14 @@ fi
 
 # Stop existing containers if any
 echo "🛑 Stopping existing containers..."
-docker-compose -f docker-compose.production.yml down 2>/dev/null || true
+docker compose -f docker-compose.production.yml down 2>/dev/null || true
 
 # Build and start services
 echo "🏗️  Building services..."
-docker-compose -f docker-compose.production.yml build --no-cache
+docker compose -f docker-compose.production.yml build --no-cache
 
 echo "🚀 Starting services..."
-docker-compose -f docker-compose.production.yml up -d
+docker compose -f docker-compose.production.yml up -d
 
 # Wait for services to be healthy
 echo "⏳ Waiting for services to be healthy..."
@@ -63,7 +63,7 @@ sleep 10
 # Check service status
 echo ""
 echo "=== Service Status ==="
-docker-compose -f docker-compose.production.yml ps
+docker compose -f docker-compose.production.yml ps
 
 # Test services locally
 echo ""
@@ -99,5 +99,5 @@ echo "  curl https://api.r58.itagenten.no/health"
 echo "  curl https://relay.r58.itagenten.no/health"
 echo ""
 echo "View logs:"
-echo "  docker-compose -f $DEPLOY_DIR/coolify/docker-compose.production.yml logs -f"
+echo "  docker compose -f $DEPLOY_DIR/coolify/docker-compose.production.yml logs -f"
 
