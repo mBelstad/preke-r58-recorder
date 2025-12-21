@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  r58-turn-api:
+    build:
+      context: ./r58-turn-api
+      dockerfile: Dockerfile
+    container_name: r58-turn-api
+    restart: unless-stopped
+    environment:
+      - CF_TURN_ID=${CF_TURN_ID}
+      - CF_TURN_TOKEN=${CF_TURN_TOKEN}
+      - PORT=3000
+    networks:
+      - coolify
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.r58-turn-api.rule=Host(`api.r58.itagenten.no`)"
+      - "traefik.http.routers.r58-turn-api.entrypoints=https"
+      - "traefik.http.routers.r58-turn-api.tls=true"
+      - "traefik.http.routers.r58-turn-api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.r58-turn-api.loadbalancer.server.port=3000"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  r58-relay:
+    build:
+      context: ./r58-relay
+      dockerfile: Dockerfile
+    container_name: r58-relay
+    restart: unless-stopped
+    environment:
+      - PORT=8080
+    networks:
+      - coolify
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.r58-relay.rule=Host(`relay.r58.itagenten.no`)"
+      - "traefik.http.routers.r58-relay.entrypoints=https"
+      - "traefik.http.routers.r58-relay.tls=true"
+      - "traefik.http.routers.r58-relay.tls.certresolver=letsencrypt"
+      - "traefik.http.services.r58-relay.loadbalancer.server.port=8080"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  coolify:
+    external: true
+
