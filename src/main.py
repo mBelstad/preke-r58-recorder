@@ -657,9 +657,9 @@ async def proxy_whep(stream_path: str, request: Request):
         # Get request body
         body = await request.body()
         
-        # Forward to MediaMTX WHEP endpoint
-        async with httpx.AsyncClient() as client:
-            mediamtx_url = f"http://localhost:8889/{stream_path}/whep"
+        # Forward to MediaMTX WHEP endpoint (HTTPS because webrtcEncryption is enabled)
+        async with httpx.AsyncClient(verify=False) as client:
+            mediamtx_url = f"https://localhost:8889/{stream_path}/whep"
             
             response = await client.post(
                 mediamtx_url,
@@ -712,8 +712,8 @@ async def proxy_whep_resource(stream_path: str, request: Request):
     try:
         body = await request.body()
         
-        async with httpx.AsyncClient() as client:
-            mediamtx_url = f"http://localhost:8889/{stream_path}"
+        async with httpx.AsyncClient(verify=False) as client:
+            mediamtx_url = f"https://localhost:8889/{stream_path}"
             
             response = await client.patch(
                 mediamtx_url,
