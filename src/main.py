@@ -683,6 +683,10 @@ async def proxy_whep(stream_path: str, request: Request):
                     location = location.replace("http://localhost:8889/", "/whep-resource/")
                 response_headers["Location"] = location
             
+            # Log the response for debugging
+            if response.status_code != 200:
+                logger.error(f"WHEP error for {stream_path}: {response.status_code} - {response.text}")
+            
             return Response(
                 content=response.content,
                 status_code=response.status_code,
