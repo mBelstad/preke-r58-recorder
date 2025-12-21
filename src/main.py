@@ -705,17 +705,39 @@ async def whip_options(stream_path: str):
 
 @app.get("/api/turn-credentials")
 async def get_turn_credentials() -> Dict[str, Any]:
-    """Generate short-lived Cloudflare TURN credentials for remote WebRTC guests.
+    """Get TURN credentials from Coolify TURN API.
     
-    This endpoint calls the Cloudflare TURN API to generate ICE servers with
-    temporary credentials (24 hour TTL). These credentials enable remote guests
-    to connect via WebRTC through the Cloudflare Tunnel by using TURN relay.
+    This endpoint fetches ICE servers with temporary credentials from the centralized
+    Coolify TURN API. This enables remote guests to connect via WebRTC using TURN relay.
     
-    Environment variables required:
-    - CLOUDFLARE_TURN_TOKEN_ID: The TURN token ID from Cloudflare
-    - CLOUDFLARE_TURN_API_TOKEN: The API token for TURN credentials
+    The Coolify TURN API handles credential generation and caching, providing a
+    centralized point for TURN configuration across all R58 devices.
+    
+    Fallback: If Coolify API is unavailable, uses direct Cloudflare TURN API.
     """
     import os
+    
+    # Try Coolify TURN API first
+    COOLIFY_TURN_API = os.environ.get("COOLIFY_TURN_API_URL", "https://api.r58.itagenten.no/turn-credentials")
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                COOLIFY_TURN_API,
+                timeout=10.0
+            )
+            
+            if response.is_success:
+                data = response.json()
+                logger.info("✓ TURN credentials obtained from Coolify API")
+                return data
+            else:
+                logger.warning(f"Coolify TURN API returned {response.status_code}, trying fallback...")
+                
+    except Exception as e:
+        logger.warning(f"Coolify TURN API unavailable ({e}), using fallback...")
+    
+    # Fallback to direct Cloudflare TURN API
     TURN_TOKEN_ID = os.environ.get("CLOUDFLARE_TURN_TOKEN_ID", "")
     API_TOKEN = os.environ.get("CLOUDFLARE_TURN_API_TOKEN", "")
     
