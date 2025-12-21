@@ -942,14 +942,14 @@
             },
             stable: {
                 lowLatencyMode: false,
-                backBufferLength: 10,
-                maxBufferLength: 30,
-                maxMaxBufferLength: 90,
-                maxBufferHole: 2,
-                maxStarvationDelay: 8,
-                maxLoadingDelay: 8,
-                liveSyncDurationCount: 10,
-                liveMaxLatencyDurationCount: 20,
+                backBufferLength: 30,           // Keep 30s back buffer
+                maxBufferLength: 60,            // Buffer up to 60s ahead
+                maxMaxBufferLength: 120,        // Allow up to 120s max buffer
+                maxBufferHole: 5,               // Tolerate 5s gaps in buffer
+                maxStarvationDelay: 10,         // Wait 10s before giving up
+                maxLoadingDelay: 10,            // Wait 10s for loading
+                liveSyncDurationCount: 8,       // Sync to 8 segments behind live
+                liveMaxLatencyDurationCount: 15 // Max 15 segments latency
             }
         };
         
@@ -977,7 +977,12 @@
                 // Increase timeout for slow connections
                 fragLoadingTimeOut: 20000,        // 20s timeout for fragment loading
                 manifestLoadingTimeOut: 15000,    // 15s timeout for manifest loading
-                levelLoadingTimeOut: 15000        // 15s timeout for level loading
+                levelLoadingTimeOut: 15000,       // 15s timeout for level loading
+                // Gap handling for live streams with expired segments
+                enableWorker: true,               // Use web worker for better performance
+                enableSoftwareAES: true,          // Fallback for AES if needed
+                abrEwmaDefaultEstimate: 1000000,  // Assume 1Mbps initially
+                abrEwmaDefaultEstimateMax: 5000000 // Cap at 5Mbps
             };
         }
         
@@ -1788,7 +1793,17 @@
                 hls.on(window.Hls.Events.ERROR, (event, data) => {
                     // Log non-fatal errors at debug level to reduce noise
                     if (!data.fatal) {
-                        console.debug(`HLS non-fatal error for ${camId}:`, data.type, data.details);
+                        // Filter out very common/noisy non-fatal errors
+                        if (data.details === 'fragGap' || data.details === 'bufferStalledError') {
+                            // These are expected during normal operation, only log occasionally
+                            if (!hls.nonFatalCount) hls.nonFatalCount = 0;
+                            hls.nonFatalCount++;
+                            if (hls.nonFatalCount % 10 === 1) {
+                                console.debug(`HLS non-fatal: ${camId} - ${data.details} (count: ${hls.nonFatalCount})`);
+                            }
+                        } else {
+                            console.debug(`HLS non-fatal error for ${camId}:`, data.type, data.details);
+                        }
                         return; // Non-fatal errors are handled by hls.js internally
                     }
                     
