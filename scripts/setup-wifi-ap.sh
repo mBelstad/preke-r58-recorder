@@ -127,18 +127,18 @@ fi
 
 echo "  Internet interface: $INTERNET_INTERFACE"
 
-# Set up NAT rules
-iptables -t nat -A POSTROUTING -o $INTERNET_INTERFACE -j MASQUERADE
-iptables -A FORWARD -i $INTERNET_INTERFACE -o $WIFI_INTERFACE -m state --state RELATED,ESTABLISHED -j ACCEPT
-iptables -A FORWARD -i $WIFI_INTERFACE -o $INTERNET_INTERFACE -j ACCEPT
+# Set up NAT rules using legacy iptables
+iptables-legacy -t nat -A POSTROUTING -o $INTERNET_INTERFACE -j MASQUERADE
+iptables-legacy -A FORWARD -i $INTERNET_INTERFACE -o $WIFI_INTERFACE -m state --state RELATED,ESTABLISHED -j ACCEPT
+iptables-legacy -A FORWARD -i $WIFI_INTERFACE -o $INTERNET_INTERFACE -j ACCEPT
 
 # Save iptables rules
-iptables-save > /etc/iptables.rules
+iptables-legacy-save > /etc/iptables.rules
 
 # Create script to restore iptables on boot
 cat > /etc/network/if-pre-up.d/iptables <<'EOF'
 #!/bin/sh
-/sbin/iptables-restore < /etc/iptables.rules
+/sbin/iptables-legacy-restore < /etc/iptables.rules
 EOF
 chmod +x /etc/network/if-pre-up.d/iptables
 
