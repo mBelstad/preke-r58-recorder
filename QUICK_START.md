@@ -1,128 +1,191 @@
-# R58 Recorder - Quick Start Guide
-**Get recording in 30 seconds!**
+# Quick Start Guide - R58 Fleet Management
+
+## What's Been Done ✅
+
+1. **R58 TURN API** - Deployed and working at `https://api.r58.itagenten.no`
+2. **R58 WebSocket Relay** - Deployed and working at `https://relay.r58.itagenten.no`
+3. **Fleet Manager** - Fully implemented and ready to deploy
 
 ---
 
-## 🎬 Start Recording
+## What You Need to Do 🚀
 
-### Via Web Dashboard
-1. Open: http://recorder.itagenten.no/
-2. Click **"Start All Recordings"** button
-3. Watch session ID and disk space appear
-4. Click **"Stop All Recordings"** when done
+### Step 1: Push Fleet Manager to GitHub (2 minutes)
 
-### Via API
 ```bash
-# Start
-curl -X POST http://recorder.itagenten.no/api/trigger/start
+cd /Users/mariusbelstad/R58\ app/r58-fleet-manager
 
-# Stop
-curl -X POST http://recorder.itagenten.no/api/trigger/stop
-
-# Check status
-curl http://recorder.itagenten.no/api/trigger/status
+# Create GitHub repo (via GitHub web interface or CLI)
+# Then push:
+git remote add origin https://github.com/YOUR_USERNAME/r58-fleet-manager.git
+git push -u origin main
 ```
 
----
+### Step 2: Deploy Fleet Manager to Coolify (10 minutes)
 
-## 📚 View Recordings
+**Option A: Docker Compose (Easiest)**
 
-### Library Page
-- URL: http://recorder.itagenten.no/static/library.html
-- Browse by date and session
-- Copy session IDs
-- Download metadata
-- Play recordings
-
-### Direct Access
-- SMB/NFS: `/mnt/sdcard/recordings/`
-- cam1: `/mnt/sdcard/recordings/cam1/`
-- cam2: `/mnt/sdcard/recordings/cam2/`
-- cam3: `/mnt/sdcard/recordings/cam3/`
-
----
-
-## 📊 Monitor Recording
-
-### Real-Time Monitor
 ```bash
-./monitor_recording.sh
+# SSH to Coolify server
+ssh root@65.109.32.111
+# Password: PNnPtBmEKpiB23
+
+# Clone and deploy
+cd /opt
+git clone https://github.com/YOUR_USERNAME/r58-fleet-manager.git
+cd r58-fleet-manager
+docker-compose up -d
+
+# Verify
+curl http://localhost:3001/health
 ```
 
-Shows:
-- Duration
-- Disk space
-- Camera status
-- Estimated file size
+**Option B: Via Coolify Dashboard**
 
-### Quick Status Check
+1. Open Coolify dashboard
+2. Create new application
+3. Source: Git repository (r58-fleet-manager)
+4. Build Pack: Dockerfile
+5. Context: `api/`
+6. Ports: `3001`, `3002`
+7. Deploy
+
+### Step 3: Install Agent on R58 (5 minutes)
+
 ```bash
-curl -s http://recorder.itagenten.no/api/trigger/status | python3 -m json.tool
-```
+# From your Mac
+cd /Users/mariusbelstad/R58\ app/r58-fleet-manager/agent
+scp -r . linaro@r58.itagenten.no:/tmp/agent/
 
----
-
-## 🎯 Recording Quality
-
-### Current Settings
-- **Resolution**: 1920x1080 (Full HD)
-- **Bitrate**: 7-8 Mbps (actual)
-- **Codec**: H.264
-- **Frame Rate**: 30 fps
-- **Keyframes**: 1 per second
-- **Format**: Fragmented MP4
-
-### Perfect For
-- ✅ Social media (Instagram, YouTube, TikTok)
-- ✅ Proxy editing in DaVinci Resolve
-- ✅ Live editing on growing files
-- ✅ Multi-camera synchronization
-
----
-
-## 💾 Storage
-
-- **Available**: 443 GB
-- **Usage**: ~9.7 GB/hour (3 cameras)
-- **Capacity**: ~45 hours of recording
-
----
-
-## 🔧 Quick Troubleshooting
-
-### Recording Won't Start
-```bash
-# Check disk space (need > 10 GB)
-curl http://recorder.itagenten.no/api/trigger/status | grep free_gb
-```
-
-### Check Service Status
-```bash
+# SSH to R58
 ssh linaro@r58.itagenten.no
-ps aux | grep uvicorn
+cd /tmp/agent
+
+# Install (replace with your Fleet API URL if different)
+sudo FLEET_API_URL="ws://fleet.itagenten.no:3002" ./install.sh
+
+# Verify
+sudo systemctl status r58-fleet-agent
 ```
 
-### View Logs
+### Step 4: Access Dashboard
+
+Open in browser:
+```
+http://fleet.itagenten.no:3001
+```
+
+You should see your R58 device listed as "online"!
+
+---
+
+## Testing Remote Control
+
+1. **Restart Services**:
+   - Click "Restart" button in dashboard
+   - R58 services will restart
+   - Device will reconnect automatically
+
+2. **Update Software**:
+   - Click "Update" button
+   - Enter branch name (e.g., "main")
+   - R58 will git pull and restart
+
+3. **View Logs**:
+   - Click "Logs" button
+   - See centralized logs from R58
+
+---
+
+## Troubleshooting
+
+### Fleet API Not Accessible
+
 ```bash
-ssh linaro@r58.itagenten.no
-tail -50 /tmp/r58-service.log
+# Check if running
+docker ps | grep fleet
+
+# Check logs
+docker logs r58-fleet-api
+
+# Restart
+cd /opt/r58-fleet-manager
+docker-compose restart
 ```
 
+### Agent Not Connecting
+
+```bash
+# On R58, check agent status
+sudo systemctl status r58-fleet-agent
+
+# View logs
+sudo journalctl -u r58-fleet-agent -f
+
+# Restart agent
+sudo systemctl restart r58-fleet-agent
+```
+
+### Device Not Showing in Dashboard
+
+1. Check agent is running on R58
+2. Check Fleet API URL is correct
+3. Check WebSocket port 3002 is accessible
+4. Check browser console for errors
+
 ---
 
-## 📖 Full Documentation
+## Next Steps After Testing
 
-- **PRODUCTION_MONITORING_GUIDE.md** - Complete monitoring guide
-- **PRODUCTION_TEST_RESULTS.md** - Test results and analysis
-- **DEPLOYMENT_TEST_REPORT.md** - Full deployment report
-- **RECORDING_FILE_ANALYSIS.md** - File quality analysis
-- **ISSUES_AND_RECOMMENDATIONS.md** - Known issues and fixes
+1. **Configure DNS** (optional):
+   - Add `fleet.itagenten.no` A record → `65.109.32.111`
+   - Update Fleet API URL in agent
+
+2. **Add More Devices**:
+   - Install agent on additional R58 units
+   - Each will auto-register with unique ID
+
+3. **Enable SSL for Fleet API** (recommended):
+   - Add Traefik labels to docker-compose
+   - Similar to R58 TURN API setup
+
+4. **Customize Dashboard**:
+   - Edit `dashboard/index.html`
+   - Add venue names, custom metrics, etc.
 
 ---
 
-## 🎉 You're Ready!
+## Files You Need
 
-The system is production-ready. Start recording and enjoy! 🚀
+All files are already created:
 
-**Support**: Check the documentation files for detailed guides and troubleshooting.
+**R58 Services** (already deployed):
+- `coolify/r58-turn-api/` ✅
+- `coolify/r58-relay/` ✅
 
+**Fleet Manager** (ready to deploy):
+- `r58-fleet-manager/api/` ✅
+- `r58-fleet-manager/agent/` ✅
+- `r58-fleet-manager/dashboard/` ✅
+- `r58-fleet-manager/docker-compose.yml` ✅
+
+**Documentation**:
+- `IMPLEMENTATION_COMPLETE_DEC21.md` - Full details
+- `r58-fleet-manager/README.md` - Fleet Manager docs
+- `r58-fleet-manager/agent/README.md` - Agent docs
+
+---
+
+## Summary
+
+**Time Required**: ~20 minutes total
+- Push to GitHub: 2 min
+- Deploy Fleet Manager: 10 min
+- Install agent on R58: 5 min
+- Test: 3 min
+
+**Result**: Full fleet management system operational!
+
+---
+
+**Questions?** Check `IMPLEMENTATION_COMPLETE_DEC21.md` for detailed information.
