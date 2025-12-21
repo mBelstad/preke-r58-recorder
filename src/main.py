@@ -634,6 +634,108 @@ async def proxy_hls(stream_path: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/whep/{stream_path}")
+@app.options("/whep/{stream_path}")
+async def proxy_whep(stream_path: str, request: Request):
+    """Proxy WHEP requests to MediaMTX for WebRTC viewing.
+    
+    This enables WebRTC viewing through the same origin, avoiding CORS issues.
+    """
+    # Handle OPTIONS preflight
+    if request.method == "OPTIONS":
+        return Response(
+            status_code=200,
+            headers={
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "POST, PATCH, OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type, Accept",
+                "Access-Control-Max-Age": "86400",
+            }
+        )
+    
+    try:
+        # Get request body
+        body = await request.body()
+        
+        # Forward to MediaMTX WHEP endpoint
+        async with httpx.AsyncClient() as client:
+            mediamtx_url = f"http://localhost:8889/{stream_path}/whep"
+            
+            response = await client.post(
+                mediamtx_url,
+                content=body,
+                headers={
+                    "Content-Type": request.headers.get("Content-Type", "application/sdp"),
+                    "Accept": request.headers.get("Accept", "application/sdp"),
+                },
+                timeout=10.0
+            )
+            
+            # Get Location header if present
+            location = response.headers.get("Location")
+            response_headers = {
+                "Access-Control-Allow-Origin": "*",
+                "Content-Type": response.headers.get("Content-Type", "application/sdp"),
+            }
+            if location:
+                # Rewrite Location header to point to our proxy
+                if location.startswith("http://localhost:8889/"):
+                    location = location.replace("http://localhost:8889/", "/whep-resource/")
+                response_headers["Location"] = location
+            
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                headers=response_headers
+            )
+    except Exception as e:
+        logger.error(f"WHEP proxy error for {stream_path}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.patch("/whep-resource/{stream_path:path}")
+@app.options("/whep-resource/{stream_path:path}")
+async def proxy_whep_resource(stream_path: str, request: Request):
+    """Proxy WHEP resource requests (ICE candidates) to MediaMTX."""
+    # Handle OPTIONS preflight
+    if request.method == "OPTIONS":
+        return Response(
+            status_code=200,
+            headers={
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "PATCH, OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type",
+                "Access-Control-Max-Age": "86400",
+            }
+        )
+    
+    try:
+        body = await request.body()
+        
+        async with httpx.AsyncClient() as client:
+            mediamtx_url = f"http://localhost:8889/{stream_path}"
+            
+            response = await client.patch(
+                mediamtx_url,
+                content=body,
+                headers={
+                    "Content-Type": request.headers.get("Content-Type", "application/trickle-ice-sdpfrag"),
+                },
+                timeout=10.0
+            )
+            
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                headers={
+                    "Access-Control-Allow-Origin": "*",
+                }
+            )
+    except Exception as e:
+        logger.error(f"WHEP resource proxy error for {stream_path}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/whip/{stream_path}")
 async def proxy_whip(stream_path: str, request: Request):
     """Proxy WHIP requests to MediaMTX for remote guest publishing.

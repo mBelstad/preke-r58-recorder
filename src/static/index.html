@@ -893,8 +893,8 @@
         }
         
         function getWebRTCUrl(streamPath) {
-            // WebRTC only works for local access
-            return `http://${HOSTNAME}:8889/${streamPath}/whep`;
+            // Use proxied WHEP endpoint to avoid CORS issues
+            return `${API_BASE}/whep/${streamPath}`;
         }
         
         // Log access mode for debugging
