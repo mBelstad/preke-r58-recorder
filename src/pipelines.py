@@ -573,8 +573,9 @@ def build_r58_ingest_pipeline(
             f"video/x-raw,width={width},height={height},framerate=30/1,format=NV12"
         )
 
-    # Use H.264 hardware encoder (mpph264enc - raspberry.ninja-proven config)
-    encoder_str, caps_str, parse_str = get_h264_hardware_encoder(bitrate)
+    # Use H.265 hardware encoder (mpph265enc - stable for MediaMTX HLS)
+    # Note: H.264 causes DTS extraction errors in MediaMTX HLS muxer
+    encoder_str, caps_str, parse_str = get_h265_encoder(bitrate)
     
     # Stream to MediaMTX via RTSP (H.264 native support)
     # Using rtspclientsink with UDP transport for low latency
@@ -617,13 +618,13 @@ def build_recording_subscriber_pipeline(
         codec: Codec parameter (ignored - always H.264 from ingest)
     """
     # RTSP source with minimal latency
-    # Use H.264 depay because ingest now streams H.264 via RTP
+    # Use H.265 depay because ingest now streams H.265 via RTP
     # UDP protocol is faster for local connections
-    source_str = f"rtspsrc location={source_url} latency=100 protocols=udp ! rtph264depay"
+    source_str = f"rtspsrc location={source_url} latency=100 protocols=udp ! rtph265depay"
     
-    # Use H.264 parser and MP4 muxer (MP4 has excellent H.264 support)
-    parse_str = "h264parse"
-    mux_str = "mp4mux"
+    # Use H.265 parser and Matroska muxer (MKV has excellent H.265 support)
+    parse_str = "h265parse"
+    mux_str = "matroskamux"
     
     # Use splitmuxsink for clean file segments (optional, can segment by time)
     # max-size-time in nanoseconds (3600000000000 = 1 hour)
