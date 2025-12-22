@@ -898,7 +898,7 @@
         }
         
         // Log access mode for debugging
-        console.log(`Access mode: ${IS_REMOTE ? 'REMOTE (using HLS proxy)' : 'LOCAL (using MediaMTX directly)'}`);
+        console.log(`Access mode: ${IS_REMOTE ? 'REMOTE (HLS via Cloudflare tunnel)' : 'LOCAL (WebRTC + HLS fallback)'}`);
         console.log(`HLS URL example: ${getHLSUrl('cam0')}`);
         
         let recordingState = false;
@@ -912,7 +912,8 @@
         let cameraStreamStates = {}; // Track which cameras have active streams
         
         // Stream optimization settings
-        let streamMode = localStorage.getItem('streamMode') || 'balanced'; // 'lowlatency', 'balanced', 'stable'
+        // Use stable mode for remote access (Cloudflare tunnel), balanced for local
+        let streamMode = localStorage.getItem('streamMode') || (IS_REMOTE ? 'stable' : 'balanced'); // 'lowlatency', 'balanced', 'stable'
         let lastVideoTimes = {}; // Track video.currentTime for freeze detection
         let freezeCheckInterval = null;
         
@@ -942,14 +943,20 @@
             },
             stable: {
                 lowLatencyMode: false,
-                backBufferLength: 30,           // Keep 30s back buffer
+                backBufferLength: 90,           // Keep 90s of back buffer
                 maxBufferLength: 60,            // Buffer up to 60s ahead
                 maxMaxBufferLength: 120,        // Allow up to 120s max buffer
                 maxBufferHole: 5,               // Tolerate 5s gaps in buffer
                 maxStarvationDelay: 10,         // Wait 10s before giving up
                 maxLoadingDelay: 10,            // Wait 10s for loading
                 liveSyncDurationCount: 8,       // Sync to 8 segments behind live
-                liveMaxLatencyDurationCount: 15 // Max 15 segments latency
+                liveMaxLatencyDurationCount: 15, // Max 15 segments latency
+                manifestLoadingTimeOut: 20000,  // 20s timeout for manifest
+                manifestLoadingMaxRetry: 10,    // Retry manifest 10 times
+                levelLoadingTimeOut: 20000,     // 20s timeout for segments
+                levelLoadingMaxRetry: 10,       // Retry segments 10 times
+                fragLoadingTimeOut: 30000,      // 30s timeout for fragments
+                fragLoadingMaxRetry: 10         // Retry fragments 10 times
             }
         };
         
@@ -1361,15 +1368,15 @@
             // In always-on ingest architecture, all streams use cam0, cam1, etc.
             const streamPath = `${camId}`;
             
-            // Try WebRTC first for ultra-low latency (local access only)
+            // Try WebRTC first for ultra-low latency (local access only - doesn't work through Cloudflare tunnel)
             if (window.RTCPeerConnection && !IS_REMOTE) {
                 console.log(`🎥 [${camId}] Attempting WebRTC connection (local access)`);
                 const webrtcUrl = getWebRTCUrl(streamPath);
                 console.log(`🎥 [${camId}] WebRTC URL: ${webrtcUrl}`);
                 startWebRTCPreview(video, webrtcUrl, camId, placeholder);
             } else {
-                console.log(`📺 [${camId}] Using HLS fallback (IS_REMOTE: ${IS_REMOTE}, RTCPeerConnection: ${!!window.RTCPeerConnection})`);
-                // Use HLS for remote access or no WebRTC support
+                console.log(`📺 [${camId}] Using HLS for ${IS_REMOTE ? 'remote' : 'local'} access`);
+                // Use HLS for remote access (WebRTC doesn't work through Cloudflare tunnel)
                 startHLSPreview(video, camId, placeholder, streamPath);
             }
         }
@@ -1798,11 +1805,6 @@
                     console.debug(`Video stalled for ${camId} - will recover automatically if needed`);
                 };
                 
-                // Track retry count and last recovery time to avoid infinite retries
-                if (!hls.retryCount) hls.retryCount = 0;
-                if (!hls.lastMediaRecovery) hls.lastMediaRecovery = 0;
-                if (!hls.mediaRecoveryCount) hls.mediaRecoveryCount = 0;
-                
                 hls.on(window.Hls.Events.ERROR, (event, data) => {
                     // Log non-fatal errors at debug level to reduce noise
                     if (!data.fatal) {
@@ -1834,9 +1836,16 @@
                         }
                         
                         // For fragment errors (expired segments), just retry loading
-                        if (data.details === 'fragLoadError') {
-                            console.debug(`Fragment load error for ${camId}, hls.js will retry automatically`);
-                            hls.startLoad(); // Just trigger reload, don't count as failure
+                        // Don't restart load immediately - let hls.js handle it with its retry logic
+                        if (data.details === 'fragLoadError' || data.details === 'fragLoadTimeOut') {
+                            console.debug(`Fragment error for ${camId}, hls.js will retry automatically`);
+                            // Don't call hls.startLoad() - it causes blinking. Let hls.js retry internally.
+                            return;
+                        }
+                        
+                        // For level load errors, also let hls.js handle retries
+                        if (data.details === 'levelLoadError' || data.details === 'levelLoadTimeOut') {
+                            console.debug(`Level load error for ${camId}, hls.js will retry automatically`);
                             return;
                         }
                         
@@ -1858,7 +1867,7 @@
                             hls.startLoad();
                         }, 2000);
                     } else if (data.type === window.Hls.ErrorTypes.MEDIA_ERROR) {
-                        // Rate-limit media error recovery to prevent infinite loops
+                        // Rate-limit media error recovery to prevent infinite loops and blinking
                         const now = Date.now();
                         const timeSinceLastRecovery = now - hls.lastMediaRecovery;
                         
@@ -1867,34 +1876,32 @@
                             hls.mediaRecoveryCount = 0;
                         }
                         
-                        // For bufferAppendError, which is common with H.265 remuxing, 
-                        // we need to be more aggressive about recreating the player
+                        // For bufferAppendError, be less aggressive to avoid blinking
                         if (data.details === 'bufferAppendError') {
                             if (hls.bufferErrorCount === undefined) hls.bufferErrorCount = 0;
                             hls.bufferErrorCount++;
                             
-                            // After 5 buffer errors, completely recreate the player
-                            if (hls.bufferErrorCount >= 5) {
-                                console.warn(`HLS buffer errors for ${camId} - recreating player after 5s...`);
-                                hls.destroy();
-                                delete hlsPlayers[camId];
-                                setTimeout(() => {
-                                    startHLSPreview(video, camId, placeholder);
-                                }, 5000);
-                                return;
-                            }
-                            
-                            // Otherwise just try to recover if cooldown passed
-                            if (timeSinceLastRecovery > 3000) {
-                                console.log(`HLS buffer error for ${camId}, recovering... (${hls.bufferErrorCount}/5)`);
+                            // Only try recovery if enough time has passed (5s cooldown)
+                            if (timeSinceLastRecovery > 5000 && hls.bufferErrorCount < 3) {
+                                console.log(`HLS buffer error for ${camId}, recovering... (${hls.bufferErrorCount}/3)`);
                                 hls.lastMediaRecovery = now;
                                 hls.recoverMediaError();
+                            } else if (hls.bufferErrorCount >= 3) {
+                                // After 3 buffer errors, completely recreate the player (only once every 30s)
+                                if (timeSinceLastRecovery > 30000) {
+                                    console.warn(`HLS buffer errors for ${camId} - recreating player after 10s...`);
+                                    hls.destroy();
+                                    delete hlsPlayers[camId];
+                                    setTimeout(() => {
+                                        startHLSPreview(video, camId, placeholder);
+                                    }, 10000);
+                                }
                             }
                             return;
                         }
                         
-                        // For other media errors, use standard recovery
-                        if (hls.mediaRecoveryCount < 3 && timeSinceLastRecovery > 2000) {
+                        // For other media errors, use conservative recovery (5s cooldown)
+                        if (hls.mediaRecoveryCount < 3 && timeSinceLastRecovery > 5000) {
                             console.log(`HLS media error for ${camId}, recovering... (attempt ${hls.mediaRecoveryCount + 1}/3)`);
                             hls.lastMediaRecovery = now;
                             hls.mediaRecoveryCount++;
