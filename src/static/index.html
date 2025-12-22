@@ -973,18 +973,18 @@
                 startFragPrefetch: true,
                 testBandwidth: false,
                 progressive: false,
-                // Fragment retry settings for network resilience
-                fragLoadingMaxRetry: 6,           // Retry fragment loads up to 6 times
-                fragLoadingRetryDelay: 500,       // Wait 500ms between retries
-                fragLoadingMaxRetryTimeout: 30000, // Max 30s for fragment loading retries
-                manifestLoadingMaxRetry: 4,       // Retry manifest loads up to 4 times
-                manifestLoadingRetryDelay: 1000,  // Wait 1s between manifest retries
-                levelLoadingMaxRetry: 4,          // Retry level loading up to 4 times
-                levelLoadingRetryDelay: 1000,     // Wait 1s between level retries
-                // Increase timeout for slow connections
-                fragLoadingTimeOut: 20000,        // 20s timeout for fragment loading
-                manifestLoadingTimeOut: 15000,    // 15s timeout for manifest loading
-                levelLoadingTimeOut: 15000,       // 15s timeout for level loading
+                // Reduced retry settings to prevent blinking/reconnections
+                fragLoadingMaxRetry: 3,           // Retry fragment loads up to 3 times (reduced from 6)
+                fragLoadingRetryDelay: 1000,      // Wait 1s between retries (increased from 500ms)
+                fragLoadingMaxRetryTimeout: 10000, // Max 10s for fragment loading retries (reduced from 30s)
+                manifestLoadingMaxRetry: 2,       // Retry manifest loads up to 2 times (reduced from 4)
+                manifestLoadingRetryDelay: 2000,  // Wait 2s between manifest retries (increased from 1s)
+                levelLoadingMaxRetry: 2,          // Retry level loading up to 2 times (reduced from 4)
+                levelLoadingRetryDelay: 2000,     // Wait 2s between level retries (increased from 1s)
+                // Reasonable timeouts for stable connections
+                fragLoadingTimeOut: 10000,        // 10s timeout for fragment loading (reduced from 20s)
+                manifestLoadingTimeOut: 10000,    // 10s timeout for manifest loading (reduced from 15s)
+                levelLoadingTimeOut: 10000,       // 10s timeout for level loading (reduced from 15s)
                 // Gap handling for live streams with expired segments
                 enableWorker: true,               // Use web worker for better performance
                 enableSoftwareAES: true,          // Fallback for AES if needed
@@ -1804,6 +1804,11 @@
                 video.onstalled = () => {
                     console.debug(`Video stalled for ${camId} - will recover automatically if needed`);
                 };
+                
+                // Initialize error tracking
+                hls.retryCount = 0;
+                hls.lastMediaRecovery = 0;
+                hls.mediaRecoveryCount = 0;
                 
                 hls.on(window.Hls.Events.ERROR, (event, data) => {
                     // Log non-fatal errors at debug level to reduce noise
