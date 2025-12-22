@@ -26,7 +26,7 @@ def get_h264_hardware_encoder(bitrate: int) -> tuple[str, str, str]:
     encoder_str = (
         f"mpph264enc "
         f"qp-init=26 qp-min=10 qp-max=51 "
-        f"gop=30 rc-mode=cbr bps={bps}"
+        f"gop=30 bframes=0 rc-mode=cbr bps={bps}"  # bframes=0 prevents DTS extraction errors in MediaMTX
     )
     caps_str = "video/x-h264,stream-format=byte-stream"
     parse_str = "h264parse"
