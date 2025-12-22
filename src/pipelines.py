@@ -573,22 +573,21 @@ def build_r58_ingest_pipeline(
             f"video/x-raw,width={width},height={height},framerate=30/1,format=NV12"
         )
 
-    # Use H.265 hardware encoder (mpph265enc - stable for MediaMTX HLS)
-    # Note: H.264 causes DTS extraction errors in MediaMTX HLS muxer
-    encoder_str, caps_str, parse_str = get_h265_encoder(bitrate)
+    # Use H.264 hardware encoder with baseline profile (no B-frames)
+    # TCP transport + config-interval=-1 fixes MediaMTX HLS DTS extraction errors
+    encoder_str, caps_str, parse_str = get_h264_hardware_encoder(bitrate)
     
-    # Stream to MediaMTX via RTSP (H.264 native support)
-    # Using rtspclientsink with UDP transport for low latency
-    # rtspclientsink handles RTP payloading internally
-    # Pipeline: encode → parse → RTSP client sink
+    # Stream to MediaMTX via RTSP with TCP for reliability
+    # config-interval=-1 ensures SPS/PPS sent with every keyframe
+    # TCP transport prevents packet loss that causes DTS errors
     pipeline_str = (
         f"{source_str} ! "
         f"queue max-size-buffers=5 max-size-time=0 max-size-bytes=0 leaky=downstream ! "
         f"{encoder_str} ! "
         f"{caps_str} ! "
         f"queue max-size-buffers=5 max-size-time=0 max-size-bytes=0 leaky=downstream ! "
-        f"{parse_str} ! "
-        f"rtspclientsink location=rtsp://127.0.0.1:8554/{cam_id} protocols=udp latency=0"
+        f"{parse_str} config-interval=-1 ! "
+        f"rtspclientsink location=rtsp://127.0.0.1:8554/{cam_id} protocols=tcp latency=0"
     )
 
     logger.info(f"Building ingest pipeline for {cam_id}: {pipeline_str}")
@@ -617,14 +616,13 @@ def build_recording_subscriber_pipeline(
         output_path: Path to output file
         codec: Codec parameter (ignored - always H.264 from ingest)
     """
-    # RTSP source with minimal latency
-    # Use H.265 depay because ingest now streams H.265 via RTP
-    # UDP protocol is faster for local connections
-    source_str = f"rtspsrc location={source_url} latency=100 protocols=udp ! rtph265depay"
+    # RTSP source with TCP for reliability (matches ingest transport)
+    # Use H.264 depay because ingest now streams H.264 via RTP
+    source_str = f"rtspsrc location={source_url} latency=100 protocols=tcp ! rtph264depay"
     
-    # Use H.265 parser and Matroska muxer (MKV has excellent H.265 support)
-    parse_str = "h265parse"
-    mux_str = "matroskamux"
+    # Use H.264 parser and MP4 muxer (MP4 has excellent H.264 support)
+    parse_str = "h264parse"
+    mux_str = "mp4mux"
     
     # Use splitmuxsink for clean file segments (optional, can segment by time)
     # max-size-time in nanoseconds (3600000000000 = 1 hour)

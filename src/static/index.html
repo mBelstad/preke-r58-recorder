@@ -904,6 +904,7 @@
         let recordingState = false;
         let hlsPlayers = {};
         let webrtcConnections = {};
+        let hlsFallbackActive = {}; // Track cameras that have fallen back to HLS
         let fullscreenCamera = null;
         let recordingStartTime = null;
         let previousResolutions = {};
@@ -1323,13 +1324,18 @@
                             // Retry WebRTC connection if stream isn't ready yet
                             let retries = 0;
                             const tryConnect = () => {
+                                // Skip retry if HLS fallback is active
+                                if (hlsFallbackActive[camId]) {
+                                    console.log(`Skipping WebRTC retry for ${camId} - HLS fallback active`);
+                                    return;
+                                }
                                 startCameraPreview(camId);
                                 retries++;
                                 // If WebRTC fails, retry after a delay (stream might not be ready)
                                 if (retries < 3) {
                                     setTimeout(() => {
-                                        if (!webrtcConnections[camId] || 
-                                            (webrtcConnections[camId] && webrtcConnections[camId].connectionState === 'failed')) {
+                                        if (!hlsFallbackActive[camId] && (!webrtcConnections[camId] || 
+                                            (webrtcConnections[camId] && webrtcConnections[camId].connectionState === 'failed'))) {
                                             tryConnect();
                                         }
                                     }, 2000);
@@ -1738,6 +1744,8 @@
                 cameraStreamStates[camId] = 'disconnected';
                 updatePlaceholderStatus(camId, 'disconnected');
                 console.log(`📺 [${camId}] Falling back to HLS`);
+                // Mark as HLS fallback to prevent WebRTC retries
+                hlsFallbackActive[camId] = true;
                 // Fallback to HLS with correct path
                 startHLSPreview(video, camId, placeholder);
             });
