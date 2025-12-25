@@ -1,197 +1,303 @@
-# Browser Test Results - H.264 WebRTC + HLS
+# Browser Test Results - VDO.ninja Mixer
 
-**Date**: December 22, 2025, 00:48 UTC  
-**Test URL**: https://recorder.itagenten.no  
-**Access Mode**: Remote (via Cloudflare tunnel)  
-**Stream Mode**: Stable (~10s latency)
+## 🧪 Test Date: December 25, 2025
 
 ---
 
-## ✅ Test Results: SUCCESS
+## ✅ CORS Fix Verification
 
-### Camera Status
-
-| Camera | Device | Resolution | Status | Notes |
-|--------|--------|------------|--------|-------|
-| **CAM 1** (cam0) | /dev/video0 | 3840x2160 | ✅ **READY** | Video playing smoothly |
-| **CAM 2** (cam1) | /dev/video60 | 640x480 | ❌ **NO SIGNAL** | Expected - no camera connected |
-| **CAM 3** (cam2) | /dev/video11 | 1920x1080 | ✅ **READY** | Video playing smoothly |
-| **CAM 4** (cam3) | /dev/video22 | 3840x2160 | ✅ **READY** | Video playing smoothly |
-
-### Visual Verification
-
-**Working Cameras (3/4)**:
-- ✅ CAM 1: Shows microphone and desk setup (clear video)
-- ✅ CAM 3: Shows microphone and desk setup (clear video)
-- ✅ CAM 4: Shows microphone and desk setup (clear video)
-
-**Non-Working Camera (1/4)**:
-- ❌ CAM 2: "NO SIGNAL - Check HDMI connection" (expected behavior)
-
-### Console Log Analysis
-
-**Successful Operations**:
-```
-✅ Access mode detected: REMOTE (HLS via Cloudflare tunnel)
-✅ Stream mode: Stable (~10s) - automatically selected
-✅ Multiview initialized with 4 cameras
-✅ HLS preview started for cam0 (low latency)
-✅ HLS preview started for cam2 (low latency)
-✅ HLS preview started for cam3 (low latency)
-```
-
-**Expected Errors**:
-```
-❌ cam1: manifestLoadError (HTTP 500) - no signal
-   → Expected: No camera connected to this input
-```
-
-**Minor Issues** (Non-Critical):
-```
-⚠️ cam2: bufferStalledError (count: 1) after 15 seconds
-   → Non-fatal, automatically recovered
-   → Likely due to Cloudflare tunnel latency
-```
-
-### Autoplay Behavior
-
-**Initial State**:
-- Browser blocked autoplay (standard security policy)
-- Message: "HLS autoplay blocked for camX, will play on user interaction"
-
-**After User Interaction** (scroll/click):
-- All videos started playing automatically
-- No manual play button clicks required
-- Smooth playback with no interruptions
-
-### Performance Metrics
-
-**Latency**:
-- Remote HLS: ~10 seconds (as expected for "Stable" mode)
-- No buffering or stuttering observed
-- Smooth 30fps playback
-
-**Bandwidth**:
-- 4 Mbps per camera × 3 active cameras = ~12 Mbps total
-- 50% reduction from previous 24 Mbps
-- Stable over Cloudflare tunnel
-
-**Stability**:
-- 10+ seconds continuous playback
-- Only 1 minor buffer stall (auto-recovered)
-- No reconnections or blinking
-- No DTS errors in backend logs
-
----
-
-## Backend Verification
-
-### MediaMTX Status
-
-**All streams publishing successfully**:
+### Test: CORS Headers
 ```bash
-✅ cam0: H.264 @ 4Mbps → HLS converting
-✅ cam2: H.264 @ 4Mbps → HLS converting
-✅ cam3: H.264 @ 4Mbps → HLS converting
+curl -I https://r58-mediamtx.itagenten.no/cam0/whep | grep -i "access-control-allow-origin"
 ```
 
-**No DTS Errors**:
-- Monitored for 60+ seconds
-- Zero "too many reordered frames" errors
-- TCP transport + config-interval=-1 working perfectly
+**Result**: ✅ **SUCCESS**
+```
+access-control-allow-origin: *
+```
 
-### HLS Endpoint Tests
+**Only ONE header present!** The duplicate CORS issue is fixed.
 
+---
+
+## 🔍 Endpoint Tests
+
+### 1. Remote Mixer Dashboard
+**URL**: `https://r58-api.itagenten.no/static/r58_remote_mixer.html`
+
+**Test**:
 ```bash
-curl https://recorder.itagenten.no/hls/cam0/index.m3u8  # 200 OK ✅
-curl https://recorder.itagenten.no/hls/cam2/index.m3u8  # 200 OK ✅
-curl https://recorder.itagenten.no/hls/cam3/index.m3u8  # 200 OK ✅
-curl https://recorder.itagenten.no/hls/cam1/index.m3u8  # 500 (no signal) ❌
+curl -I https://r58-api.itagenten.no/static/r58_remote_mixer.html
+```
+
+**Result**: ✅ **200 OK**
+```
+HTTP/2 200 
+content-type: text/html; charset=utf-8
+content-length: 27453
+```
+
+Dashboard is accessible and being served correctly.
+
+---
+
+### 2. WHEP Endpoints
+**URLs**: 
+- `https://r58-mediamtx.itagenten.no/cam0/whep`
+- `https://r58-mediamtx.itagenten.no/cam2/whep`
+- `https://r58-mediamtx.itagenten.no/cam3/whep`
+
+**Test**:
+```bash
+for cam in cam0 cam2 cam3; do
+  curl -I "https://r58-mediamtx.itagenten.no/$cam/whep"
+done
+```
+
+**Result**: ⚠️ **405 Method Not Allowed** (Expected for HEAD request)
+```
+HTTP/2 405 
+access-control-allow-credentials: true
+access-control-allow-origin: *
+content-type: application/json; charset=utf-8
+```
+
+**Status**: ✅ Endpoints are accessible with proper CORS headers
+- 405 is correct for HEAD requests (WHEP requires POST)
+- CORS headers are present and not duplicated
+- Endpoints are reachable through HTTPS
+
+---
+
+### 3. MediaMTX API
+**URL**: `https://r58-api.itagenten.no/v3/paths/list`
+
+**Test**:
+```bash
+curl -s https://r58-api.itagenten.no/v3/paths/list
+```
+
+**Result**: ❌ **404 Not Found**
+```json
+{"detail":"Not Found"}
+```
+
+**Issue**: The API endpoint routing may need to be checked.
+
+**Alternative**: Try direct MediaMTX endpoint
+```bash
+curl -s https://r58-mediamtx.itagenten.no/v3/paths/list
+```
+
+**Result**: Empty response (needs investigation)
+
+---
+
+## 🎬 VDO.ninja Mixer Test
+
+### Test URL
+```
+https://vdo.ninja/mixer?room=r58studio&slots=3&automixer&whep=https://r58-mediamtx.itagenten.no/cam0/whep&label=CAM0&whep=https://r58-mediamtx.itagenten.no/cam2/whep&label=CAM2&whep=https://r58-mediamtx.itagenten.no/cam3/whep&label=CAM3
+```
+
+### Browser Test
+**Action**: Opened in default browser
+
+**Expected Behavior**:
+1. VDO.ninja mixer loads
+2. Attempts to connect to 3 WHEP streams
+3. Displays cameras in mixer layout
+
+**To Verify**:
+- [ ] Mixer page loads without errors
+- [ ] No CORS errors in browser console
+- [ ] Camera streams appear (if cameras are publishing)
+- [ ] All 3 slots are populated
+
+---
+
+## 📊 Test Summary
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| CORS Fix | ✅ Working | Only one header present |
+| Remote Mixer Dashboard | ✅ Accessible | 200 OK, serving HTML |
+| WHEP Endpoints | ✅ Reachable | 405 expected, CORS OK |
+| MediaMTX API | ❌ Not Found | Needs routing fix |
+| VDO.ninja Mixer | 🔄 Testing | Opened in browser |
+
+---
+
+## 🐛 Potential Issues Found
+
+### Issue 1: MediaMTX API Endpoint
+**Problem**: `https://r58-api.itagenten.no/v3/paths/list` returns 404
+
+**Possible Causes**:
+1. nginx routing not configured for `/v3/` path
+2. MediaMTX API port not proxied correctly
+3. Path mismatch in nginx config
+
+**Fix Needed**:
+Check nginx config for MediaMTX API routing:
+```nginx
+location /v3/ {
+    proxy_pass http://mediamtx:9997/v3/;
+    # or
+    proxy_pass http://host.docker.internal:19997/v3/;
+}
 ```
 
 ---
 
-## Comparison: Before vs After
+### Issue 2: Camera Stream Status Unknown
+**Problem**: Cannot verify if cameras are actively streaming
 
-| Metric | Before (H.265) | After (H.264) | Result |
-|--------|---------------|---------------|--------|
-| **WebRTC Support** | ❌ Not supported | ✅ Ready (local) | Enabled |
-| **HLS Stability** | ⚠️ Occasional errors | ✅ Stable | Improved |
-| **DTS Errors** | ⚠️ Frequent | ✅ None | Fixed |
-| **Remote Bandwidth** | 24 Mbps | 12 Mbps | 50% reduction |
-| **Autoplay** | ⚠️ Blocked | ✅ Works after interaction | Improved |
-| **Buffer Stalls** | ⚠️ Frequent | ✅ Rare (1 in 10s) | Much better |
+**Workaround**:
+1. Check R58 device directly (SSH)
+2. Test WHEP connection with test page
+3. Monitor MediaMTX logs
 
----
+**Commands to Run on R58**:
+```bash
+# Check MediaMTX status
+sudo systemctl status mediamtx
 
-## Known Issues & Limitations
+# Check active paths
+curl http://localhost:9997/v3/paths/list
 
-### 1. Autoplay Blocked (Browser Security)
-**Issue**: Videos don't autoplay on page load  
-**Cause**: Browser security policy requires user interaction  
-**Impact**: Low - videos start after any user interaction (scroll, click)  
-**Fix**: Not needed - this is standard browser behavior
-
-### 2. CAM 2 No Signal
-**Issue**: cam1 shows "NO SIGNAL"  
-**Cause**: No camera connected to /dev/video60  
-**Impact**: None - expected behavior  
-**Fix**: Connect camera or disable in config
-
-### 3. Occasional Buffer Stalls
-**Issue**: Rare "bufferStalledError" (1 per 10+ seconds)  
-**Cause**: Cloudflare tunnel latency variations  
-**Impact**: Very low - auto-recovers, no visible stuttering  
-**Fix**: Already using "Stable" mode with large buffers
+# Check if publishers are running
+ps aux | grep publish
+```
 
 ---
 
-## Recommendations
+## 🧪 Additional Tests Created
 
-### For Production Use ✅
+### Test Page: `test_whep_streams.html`
+**Purpose**: Direct WHEP stream testing
 
-The system is **ready for production** with these considerations:
+**Features**:
+- Tests CORS headers on all 3 cameras
+- Attempts WHEP connection to each camera
+- Displays connection status and errors
+- Shows video streams if available
 
-1. **Remote Monitoring**: Works perfectly via `recorder.itagenten.no`
-   - Stable HLS with ~10s latency
-   - No blinking or reconnections
-   - 50% less bandwidth usage
+**Usage**:
+```bash
+open test_whep_streams.html
+```
 
-2. **Local Low-Latency**: Use `http://192.168.1.24:8000` when on-site
-   - WebRTC available for <200ms latency
-   - HLS fallback if WebRTC fails
-
-3. **Autoplay**: Users need to interact with page once
-   - Scroll, click, or touch anywhere
-   - All videos will then play automatically
-
-### Future Enhancements (Optional)
-
-1. **Muted Autoplay**: Set videos to `muted` to bypass autoplay restrictions
-2. **Direct Access**: Port forwarding for WebRTC without Cloudflare tunnel
-3. **Adaptive Bitrate**: Multiple HLS variants for different connection speeds
+**What It Tests**:
+1. CORS header presence and count
+2. WHEP endpoint accessibility
+3. WebRTC connection establishment
+4. Video stream reception
 
 ---
 
-## Conclusion
+## 📝 Next Steps
 
-✅ **H.264 implementation is fully functional and production-ready!**
+### Immediate Actions Needed:
 
-**Key Achievements**:
-- ✅ 3/3 cameras streaming smoothly (cam1 has no signal as expected)
-- ✅ Zero DTS extraction errors
-- ✅ Stable remote HLS over Cloudflare tunnel
-- ✅ 50% bandwidth reduction (24 Mbps → 12 Mbps)
-- ✅ WebRTC ready for local low-latency viewing
-- ✅ Clean console logs with no critical errors
+1. **Verify Camera Streaming**
+   ```bash
+   # On R58 device
+   curl http://localhost:9997/v3/paths/list
+   ```
+   Check if cam0, cam2, cam3 are listed with `ready: true`
 
-**Test Duration**: 10+ seconds continuous playback  
-**Stability**: Excellent (only 1 minor buffer stall, auto-recovered)  
-**User Experience**: Smooth video playback after initial user interaction
+2. **Fix MediaMTX API Routing**
+   - Check nginx config on VPS
+   - Ensure `/v3/` paths are proxied correctly
+   - Test API endpoint accessibility
+
+3. **Test VDO.ninja Mixer in Browser**
+   - Open mixer URL
+   - Check browser console for errors
+   - Verify WHEP connection attempts
+   - Confirm no CORS errors
+
+4. **Monitor Connection Logs**
+   ```bash
+   # On R58
+   sudo journalctl -u mediamtx -f
+   
+   # On VPS
+   docker logs r58-proxy -f
+   ```
 
 ---
 
-**Test Completed**: December 22, 2025, 00:48 UTC  
-**Tested By**: Automated browser testing  
-**Status**: ✅ **PASSED - PRODUCTION READY**
+## ✅ What's Working
 
+1. **CORS Fix**: ✅ Deployed and verified
+2. **SSL/HTTPS**: ✅ All endpoints use HTTPS
+3. **nginx Proxy**: ✅ Routing WHEP requests
+4. **WHEP Endpoints**: ✅ Accessible with correct headers
+5. **Remote Dashboard**: ✅ Serving correctly
+
+---
+
+## ⚠️ What Needs Attention
+
+1. **MediaMTX API**: ❌ 404 errors on `/v3/` paths
+2. **Camera Status**: ❓ Unknown if cameras are streaming
+3. **VDO.ninja Mixer**: 🔄 Needs manual browser verification
+4. **R58 SSH Access**: ⚠️ Password authentication failing
+
+---
+
+## 🎯 Success Criteria
+
+For the system to be fully operational:
+
+- [x] CORS headers fixed (no duplicates)
+- [x] HTTPS working on all endpoints
+- [x] WHEP endpoints accessible
+- [ ] Cameras actively streaming to MediaMTX
+- [ ] VDO.ninja mixer can connect to streams
+- [ ] All 3 cameras visible in mixer
+- [ ] No CORS errors in browser console
+
+---
+
+## 📞 Troubleshooting Commands
+
+### Check CORS
+```bash
+curl -I https://r58-mediamtx.itagenten.no/cam0/whep | grep -i access-control
+```
+
+### Test WHEP Endpoint
+```bash
+curl -X POST https://r58-mediamtx.itagenten.no/cam0/whep \
+  -H "Content-Type: application/sdp" \
+  -d "v=0..."
+```
+
+### Check nginx Logs
+```bash
+ssh root@65.109.32.111 "docker logs r58-proxy --tail 100"
+```
+
+### Check MediaMTX Status
+```bash
+# Via FRP tunnel
+ssh -p 10022 linaro@65.109.32.111 "sudo systemctl status mediamtx"
+```
+
+---
+
+## 📚 Related Files
+
+- `test_whep_streams.html` - Direct WHEP testing page
+- `CORS_FIX_DEPLOYED_SUCCESS.md` - CORS fix documentation
+- `VDO_NINJA_SSL_CORS_SOLUTION.md` - Complete solution overview
+- `MISSION_ACCOMPLISHED.md` - Overall success summary
+
+---
+
+**Test Status**: 🔄 In Progress  
+**CORS Fix**: ✅ Verified Working  
+**Next Step**: Verify camera streams and test VDO.ninja mixer in browser
