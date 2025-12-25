@@ -475,22 +475,22 @@
         <section class="launcher-section">
             <div class="section-title">🚀 Quick Launch VDO.ninja</div>
             <div class="launcher-grid">
-                <a class="launcher-card primary" href="http://insecure.vdo.ninja/mixer?room=r58studio&slots=3&automixer&whep=http://65.109.32.111:18889/cam0/whep&label=CAM0&whep=http://65.109.32.111:18889/cam2/whep&label=CAM2&whep=http://65.109.32.111:18889/cam3/whep&label=CAM3" target="_blank">
+                <a class="launcher-card primary" href="http://insecure.vdo.ninja/mixer?room=r58studio&slots=3&automixer&whep=https://r58-mediamtx.itagenten.no/cam0/whep&label=CAM0&whep=https://r58-mediamtx.itagenten.no/cam2/whep&label=CAM2&whep=https://r58-mediamtx.itagenten.no/cam3/whep&label=CAM3" target="_blank">
                     <h3>🎛️ Full Mixer (Recommended)</h3>
                     <p>Open VDO.ninja mixer with all 3 cameras pre-loaded and auto-assigned to slots. Click "Auto Mix All" to start.</p>
                     <div class="url">insecure.vdo.ninja/mixer?room=r58studio&slots=3&automixer...</div>
                 </a>
                 
-                <a class="launcher-card" href="http://insecure.vdo.ninja/mixer?room=r58studio&slots=3&automixer&autostart&whep=http://65.109.32.111:18889/cam0/whep&label=CAM0&whep=http://65.109.32.111:18889/cam2/whep&label=CAM2&whep=http://65.109.32.111:18889/cam3/whep&label=CAM3" target="_blank">
+                <a class="launcher-card" href="http://insecure.vdo.ninja/mixer?room=r58studio&slots=3&automixer&autostart&whep=https://r58-mediamtx.itagenten.no/cam0/whep&label=CAM0&whep=https://r58-mediamtx.itagenten.no/cam2/whep&label=CAM2&whep=https://r58-mediamtx.itagenten.no/cam3/whep&label=CAM3" target="_blank">
                     <h3>⚡ Auto-Start Mixer</h3>
                     <p>Same as above but attempts to auto-start the room without clicking "Get Started".</p>
                     <div class="url">...&autostart&whep=...</div>
                 </a>
                 
-                <a class="launcher-card" href="http://65.109.32.111:18889/cam0" target="_blank">
+                <a class="launcher-card" href="https://r58-mediamtx.itagenten.no/cam0" target="_blank">
                     <h3>📺 MediaMTX Direct</h3>
                     <p>View cameras directly through MediaMTX's built-in viewer. Simple and reliable.</p>
-                    <div class="url">65.109.32.111:18889/cam0</div>
+                    <div class="url">r58-mediamtx.itagenten.no/cam0</div>
                 </a>
             </div>
         </section>
@@ -534,12 +534,12 @@
         <!-- Quick Links -->
         <div class="section-title">🔗 Quick Links</div>
         <div class="quick-links">
-            <a class="quick-link" href="http://65.109.32.111:18889/cam0" target="_blank">CAM 0 Direct</a>
-            <a class="quick-link" href="http://65.109.32.111:18889/cam2" target="_blank">CAM 2 Direct</a>
-            <a class="quick-link" href="http://65.109.32.111:18889/cam3" target="_blank">CAM 3 Direct</a>
-            <a class="quick-link" href="http://insecure.vdo.ninja/?view=r58&whep=http://65.109.32.111:18889/cam0/whep" target="_blank">VDO.ninja CAM 0</a>
-            <a class="quick-link" href="http://insecure.vdo.ninja/?view=r58&whep=http://65.109.32.111:18889/cam2/whep" target="_blank">VDO.ninja CAM 2</a>
-            <a class="quick-link" href="http://insecure.vdo.ninja/?view=r58&whep=http://65.109.32.111:18889/cam3/whep" target="_blank">VDO.ninja CAM 3</a>
+            <a class="quick-link" href="https://r58-mediamtx.itagenten.no/cam0" target="_blank">CAM 0 Direct</a>
+            <a class="quick-link" href="https://r58-mediamtx.itagenten.no/cam2" target="_blank">CAM 2 Direct</a>
+            <a class="quick-link" href="https://r58-mediamtx.itagenten.no/cam3" target="_blank">CAM 3 Direct</a>
+            <a class="quick-link" href="http://insecure.vdo.ninja/?view=r58&whep=https://r58-mediamtx.itagenten.no/cam0/whep" target="_blank">VDO.ninja CAM 0</a>
+            <a class="quick-link" href="http://insecure.vdo.ninja/?view=r58&whep=https://r58-mediamtx.itagenten.no/cam2/whep" target="_blank">VDO.ninja CAM 2</a>
+            <a class="quick-link" href="http://insecure.vdo.ninja/?view=r58&whep=https://r58-mediamtx.itagenten.no/cam3/whep" target="_blank">VDO.ninja CAM 3</a>
         </div>
     </main>
     
@@ -550,8 +550,9 @@
     <script>
         // Configuration
         const CONFIG = {
-            mediamtxHost: '65.109.32.111',
-            mediamtxPort: 18889,
+            mediamtxHost: 'r58-mediamtx.itagenten.no',
+            mediamtxPort: 443,
+            mediamtxProtocol: 'https',
             cameras: [
                 { id: 'cam0', label: 'CAM 0', slot: 1 },
                 { id: 'cam2', label: 'CAM 2', slot: 2 },
@@ -646,7 +647,9 @@
         
         // Connect to a camera
         async function connectCamera(camId) {
-            const endpoint = `http://${CONFIG.mediamtxHost}:${CONFIG.mediamtxPort}/${camId}/whep`;
+            const protocol = CONFIG.mediamtxProtocol || 'http';
+            const port = CONFIG.mediamtxPort === 443 || CONFIG.mediamtxPort === 80 ? '' : `:${CONFIG.mediamtxPort}`;
+            const endpoint = `${protocol}://${CONFIG.mediamtxHost}${port}/${camId}/whep`;
             const loading = document.getElementById(`loading-${camId}`);
             const status = document.getElementById(`status-${camId}`);
             const video = document.getElementById(`video-${camId}`);
