@@ -9,6 +9,13 @@ platform: auto
 # Logging level: DEBUG, INFO, WARNING, ERROR
 log_level: INFO
 
+# Mode configuration (Recorder vs VDO.ninja)
+# Recorder Mode: preke-recorder captures to MediaMTX for recording/WHEP viewing
+# VDO.ninja Mode: raspberry.ninja publishers stream to VDO.ninja signaling
+mode:
+  default: recorder  # Default mode on startup: recorder or vdoninja
+  persist_state: true  # Remember last active mode across restarts
+
 # Preview configuration
 preview:
   health_check_interval: 10  # seconds between health checks

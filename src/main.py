@@ -157,6 +157,16 @@ if config.cloudflare.account_id and config.cloudflare.calls_api_token:
 else:
     logger.info("Cloudflare Calls disabled - no credentials configured")
 
+# Initialize Mode Manager (for switching between Recorder and VDO.ninja modes)
+mode_manager = None
+try:
+    from .mode_manager import ModeManager
+    mode_manager = ModeManager(ingest_manager=ingest_manager, config=config)
+    logger.info(f"Mode manager initialized")
+except Exception as e:
+    logger.error(f"Failed to initialize mode manager: {e}")
+    mode_manager = None
+
 
 # Lifespan context manager for startup and shutdown
 @asynccontextmanager
@@ -528,6 +538,68 @@ async def get_ingest_status_api() -> Dict[str, Any]:
             "idle": sum(1 for s in ingest_statuses.values() if s.status == "idle")
         }
     }
+
+
+# ============================================================================
+# Mode Management API Endpoints
+# ============================================================================
+
+@app.get("/api/mode")
+async def get_mode() -> Dict[str, Any]:
+    """Get current mode and available modes."""
+    if not mode_manager:
+        return {
+            "error": "Mode manager not available",
+            "current_mode": "recorder",
+            "available_modes": ["recorder", "vdoninja"]
+        }
+    
+    current_mode = await mode_manager.get_current_mode()
+    return {
+        "current_mode": current_mode,
+        "available_modes": mode_manager.MODES
+    }
+
+
+@app.get("/api/mode/status")
+async def get_mode_status() -> Dict[str, Any]:
+    """Get detailed status of both modes."""
+    if not mode_manager:
+        return {
+            "error": "Mode manager not available"
+        }
+    
+    from dataclasses import asdict
+    status = await mode_manager.get_status()
+    return asdict(status)
+
+
+@app.post("/api/mode/recorder")
+async def switch_to_recorder() -> Dict[str, Any]:
+    """Switch to Recorder Mode."""
+    if not mode_manager:
+        raise HTTPException(status_code=503, detail="Mode manager not available")
+    
+    result = await mode_manager.switch_to_recorder()
+    
+    if not result["success"]:
+        raise HTTPException(status_code=500, detail=result["message"])
+    
+    return result
+
+
+@app.post("/api/mode/vdoninja")
+async def switch_to_vdoninja() -> Dict[str, Any]:
+    """Switch to VDO.ninja Mode."""
+    if not mode_manager:
+        raise HTTPException(status_code=503, detail="Mode manager not available")
+    
+    result = await mode_manager.switch_to_vdoninja()
+    
+    if not result["success"]:
+        raise HTTPException(status_code=500, detail=result["message"])
+    
+    return result
 
 
 @app.get("/api/preview/status")

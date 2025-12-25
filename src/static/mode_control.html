@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>R58 Mode Control</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 900px;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .mode-status {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .current-mode {
+            display: inline-block;
+            padding: 15px 40px;
+            border-radius: 50px;
+            font-size: 1.3em;
+            font-weight: bold;
+            margin-top: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .mode-recorder {
+            background: #10b981;
+            color: white;
+        }
+
+        .mode-vdoninja {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .mode-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .mode-card {
+            background: #f9fafb;
+            border: 3px solid transparent;
+            border-radius: 15px;
+            padding: 30px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .mode-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .mode-card.active {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .mode-card h3 {
+            font-size: 1.5em;
+            margin-bottom: 15px;
+            color: #1f2937;
+        }
+
+        .mode-card p {
+            color: #6b7280;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .mode-card button {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .mode-card button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-recorder {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-recorder:hover:not(:disabled) {
+            background: #059669;
+        }
+
+        .btn-vdoninja {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-vdoninja:hover:not(:disabled) {
+            background: #2563eb;
+        }
+
+        .services-status {
+            background: #f9fafb;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+
+        .services-status h3 {
+            margin-bottom: 20px;
+            color: #1f2937;
+        }
+
+        .service-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .service-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: white;
+            border-radius: 8px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .status-active { background: #10b981; }
+        .status-inactive { background: #6b7280; }
+        .status-streaming { background: #10b981; }
+        .status-idle { background: #fbbf24; }
+        .status-error { background: #ef4444; }
+
+        .quick-links {
+            background: #f9fafb;
+            border-radius: 15px;
+            padding: 30px;
+        }
+
+        .quick-links h3 {
+            margin-bottom: 20px;
+            color: #1f2937;
+        }
+
+        .links-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .link-item {
+            display: block;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            text-decoration: none;
+            color: #1f2937;
+            transition: all 0.3s ease;
+        }
+
+        .link-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .link-item strong {
+            display: block;
+            margin-bottom: 5px;
+            color: #667eea;
+        }
+
+        .link-item small {
+            color: #6b7280;
+        }
+
+        .message {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .message.success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #10b981;
+        }
+
+        .message.error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #ef4444;
+        }
+
+        .message.show {
+            display: block;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6b7280;
+        }
+
+        .spinner {
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎬 R58 Mode Control</h1>
+            <p>Switch between Recorder and VDO.ninja modes</p>
+        </div>
+
+        <div class="content">
+            <div id="loading" class="loading">
+                <div class="spinner"></div>
+                <p>Loading mode status...</p>
+            </div>
+
+            <div id="main-content" style="display: none;">
+                <div class="message" id="message"></div>
+
+                <div class="mode-status">
+                    <p style="color: #6b7280; margin-bottom: 10px;">Current Mode:</p>
+                    <div class="current-mode" id="current-mode">Loading...</div>
+                </div>
+
+                <div class="mode-buttons">
+                    <div class="mode-card" id="recorder-card">
+                        <h3>📹 Recorder Mode</h3>
+                        <p>Cameras stream to MediaMTX for recording and direct WHEP viewing. Best for stable recording and production.</p>
+                        <button class="btn-recorder" id="btn-recorder" onclick="switchMode('recorder')">
+                            Switch to Recorder
+                        </button>
+                    </div>
+
+                    <div class="mode-card" id="vdoninja-card">
+                        <h3>🎥 VDO.ninja Mode</h3>
+                        <p>Cameras publish to VDO.ninja signaling for full mixer and director features. Best for remote mixing.</p>
+                        <button class="btn-vdoninja" id="btn-vdoninja" onclick="switchMode('vdoninja')">
+                            Switch to VDO.ninja
+                        </button>
+                    </div>
+                </div>
+
+                <div class="services-status">
+                    <h3>📊 Services Status</h3>
+                    <div id="services-grid" class="service-grid"></div>
+                </div>
+
+                <div class="quick-links">
+                    <h3>🔗 Quick Access Links</h3>
+                    <div class="links-grid" id="quick-links"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentMode = null;
+        let isLocal = window.location.hostname === '192.168.1.24' || window.location.hostname === 'localhost';
+
+        async function loadStatus() {
+            try {
+                const response = await fetch('/api/mode/status');
+                const data = await response.json();
+                
+                currentMode = data.current_mode;
+                updateUI(data);
+                
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('main-content').style.display = 'block';
+            } catch (error) {
+                console.error('Failed to load status:', error);
+                showMessage('Failed to load mode status', 'error');
+            }
+        }
+
+        function updateUI(data) {
+            // Update current mode display
+            const modeDisplay = document.getElementById('current-mode');
+            modeDisplay.textContent = data.current_mode === 'recorder' ? '📹 Recorder Mode' : '🎥 VDO.ninja Mode';
+            modeDisplay.className = `current-mode mode-${data.current_mode}`;
+
+            // Update mode cards
+            document.getElementById('recorder-card').classList.toggle('active', data.current_mode === 'recorder');
+            document.getElementById('vdoninja-card').classList.toggle('active', data.current_mode === 'vdoninja');
+
+            // Update buttons
+            document.getElementById('btn-recorder').disabled = data.current_mode === 'recorder';
+            document.getElementById('btn-vdoninja').disabled = data.current_mode === 'vdoninja';
+
+            // Update services status
+            updateServicesStatus(data);
+
+            // Update quick links
+            updateQuickLinks(data.current_mode);
+        }
+
+        function updateServicesStatus(data) {
+            const grid = document.getElementById('services-grid');
+            grid.innerHTML = '';
+
+            // Recorder services
+            if (data.recorder_services) {
+                Object.entries(data.recorder_services).forEach(([name, status]) => {
+                    const item = document.createElement('div');
+                    item.className = 'service-item';
+                    item.innerHTML = `
+                        <div class="status-dot status-${status}"></div>
+                        <span>${name}</span>
+                    `;
+                    grid.appendChild(item);
+                });
+            }
+
+            // VDO.ninja services
+            if (data.vdoninja_services) {
+                Object.entries(data.vdoninja_services).forEach(([name, status]) => {
+                    const item = document.createElement('div');
+                    item.className = 'service-item';
+                    item.innerHTML = `
+                        <div class="status-dot status-${status}"></div>
+                        <span>${name}</span>
+                    `;
+                    grid.appendChild(item);
+                });
+            }
+        }
+
+        function updateQuickLinks(mode) {
+            const linksGrid = document.getElementById('quick-links');
+            linksGrid.innerHTML = '';
+
+            const links = mode === 'recorder' ? [
+                { title: 'Switcher', desc: 'Multi-camera production switcher', url: '/static/switcher.html' },
+                { title: 'Camera Viewer', desc: 'Simple camera viewer', url: '/static/camera_viewer.html' },
+                { title: 'Ingest Status', desc: 'Check camera ingest status', url: '/api/ingest/status' },
+                ...(isLocal ? [] : [
+                    { title: 'Remote WHEP', desc: 'MediaMTX WHEP streams', url: 'https://r58-mediamtx.itagenten.no/cam0' }
+                ])
+            ] : [
+                { title: 'Director View', desc: 'VDO.ninja director interface', url: isLocal ? 'https://192.168.1.24:8443/?director=r58studio' : 'https://r58-vdo.itagenten.no/?director=r58studio' },
+                { title: 'View cam1', desc: 'View camera 1 stream', url: isLocal ? 'https://192.168.1.24:8443/?view=r58-cam1' : 'https://r58-vdo.itagenten.no/?view=r58-cam1' },
+                { title: 'View cam2', desc: 'View camera 2 stream', url: isLocal ? 'https://192.168.1.24:8443/?view=r58-cam2' : 'https://r58-vdo.itagenten.no/?view=r58-cam2' },
+                { title: 'Mixer', desc: 'VDO.ninja mixer interface', url: isLocal ? 'https://192.168.1.24:8443/mixer.html' : 'https://r58-vdo.itagenten.no/mixer.html' }
+            ];
+
+            links.forEach(link => {
+                const item = document.createElement('a');
+                item.className = 'link-item';
+                item.href = link.url;
+                item.target = '_blank';
+                item.innerHTML = `
+                    <strong>${link.title}</strong>
+                    <small>${link.desc}</small>
+                `;
+                linksGrid.appendChild(item);
+            });
+        }
+
+        async function switchMode(mode) {
+            if (mode === currentMode) return;
+
+            showMessage(`Switching to ${mode} mode...`, 'success');
+            
+            // Disable buttons during switch
+            document.getElementById('btn-recorder').disabled = true;
+            document.getElementById('btn-vdoninja').disabled = true;
+
+            try {
+                const response = await fetch(`/api/mode/${mode}`, { method: 'POST' });
+                const data = await response.json();
+
+                if (response.ok) {
+                    showMessage(data.message, 'success');
+                    // Reload status after a short delay
+                    setTimeout(loadStatus, 2000);
+                } else {
+                    showMessage(data.message || 'Failed to switch mode', 'error');
+                    // Re-enable buttons
+                    document.getElementById('btn-recorder').disabled = currentMode === 'recorder';
+                    document.getElementById('btn-vdoninja').disabled = currentMode === 'vdoninja';
+                }
+            } catch (error) {
+                console.error('Failed to switch mode:', error);
+                showMessage('Failed to switch mode: ' + error.message, 'error');
+                // Re-enable buttons
+                document.getElementById('btn-recorder').disabled = currentMode === 'recorder';
+                document.getElementById('btn-vdoninja').disabled = currentMode === 'vdoninja';
+            }
+        }
+
+        function showMessage(text, type) {
+            const message = document.getElementById('message');
+            message.textContent = text;
+            message.className = `message ${type} show`;
+            
+            setTimeout(() => {
+                message.classList.remove('show');
+            }, 5000);
+        }
+
+        // Load status on page load
+        loadStatus();
+
+        // Refresh status every 10 seconds
+        setInterval(loadStatus, 10000);
+    </script>
+</body>
+</html>
+

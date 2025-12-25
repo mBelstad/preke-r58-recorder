@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VDO.ninja v28 + MediaMTX Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #1a1a1a;
+            color: #eee;
+        }
+        h1 {
+            color: #4CAF50;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #2a2a2a;
+            border-radius: 5px;
+        }
+        .link {
+            display: block;
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #333;
+            border-radius: 3px;
+            text-decoration: none;
+            color: #4CAF50;
+        }
+        .link:hover {
+            background-color: #444;
+        }
+        code {
+            background-color: #000;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-size: 0.9em;
+        }
+        .info {
+            background-color: #1e3a5f;
+            padding: 10px;
+            border-left: 4px solid #2196F3;
+            margin: 10px 0;
+        }
+        .success {
+            background-color: #1e4620;
+            padding: 10px;
+            border-left: 4px solid #4CAF50;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎥 VDO.ninja v28 + MediaMTX Integration Test</h1>
+    
+    <div class="success">
+        <strong>✅ Software Updated!</strong>
+        <ul>
+            <li>MediaMTX: v1.15.5 (was v1.5.1)</li>
+            <li>VDO.ninja: v28.4 (was v25)</li>
+            <li>raspberry.ninja: v9.0.0</li>
+            <li>Signaling: Simple broadcast (official protocol)</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>📺 Method 1: VDO.ninja with MediaMTX Backend</h2>
+        <p>VDO.ninja v28 has native MediaMTX integration using the <code>&mediamtx=</code> parameter.</p>
+        
+        <h3>Director View (with MediaMTX):</h3>
+        <a class="link" href="https://localhost:8443/?director=r58studio&mediamtx=localhost:8889" target="_blank">
+            🎬 Open Director (Local)
+        </a>
+        <a class="link" href="https://192.168.1.24:8443/?director=r58studio&mediamtx=192.168.1.24:8889" target="_blank">
+            🎬 Open Director (LAN)
+        </a>
+        
+        <div class="info">
+            <strong>How it works:</strong> VDO.ninja will use MediaMTX as an SFU (Selective Forwarding Unit) to distribute streams efficiently.
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>📺 Method 2: Pull MediaMTX WHEP Streams into VDO.ninja</h2>
+        <p>VDO.ninja v28 can pull any WHEP stream using the <code>&whep=</code> parameter.</p>
+        
+        <h3>View MediaMTX Streams:</h3>
+        <a class="link" href="https://localhost:8443/?view=cam0&whep=http://localhost:8889/cam0/whep" target="_blank">
+            📹 View cam0 via WHEP
+        </a>
+        <a class="link" href="https://localhost:8443/?view=cam1&whep=http://localhost:8889/cam1/whep" target="_blank">
+            📹 View cam1 via WHEP
+        </a>
+        <a class="link" href="https://localhost:8443/?view=cam2&whep=http://localhost:8889/cam2/whep" target="_blank">
+            📹 View cam2 via WHEP
+        </a>
+        
+        <div class="info">
+            <strong>How it works:</strong> VDO.ninja directly consumes WHEP streams from MediaMTX, bypassing the need for raspberry.ninja.
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>📺 Method 3: VDO.ninja Mixer with MediaMTX</h2>
+        <p>Use VDO.ninja's mixer.html with MediaMTX backend.</p>
+        
+        <a class="link" href="https://localhost:8443/mixer.html?mediamtx=localhost:8889" target="_blank">
+            🎛️ Open Mixer (Local)
+        </a>
+        <a class="link" href="https://192.168.1.24:8443/mixer.html?mediamtx=192.168.1.24:8889" target="_blank">
+            🎛️ Open Mixer (LAN)
+        </a>
+        
+        <div class="info">
+            <strong>How it works:</strong> The mixer pulls streams from MediaMTX and allows you to compose scenes with multiple cameras.
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>📺 Method 4: Traditional raspberry.ninja Publishers</h2>
+        <p>Use raspberry.ninja to publish to VDO.ninja signaling server (now using simple broadcast protocol).</p>
+        
+        <h3>Start Publishers:</h3>
+        <code>sudo systemctl start ninja-publish-cam1</code><br>
+        <code>sudo systemctl start ninja-publish-cam2</code><br>
+        <code>sudo systemctl start ninja-publish-cam3</code>
+        
+        <h3>Then View:</h3>
+        <a class="link" href="https://localhost:8443/?director=r58studio" target="_blank">
+            🎬 Open Director (Traditional)
+        </a>
+        <a class="link" href="https://localhost:8443/?view=r58-cam1&room=r58studio" target="_blank">
+            📹 View r58-cam1
+        </a>
+        
+        <div class="info">
+            <strong>Status:</strong> Signaling now works with simple broadcast protocol, but WebRTC media connection still has issues.
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>🔧 Current Status</h2>
+        <ul>
+            <li>✅ All software updated to latest versions</li>
+            <li>✅ Signaling server using official simple broadcast protocol</li>
+            <li>✅ MediaMTX WHEP streams working</li>
+            <li>⚠️ raspberry.ninja publishers connecting but WebRTC media not flowing</li>
+            <li>🆕 VDO.ninja v28 native MediaMTX integration available</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>📝 Next Steps</h2>
+        <ol>
+            <li>Test Method 2 (WHEP) - should work immediately</li>
+            <li>Test Method 1 (MediaMTX backend) - should improve performance</li>
+            <li>Test Method 3 (Mixer) - for multi-camera composition</li>
+            <li>Debug raspberry.ninja WebRTC media connection if needed</li>
+        </ol>
+    </div>
+</body>
+</html>
+

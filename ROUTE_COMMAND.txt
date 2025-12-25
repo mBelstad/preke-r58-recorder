@@ -1,0 +1,12 @@
+Copy and paste this command in your terminal:
+
+sudo route add -net 192.168.1.0/24 10.76.254.72
+
+Then test with:
+
+ping 192.168.1.24
+
+If that works, open VDO.ninja:
+
+open "https://192.168.1.24:8443/?director=r58studio&wss=192.168.1.24:8443"
+

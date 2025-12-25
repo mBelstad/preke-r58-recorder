@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>R58 Studio Mixer - MediaMTX</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            color: #e4e4e7;
+        }
+        
+        .header {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.875rem;
+        }
+        
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #22c55e;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .main-container {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 20px;
+            padding: 20px;
+            max-height: calc(100vh - 80px);
+        }
+        
+        .preview-section {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        
+        .program-output {
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+            aspect-ratio: 16/9;
+            border: 3px solid #ef4444;
+        }
+        
+        .program-label {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            background: #ef4444;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 0.75rem;
+            z-index: 10;
+        }
+        
+        #programVideo {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background: #000;
+        }
+        
+        .source-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+        
+        .source-tile {
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+            aspect-ratio: 16/9;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        
+        .source-tile:hover {
+            border-color: #3b82f6;
+            transform: scale(1.02);
+        }
+        
+        .source-tile.active {
+            border-color: #ef4444;
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);
+        }
+        
+        .source-tile.preview {
+            border-color: #22c55e;
+        }
+        
+        .source-tile video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .source-label {
+            position: absolute;
+            bottom: 8px;
+            left: 8px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        .source-status {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #6b7280;
+        }
+        
+        .source-status.connected {
+            background: #22c55e;
+        }
+        
+        .control-panel {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        
+        .panel-section {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 12px;
+        }
+        
+        .panel-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #a1a1aa;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        .scene-buttons {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+        
+        .scene-btn {
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.875rem;
+        }
+        
+        .scene-btn.cam {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+        }
+        
+        .scene-btn.cam:hover {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        }
+        
+        .scene-btn.active {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.4);
+        }
+        
+        .layout-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .layout-btn {
+            padding: 10px 16px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.05);
+            color: #e4e4e7;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .layout-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: #3b82f6;
+        }
+        
+        .layout-btn.active {
+            background: rgba(59, 130, 246, 0.2);
+            border-color: #3b82f6;
+        }
+        
+        .layout-icon {
+            width: 24px;
+            height: 16px;
+            border: 1px solid currentColor;
+            border-radius: 2px;
+            display: flex;
+            flex-wrap: wrap;
+        }
+        
+        .layout-icon.single .box {
+            width: 100%;
+            height: 100%;
+            background: currentColor;
+            opacity: 0.5;
+        }
+        
+        .layout-icon.split .box {
+            width: 50%;
+            height: 100%;
+            background: currentColor;
+            opacity: 0.5;
+        }
+        
+        .layout-icon.split .box:first-child {
+            border-right: 1px solid;
+        }
+        
+        .layout-icon.quad .box {
+            width: 50%;
+            height: 50%;
+            background: currentColor;
+            opacity: 0.5;
+            border: 0.5px solid;
+        }
+        
+        .stream-info {
+            font-size: 0.75rem;
+            color: #71717a;
+        }
+        
+        .stream-info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .quick-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .action-btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .action-btn.refresh {
+            background: #22c55e;
+            color: white;
+        }
+        
+        .action-btn.fullscreen {
+            background: #8b5cf6;
+            color: white;
+        }
+        
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        @media (max-width: 1024px) {
+            .main-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .source-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">R58 Studio Mixer</div>
+        <div class="connection-status">
+            <div class="status-dot" id="connectionDot"></div>
+            <span id="connectionText">Connecting...</span>
+        </div>
+    </div>
+    
+    <div class="main-container">
+        <div class="preview-section">
+            <div class="program-output">
+                <div class="program-label">PROGRAM</div>
+                <video id="programVideo" autoplay muted playsinline></video>
+                <div class="loading-overlay" id="programLoading">
+                    <div class="spinner"></div>
+                    <span>Loading stream...</span>
+                </div>
+            </div>
+            
+            <div class="source-grid" id="sourceGrid">
+                <!-- Sources will be populated dynamically -->
+            </div>
+        </div>
+        
+        <div class="control-panel">
+            <div class="panel-section">
+                <div class="panel-title">Quick Switch</div>
+                <div class="scene-buttons" id="sceneButtons">
+                    <button class="scene-btn cam" data-source="cam0">CAM 1</button>
+                    <button class="scene-btn cam" data-source="cam1">CAM 2</button>
+                    <button class="scene-btn cam" data-source="cam2">CAM 3</button>
+                    <button class="scene-btn cam" data-source="cam3">CAM 4</button>
+                </div>
+            </div>
+            
+            <div class="panel-section">
+                <div class="panel-title">Layout</div>
+                <div class="layout-buttons">
+                    <button class="layout-btn active" data-layout="single">
+                        <div class="layout-icon single"><div class="box"></div></div>
+                        <span>Single Camera</span>
+                    </button>
+                    <button class="layout-btn" data-layout="split">
+                        <div class="layout-icon split"><div class="box"></div><div class="box"></div></div>
+                        <span>Side by Side</span>
+                    </button>
+                    <button class="layout-btn" data-layout="quad">
+                        <div class="layout-icon quad"><div class="box"></div><div class="box"></div><div class="box"></div><div class="box"></div></div>
+                        <span>Quad View</span>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="panel-section">
+                <div class="panel-title">Stream Info</div>
+                <div class="stream-info" id="streamInfo">
+                    <div class="stream-info-item">
+                        <span>Active Sources</span>
+                        <span id="activeSources">0</span>
+                    </div>
+                    <div class="stream-info-item">
+                        <span>Server</span>
+                        <span id="serverInfo">-</span>
+                    </div>
+                    <div class="stream-info-item">
+                        <span>Protocol</span>
+                        <span>WHEP (WebRTC)</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="panel-section">
+                <div class="panel-title">Actions</div>
+                <div class="quick-actions">
+                    <button class="action-btn refresh" onclick="refreshAllStreams()">↻ Refresh</button>
+                    <button class="action-btn fullscreen" onclick="toggleFullscreen()">⛶ Fullscreen</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const CONFIG = {
+            // Will auto-detect from URL or use defaults
+            mediamtxHost: window.location.hostname,
+            mediamtxPort: 8889,
+            sources: ['cam0', 'cam1', 'cam2', 'cam3']
+        };
+        
+        // Parse URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('host')) {
+            CONFIG.mediamtxHost = urlParams.get('host');
+        }
+        if (urlParams.get('port')) {
+            CONFIG.mediamtxPort = parseInt(urlParams.get('port'));
+        }
+        if (urlParams.get('sources')) {
+            CONFIG.sources = urlParams.get('sources').split(',');
+        }
+        
+        document.getElementById('serverInfo').textContent = `${CONFIG.mediamtxHost}:${CONFIG.mediamtxPort}`;
+        
+        // WHEP Client class
+        class WHEPClient {
+            constructor(endpoint) {
+                this.endpoint = endpoint;
+                this.pc = null;
+            }
+            
+            async connect() {
+                this.pc = new RTCPeerConnection({
+                    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+                });
+                
+                this.pc.addTransceiver('video', { direction: 'recvonly' });
+                this.pc.addTransceiver('audio', { direction: 'recvonly' });
+                
+                const offer = await this.pc.createOffer();
+                await this.pc.setLocalDescription(offer);
+                
+                // Wait for ICE gathering
+                await new Promise(resolve => {
+                    if (this.pc.iceGatheringState === 'complete') {
+                        resolve();
+                    } else {
+                        this.pc.addEventListener('icegatheringstatechange', () => {
+                            if (this.pc.iceGatheringState === 'complete') resolve();
+                        });
+                        setTimeout(resolve, 2000);
+                    }
+                });
+                
+                const response = await fetch(this.endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/sdp' },
+                    body: this.pc.localDescription.sdp
+                });
+                
+                if (!response.ok) throw new Error(`WHEP error: ${response.status}`);
+                
+                const answerSDP = await response.text();
+                await this.pc.setRemoteDescription({ type: 'answer', sdp: answerSDP });
+                
+                return this.pc;
+            }
+            
+            getStream() {
+                const stream = new MediaStream();
+                this.pc.getReceivers().forEach(receiver => {
+                    if (receiver.track) stream.addTrack(receiver.track);
+                });
+                return stream;
+            }
+            
+            close() {
+                if (this.pc) this.pc.close();
+            }
+        }
+        
+        // Stream management
+        const streams = {};
+        const clients = {};
+        let activeSource = null;
+        let currentLayout = 'single';
+        
+        async function initializeSource(sourceId) {
+            const endpoint = `http://${CONFIG.mediamtxHost}:${CONFIG.mediamtxPort}/${sourceId}/whep`;
+            
+            try {
+                const client = new WHEPClient(endpoint);
+                const pc = await client.connect();
+                
+                pc.ontrack = (event) => {
+                    streams[sourceId] = event.streams[0];
+                    updateSourceTile(sourceId, true);
+                    updateActiveSourceCount();
+                    
+                    // Auto-select first source
+                    if (!activeSource) {
+                        selectSource(sourceId);
+                    }
+                };
+                
+                clients[sourceId] = client;
+                console.log(`Connected to ${sourceId}`);
+                
+            } catch (error) {
+                console.error(`Failed to connect to ${sourceId}:`, error);
+                updateSourceTile(sourceId, false);
+            }
+        }
+        
+        function updateSourceTile(sourceId, connected) {
+            const tile = document.querySelector(`.source-tile[data-source="${sourceId}"]`);
+            if (!tile) return;
+            
+            const status = tile.querySelector('.source-status');
+            const video = tile.querySelector('video');
+            
+            if (connected) {
+                status.classList.add('connected');
+                if (streams[sourceId]) {
+                    video.srcObject = streams[sourceId];
+                }
+            } else {
+                status.classList.remove('connected');
+            }
+        }
+        
+        function selectSource(sourceId) {
+            // Update active state on tiles
+            document.querySelectorAll('.source-tile').forEach(t => t.classList.remove('active'));
+            const tile = document.querySelector(`.source-tile[data-source="${sourceId}"]`);
+            if (tile) tile.classList.add('active');
+            
+            // Update active state on scene buttons
+            document.querySelectorAll('.scene-btn').forEach(b => b.classList.remove('active'));
+            const btn = document.querySelector(`.scene-btn[data-source="${sourceId}"]`);
+            if (btn) btn.classList.add('active');
+            
+            // Switch program output
+            const programVideo = document.getElementById('programVideo');
+            const loading = document.getElementById('programLoading');
+            
+            if (streams[sourceId]) {
+                programVideo.srcObject = streams[sourceId];
+                loading.style.display = 'none';
+                activeSource = sourceId;
+            } else {
+                loading.style.display = 'flex';
+            }
+        }
+        
+        function updateActiveSourceCount() {
+            const count = Object.values(streams).filter(s => s).length;
+            document.getElementById('activeSources').textContent = count;
+            
+            // Update connection status
+            const dot = document.getElementById('connectionDot');
+            const text = document.getElementById('connectionText');
+            
+            if (count > 0) {
+                dot.style.background = '#22c55e';
+                text.textContent = `${count} source${count > 1 ? 's' : ''} connected`;
+            } else {
+                dot.style.background = '#ef4444';
+                text.textContent = 'No sources';
+            }
+        }
+        
+        function createSourceTiles() {
+            const grid = document.getElementById('sourceGrid');
+            grid.innerHTML = '';
+            
+            CONFIG.sources.forEach((sourceId, index) => {
+                const tile = document.createElement('div');
+                tile.className = 'source-tile';
+                tile.dataset.source = sourceId;
+                tile.innerHTML = `
+                    <video autoplay muted playsinline></video>
+                    <div class="source-label">CAM ${index + 1}</div>
+                    <div class="source-status"></div>
+                `;
+                tile.addEventListener('click', () => selectSource(sourceId));
+                grid.appendChild(tile);
+            });
+        }
+        
+        async function refreshAllStreams() {
+            // Close existing connections
+            Object.values(clients).forEach(c => c.close());
+            Object.keys(streams).forEach(k => delete streams[k]);
+            
+            // Reinitialize
+            for (const sourceId of CONFIG.sources) {
+                await initializeSource(sourceId);
+            }
+        }
+        
+        function toggleFullscreen() {
+            const programVideo = document.getElementById('programVideo');
+            if (document.fullscreenElement) {
+                document.exitFullscreen();
+            } else {
+                programVideo.requestFullscreen();
+            }
+        }
+        
+        // Event listeners
+        document.querySelectorAll('.scene-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                selectSource(btn.dataset.source);
+            });
+        });
+        
+        document.querySelectorAll('.layout-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.layout-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentLayout = btn.dataset.layout;
+                // Layout switching logic would go here
+            });
+        });
+        
+        // Initialize
+        async function init() {
+            createSourceTiles();
+            
+            for (const sourceId of CONFIG.sources) {
+                await initializeSource(sourceId);
+            }
+        }
+        
+        init();
+    </script>
+</body>
+</html>
+

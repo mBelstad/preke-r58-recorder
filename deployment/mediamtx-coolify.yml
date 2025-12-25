@@ -1,0 +1,85 @@
+# MediaMTX Configuration for Coolify Deployment
+# File: mediamtx-coolify.yml
+# Purpose: Central relay server for R58 camera streams
+
+logLevel: info
+logDestinations: [stdout]
+
+# API for monitoring
+api: yes
+apiAddress: :9997
+apiAllowOrigins: ["*"]
+
+# RTSP (if needed for compatibility)
+rtsp: yes
+rtspAddress: :8554
+rtspTransports: [tcp]
+
+# WebRTC - Main streaming protocol
+webrtc: yes
+webrtcAddress: :8889
+
+# Enable HTTPS for secure streaming
+webrtcEncryption: yes
+webrtcServerKey: /ssl/server.key
+webrtcServerCert: /ssl/server.crt
+
+# CORS for web access
+webrtcAllowOrigins: ["*"]
+
+# UDP for local/fast connections
+webrtcLocalUDPAddress: :8189
+
+# TCP for reliable connections through firewalls
+webrtcLocalTCPAddress: :8190
+
+# Public domain configuration
+webrtcAdditionalHosts:
+  - vdo.itagenten.no
+  - mediamtx.vdo.itagenten.no
+
+# Gather IPs from network interfaces
+webrtcIPsFromInterfaces: yes
+
+# STUN servers for NAT traversal
+webrtcICEServers2:
+  - url: stun:stun.l.google.com:19302
+  - url: stun:stun.cloudflare.com:3478
+
+# WebRTC timeouts
+webrtcHandshakeTimeout: 10s
+webrtcTrackGatherTimeout: 2s
+
+# HLS for fallback/compatibility
+hls: yes
+hlsAddress: :8888
+hlsAlwaysRemux: yes
+hlsVariant: mpegts
+hlsSegmentCount: 3
+hlsSegmentDuration: 1s
+hlsAllowOrigins: ["*"]
+
+# Camera stream paths - will receive WHIP from R58
+paths:
+  cam0:
+    source: publisher
+    # Optional: add authentication
+    # publishUser: r58
+    # publishPass: secure_password_here
+    
+  cam1:
+    source: publisher
+    
+  cam2:
+    source: publisher
+    
+  cam3:
+    source: publisher
+    
+  # Guest streams (for future use)
+  guest1:
+    source: publisher
+    
+  guest2:
+    source: publisher
+
