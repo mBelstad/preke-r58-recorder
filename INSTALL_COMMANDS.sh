@@ -58,3 +58,4 @@ echo ""
 echo "4. Show it:"
 echo "   curl -X POST http://localhost:8000/api/cairo/lower_third/test1/show"
 echo ""
+

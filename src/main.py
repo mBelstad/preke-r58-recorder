@@ -130,32 +130,10 @@ if config.mixer.enabled:
 else:
     logger.info("Mixer plugin disabled in configuration")
 
-# Initialize Cloudflare Calls manager (for remote guests)
+# Cloudflare Calls removed - using direct WHIP to MediaMTX instead
+# Remote guests now publish directly via WHIP endpoints
 calls_manager: Optional[Any] = None
 calls_relay: Optional[Any] = None
-if config.cloudflare.account_id and config.cloudflare.calls_api_token:
-    try:
-        from .cloudflare_calls import CloudflareCallsManager
-        from .calls_relay import CloudflareCallsRelay
-        
-        calls_manager = CloudflareCallsManager(
-            account_id=config.cloudflare.account_id,
-            app_id=config.cloudflare.calls_app_id,
-            api_token=config.cloudflare.calls_api_token
-        )
-        
-        calls_relay = CloudflareCallsRelay(
-            app_id=config.cloudflare.calls_app_id,
-            api_token=config.cloudflare.calls_api_token
-        )
-        
-        logger.info("Cloudflare Calls manager and relay initialized for remote guests")
-    except Exception as e:
-        logger.error(f"Failed to initialize Cloudflare Calls: {e}")
-        calls_manager = None
-        calls_relay = None
-else:
-    logger.info("Cloudflare Calls disabled - no credentials configured")
 
 # Initialize Mode Manager (for switching between Recorder and VDO.ninja modes)
 mode_manager = None
@@ -187,18 +165,7 @@ async def lifespan(app: FastAPI):
     logger.info("Application shutting down...")
     
     # Cleanup Cloudflare Calls relays
-    if calls_relay:
-        try:
-            await calls_relay.cleanup_all()
-        except Exception as e:
-            logger.error(f"Error cleaning up Cloudflare Calls relays: {e}")
-    
-    # Cleanup Cloudflare Calls sessions
-    if calls_manager:
-        try:
-            await calls_manager.cleanup_all_sessions()
-        except Exception as e:
-            logger.error(f"Error cleaning up Cloudflare Calls sessions: {e}")
+    # Cloudflare Calls cleanup removed (no longer used)
 
 
 # Create FastAPI app with lifespan
@@ -652,7 +619,7 @@ async def get_preview_status_api() -> Dict[str, Any]:
     }
 
 
-# HLS Proxy endpoints - allows remote access through Cloudflare Tunnel
+# HLS Proxy endpoints - allows remote access through FRP tunnel
 MEDIAMTX_HLS_BASE = "http://localhost:8888"
 
 
@@ -660,7 +627,7 @@ MEDIAMTX_HLS_BASE = "http://localhost:8888"
 async def proxy_hls(stream_path: str):
     """Proxy HLS streams from MediaMTX for remote access.
     
-    This enables video streaming through Cloudflare Tunnel by proxying
+    This enables video streaming through FRP tunnel by proxying
     the MediaMTX HLS streams through the FastAPI server.
     
     Example: /hls/cam0_preview/index.m3u8
@@ -891,71 +858,14 @@ async def get_turn_credentials() -> Dict[str, Any]:
     The Coolify TURN API handles credential generation and caching, providing a
     centralized point for TURN configuration across all R58 devices.
     
-    Fallback: If Coolify API is unavailable, uses direct Cloudflare TURN API.
+    Note: TURN removed - remote guests now use direct WHIP to MediaMTX.
+    This endpoint only returns STUN for local network WebRTC.
     """
-    import os
-    
-    # Try Coolify TURN API first
-    COOLIFY_TURN_API = os.environ.get("COOLIFY_TURN_API_URL", "https://api.r58.itagenten.no/turn-credentials")
-    
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                COOLIFY_TURN_API,
-                timeout=10.0
-            )
-            
-            if response.is_success:
-                data = response.json()
-                logger.info("✓ TURN credentials obtained from Coolify API")
-                return data
-            else:
-                logger.warning(f"Coolify TURN API returned {response.status_code}, trying fallback...")
-                
-    except Exception as e:
-        logger.warning(f"Coolify TURN API unavailable ({e}), using fallback...")
-    
-    # Fallback to direct Cloudflare TURN API
-    TURN_TOKEN_ID = os.environ.get("CLOUDFLARE_TURN_TOKEN_ID", "")
-    API_TOKEN = os.environ.get("CLOUDFLARE_TURN_API_TOKEN", "")
-    
-    if not TURN_TOKEN_ID or not API_TOKEN:
-        logger.warning("TURN credentials not configured. Set CLOUDFLARE_TURN_TOKEN_ID and CLOUDFLARE_TURN_API_TOKEN environment variables.")
-        # Return STUN-only fallback
-        return {
-            "iceServers": [
-                {"urls": ["stun:stun.cloudflare.com:3478"]},
-                {"urls": ["stun:stun.l.google.com:19302"]}
-            ]
-        }
-    
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"https://rtc.live.cloudflare.com/v1/turn/keys/{TURN_TOKEN_ID}/credentials/generate-ice-servers",
-                headers={
-                    "Authorization": f"Bearer {API_TOKEN}",
-                    "Content-Type": "application/json"
-                },
-                json={"ttl": 86400},  # 24 hour validity
-                timeout=10.0
-            )
-            
-            if not response.is_success:
-                logger.error(f"Cloudflare TURN API error: {response.status_code} - {response.text}")
-                raise HTTPException(
-                    status_code=response.status_code,
-                    detail=f"Failed to get TURN credentials: {response.text}"
-                )
-            
-            return response.json()
-    except httpx.TimeoutException:
-        raise HTTPException(status_code=504, detail="TURN API timeout")
-    except httpx.ConnectError:
-        raise HTTPException(status_code=503, detail="Cannot connect to Cloudflare TURN API")
-    except Exception as e:
-        logger.error(f"Error getting TURN credentials: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    return {
+        "iceServers": [
+            {"urls": ["stun:stun.l.google.com:19302"]}
+        ]
+    }
 
 
 @app.get("/api/streams")
@@ -2589,111 +2499,8 @@ async def get_guests_status() -> Dict[str, Any]:
     return {"guests": guests_status}
 
 
-# Cloudflare Calls API endpoints (for remote guests)
-@app.post("/api/calls/whip/{guest_id}")
-async def cloudflare_calls_whip(guest_id: str, request: Request) -> Response:
-    """Proxy WHIP requests to Cloudflare Calls for remote guests.
-    
-    This endpoint receives SDP offers from guests, forwards them to Cloudflare Calls,
-    and returns the SDP answer. The guest then connects to Cloudflare's infrastructure.
-    After connection, starts a relay to pull the stream and push to MediaMTX.
-    """
-    if not calls_manager or not calls_relay:
-        raise HTTPException(status_code=503, detail="Cloudflare Calls not configured")
-    
-    if guest_id not in config.guests or not config.guests[guest_id].enabled:
-        raise HTTPException(status_code=400, detail=f"Invalid or disabled guest: {guest_id}")
-    
-    try:
-        # Read SDP offer from request body
-        sdp_offer = (await request.body()).decode('utf-8')
-        
-        # Create guest session using two-step flow (returns session_id, sdp_answer, track_names)
-        session_data = await calls_manager.create_guest_session(guest_id, sdp_offer)
-        session_id = session_data['session_id']
-        track_names = session_data['track_names']
-        
-        logger.info(f"Cloudflare Calls session created for {guest_id}: {session_id} with tracks {track_names}")
-        
-        # Start relay in background (after a short delay to let tracks be published)
-        rtmp_port = config.mediamtx.rtmp_port
-        rtmp_url = f"rtmp://127.0.0.1:{rtmp_port}/{guest_id}"
-        
-        async def start_relay_delayed():
-            await asyncio.sleep(2)  # Wait for guest to publish tracks
-            try:
-                await calls_relay.subscribe_and_relay(
-                    guest_session_id=session_id,
-                    track_names=track_names,
-                    guest_id=guest_id,
-                    rtmp_url=rtmp_url
-                )
-                logger.info(f"Relay started for {guest_id}: Cloudflare -> MediaMTX")
-            except Exception as e:
-                logger.error(f"Failed to start relay for {guest_id}: {e}")
-        
-        asyncio.create_task(start_relay_delayed())
-        
-        # Return SDP answer
-        return Response(
-            content=session_data["sdp_answer"],
-            media_type="application/sdp",
-            headers={
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Methods": "POST, OPTIONS",
-                "Access-Control-Allow-Headers": "Content-Type",
-            }
-        )
-        
-    except Exception as e:
-        logger.error(f"Failed to create Cloudflare Calls session for {guest_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to create session: {str(e)}")
-
-
-@app.options("/api/calls/whip/{guest_id}")
-async def cloudflare_calls_whip_options(guest_id: str):
-    """Handle CORS preflight for Cloudflare Calls WHIP requests."""
-    return Response(
-        status_code=200,
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type",
-        }
-    )
-
-
-@app.delete("/api/calls/session/{guest_id}")
-async def close_calls_session(guest_id: str) -> Dict[str, str]:
-    """Close a Cloudflare Calls session and relay for a guest."""
-    if not calls_manager or not calls_relay:
-        raise HTTPException(status_code=503, detail="Cloudflare Calls not configured")
-    
-    try:
-        # Stop relay first
-        await calls_relay.stop_relay(guest_id)
-        
-        # Then close Cloudflare session
-        success = await calls_manager.close_guest_session(guest_id)
-        
-        if success:
-            logger.info(f"Closed Cloudflare Calls session and relay for {guest_id}")
-            return {"status": "closed", "guest_id": guest_id}
-        else:
-            return {"status": "no_session", "guest_id": guest_id}
-    except Exception as e:
-        logger.error(f"Error closing Cloudflare Calls session for {guest_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to close session: {str(e)}")
-
-
-@app.get("/api/calls/sessions")
-async def get_active_calls_sessions() -> Dict[str, Any]:
-    """Get all active Cloudflare Calls sessions."""
-    if not calls_manager:
-        return {"sessions": {}}
-    
-    active_sessions = calls_manager.get_active_sessions()
-    return {"sessions": active_sessions}
+# Cloudflare Calls endpoints removed - guests now use direct WHIP to MediaMTX
+# See /guest_join page for remote speaker WHIP publishing
 
 
 # Graphics/Presentation API endpoints

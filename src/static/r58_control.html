@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>R58 Control Dashboard</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Space+Grotesk:wght@400;500;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-card: #1a1a25;
+            --accent-red: #ff3d3d;
+            --accent-green: #00ff88;
+            --accent-blue: #3d9eff;
+            --accent-purple: #a855f7;
+            --text-primary: #f0f0f5;
+            --text-secondary: #8888a0;
+            --border: #2a2a3a;
+        }
+        
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        .bg-pattern {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(168, 85, 247, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(61, 158, 255, 0.08) 0%, transparent 50%);
+            z-index: -1;
+        }
+        
+        .header {
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+            padding: 20px 32px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2rem;
+            background: linear-gradient(90deg, var(--accent-red), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .header p {
+            color: var(--text-secondary);
+            margin-top: 8px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 32px;
+        }
+        
+        .section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+        
+        .section-title {
+            font-size: 1.5rem;
+            margin-bottom: 16px;
+            color: var(--accent-blue);
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+        }
+        
+        .card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+        
+        .card:hover {
+            transform: translateY(-4px);
+            border-color: var(--accent-blue);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+        
+        .card.primary {
+            border-color: var(--accent-purple);
+            background: linear-gradient(135deg, rgba(168, 85, 247, 0.1), transparent);
+        }
+        
+        .card h3 {
+            font-size: 1.2rem;
+            margin-bottom: 8px;
+        }
+        
+        .card p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+        
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+        }
+        
+        .status-item {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--accent-green);
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .status-item.offline .status-dot {
+            background: var(--text-secondary);
+            animation: none;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background: var(--accent-purple);
+            color: var(--text-primary);
+            border: none;
+            border-radius: 8px;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            text-align: center;
+        }
+        
+        .btn:hover {
+            background: #9333ea;
+            transform: translateY(-2px);
+        }
+        
+        .btn.secondary {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+        }
+        
+        .btn.secondary:hover {
+            background: var(--bg-card);
+            border-color: var(--accent-blue);
+        }
+        
+        .url-box {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: var(--accent-blue);
+            word-break: break-all;
+            margin-top: 12px;
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 32px;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-pattern"></div>
+    
+    <header class="header">
+        <h1>R58 Control Dashboard</h1>
+        <p>Unified control for cameras, mixing, and remote speakers</p>
+    </header>
+    
+    <div class="container">
+        <!-- VDO.ninja Mixer Section -->
+        <section class="section">
+            <div class="section-title">🎛️ VDO.ninja Mixer</div>
+            <div class="grid">
+                <a class="card primary" href="https://r58-vdo.itagenten.no/mixer?room=r58studio&slots=5&automixer&whep=https://r58-mediamtx.itagenten.no/cam0/whep&label=CAM0&whep=https://r58-mediamtx.itagenten.no/cam2/whep&label=CAM2&whep=https://r58-mediamtx.itagenten.no/cam3/whep&label=CAM3&whep=https://r58-mediamtx.itagenten.no/speaker0/whep&label=SPEAKER1&whep=https://r58-mediamtx.itagenten.no/speaker1/whep&label=SPEAKER2" target="_blank">
+                    <h3>🚀 Launch Mixer</h3>
+                    <p>Open the VDO.ninja mixer with all cameras and speaker slots pre-loaded.</p>
+                </a>
+                
+                <a class="card" href="https://r58-vdo.itagenten.no/?director=r58studio" target="_blank">
+                    <h3>🎬 Director View</h3>
+                    <p>Monitor and control all sources in the VDO.ninja director interface.</p>
+                </a>
+                
+                <a class="card" href="https://r58-api.itagenten.no/static/r58_remote_mixer.html" target="_blank">
+                    <h3>📺 Remote Mixer Dashboard</h3>
+                    <p>Advanced mixer dashboard with camera preview and controls.</p>
+                </a>
+            </div>
+        </section>
+        
+        <!-- Remote Speakers Section -->
+        <section class="section">
+            <div class="section-title">🎤 Remote Speakers</div>
+            <p style="color: var(--text-secondary); margin-bottom: 16px;">
+                Share this link with remote speakers to join the production:
+            </p>
+            <div class="url-box">
+                https://r58-api.itagenten.no/guest_join
+            </div>
+            <div style="margin-top: 16px;">
+                <a class="btn" href="https://r58-api.itagenten.no/guest_join" target="_blank">
+                    Open Speaker Join Page
+                </a>
+            </div>
+        </section>
+        
+        <!-- Mode Control Section -->
+        <section class="section">
+            <div class="section-title">⚙️ System Mode</div>
+            <div class="grid">
+                <a class="card" href="https://r58-api.itagenten.no/static/mode_control.html" target="_blank">
+                    <h3>🔄 Mode Switching</h3>
+                    <p>Switch between Recorder Mode and VDO.ninja Mode.</p>
+                </a>
+                
+                <div class="card">
+                    <h3>📊 Current Mode</h3>
+                    <p id="currentMode">Loading...</p>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Camera Sources Section -->
+        <section class="section">
+            <div class="section-title">📹 Camera Sources</div>
+            <div class="status-grid">
+                <div class="status-item" id="cam0-status">
+                    <div class="status-dot"></div>
+                    <div>
+                        <strong>Camera 0</strong><br>
+                        <small>Checking...</small>
+                    </div>
+                </div>
+                <div class="status-item" id="cam2-status">
+                    <div class="status-dot"></div>
+                    <div>
+                        <strong>Camera 2</strong><br>
+                        <small>Checking...</small>
+                    </div>
+                </div>
+                <div class="status-item" id="cam3-status">
+                    <div class="status-dot"></div>
+                    <div>
+                        <strong>Camera 3</strong><br>
+                        <small>Checking...</small>
+                    </div>
+                </div>
+            </div>
+            <div style="margin-top: 16px;">
+                <a class="btn secondary" href="https://r58-mediamtx.itagenten.no/cam0" target="_blank">View Camera 0</a>
+                <a class="btn secondary" href="https://r58-mediamtx.itagenten.no/cam2" target="_blank">View Camera 2</a>
+                <a class="btn secondary" href="https://r58-mediamtx.itagenten.no/cam3" target="_blank">View Camera 3</a>
+            </div>
+        </section>
+        
+        <!-- Quick Links Section -->
+        <section class="section">
+            <div class="section-title">🔗 Quick Links</div>
+            <div class="grid">
+                <a class="card" href="https://r58-api.itagenten.no/" target="_blank">
+                    <h3>🏠 Main Dashboard</h3>
+                    <p>R58 main recorder interface</p>
+                </a>
+                
+                <a class="card" href="https://r58-api.itagenten.no/static/switcher.html" target="_blank">
+                    <h3>🎚️ Switcher</h3>
+                    <p>Camera switcher interface</p>
+                </a>
+                
+                <a class="card" href="https://r58-mediamtx.itagenten.no/" target="_blank">
+                    <h3>📡 MediaMTX</h3>
+                    <p>MediaMTX server interface</p>
+                </a>
+            </div>
+        </section>
+    </div>
+    
+    <footer class="footer">
+        R58 Studio • Remote WebRTC via MediaMTX + FRP • VDO.ninja Integration
+    </footer>
+    
+    <script>
+        // Check current mode
+        async function checkMode() {
+            try {
+                const response = await fetch('https://r58-api.itagenten.no/api/mode');
+                const data = await response.json();
+                document.getElementById('currentMode').textContent = 
+                    data.current_mode === 'recorder' ? '📹 Recorder Mode' : '🎥 VDO.ninja Mode';
+            } catch (error) {
+                document.getElementById('currentMode').textContent = '⚠️ Unable to check';
+            }
+        }
+        
+        // Check camera status
+        async function checkCameras() {
+            const cameras = ['cam0', 'cam2', 'cam3'];
+            
+            for (const cam of cameras) {
+                try {
+                    const response = await fetch(`https://r58-mediamtx.itagenten.no/${cam}/whep`, {
+                        method: 'OPTIONS'
+                    });
+                    
+                    const statusEl = document.getElementById(`${cam}-status`);
+                    if (response.ok) {
+                        statusEl.classList.remove('offline');
+                        statusEl.querySelector('small').textContent = 'Online';
+                    } else {
+                        statusEl.classList.add('offline');
+                        statusEl.querySelector('small').textContent = 'Offline';
+                    }
+                } catch (error) {
+                    const statusEl = document.getElementById(`${cam}-status`);
+                    statusEl.classList.add('offline');
+                    statusEl.querySelector('small').textContent = 'Offline';
+                }
+            }
+        }
+        
+        // Initialize
+        checkMode();
+        checkCameras();
+        
+        // Refresh every 30 seconds
+        setInterval(() => {
+            checkMode();
+            checkCameras();
+        }, 30000);
+    </script>
+</body>
+</html>
+

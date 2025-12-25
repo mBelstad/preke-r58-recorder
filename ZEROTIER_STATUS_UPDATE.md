@@ -117,3 +117,4 @@ open "https://192.168.1.24:8443/?director=r58studio"
 
 **Let me know the Windows ZeroTier IP and I can help you add the route!**
 
+

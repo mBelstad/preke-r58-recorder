@@ -66,3 +66,4 @@ echo "  2. Open web UI: open https://recorder.itagenten.no/cairo"
 echo "  3. Test graphics: Create a lower third and click Show"
 echo ""
 
+

@@ -295,3 +295,4 @@ sudo systemctl status mediamtx preke-recorder frpc
 
 All cameras are now streaming remotely via WebRTC through FRP. The system is tested, documented, and ready for production use.
 
+

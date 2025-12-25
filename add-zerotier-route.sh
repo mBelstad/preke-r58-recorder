@@ -43,3 +43,4 @@ else
     echo "Try running manually: sudo route add -net 192.168.1.0/24 10.76.254.72"
 fi
 
+

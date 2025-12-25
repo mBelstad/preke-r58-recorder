@@ -43,6 +43,13 @@ paths:
     source: publisher
   guest2:
     source: publisher
+  # Remote speaker paths (published via WHIP from guest_join page)
+  speaker0:
+    source: publisher
+  speaker1:
+    source: publisher
+  speaker2:
+    source: publisher
   # Ninja guest paths (published via WebRTC subscriber)
   ninja_guest1:
     source: publisher

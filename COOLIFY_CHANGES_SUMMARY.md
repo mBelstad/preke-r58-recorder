@@ -217,3 +217,4 @@ ufw delete allow 19997/tcp
 
 The R58 integration follows Coolify's best practices and doesn't interfere with the platform's operation.
 
+

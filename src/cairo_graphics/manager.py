@@ -205,3 +205,4 @@ class CairoGraphicsManager:
                 "elements": self.list_elements()
             }
 
+

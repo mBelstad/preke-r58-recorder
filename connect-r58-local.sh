@@ -69,3 +69,4 @@ else
     ssh linaro@$R58_IP "$COMMAND"
 fi
 
+

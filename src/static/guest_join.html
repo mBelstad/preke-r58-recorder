@@ -348,7 +348,7 @@
             warning.className = 'status-message info';
             warning.innerHTML = `
                 <strong>🌐 Remote Access Mode</strong><br>
-                Using Cloudflare TURN relay for WebRTC connection.<br>
+                Publishing via WHIP through FRP tunnel to MediaMTX.<br>
                 <small>For lower latency, guests on the local network can use: <strong>http://192.168.1.58:8000/guest_join</strong></small>
             `;
             warning.style.display = 'block';
@@ -357,7 +357,7 @@
         // Get WebRTC endpoint
         function getWHIPUrl(streamPath) {
             if (IS_REMOTE) {
-                // Through Cloudflare tunnel
+                // Through FRP tunnel to MediaMTX
                 return `${API_BASE}/whip/${streamPath}`;
             } else {
                 // Direct to MediaMTX
@@ -370,7 +370,7 @@
         let statsInterval = null;
         let durationInterval = null;
         let startTime = null;
-        let currentSessionId = null;  // Cloudflare Calls session ID
+        let currentSessionId = null;  // Session ID for tracking
 
         // Load available devices
         async function loadDevices() {
@@ -510,7 +510,7 @@
                         if (turnResponse.ok) {
                             const turnData = await turnResponse.json();
                             iceServers = turnData.iceServers;
-                            console.log('Using Cloudflare TURN servers for remote access');
+                            console.log('Using Google STUN for remote access');
                         } else {
                             console.warn('Failed to get TURN credentials, using STUN only');
                         }
@@ -610,7 +610,7 @@
                 
                 // Log connection mode
                 if (IS_REMOTE) {
-                    console.log('Connected via Cloudflare TURN relay - stream goes to MediaMTX');
+                    console.log('Connected via WHIP - stream goes to MediaMTX');
                 } else {
                     console.log('Connected directly to local MediaMTX');
                 }

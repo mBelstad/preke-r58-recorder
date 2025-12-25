@@ -443,3 +443,4 @@ curl -X POST https://vdo.itagenten.no/cam0/whep
 
 **Next Step**: Run `./deploy-coolify.sh` on Coolify server!
 
+
