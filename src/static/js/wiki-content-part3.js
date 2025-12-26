@@ -9,7 +9,7 @@ Object.assign(wikiContent, {
     
     'common-issues': {
         title: 'Common Issues & Solutions',
-        simple: `
+        simple: \`
 Here are the most common problems and how to fix them:
 
 **Problem**: Can't connect via SSH  
@@ -23,7 +23,7 @@ Here are the most common problems and how to fix them:
 
 Most issues can be fixed by restarting the service!
         `,
-        technical: `
+        technical: \`
 **Diagnostic Approach**:
 1. Check service status
 2. View logs
@@ -48,7 +48,7 @@ Most issues can be fixed by restarting the service!
 "
 \`\`\`
         `,
-        content: `
+        content: \`
 ## Issue: SSH Connection Fails
 
 **Symptoms**:
@@ -217,7 +217,7 @@ curl https://r58-api.itagenten.no/api/mixer/status
     
     'ssh-problems': {
         title: 'SSH Connection Problems',
-        simple: `
+        simple: \`
 If you can't connect via SSH:
 
 1. **Check the port is open**:
@@ -238,7 +238,7 @@ If you can't connect via SSH:
 
 If these don't work, the FRP tunnel may be down (requires physical access to R58).
         `,
-        technical: `
+        technical: \`
 **SSH Connection Chain**:
 \`\`\`
 Your Computer
@@ -265,7 +265,7 @@ ssh -p 10022 linaro@65.109.32.111   # SSH works manually?
 ./connect-r58-frp.sh "hostname"     # Full chain works?
 \`\`\`
         `,
-        content: `
+        content: \`
 ## Error: "Connection refused"
 
 **Cause**: Port 10022 not accessible
@@ -400,7 +400,7 @@ If FRP is down, use local network:
     
     'video-issues': {
         title: 'Video & Streaming Issues',
-        simple: `
+        simple: \`
 If video isn't showing:
 
 1. **Check MediaMTX is running**:
@@ -422,7 +422,7 @@ If video isn't showing:
 
 Usually a service restart fixes video issues!
         `,
-        technical: `
+        technical: \`
 **Video Pipeline**:
 \`\`\`
 Camera → GStreamer → MediaMTX → FRP → VPS → Browser
@@ -454,7 +454,7 @@ ss -tlnp | grep 18889
 curl -I https://r58-mediamtx.itagenten.no/cam1/whep
 \`\`\`
         `,
-        content: `
+        content: \`
 ## Issue: Black Screen in Browser
 
 **Symptoms**:
@@ -610,7 +610,7 @@ curl -I https://r58-mediamtx.itagenten.no/cam1/index.m3u8
     
     'logs': {
         title: 'Viewing Logs',
-        simple: `
+        simple: \`
 Logs help you understand what's happening inside the R58.
 
 **View recent logs**:
@@ -630,7 +630,7 @@ Logs help you understand what's happening inside the R58.
 
 Logs show you exactly what went wrong!
         `,
-        technical: `
+        technical: \`
 **Log System**: systemd journald
 
 **Services to Monitor**:
@@ -651,7 +651,7 @@ Logs show you exactly what went wrong!
 
 **Retention**: Logs kept for 7 days by default
         `,
-        content: `
+        content: \`
 ## View Application Logs
 
 **Last 50 lines**:
@@ -818,7 +818,7 @@ WARNING: Retrying connection...
     
     'why-frp': {
         title: 'Why We Use FRP',
-        simple: `
+        simple: \`
 We tried many ways to access the R58 remotely. FRP (Fast Reverse Proxy) won because:
 
 1. **It works through firewalls** - No need to configure the router
@@ -828,7 +828,7 @@ We tried many ways to access the R58 remotely. FRP (Fast Reverse Proxy) won beca
 
 Other solutions either didn't work or were too complicated!
         `,
-        technical: `
+        technical: \`
 **Problem**: R58 is behind NAT with no public IP
 
 **Requirements**:
@@ -852,7 +852,7 @@ Other solutions either didn't work or were too complicated!
 - Self-hosted (full control)
 - Open source and free
         `,
-        diagram: `
+        diagram: \`
 flowchart TB
     subgraph Problem[The Problem]
         R58[R58 Behind NAT<br/>No Public IP]
@@ -881,7 +881,7 @@ flowchart TB
     style Problem fill:#ffcdd2
     style Solution fill:#c8e6c9
 `,
-        content: `
+        content: \`
 ## The Challenge
 
 **Situation**:
@@ -1035,7 +1035,7 @@ Combined with FRP's UDP tunneling for the media path, we get full WebRTC support
     
     'cloudflare-history': {
         title: 'Cloudflare: What We Tried',
-        simple: `
+        simple: \`
 We spent a lot of time trying to use Cloudflare services for remote access. Here's what we learned:
 
 **Cloudflare Tunnel**: Great for websites, but doesn't support WebRTC video streaming.
@@ -1046,7 +1046,7 @@ We spent a lot of time trying to use Cloudflare services for remote access. Here
 
 **Lesson**: Sometimes the simple solution (FRP) works better than the fancy one!
         `,
-        technical: `
+        technical: \`
 **Timeline**:
 - Dec 18-22, 2025: Extensive Cloudflare experimentation
 - Dec 23, 2025: Realized architectural limitations
@@ -1074,7 +1074,7 @@ We spent a lot of time trying to use Cloudflare services for remote access. Here
 
 **Lessons Learned**: Document in CLOUDFLARE_HISTORY.md
         `,
-        content: `
+        content: \`
 ## What We Tried
 
 ### Cloudflare Tunnel (cloudflared)
@@ -1255,7 +1255,7 @@ Testing public VDO.ninja (vdo.ninja) also failed from R58. This proved the issue
     
     'alternatives': {
         title: 'Alternatives Considered',
-        simple: `
+        simple: \`
 We evaluated many solutions before settling on our current architecture:
 
 **For Remote Access**:
@@ -1275,7 +1275,7 @@ We evaluated many solutions before settling on our current architecture:
 
 Each choice was made after testing alternatives.
         `,
-        technical: `
+        technical: \`
 **Evaluation Criteria**:
 1. Hardware acceleration support
 2. Works through NAT/firewall
@@ -1297,7 +1297,7 @@ Each choice was made after testing alternatives.
 
 **Result**: Current stack is optimal for our requirements.
         `,
-        content: `
+        content: \`
 ## Media Processing
 
 ### GStreamer ✅ (Chosen)

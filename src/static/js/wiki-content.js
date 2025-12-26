@@ -8,7 +8,7 @@ const wikiContent = {
     
     'welcome': {
         title: 'Welcome to R58 Documentation',
-        simple: `
+        simple: \`
 Welcome! This is the complete documentation for the **R58 Video Recorder** system.
 
 Think of the R58 as a smart video recorder that can:
@@ -19,7 +19,7 @@ Think of the R58 as a smart video recorder that can:
 
 Whether you're setting it up for the first time or troubleshooting an issue, this wiki has you covered!
         `,
-        technical: `
+        technical: \`
 The R58 is a professional multi-camera recording and streaming system built on:
 - **Hardware**: Mekotronics R58 4x4 3S with RK3588 SoC
 - **OS**: Debian GNU/Linux 12 (bookworm), Kernel 6.1.99
@@ -33,7 +33,7 @@ The R58 is a professional multi-camera recording and streaming system built on:
 - ✅ Remote access via https://r58-api.itagenten.no
 - ✅ WebRTC streaming with <1s latency
         `,
-        content: `
+        content: \`
 ## Quick Links
 
 - **[Quick Start](#quick-start)** - Get started in 5 minutes
@@ -65,7 +65,7 @@ This documentation is organized into sections:
     
     'quick-start': {
         title: '⚡ Quick Start Guide',
-        simple: `
+        simple: \`
 Get up and running with the R58 in just a few minutes!
 
 **Step 1**: Connect to the R58 device
@@ -74,7 +74,7 @@ Get up and running with the R58 in just a few minutes!
 
 That's it! The system is designed to work out of the box.
         `,
-        technical: `
+        technical: \`
 **Prerequisites**:
 - SSH access to the R58 device
 - Network connectivity to 65.109.32.111:10022 (FRP tunnel)
@@ -91,7 +91,7 @@ That's it! The system is designed to work out of the box.
 - FRP tunnel services must be running (verified: ✅)
 - MediaMTX and preke-recorder services active (verified: ✅)
         `,
-        content: `
+        content: \`
 ## Step 1: Connect to R58
 
 From your local machine:
@@ -157,7 +157,7 @@ Or use the web interface buttons!
     
     'what-is-r58': {
         title: 'What is the R58?',
-        simple: `
+        simple: \`
 The R58 is a specialized computer designed for professional video production. It's about the size of a small book but can handle tasks that normally require much larger equipment.
 
 **What makes it special?**
@@ -168,7 +168,7 @@ The R58 is a specialized computer designed for professional video production. It
 
 Think of it like a smart DVR, but for professional video production!
         `,
-        technical: `
+        technical: \`
 **Hardware Specifications**:
 - **SoC**: Rockchip RK3588S (8-core ARM, up to 2.4GHz)
 - **HDMI Inputs**: 4x via LT6911UXE chips
@@ -191,7 +191,7 @@ Think of it like a smart DVR, but for professional video production!
 - Sub-second WebRTC latency
 - 4 Mbps per camera (configurable)
         `,
-        content: `
+        content: \`
 ## Device Information
 
 **Verified System Details** (Dec 26, 2025):
@@ -235,7 +235,7 @@ Think of it like a smart DVR, but for professional video production!
     
     'system-overview': {
         title: 'System Architecture Overview',
-        simple: `
+        simple: \`
 The R58 system has three main parts:
 
 1. **The R58 Device** - Where cameras connect and video is processed
@@ -244,7 +244,7 @@ The R58 system has three main parts:
 
 They all talk to each other through a secure tunnel called FRP.
         `,
-        technical: `
+        technical: \`
 **Architecture Pattern**: Client-Server with Reverse Proxy Tunnel
 
 **Components**:
@@ -260,7 +260,7 @@ They all talk to each other through a secure tunnel called FRP.
 - MediaMTX v1.15.5+ supports TCP WebRTC (works through tunnel)
 - Single point of entry (VPS) with proper SSL
         `,
-        diagram: `
+        diagram: \`
 flowchart TB
     subgraph R58[R58 Device - Local Network]
         CAM0[HDMI Camera 0]
@@ -306,7 +306,7 @@ flowchart TB
     style VPS fill:#fff3e0
     style Users fill:#f3e5f5
 `,
-        content: `
+        content: \`
 ## Data Flow
 
 ### Camera to Browser (Streaming)
@@ -364,7 +364,7 @@ The system uses a two-stage approach:
     
     'data-flow': {
         title: 'Data Flow: Camera to Viewer',
-        simple: `
+        simple: \`
 Here's how video gets from a camera to your screen:
 
 1. Camera sends video signal via HDMI cable
@@ -375,7 +375,7 @@ Here's how video gets from a camera to your screen:
 
 All of this happens in less than 1 second!
         `,
-        technical: `
+        technical: \`
 **GStreamer Pipeline** (Verified - Using RTSP):
 
 \`\`\`
@@ -410,7 +410,7 @@ v4l2src device=/dev/video60
 - WebRTC negotiation via WHEP protocol
 - Direct RTP stream to browser
         `,
-        diagram: `
+        diagram: \`
 flowchart LR
     HDMI[HDMI Input<br/>1920x1080] --> V4L2[v4l2src<br/>/dev/video60]
     V4L2 --> FMT[NV16 Format]
@@ -432,7 +432,7 @@ flowchart LR
     style FRP fill:#ffcc80
     style SSL fill:#ce93d8
 `,
-        content: `
+        content: \`
 ## Format Conversion
 
 **Why NV16 → NV12?**
@@ -506,7 +506,7 @@ Camera → Ingest Pipeline → RTSP → MediaMTX → RTSP/WHEP → Consumers
     
     'components': {
         title: 'System Components',
-        simple: `
+        simple: \`
 The R58 system is made up of several programs working together:
 
 - **FastAPI** - The main control program (like the brain)
@@ -516,7 +516,7 @@ The R58 system is made up of several programs working together:
 
 Each program has a specific job, and they all communicate with each other.
         `,
-        technical: `
+        technical: \`
 **Component Versions** (Verified Dec 26, 2025):
 
 | Component | Version | Purpose |
@@ -539,7 +539,7 @@ Each program has a specific job, and they all communicate with each other.
    Active: active (running) ✅
 \`\`\`
         `,
-        content: `
+        content: \`
 ## FastAPI Application
 
 **Location**: /opt/preke-r58-recorder  
@@ -555,11 +555,11 @@ Each program has a specific job, and they all communicate with each other.
 - Static file serving
 
 **Key Modules**:
-- \`src/main.py\` - FastAPI app, routes
-- \`src/recorder.py\` - Recording logic
-- \`src/pipelines.py\` - GStreamer pipeline builders
-- \`src/mixer/core.py\` - Video mixer
-- \`src/config.py\` - Configuration management
+- \`src/main.py\\` - FastAPI app, routes
+- \`src/recorder.py\\` - Recording logic
+- \`src/pipelines.py\\` - GStreamer pipeline builders
+- \`src/mixer/core.py\\` - Video mixer
+- \`src/config.py\\` - Configuration management
 
 ## GStreamer
 
@@ -567,14 +567,14 @@ Each program has a specific job, and they all communicate with each other.
 **Purpose**: Media processing framework
 
 **Key Elements Used**:
-- \`v4l2src\` - Video capture from /dev/videoXX
-- \`videoconvert\` - Format conversion (NV24→NV12)
-- \`videoscale\` - Resolution scaling
-- \`mpph264enc\` - Hardware H.264 encoding
-- \`mpph265enc\` - Hardware H.265 encoding
-- \`h264parse\` / \`h265parse\` - Stream parsing
-- \`flvmux\` - FLV container
-- \`rtmpsink\` - RTMP output to MediaMTX
+- \`v4l2src\\` - Video capture from /dev/videoXX
+- \`videoconvert\\` - Format conversion (NV24→NV12)
+- \`videoscale\\` - Resolution scaling
+- \`mpph264enc\\` - Hardware H.264 encoding
+- \`mpph265enc\\` - Hardware H.265 encoding
+- \`h264parse\\` / \`h265parse\\` - Stream parsing
+- \`flvmux\\` - FLV container
+- \`rtmpsink\\` - RTMP output to MediaMTX
 
 **Why GStreamer?**
 - Direct hardware encoder access (MPP)
@@ -654,7 +654,7 @@ remotePort = 18189
     
     'tech-stack': {
         title: 'Technology Stack & Decisions',
-        simple: `
+        simple: \`
 We chose each technology carefully based on what works best for the R58:
 
 - **Python** - Easy to write and maintain
@@ -664,7 +664,7 @@ We chose each technology carefully based on what works best for the R58:
 
 These choices were made after trying many alternatives!
         `,
-        technical: `
+        technical: \`
 **Technology Selection Criteria**:
 1. Hardware acceleration support (RK3588 MPP)
 2. Production stability and maturity
@@ -686,7 +686,7 @@ These choices were made after trying many alternatives!
 | SSL | Traefik | Auto Let's Encrypt |
 | Proxy | nginx | CORS handling |
         `,
-        content: `
+        content: \`
 ## Why Python + FastAPI?
 
 **Advantages**:
@@ -752,8 +752,8 @@ These choices were made after trying many alternatives!
 **MPP (Media Process Platform)**:
 - Rockchip's hardware video processing framework
 - Accessed via GStreamer elements:
-  - \`mpph264enc\` - H.264 encoding
-  - \`mpph265enc\` - H.265 encoding
+  - \`mpph264enc\\` - H.264 encoding
+  - \`mpph265enc\\` - H.265 encoding
 - **Performance**: ~10% CPU vs ~40% for software encoding
 
 **RGA (Raster Graphics Acceleration)**:
@@ -778,7 +778,7 @@ These choices were made after trying many alternatives!
     
     'installation': {
         title: 'Installation Guide',
-        simple: `
+        simple: \`
 The R58 comes pre-installed and configured. You don't need to install anything on the R58 itself!
 
 For your local computer, you only need:
@@ -788,7 +788,7 @@ For your local computer, you only need:
 
 That's it!
         `,
-        technical: `
+        technical: \`
 **R58 Device** (Pre-installed):
 - OS: Debian 12 (bookworm)
 - Location: /opt/preke-r58-recorder
@@ -821,7 +821,7 @@ cd preke-r58-recorder
 - Use WSL2 (Windows Subsystem for Linux)
 - Or use PuTTY for SSH
         `,
-        content: `
+        content: \`
 ## R58 Device Setup (Already Done)
 
 The R58 is pre-configured with:
@@ -900,7 +900,7 @@ v4l2-ctl --list-devices
     
     'configuration': {
         title: 'Configuration Guide',
-        simple: `
+        simple: \`
 The main configuration file is \`config.yml\`. It controls:
 
 - Which cameras are enabled
@@ -910,7 +910,7 @@ The main configuration file is \`config.yml\`. It controls:
 
 Most settings work great out of the box. You usually only need to change camera settings.
         `,
-        technical: `
+        technical: \`
 **Configuration Files**:
 
 1. **config.yml** - Application configuration
@@ -936,7 +936,7 @@ Most settings work great out of the box. You usually only need to change camera 
 - MediaMTX: WebRTC on 8889, HLS on 8888
 - FRP: 8 proxies configured
         `,
-        content: `
+        content: \`
 ## config.yml Structure
 
 \`\`\`yaml
@@ -1081,7 +1081,7 @@ remotePort = 18189
     
     'camera-setup': {
         title: 'Camera Setup & Mapping',
-        simple: `
+        simple: \`
 The R58 has 4 HDMI ports labeled N0, N60, N11, and N21. Each port connects to a different "device" inside the computer.
 
 **Port Mapping**:
@@ -1092,7 +1092,7 @@ The R58 has 4 HDMI ports labeled N0, N60, N11, and N21. Each port connects to a 
 
 Just plug your HDMI cameras into these ports and they'll show up automatically!
         `,
-        technical: `
+        technical: \`
 **Hardware Details**:
 
 The R58 uses LT6911UXE HDMI-to-MIPI bridge chips for video capture. Different ports use different capture interfaces:
@@ -1121,7 +1121,7 @@ rkcif (platform:rkcif-mipi-lvds2):
 - Capture: NV24 (YUV 4:4:4)
 - Output: NV12 (YUV 4:2:0) after conversion
         `,
-        content: `
+        content: \`
 ## Physical Port Layout
 
 \`\`\`
