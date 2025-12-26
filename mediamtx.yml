@@ -22,8 +22,18 @@ srtAddress: :8890
 
 # WebRTC settings (low latency for live view)
 webrtcAddress: :8889
-webrtcAllowOrigin: "*"
+webrtcAllowOrigins: ["*"]
 webrtcEncryption: no
+
+# ICE configuration for NAT traversal via FRP
+# Tell clients to connect to the VPS public IP with the FRP-mapped port
+webrtcAdditionalHosts: ["65.109.32.111:18189"]
+# Use single UDP port for all WebRTC (mapped via FRP to 18189)
+webrtcLocalUDPAddress: :8189
+
+# STUN servers for ICE gathering
+webrtcICEServers2:
+  - url: stun:stun.l.google.com:19302
 
 # Paths configuration
 # Camera streams published via RTSP (rtspclientsink with H.265)
