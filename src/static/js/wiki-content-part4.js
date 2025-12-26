@@ -9,7 +9,7 @@ Object.assign(wikiContent, {
     
     'product-overview': {
         title: 'R58 Professional Video System',
-        simple: \`
+        simple: `
 The R58 transforms a small, affordable device into a **complete broadcast studio**.
 
 **What you get**:
@@ -22,8 +22,8 @@ The R58 transforms a small, affordable device into a **complete broadcast studio
 **All in a device smaller than a book!**
 
 This replaces equipment that typically costs tens of thousands of dollars and fills entire racks.
-        \`,
-        technical: \`
+        `,
+        technical: `
 **R58 Professional Multi-Camera System**
 
 A complete video production solution built on the Mekotronics R58 4x4 3S hardware platform, providing:
@@ -48,8 +48,8 @@ A complete video production solution built on the Mekotronics R58 4x4 3S hardwar
 - Sub-second WebRTC latency
 - 24/7 operation capable
 - Low power consumption (~20-28W)
-        \`,
-        diagram: \`
+        `,
+        diagram: `
 flowchart TB
     subgraph Input[Video Inputs]
         CAM1[HDMI Camera 1]
@@ -92,8 +92,8 @@ flowchart TB
     style R58 fill:#e3f2fd
     style Input fill:#f3e5f5
     style Output fill:#e8f5e9
-\`,
-        content: \`
+`,
+        content: `
 ## What Makes R58 Special?
 
 ### Professional Features in a Tiny Package
@@ -224,7 +224,7 @@ flowchart TB
 - FRP reverse proxy
 - Traefik SSL (Let's Encrypt)
 - nginx CORS handling
-        \`,
+        `,
         keyPoints: [
             'Replaces $20,000+ of traditional broadcast equipment',
             'All-in-one: capture, encode, mix, stream, record',
@@ -241,7 +241,7 @@ flowchart TB
     
     'vdoninja-overview': {
         title: 'VDO.ninja Live Mixer',
-        simple: \`
+        simple: `
 VDO.ninja is a powerful browser-based video mixer that runs on both the R58 and our cloud server.
 
 **What it does**:
@@ -251,8 +251,8 @@ VDO.ninja is a powerful browser-based video mixer that runs on both the R58 and 
 - Works entirely in your web browser
 
 Think of it as a virtual TV studio control room!
-        \`,
-        technical: \`
+        `,
+        technical: `
 **VDO.ninja** (formerly OBS.ninja) is an open-source WebRTC-based video mixing platform.
 
 **Our Deployment**:
@@ -273,8 +273,8 @@ Think of it as a virtual TV studio control room!
 - Works through FRP tunnel
 
 **Version**: v28+ (critical for WHEP support)
-        \`,
-        diagram: \`
+        `,
+        diagram: `
 flowchart TB
     subgraph R58Device[R58 Device]
         CAM[Cameras]
@@ -304,8 +304,8 @@ flowchart TB
     style R58Device fill:#e3f2fd
     style VPS fill:#fff3e0
     style Users fill:#f3e5f5
-\`,
-        content: \`
+`,
+        content: `
 ## VDO.ninja Services
 
 **Running Services** (Verified Dec 26, 2025):
@@ -377,7 +377,7 @@ Add WHEP URLs to mixer:
 - Started with v25: ❌ No WHEP support
 - Upgraded to v28: ✅ WHEP support added
 - Result: Full remote mixing capability
-        \`,
+        `,
         keyPoints: [
             'VDO.ninja v28+ required for WHEP support',
             'Runs on both R58 and VPS',
@@ -389,7 +389,7 @@ Add WHEP URLs to mixer:
     
     'raspberry-ninja': {
         title: 'Raspberry.ninja Publishers',
-        simple: \`
+        simple: `
 Raspberry.ninja is a tool that can publish camera feeds to VDO.ninja signaling servers.
 
 **What we tried**:
@@ -400,16 +400,16 @@ Raspberry.ninja is a tool that can publish camera feeds to VDO.ninja signaling s
 **Result**: Didn't work through tunnels due to P2P architecture.
 
 **Current approach**: We use MediaMTX WHEP instead (server-based, works through tunnels).
-        \`,
-        technical: \`
+        `,
+        technical: `
 **Raspberry.ninja** is a lightweight WebRTC publisher designed for Raspberry Pi and ARM devices.
 
 **Version Used**: v9.0.0
 
 **What We Tried**:
-\`\`\`
+```
 Camera → raspberry.ninja publisher → VDO.ninja signaling → P2P WebRTC → Browser
-\`\`\`
+```
 
 **Why It Failed**:
 1. **P2P Architecture**: Requires direct connections between peers
@@ -429,17 +429,17 @@ Camera → raspberry.ninja publisher → VDO.ninja signaling → P2P WebRTC → 
 - Don't interfere with current WHEP approach
 
 **Current Solution**: MediaMTX WHEP
-\`\`\`
+```
 Camera → MediaMTX → WHEP endpoint → VDO.ninja mixer (server-based, not P2P)
-\`\`\`
+```
 
 **Why This Works**:
 - Server-based (no P2P)
 - HTTP-based protocol (works through tunnels)
 - MediaMTX handles WebRTC complexity
 - Single hop architecture
-        \`,
-        content: \`
+        `,
+        content: `
 ## When Raspberry.ninja Can Be Used
 
 **Scenarios Where It Works**:
@@ -515,7 +515,7 @@ Services are already installed and running:
 **Documentation**:
 - See VDO_NINJA_FINAL_CONCLUSION.md for full analysis
 - See RASPBERRY_NINJA_DEPLOYMENT.md for setup details
-        \`,
+        `,
         keyPoints: [
             'raspberry.ninja v9.0.0 installed and running',
             'P2P architecture doesn\'t work through FRP tunnel',
@@ -527,7 +527,7 @@ Services are already installed and running:
     
     'version-issues': {
         title: 'Version Issues & Lessons',
-        simple: \`
+        simple: `
 **A lot of our early problems were caused by using outdated software!**
 
 **Old versions we started with**:
@@ -541,8 +541,8 @@ Services are already installed and running:
 **Result**: Most problems disappeared after updating!
 
 **Lesson**: Always check you're using current versions, especially for rapidly-evolving projects like MediaMTX.
-        \`,
-        technical: \`
+        `,
+        technical: `
 **Critical Version Dependencies**:
 
 **MediaMTX**:
@@ -565,8 +565,8 @@ Services are already installed and running:
 2. **WHEP Protocol**: Matured in MediaMTX v1.15+
 3. **Bug Fixes**: 10+ versions of stability improvements
 4. **Feature Additions**: WHIP/WHEP support evolved significantly
-        \`,
-        content: \`
+        `,
+        content: `
 ## Version Timeline
 
 **December 18, 2025**: Initial deployment
@@ -616,19 +616,19 @@ Services are already installed and running:
 ## How to Check Versions
 
 **MediaMTX**:
-\`\`\`bash
+```bash
 ./connect-r58-frp.sh "/usr/local/bin/mediamtx --version"
-\`\`\`
+```
 
 **VDO.ninja**:
-\`\`\`bash
+```bash
 ./connect-r58-frp.sh "cd /opt/vdo.ninja && git log --oneline -1"
-\`\`\`
+```
 
 **GStreamer**:
-\`\`\`bash
+```bash
 ./connect-r58-frp.sh "gst-launch-1.0 --version"
-\`\`\`
+```
 
 ## Update Recommendations
 
@@ -658,7 +658,7 @@ For rapidly-evolving projects like MediaMTX and VDO.ninja:
 - Keep production systems current
 
 **Our experience**: Updating from v1.5.1 to v1.15.5 (10 versions) solved most WebRTC issues immediately.
-        \`,
+        `,
         keyPoints: [
             'MediaMTX v1.5.1 → v1.15.5 solved 80% of issues',
             'VDO.ninja v28+ required for WHEP support',
@@ -670,7 +670,7 @@ For rapidly-evolving projects like MediaMTX and VDO.ninja:
     
     'hardware-specs': {
         title: 'R58 Hardware Specifications',
-        simple: \`
+        simple: `
 **Mekotronics R58 4x4 3S** - Professional video capture device
 
 **Key Specs**:
@@ -682,8 +682,8 @@ For rapidly-evolving projects like MediaMTX and VDO.ninja:
 - **Power**: 20-28W (very efficient!)
 
 **Operating System**: Custom Debian 12 built by Mekotronics
-        \`,
-        technical: \`
+        `,
+        technical: `
 **Mekotronics R58 4x4 3S**
 
 **SoC**: Rockchip RK3588S
@@ -735,8 +735,8 @@ For rapidly-evolving projects like MediaMTX and VDO.ninja:
 - Compact form factor
 - Fanless design (passive cooling)
 - Industrial-grade construction
-        \`,
-        content: \`
+        `,
+        content: `
 ## Verified Specifications (Dec 26, 2025)
 
 **System Information**:
@@ -835,7 +835,7 @@ For rapidly-evolving projects like MediaMTX and VDO.ninja:
 - Available for custom integrations
 - Sensor connections
 - Control interfaces
-        \`,
+        `,
         keyPoints: [
             'Mekotronics R58 4x4 3S with RK3588 SoC',
             'Custom Debian 12 OS from Mekotronics',
