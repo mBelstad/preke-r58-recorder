@@ -407,9 +407,8 @@ Raspberry.ninja is a tool that can publish camera feeds to VDO.ninja signaling s
 **Version Used**: v9.0.0
 
 **What We Tried**:
-```
-Camera → raspberry.ninja publisher → VDO.ninja signaling → P2P WebRTC → Browser
-```
+
+Flow: Camera → raspberry.ninja publisher → VDO.ninja signaling → P2P WebRTC → Browser
 
 **Why It Failed**:
 1. **P2P Architecture**: Requires direct connections between peers
@@ -429,9 +428,8 @@ Camera → raspberry.ninja publisher → VDO.ninja signaling → P2P WebRTC → 
 - Don't interfere with current WHEP approach
 
 **Current Solution**: MediaMTX WHEP
-```
-Camera → MediaMTX → WHEP endpoint → VDO.ninja mixer (server-based, not P2P)
-```
+
+Flow: Camera → MediaMTX → WHEP endpoint → VDO.ninja mixer (server-based, not P2P)
 
 **Why This Works**:
 - Server-based (no P2P)
