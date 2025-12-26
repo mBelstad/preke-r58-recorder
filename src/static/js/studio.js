@@ -351,7 +351,7 @@ async function loadStudioContent(container) {
 // Initialize Studio
 async function initializeStudio() {
     try {
-        const response = await fetch(`${API_BASE}/status`);
+        const response = await fetch(`/status`);
         const data = await response.json();
         const multiview = document.getElementById('multiview');
         
@@ -620,7 +620,7 @@ function startRecordingTimer() {
 // Update stats
 async function updateStats() {
     try {
-        const response = await fetch(`${API_BASE}/status`);
+        const response = await fetch(`/status`);
         const data = await response.json();
         
         const diskSpaceEl = document.getElementById('diskSpace');
