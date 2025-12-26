@@ -1515,6 +1515,56 @@ Each choice was made after testing alternatives.
 
 **Why not chosen**: Can't handle 4 cameras. Used as fallback only.
 
+## Streaming Protocol: RTSP vs RTMP
+
+### RTSP (TCP) ✅ (Chosen)
+
+**Implementation**:
+\`\`\`
+v4l2src → encode → h264parse config-interval=-1 → 
+  rtspclientsink location=rtsp://localhost:8554/cam1 protocols=tcp latency=0
+\`\`\`
+
+**Pros**:
+- Lower latency (~50ms less than RTMP)
+- TCP transport (no packet loss)
+- SPS/PPS with every keyframe (config-interval=-1)
+- No muxing overhead
+- Better for mixer synchronization
+
+**Cons**:
+- Slightly more complex setup
+
+**Why chosen**: Latency critical for mixer - RTSP provides lowest latency to MediaMTX.
+
+### RTMP (via flvmux) ❌ (Rejected)
+
+**Implementation** (old code, removed Dec 26, 2025):
+\`\`\`
+v4l2src → encode → h264parse → flvmux → rtmpsink location=rtmp://localhost:1935/cam1
+\`\`\`
+
+**Pros**:
+- Widely supported
+- Simple setup
+- Works with any RTMP server
+
+**Cons**:
+- Higher latency (~100ms FLV muxing)
+- Only supports H.264 (flvmux limitation)
+- Additional muxing/demuxing overhead
+- Not optimal for mixer
+
+**Why rejected**: 
+- Latency too high for real-time mixing
+- RTSP provides better performance
+- No benefit over RTSP for our use case
+- flvmux limitation to H.264 only
+
+**Code Removed**: `build_preview_pipeline()` and `build_r58_preview_pipeline()` functions deleted (not in use).
+
+---
+
 ## Summary
 
 Our current stack (GStreamer + MediaMTX + FRP) was chosen after extensive testing of alternatives. Each component was selected because it's the best (or only) option for our specific requirements:
@@ -1522,6 +1572,7 @@ Our current stack (GStreamer + MediaMTX + FRP) was chosen after extensive testin
 1. **GStreamer**: Only option with RK3588 hardware support
 2. **MediaMTX**: Only server with WHIP/WHEP and TCP WebRTC
 3. **FRP**: Only tunnel supporting both TCP and UDP
+4. **RTSP**: Lowest latency for streaming to MediaMTX
 
 **Result**: Optimal architecture for 4-camera recording and streaming on R58.
         `,

@@ -323,12 +323,15 @@ flowchart TB
 
 ### Recording
 
-1. **Capture**: Same as streaming
-2. **Mux**: mp4mux or matroskamux
-3. **Write**: filesink → /mnt/sdcard/recordings/
-4. **Format**: Matroska (MKV) with fragmented support
+The system uses a two-stage approach:
+1. **Ingest Pipeline**: Camera → GStreamer → RTSP → MediaMTX
+2. **Recording Pipeline**: MediaMTX (RTSP subscriber) → File
 
-**No network involved** - direct to disk
+**Why This Architecture?**
+- Ingest pipeline owns the camera device (no conflicts)
+- Recording subscribes via RTSP from MediaMTX
+- Multiple consumers can access same stream
+- Recording independent of capture
 
 ## Network Ports
 
@@ -373,22 +376,28 @@ Here's how video gets from a camera to your screen:
 All of this happens in less than 1 second!
         `,
         technical: `
-**GStreamer Pipeline** (Verified):
+**GStreamer Pipeline** (Verified - Using RTSP):
 
 \`\`\`
 v4l2src device=/dev/video60
-  → video/x-raw,format=NV24,width=1920,height=1080
-  → videoconvert (NV24→NV12)
+  → video/x-raw,format=NV16,width=1920,height=1080
+  → videoconvert (NV16→NV12)
   → videoscale
   → mpph264enc bitrate=4000000
-  → h264parse
-  → flvmux
-  → rtmpsink location=rtmp://localhost:1935/cam1
+  → h264parse config-interval=-1
+  → rtspclientsink location=rtsp://localhost:8554/cam1 protocols=tcp latency=0
 \`\`\`
 
+**Why RTSP over RTMP?**
+- Lower latency (no FLV muxing overhead)
+- TCP transport prevents packet loss
+- config-interval=-1 ensures SPS/PPS with every keyframe
+- latency=0 for minimal buffering
+- Critical for mixer synchronization
+
 **MediaMTX Processing**:
-- Receives RTMP stream
-- Converts to multiple protocols (RTSP, HLS, WebRTC)
+- Receives RTSP stream (port 8554)
+- Converts to multiple protocols (HLS, WebRTC)
 - WHEP endpoint: /cam1/whep
 - WebRTC uses UDP mux on port 8189
 
@@ -404,14 +413,13 @@ v4l2src device=/dev/video60
         diagram: `
 flowchart LR
     HDMI[HDMI Input<br/>1920x1080] --> V4L2[v4l2src<br/>/dev/video60]
-    V4L2 --> FMT[NV24 Format]
-    FMT --> CONV[videoconvert<br/>NV24→NV12]
+    V4L2 --> FMT[NV16 Format]
+    FMT --> CONV[videoconvert<br/>NV16→NV12]
     CONV --> SCALE[videoscale]
     SCALE --> ENC[mpph264enc<br/>4 Mbps]
-    ENC --> PARSE[h264parse]
-    PARSE --> MUX[flvmux]
-    MUX --> RTMP[rtmpsink]
-    RTMP --> MTX[MediaMTX]
+    ENC --> PARSE[h264parse<br/>config-interval=-1]
+    PARSE --> RTSP[rtspclientsink<br/>RTSP :8554<br/>TCP, latency=0]
+    RTSP --> MTX[MediaMTX]
     MTX --> WHEP[WHEP Endpoint]
     WHEP --> FRP[FRP Tunnel]
     FRP --> VPS[VPS nginx]
@@ -419,6 +427,7 @@ flowchart LR
     SSL --> BROWSER[Browser WebRTC]
     
     style ENC fill:#90caf9
+    style RTSP fill:#81c784
     style MTX fill:#a5d6a7
     style FRP fill:#ffcc80
     style SSL fill:#ce93d8
@@ -426,17 +435,19 @@ flowchart LR
         content: `
 ## Format Conversion
 
-**Why NV24 → NV12?**
+**Why NV16 → NV12?**
 
-The LT6911UXE HDMI capture chips output YUV 4:4:4 (NV24 format). Hardware encoders require YUV 4:2:0 (NV12 format).
+The rk_hdmirx (N60 port) outputs YUV 4:2:2 (NV16 format). Hardware encoders require YUV 4:2:0 (NV12 format).
 
 \`\`\`
-NV24: Full color information (4:4:4)
+NV16: Half horizontal color resolution (4:2:2)
   ↓ videoconvert
 NV12: Half color resolution (4:2:0) - required for encoding
 \`\`\`
 
 **Performance Impact**: Minimal (~2-3% CPU) thanks to RGA hardware acceleration
+
+**Note**: Different HDMI ports use different formats (NV16 for N60, NV24 for bridge-based ports)
 
 ## Encoding Settings
 
@@ -453,17 +464,36 @@ resolution: 1920x1080
 - Works well for remote viewing
 - Can be increased for local recording
 
+## Architecture: Ingest-Subscribe Model
+
+**Current Architecture** (Verified Dec 26, 2025):
+
+\`\`\`
+Camera → Ingest Pipeline → RTSP → MediaMTX → RTSP/WHEP → Consumers
+                                               ├─→ Recording
+                                               ├─→ Browser (WHEP)
+                                               └─→ Mixer (RTSP subscriber)
+\`\`\`
+
+**Why This Design?**
+- **Single owner**: Ingest pipeline owns camera device (prevents "device busy")
+- **Multiple consumers**: Recording, preview, mixer all subscribe from MediaMTX
+- **No conflicts**: Recording doesn't block streaming
+- **Flexible**: Can add/remove consumers without affecting capture
+
+**Key Point**: The ingest pipeline streams to MediaMTX via RTSP (not RTMP). RTSP has lower latency, which is critical for the mixer to keep all cameras synchronized.
+
 ## Latency Breakdown
 
 | Stage | Latency | Notes |
 |-------|---------|-------|
 | Capture | ~16ms | 60fps = 16ms per frame |
 | Encoding | ~30ms | Hardware encoder |
-| RTMP | ~50ms | Local network |
-| MediaMTX | ~100ms | Protocol conversion |
+| RTSP | ~20ms | TCP transport, latency=0 |
+| MediaMTX | ~50ms | Protocol conversion |
 | FRP Tunnel | ~20ms | Network latency |
 | WebRTC | ~100ms | Browser decoding |
-| **Total** | **~300ms** | Sub-second! |
+| **Total** | **~240ms** | RTSP saves ~30ms vs RTMP |
         `,
         keyPoints: [
             'Hardware encoding (mpph264enc) uses ~10% CPU',
