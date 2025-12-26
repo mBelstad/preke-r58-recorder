@@ -202,7 +202,11 @@ app.mount("/uploads", StaticFiles(directory=str(uploads_dir)), name="uploads")
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
-    """Serve the frontend."""
+    """Serve the new R58 Studio app."""
+    app_path = Path(__file__).parent / "static" / "app.html"
+    if app_path.exists():
+        return app_path.read_text()
+    # Fallback to old index if app.html doesn't exist
     index_path = Path(__file__).parent / "static" / "index.html"
     if index_path.exists():
         return index_path.read_text()
@@ -223,10 +227,6 @@ async def remote_mixer_redirect():
     """Redirect /static/r58_remote_mixer to /static/r58_remote_mixer.html"""
     return RedirectResponse(url="/static/r58_remote_mixer.html")
 
-@app.get("/")
-async def root_redirect():
-    """Redirect root to main app"""
-    return RedirectResponse(url="/static/app.html")
 
 @app.get("/app")
 async def app_redirect():
@@ -247,6 +247,11 @@ async def dev_redirect():
 async def graphics_new_redirect():
     """Redirect /static/graphics-new to /static/graphics-new.html"""
     return RedirectResponse(url="/static/graphics-new.html")
+
+@app.get("/library")
+async def library_redirect():
+    """Redirect /library to /static/library.html"""
+    return RedirectResponse(url="/static/library.html")
 
 
 @app.get("/cairo", response_class=HTMLResponse)
