@@ -161,21 +161,12 @@ Once connected, you can type commands to control the R58.
 - **Method**: Password authentication via sshpass
 
 **Script**: ./connect-r58-frp.sh
-\`\`\`bash
-#!/bin/bash
-R58_VPS="65.109.32.111"
-R58_PORT="10022"
-R58_USER="linaro"
-R58_PASSWORD="\${R58_PASSWORD:-linaro}"
 
-sshpass -p "\${R58_PASSWORD}" ssh \\
-    -o StrictHostKeyChecking=no \\
-    -o PreferredAuthentications=password \\
-    -o PubkeyAuthentication=no \\
-    -p \${R58_PORT} \\
-    \${R58_USER}@\${R58_VPS} \\
-    "$@"
-\`\`\`
+**Source code**:
+- Uses sshpass for password authentication
+- Connects to 65.109.32.111:10022
+- Passes through commands to R58
+- Password defaults to "linaro"
 
 **Requirements**:
 - sshpass installed (\`brew install sshpass\` on macOS)
@@ -849,14 +840,10 @@ curl https://r58-api.itagenten.no/record/status/cam1
 
 ## Start All Cameras
 
-**Bash Script**:
-\`\`\`bash
-#!/bin/bash
-for cam in cam0 cam1 cam2 cam3; do
-    curl -X POST https://r58-api.itagenten.no/record/start/\$cam
-    echo ""
-done
-\`\`\`
+**Bash Script Example**:
+- Loop through cam0, cam1, cam2, cam3
+- POST to /record/start/{cam_id} for each
+- Use a simple for loop or parallel requests
 
 **Python Script**:
 \`\`\`python
