@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#007AFF">
+    <title>R58 Studio</title>
+    <link rel="stylesheet" href="/static/css/design-system.css">
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <script src="/static/js/studio.js" defer></script>
+    <script src="/static/js/guests.js" defer></script>
+    <style>
+        /* App Shell Layout */
+        .app-container {
+            display: grid;
+            grid-template-columns: var(--sidebar-width) 1fr;
+            height: 100vh;
+            overflow: hidden;
+            transition: grid-template-columns var(--transition-base);
+        }
+
+        .app-container.sidebar-collapsed {
+            grid-template-columns: var(--sidebar-collapsed) 1fr;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            background: var(--bg-primary);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .sidebar-header {
+            padding: var(--spacing-lg);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            min-height: var(--header-height);
+        }
+
+        .sidebar-logo {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            font-size: var(--text-lg);
+            font-weight: var(--weight-semibold);
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+        }
+
+        .sidebar-logo-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--accent);
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+
+        .sidebar-logo-text {
+            opacity: 1;
+            transition: opacity var(--transition-fast);
+        }
+
+        .sidebar-collapsed .sidebar-logo-text {
+            opacity: 0;
+            width: 0;
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            padding: var(--spacing-md);
+            overflow-y: auto;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+            padding: 12px var(--spacing-md);
+            margin-bottom: var(--spacing-xs);
+            color: var(--text-secondary);
+            text-decoration: none;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            user-select: none;
+            white-space: nowrap;
+        }
+
+        .nav-item:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        .nav-item.active {
+            background: var(--accent-light);
+            color: var(--accent);
+            font-weight: var(--weight-medium);
+        }
+
+        .nav-item-icon {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .nav-item-text {
+            opacity: 1;
+            transition: opacity var(--transition-fast);
+        }
+
+        .sidebar-collapsed .nav-item-text {
+            opacity: 0;
+            width: 0;
+        }
+
+        .sidebar-footer {
+            padding: var(--spacing-md);
+            border-top: 1px solid var(--border);
+        }
+
+        /* Main Content */
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: var(--bg-secondary);
+        }
+
+        .content-header {
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border);
+            padding: var(--spacing-md) var(--spacing-lg);
+            min-height: var(--header-height);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .content-title {
+            font-size: var(--text-2xl);
+            font-weight: var(--weight-semibold);
+        }
+
+        .content-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: var(--spacing-lg);
+        }
+
+        /* Section containers */
+        .section {
+            display: none;
+            animation: fadeIn var(--transition-base);
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        /* Status indicator */
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            padding: 6px 12px;
+            background: var(--bg-secondary);
+            border-radius: var(--radius-full);
+            font-size: var(--text-sm);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.6;
+                transform: scale(1.1);
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .app-container {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                position: fixed;
+                left: 0;
+                top: 0;
+                bottom: 0;
+                width: var(--sidebar-width);
+                z-index: var(--z-overlay);
+                transform: translateX(-100%);
+                transition: transform var(--transition-base);
+            }
+
+            .sidebar.mobile-open {
+                transform: translateX(0);
+            }
+
+            .mobile-overlay {
+                display: none;
+                position: fixed;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: calc(var(--z-overlay) - 1);
+            }
+
+            .mobile-overlay.active {
+                display: block;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container" id="appContainer">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <div class="sidebar-logo-icon">📹</div>
+                    <span class="sidebar-logo-text">R58 Studio</span>
+                </div>
+                <button class="btn btn-icon-sm btn-ghost" id="sidebarToggle" title="Toggle sidebar">
+                    <span>☰</span>
+                </button>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active" data-section="studio">
+                    <span class="nav-item-icon">🎬</span>
+                    <span class="nav-item-text">Studio</span>
+                </a>
+                <a href="#" class="nav-item" data-section="library">
+                    <span class="nav-item-icon">📚</span>
+                    <span class="nav-item-text">Library</span>
+                </a>
+                <a href="#" class="nav-item" data-section="graphics">
+                    <span class="nav-item-icon">🎨</span>
+                    <span class="nav-item-text">Graphics</span>
+                </a>
+                <a href="#" class="nav-item" data-section="guests">
+                    <span class="nav-item-icon">👥</span>
+                    <span class="nav-item-text">Guests</span>
+                </a>
+                <hr class="divider">
+                <a href="#" class="nav-item" data-section="settings">
+                    <span class="nav-item-icon">⚙️</span>
+                    <span class="nav-item-text">Settings</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="status-indicator">
+                    <span class="status-dot"></span>
+                    <span class="text-sm">Connected</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="content-header">
+                <h1 class="content-title" id="contentTitle">Studio</h1>
+                <div class="flex items-center gap-md">
+                    <button class="btn btn-ghost btn-sm" onclick="window.open('/static/guest', '_blank')">
+                        👤 Guest Portal
+                    </button>
+                    <button class="btn btn-ghost btn-sm" id="mobileMenuBtn" style="display: none;">
+                        ☰ Menu
+                    </button>
+                </div>
+            </header>
+
+            <div class="content-body">
+                <!-- Studio Section -->
+                <div class="section active" id="studio-section">
+                    <div id="studio-content"></div>
+                </div>
+
+                <!-- Library Section -->
+                <div class="section" id="library-section">
+                    <div id="library-content"></div>
+                </div>
+
+                <!-- Graphics Section -->
+                <div class="section" id="graphics-section">
+                    <div id="graphics-content"></div>
+                </div>
+
+                <!-- Guests Section -->
+                <div class="section" id="guests-section">
+                    <div id="guests-content"></div>
+                </div>
+
+                <!-- Settings Section -->
+                <div class="section" id="settings-section">
+                    <div id="settings-content"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Mobile Overlay -->
+    <div class="mobile-overlay" id="mobileOverlay"></div>
+
+    <script>
+        // App State
+        const state = {
+            currentSection: 'studio',
+            sidebarCollapsed: false,
+            isLocalAccess: window.location.hostname === 'localhost' || window.location.hostname.includes('192.168')
+        };
+
+        // Navigation
+        function navigateToSection(sectionName) {
+            // Update state
+            state.currentSection = sectionName;
+
+            // Update nav items
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.toggle('active', item.dataset.section === sectionName);
+            });
+
+            // Update sections
+            document.querySelectorAll('.section').forEach(section => {
+                section.classList.toggle('active', section.id === `${sectionName}-section`);
+            });
+
+            // Update title
+            const titles = {
+                'studio': 'Studio',
+                'library': 'Library',
+                'graphics': 'Graphics',
+                'guests': 'Guests',
+                'settings': 'Settings'
+            };
+            document.getElementById('contentTitle').textContent = titles[sectionName] || sectionName;
+
+            // Load section content
+            loadSectionContent(sectionName);
+
+            // Close mobile menu
+            closeMobileMenu();
+        }
+
+        // Section content loading
+        function loadSectionContent(sectionName) {
+            const contentDiv = document.getElementById(`${sectionName}-content`);
+            
+            // Only load if empty
+            if (contentDiv.innerHTML.trim() !== '') return;
+
+            switch(sectionName) {
+                case 'studio':
+                    loadStudioContent(contentDiv);
+                    break;
+                case 'library':
+                    loadLibraryContent(contentDiv);
+                    break;
+                case 'graphics':
+                    loadGraphicsContent(contentDiv);
+                    break;
+                case 'guests':
+                    loadGuestsContent(contentDiv);
+                    break;
+                case 'settings':
+                    loadSettingsContent(contentDiv);
+                    break;
+            }
+        }
+
+        // Sidebar toggle
+        function toggleSidebar() {
+            state.sidebarCollapsed = !state.sidebarCollapsed;
+            document.getElementById('appContainer').classList.toggle('sidebar-collapsed', state.sidebarCollapsed);
+            localStorage.setItem('sidebarCollapsed', state.sidebarCollapsed);
+        }
+
+        // Mobile menu
+        function toggleMobileMenu() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobileOverlay');
+            sidebar.classList.toggle('mobile-open');
+            overlay.classList.toggle('active');
+        }
+
+        function closeMobileMenu() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobileOverlay');
+            sidebar.classList.remove('mobile-open');
+            overlay.classList.remove('active');
+        }
+
+        // Event Listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            // Navigation
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const section = item.dataset.section;
+                    if (section) {
+                        navigateToSection(section);
+                    }
+                });
+            });
+
+            // Sidebar toggle
+            document.getElementById('sidebarToggle').addEventListener('click', toggleSidebar);
+
+            // Mobile menu
+            const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+            if (mobileMenuBtn) {
+                mobileMenuBtn.addEventListener('click', toggleMobileMenu);
+            }
+            document.getElementById('mobileOverlay').addEventListener('click', closeMobileMenu);
+
+            // Restore sidebar state
+            const savedState = localStorage.getItem('sidebarCollapsed');
+            if (savedState === 'true') {
+                toggleSidebar();
+            }
+
+            // Responsive mobile menu button
+            const updateMobileButton = () => {
+                const isMobile = window.innerWidth <= 768;
+                if (mobileMenuBtn) {
+                    mobileMenuBtn.style.display = isMobile ? 'flex' : 'none';
+                }
+            };
+            window.addEventListener('resize', updateMobileButton);
+            updateMobileButton();
+
+            // Load initial section
+            loadSectionContent('studio');
+
+            // Update status
+            updateConnectionStatus();
+        });
+
+        // Connection status
+        async function updateConnectionStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                // Update UI based on status
+            } catch (error) {
+                console.warn('Could not fetch status:', error);
+            }
+        }
+
+        // Content loaders - Studio is loaded from studio.js
+        // loadStudioContent is defined in studio.js
+
+        function loadLibraryContent(container) {
+            // Load library iframe
+            container.innerHTML = `
+                <iframe src="/static/library" style="width: 100%; height: 100%; border: none; border-radius: var(--radius-md);"></iframe>
+            `;
+        }
+
+        function loadGraphicsContent(container) {
+            // Load new consolidated graphics page
+            container.innerHTML = `
+                <iframe src="/static/graphics-new" style="width: 100%; height: 100%; border: none; border-radius: var(--radius-md);"></iframe>
+            `;
+        }
+
+        function loadGuestsContent(container) {
+            container.innerHTML = '<p class="text-secondary">Loading Guests...</p>';
+        }
+
+        function loadSettingsContent(container) {
+            container.innerHTML = `
+                <div class="card">
+                    <div class="card-body">
+                        <h3 class="mb-md">Device Information</h3>
+                        <div class="flex flex-col gap-sm">
+                            <div class="flex justify-between">
+                                <span class="text-secondary">Access Mode</span>
+                                <span class="font-medium">${state.isLocalAccess ? 'Local' : 'Remote'}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-secondary">Hostname</span>
+                                <span class="font-medium">${window.location.hostname}</span>
+                            </div>
+                        </div>
+                        <hr class="divider">
+                        <h3 class="mb-md">Developer Tools</h3>
+                        <a href="/static/dev" target="_blank" class="btn btn-secondary w-full">
+                            🔧 Open Developer Tools
+                        </a>
+                    </div>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
+

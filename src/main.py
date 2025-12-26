@@ -223,6 +223,31 @@ async def remote_mixer_redirect():
     """Redirect /static/r58_remote_mixer to /static/r58_remote_mixer.html"""
     return RedirectResponse(url="/static/r58_remote_mixer.html")
 
+@app.get("/")
+async def root_redirect():
+    """Redirect root to main app"""
+    return RedirectResponse(url="/static/app.html")
+
+@app.get("/app")
+async def app_redirect():
+    """Redirect /app to /static/app.html"""
+    return RedirectResponse(url="/static/app.html")
+
+@app.get("/guest")
+async def guest_redirect():
+    """Redirect /guest to /static/guest.html"""
+    return RedirectResponse(url="/static/guest.html")
+
+@app.get("/dev")
+async def dev_redirect():
+    """Redirect /dev to /static/dev.html"""
+    return RedirectResponse(url="/static/dev.html")
+
+@app.get("/static/graphics-new")
+async def graphics_new_redirect():
+    """Redirect /static/graphics-new to /static/graphics-new.html"""
+    return RedirectResponse(url="/static/graphics-new.html")
+
 
 @app.get("/cairo", response_class=HTMLResponse)
 async def cairo_control():

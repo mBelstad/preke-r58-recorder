@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Graphics - R58 Studio</title>
+    <link rel="stylesheet" href="/static/css/design-system.css">
+    <style>
+        body {
+            background: var(--bg-secondary);
+            padding: var(--spacing-lg);
+        }
+
+        .graphics-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .graphics-tabs {
+            background: var(--bg-primary);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-sm);
+            margin-bottom: var(--spacing-lg);
+            display: flex;
+            gap: var(--spacing-sm);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .graphics-tab {
+            flex: 1;
+            padding: 12px 20px;
+            border-radius: var(--radius-md);
+            background: transparent;
+            color: var(--text-secondary);
+            border: none;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            font-size: var(--text-base);
+            font-weight: var(--weight-medium);
+        }
+
+        .graphics-tab:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        .graphics-tab.active {
+            background: var(--accent);
+            color: white;
+        }
+
+        .tab-panel {
+            display: none;
+            animation: fadeIn var(--transition-base);
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+
+        .graphics-grid {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: var(--spacing-lg);
+        }
+
+        .graphics-sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-md);
+        }
+
+        .graphics-main {
+            background: var(--bg-primary);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-xl);
+            box-shadow: var(--shadow-md);
+            min-height: 500px;
+        }
+
+        .template-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-sm);
+        }
+
+        .template-item {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-md);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+
+        .template-item:hover {
+            border-color: var(--accent);
+            transform: translateX(4px);
+        }
+
+        .template-item.active {
+            background: var(--accent-light);
+            border-color: var(--accent);
+        }
+
+        .template-preview {
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: #000;
+            border-radius: var(--radius-md);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .graphics-controls {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-md);
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-sm);
+        }
+
+        @media (max-width: 1024px) {
+            .graphics-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .graphics-sidebar {
+                order: 1;
+            }
+
+            .graphics-main {
+                order: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="graphics-container">
+        <div class="graphics-tabs">
+            <button class="graphics-tab active" onclick="switchGraphicsTab('lowerthirds')">
+                📝 Lower Thirds
+            </button>
+            <button class="graphics-tab" onclick="switchGraphicsTab('media')">
+                🖼️ Media
+            </button>
+            <button class="graphics-tab" onclick="switchGraphicsTab('presentations')">
+                📊 Presentations
+            </button>
+            <button class="graphics-tab" onclick="switchGraphicsTab('editor')">
+                ✏️ Editor
+            </button>
+        </div>
+
+        <!-- Lower Thirds Panel -->
+        <div class="tab-panel active" id="lowerthirds-panel">
+            <div class="graphics-grid">
+                <div class="graphics-sidebar">
+                    <div class="card">
+                        <div class="card-body">
+                            <h3 class="mb-md">Templates</h3>
+                            <div class="template-list">
+                                <div class="template-item active" onclick="selectTemplate('simple')">
+                                    <div class="font-medium mb-xs">Simple</div>
+                                    <div class="text-sm text-secondary">Name + Title</div>
+                                </div>
+                                <div class="template-item" onclick="selectTemplate('full')">
+                                    <div class="font-medium mb-xs">Full</div>
+                                    <div class="text-sm text-secondary">Name + Title + Logo</div>
+                                </div>
+                                <div class="template-item" onclick="selectTemplate('minimal')">
+                                    <div class="font-medium mb-xs">Minimal</div>
+                                    <div class="text-sm text-secondary">Name only</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="graphics-main">
+                    <div class="template-preview" id="lowerThirdPreview">
+                        <div style="padding: 40px; color: white; text-align: center;">
+                            Lower third preview will appear here
+                        </div>
+                    </div>
+
+                    <div class="graphics-controls">
+                        <div class="control-group">
+                            <label class="label">Name</label>
+                            <input type="text" class="input" id="ltName" placeholder="John Doe" value="">
+                        </div>
+
+                        <div class="control-group">
+                            <label class="label">Title</label>
+                            <input type="text" class="input" id="ltTitle" placeholder="CEO & Founder" value="">
+                        </div>
+
+                        <div class="flex gap-sm">
+                            <button class="btn btn-primary flex-1" onclick="showLowerThird()">
+                                ▶️ Show
+                            </button>
+                            <button class="btn btn-secondary" onclick="hideLowerThird()">
+                                ⏹ Hide
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Media Panel -->
+        <div class="tab-panel" id="media-panel">
+            <div class="graphics-main">
+                <h2 class="mb-lg">Media Library</h2>
+                <div class="tool-links">
+                    <div class="tool-link">
+                        <h3>🖼️ Images</h3>
+                        <p>Upload and manage image overlays</p>
+                    </div>
+                    <div class="tool-link">
+                        <h3>🎬 Videos</h3>
+                        <p>Upload and manage video clips</p>
+                    </div>
+                    <div class="tool-link">
+                        <h3>🎵 Audio</h3>
+                        <p>Upload and manage audio files</p>
+                    </div>
+                </div>
+                <div class="mt-lg">
+                    <button class="btn btn-primary">
+                        📤 Upload Media
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Presentations Panel -->
+        <div class="tab-panel" id="presentations-panel">
+            <div class="graphics-main">
+                <h2 class="mb-lg">Reveal.js Presentations</h2>
+                <p class="text-secondary mb-lg">Manage and control presentation slides for your broadcast</p>
+                
+                <div class="tool-links">
+                    <a href="/static/graphics" target="_blank" class="tool-link">
+                        <h3>📊 Full Graphics App</h3>
+                        <p>Complete Reveal.js editor and controller</p>
+                    </a>
+                    <a href="/static/broadcast_graphics" target="_blank" class="tool-link">
+                        <h3>📺 Broadcast Output</h3>
+                        <p>Clean presentation view for streaming</p>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Editor Panel -->
+        <div class="tab-panel" id="editor-panel">
+            <div class="graphics-main">
+                <h2 class="mb-lg">Scene Editor</h2>
+                <p class="text-secondary mb-lg">Create custom graphics scenes and overlays</p>
+                
+                <a href="/static/editor" target="_blank" class="btn btn-primary">
+                    ✏️ Open Full Editor
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function switchGraphicsTab(tabName) {
+            // Update tabs
+            document.querySelectorAll('.graphics-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // Update panels
+            document.querySelectorAll('.tab-panel').forEach(panel => {
+                panel.classList.remove('active');
+            });
+            document.getElementById(`${tabName}-panel`).classList.add('active');
+        }
+
+        function selectTemplate(template) {
+            document.querySelectorAll('.template-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            event.target.closest('.template-item').classList.add('active');
+        }
+
+        async function showLowerThird() {
+            const name = document.getElementById('ltName').value;
+            const title = document.getElementById('ltTitle').value;
+            
+            try {
+                const response = await fetch('/api/graphics/lowerthird/show', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, title })
+                });
+                
+                if (response.ok) {
+                    console.log('Lower third shown');
+                }
+            } catch (error) {
+                console.error('Failed to show lower third:', error);
+            }
+        }
+
+        async function hideLowerThird() {
+            try {
+                await fetch('/api/graphics/lowerthird/hide', { method: 'POST' });
+                console.log('Lower third hidden');
+            } catch (error) {
+                console.error('Failed to hide lower third:', error);
+            }
+        }
+    </script>
+</body>
+</html>
+
