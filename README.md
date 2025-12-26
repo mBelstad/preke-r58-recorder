@@ -4,6 +4,14 @@ A simple, reliable recording application for the Mekotronics R58 4x4 3S (RK3588)
 
 ---
 
+## 📚 Documentation
+
+**→ [Interactive Wiki](https://r58-api.itagenten.no/static/wiki.html)** - Complete searchable documentation with diagrams  
+**→ [Documentation Index](docs/README.md)** - Structured markdown documentation  
+**→ [Quick Start Guide](#-quick-start-remote-access)** - Get started in 5 minutes
+
+---
+
 ## 🚀 Quick Start (Remote Access)
 
 **→ See [REMOTE_ACCESS.md](REMOTE_ACCESS.md) for complete guide**
