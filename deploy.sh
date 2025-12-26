@@ -1,33 +1,36 @@
 #!/bin/bash
-# Deployment script for R58 recorder
-# Usage: ./deploy.sh [r58_host] [r58_user]
+# Deployment script for R58 recorder via FRP tunnel
+# Usage: ./deploy.sh
 # 
-# SECURITY: Uses SSH key authentication (no passwords)
-# Setup: ssh-copy-id linaro@r58.itagenten.no
-#
-# Remote access via Cloudflare Tunnel:
-#   ./deploy.sh r58.itagenten.no linaro
-#   Or use: ./connect-r58.sh
+# ACCESS: R58 via FRP tunnel on Coolify VPS
+# Setup SSH keys: ./ssh-setup.sh
 
 set -e
 
-# Configuration
-R58_HOST="${1:-r58.itagenten.no}"
-R58_USER="${2:-linaro}"
-REMOTE_DIR="/opt/preke-r58-recorder"
+# Configuration - R58 accessible via FRP tunnel on Coolify VPS
+R58_VPS="65.109.32.111"
+R58_PORT="10022"
+R58_USER="linaro"
+R58_PASSWORD="${R58_PASSWORD:-linaro}"
+REMOTE_DIR="/home/linaro/preke-r58-recorder"
 SERVICE_NAME="preke-recorder.service"
 
-echo "Deploying to ${R58_USER}@${R58_HOST}..."
+echo "======================================"
+echo "Deploying to R58 via FRP Tunnel"
+echo "======================================"
+echo "VPS: ${R58_VPS}:${R58_PORT}"
+echo "User: ${R58_USER}"
+echo ""
 
-# Set up SSH command with password authentication
-# Uses password-only to avoid SSH key passphrase prompts
-R58_PASSWORD="${R58_PASSWORD:-linaro}"
+# Check for sshpass
 if ! command -v sshpass >/dev/null 2>&1; then
     echo "Error: sshpass required for password auth."
     echo "Install: brew install sshpass"
     exit 1
 fi
-SSH_CMD=(sshpass -p "${R58_PASSWORD}" ssh -o StrictHostKeyChecking=no -o PreferredAuthentications=password -o PubkeyAuthentication=no)
+
+# Set up SSH command
+SSH_CMD=(sshpass -p "${R58_PASSWORD}" ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 -p ${R58_PORT})
 
 # Push to git (if in a git repo)
 if [ -d ".git" ]; then
@@ -38,9 +41,9 @@ if [ -d ".git" ]; then
 fi
 
 # Deploy to R58
-echo "Connecting to ${R58_USER}@${R58_HOST}..."
+echo "Connecting to R58..."
 
-"${SSH_CMD[@]}" "${R58_USER}@${R58_HOST}" << EOF
+"${SSH_CMD[@]}" "${R58_USER}@${R58_VPS}" << EOF
     set -e
     
     # Create directory if it doesn't exist
