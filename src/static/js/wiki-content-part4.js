@@ -242,37 +242,46 @@ flowchart TB
     'vdoninja-overview': {
         title: 'VDO.ninja Live Mixer',
         simple: `
-VDO.ninja is a powerful browser-based video mixer that runs on both the R58 and our cloud server.
+VDO.ninja is a powerful browser-based video mixer that runs LOCALLY on the R58 device.
 
-**What it does**:
-- Mix multiple camera feeds in real-time
-- Add remote speakers/guests
-- Professional broadcast-style interface
-- Works entirely in your web browser
+**What's running on R58**:
+- VDO.ninja signaling server (port 8443) ✅ ACTIVE
+- VDO.ninja web app (port 8444) ✅ ACTIVE
+- raspberry.ninja publishers for cameras ✅ ACTIVE
 
-Think of it as a virtual TV studio control room!
+**Note**: The R58 actually has TWO mixer options:
+1. **VDO.ninja** - Browser-based, uses raspberry.ninja publishers
+2. **GStreamer Mixer** - Built-in compositor, API-controlled
+
+Think of it as having both a virtual TV studio AND a hardware switcher!
         `,
         technical: `
 **VDO.ninja** (formerly OBS.ninja) is an open-source WebRTC-based video mixing platform.
 
-**Our Deployment**:
-- **R58 Local**: /opt/vdo.ninja/ (v28+)
-  - Port 8443 (HTTPS, self-signed cert)
-  - Local signaling server
-  - Used for local network mixing
-  
-- **VPS Instance**: r58-vdo.itagenten.no
-  - Proxied through FRP tunnel (port 18443)
-  - SSL via Traefik (Let's Encrypt)
-  - Used for remote mixing
+**Verified Running on R58** (Dec 26, 2025):
+- **Signaling Server**: vdo-ninja.service (Node.js, port 8443) ✅
+- **Web App**: vdo-webapp.service (Python HTTP server, port 8444) ✅  
+- **Publishers**: 
+  - ninja-publish-cam1.service ✅ (publishes /dev/video60)
+  - ninja-publish-cam2.service ✅ (publishes /dev/video11)
+  - ninja-publish-cam3.service ✅ (publishes /dev/video22)
 
-**Integration Method**:
-- Cameras stream to MediaMTX (RTSP)
-- VDO.ninja pulls via WHEP endpoints
-- No P2P WebRTC (uses server-based WHEP)
-- Works through FRP tunnel
+**Location**: /opt/vdo.ninja/ and /opt/raspberry_ninja/
 
-**Version**: v28+ (critical for WHEP support)
+**How It Works**:
+- raspberry.ninja captures from V4L2 devices
+- Publishes via WebRTC P2P to VDO.ninja signaling
+- VDO.ninja mixer (browser) connects to signaling server
+- Works on local network (wss://localhost:8443)
+
+**Remote Access**:
+- VPS proxies port 8443 → 18443
+- Access via: https://r58-vdo.itagenten.no
+- FRP tunnel carries WebSocket signaling
+
+**Note**: This is SEPARATE from the GStreamer mixer (MixerCore) in preke-recorder!
+
+**Version**: v28+ (verified by git log in /opt/vdo.ninja/)
         `,
         diagram: `
 flowchart TB
@@ -379,12 +388,147 @@ Add WHEP URLs to mixer:
 - Result: Full remote mixing capability
         `,
         keyPoints: [
-            'VDO.ninja v28+ required for WHEP support',
-            'Runs on both R58 and VPS',
-            'Pulls camera streams via WHEP (not P2P)',
-            'Enables browser-based professional mixing'
+            'VDO.ninja server IS running locally on R58 (port 8443)',
+            'raspberry.ninja publishers ARE active (cam1, cam2, cam3)',
+            'R58 has TWO mixers: VDO.ninja AND GStreamer compositor',
+            'VDO.ninja for local network, GStreamer for API control'
         ],
         tags: ['vdo.ninja', 'mixer', 'live', 'webrtc', 'whep']
+    },
+    
+    'two-mixers': {
+        title: 'Two Mixer Options Explained',
+        simple: `
+The R58 has TWO different mixer systems that can work at the same time:
+
+**Option 1: VDO.ninja (Browser-Based)**
+- Uses your web browser as the mixer
+- Cameras published via raspberry.ninja
+- Great for live switching and effects
+- Access at: https://r58-vdo.itagenten.no/mixer
+
+**Option 2: GStreamer Mixer (Built-In)**
+- Runs inside the R58 itself
+- Controlled via API
+- Outputs to MediaMTX  
+- Access via API: /api/mixer/start
+
+You can use either one or both depending on your needs!
+        `,
+        technical: `
+**Two Independent Mixer Architectures**:
+
+**1. VDO.ninja + raspberry.ninja Stack** (ACTIVE):
+
+Services Running:
+- vdo-ninja.service (Node.js signaling, port 8443)
+- vdo-webapp.service (HTTP server, port 8444)
+- ninja-publish-cam1/2/3.service (WebRTC publishers)
+
+Architecture:
+Camera (V4L2) → raspberry.ninja → P2P WebRTC → VDO.ninja signaling → Browser mixer
+
+Use case: Local network mixing, browser-based control
+
+**2. GStreamer Compositor (MixerCore)**:
+
+Code: src/mixer/core.py
+API: /api/mixer/*
+Config: mixer.enabled in config.yml
+
+Architecture:
+Camera (V4L2) → GStreamer v4l2src → compositor → encoder → MediaMTX
+
+Use case: API-controlled mixing, programmatic control, recording
+
+**Key Difference**:
+- **VDO.ninja**: Browser is the mixer, cameras publish TO it
+- **GStreamer**: R58 is the mixer, output streams FROM it
+
+**Can Run Simultaneously**: Yes! They use different devices/methods.
+        `,
+        content: `
+## When to Use Each Mixer
+
+### Use VDO.ninja When:
+- You want browser-based control
+- Need VDO.ninja's advanced features
+- Working on local network
+- Want traditional broadcast mixer feel
+- Need director/operator separation
+
+**Access**:
+- Local: https://192.168.x.x:8443/mixer?room=r58studio
+- Remote: https://r58-vdo.itagenten.no/mixer?room=r58studio
+
+### Use GStreamer Mixer When:
+- Need API control (automation)
+- Want programmatic scene switching
+- Need mixer output recording
+- Want lower resource usage
+- Building custom control interface
+
+**Access**:
+- API: POST /api/mixer/start
+- Scenes: POST /api/mixer/set_scene
+
+## Resource Usage
+
+**VDO.ninja + raspberry.ninja**:
+- 3x raspberry.ninja processes: ~3-5% CPU each
+- VDO.ninja signaling: ~1% CPU
+- Browser rendering: External (on viewing device)
+- Total R58 impact: ~10-15% CPU
+
+**GStreamer Mixer**:
+- Compositor: ~15-20% CPU
+- Encoding: ~10-15% CPU (hardware)
+- Total R58 impact: ~25-35% CPU
+
+## Current Status (Verified Dec 26, 2025)
+
+**VDO.ninja Stack**:
+- vdo-ninja.service: ✅ ACTIVE (19h uptime)
+- vdo-webapp.service: ✅ ACTIVE
+- ninja-publish-cam1: ✅ ACTIVE
+- ninja-publish-cam2: ✅ ACTIVE
+- ninja-publish-cam3: ✅ ACTIVE
+
+**GStreamer Mixer**:
+- State: NULL (not running, but available)
+- Health: healthy
+- Config: mixer.enabled: true
+
+## Why Both Exist
+
+**Historical**:
+- VDO.ninja implemented first (Dec 18-22)
+- GStreamer mixer added later (Dec 23-25)
+- Both kept because each has advantages
+
+**Use Cases**:
+- **VDO.ninja**: Live production with operators
+- **GStreamer**: Automated recording/streaming
+
+## Integration Possibilities
+
+**Hybrid Approach**:
+- Use VDO.ninja for live mixing
+- Record GStreamer mixer output
+- Route VDO.ninja output to GStreamer (future enhancement)
+
+**Current Best Practice**:
+- Local network production: VDO.ninja
+- Remote API control: GStreamer mixer
+- Can switch between them as needed
+        `,
+        keyPoints: [
+            'R58 has TWO mixers: VDO.ninja AND GStreamer',
+            'VDO.ninja services ARE running (verified active)',
+            'Both can be used simultaneously',
+            'VDO.ninja for browser control, GStreamer for API control'
+        ],
+        tags: ['mixer', 'vdo.ninja', 'gstreamer', 'compositor', 'comparison']
     },
     
     'raspberry-ninja': {
