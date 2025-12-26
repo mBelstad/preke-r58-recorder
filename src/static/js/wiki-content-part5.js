@@ -445,23 +445,36 @@ r58/
 
 ### /opt/r58-fleet-agent
 
-**Purpose**: Fleet management agent
+**Purpose**: Fleet management agent (CURRENT VERSION)
 
 **Contents**:
 - fleet_agent.py - WebSocket client for fleet API
 
-**Status**: Active, connects to fleet.r58.itagenten.no
+**Improvements over /opt/fleet-agent**:
+- 10-second heartbeat (vs 30-second)
+- Log rotation (10MB, keeps 3 files)
+- Quieter logging (debug messages reduced)
+- Better error handling
 
-**Logs**: /var/log/r58-fleet-agent/
+**Status**: Active, connects to wss://fleet.r58.itagenten.no/ws
+
+**Logs**: /var/log/r58-fleet-agent/fleet-agent.log
 
 ### /opt/fleet-agent
 
-**Purpose**: Unknown (possibly old fleet agent)
+**Purpose**: OLDER version of fleet agent
 
 **Contents**:
-- fleet_agent.py (different from r58-fleet-agent)
+- fleet_agent.py (older version of r58-fleet-agent)
 
-**Status**: Not running, may be obsolete
+**Differences from /opt/r58-fleet-agent**:
+- 30-second heartbeat (vs 10-second)
+- Basic logging (no rotation)
+- More verbose logging
+
+**Status**: Obsolete - newer version at /opt/r58-fleet-agent is in use
+
+**Note**: This is a backup/older copy. The active service uses /opt/r58-fleet-agent/
 
 ## Configuration Files
 
