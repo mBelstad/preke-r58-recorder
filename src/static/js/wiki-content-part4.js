@@ -490,17 +490,17 @@ Flow: Camera → MediaMTX → WHEP endpoint → VDO.ninja mixer (server-based, n
 
 **If you want to use raspberry.ninja** (local network only):
 
-Services are already installed and running:
+Services are already installed and running on R58:
 - ninja-publish-cam1.service
-- ninja-publish-cam2.service
+- ninja-publish-cam2.service  
 - ninja-publish-cam3.service
 
-**Access**:
-- Local VDO.ninja: https://192.168.x.x:8443/?director=r58studio
-- Cameras will appear as: cam1, cam2, cam3
+**Local Access**:
+- VDO.ninja director interface on local network
+- Cameras appear as: cam1, cam2, cam3
 - Works on local network only
 
-**For Remote**: Use WHEP approach instead (see VDO.ninja overview)
+**For Remote Access**: Use WHEP approach instead (see VDO.ninja overview section)
 
 ## Lessons Learned
 
@@ -614,19 +614,13 @@ Services are already installed and running:
 ## How to Check Versions
 
 **MediaMTX**:
-```bash
-./connect-r58-frp.sh "/usr/local/bin/mediamtx --version"
-```
+- SSH to R58 and run: /usr/local/bin/mediamtx --version
 
 **VDO.ninja**:
-```bash
-./connect-r58-frp.sh "cd /opt/vdo.ninja && git log --oneline -1"
-```
+- SSH to R58: cd /opt/vdo.ninja && git log --oneline -1
 
 **GStreamer**:
-```bash
-./connect-r58-frp.sh "gst-launch-1.0 --version"
-```
+- SSH to R58 and run: gst-launch-1.0 --version
 
 ## Update Recommendations
 
