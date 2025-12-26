@@ -180,10 +180,11 @@ Think of it like a smart DVR, but for professional video production!
   - RGA: Hardware scaling and format conversion
 
 **Software Stack**:
-- **OS**: Debian 12 (bookworm), Kernel 6.1.99
-- **Media Framework**: GStreamer 1.22.9
+- **OS**: Custom Debian 12 (Mekotronics build), Kernel 6.1.99
+- **Media Framework**: GStreamer 1.22.9 (Debian package with Rockchip plugins)
 - **Application**: Python FastAPI (port 8000)
-- **Streaming Server**: MediaMTX (ports 8889, 8888, 8554)
+- **Streaming Server**: MediaMTX v1.15.5+ (ports 8889, 8888, 8554)
+- **Live Mixer**: VDO.ninja v28+ (port 8443)
 
 **Performance** (Verified):
 - 4x 1080p@30fps simultaneous encoding
@@ -270,6 +271,7 @@ flowchart TB
         GS[GStreamer Pipelines]
         MTX[MediaMTX :8889]
         API[FastAPI :8000]
+        VDO[VDO.ninja :8443]
         FRPC[FRP Client]
         
         CAM0 --> GS
@@ -278,13 +280,15 @@ flowchart TB
         CAM3 --> GS
         GS --> MTX
         API --> GS
+        MTX --> VDO
         MTX --> FRPC
         API --> FRPC
+        VDO --> FRPC
     end
     
     subgraph VPS[Coolify VPS - 65.109.32.111]
         FRPS[FRP Server :7000]
-        PORTS[Exposed Ports<br/>:10022 SSH<br/>:18889 MediaMTX<br/>:18000 API]
+        PORTS[Exposed Ports<br/>:10022 SSH<br/>:18889 MediaMTX<br/>:18000 API<br/>:18443 VDO.ninja]
         NGX[nginx Proxy]
         TRF[Traefik SSL]
         
@@ -294,13 +298,15 @@ flowchart TB
     end
     
     subgraph Users[Remote Users]
-        BROWSER[Web Browser]
+        BROWSER[Web Browser<br/>Studio/Mixer]
         SSH[SSH Client]
+        GUEST[Remote Guests<br/>WHIP]
     end
     
     FRPC -->|TCP Tunnel| FRPS
     TRF -->|HTTPS| BROWSER
     TRF -->|SSH :10022| SSH
+    GUEST -->|WHIP| TRF
     
     style R58 fill:#e3f2fd
     style VPS fill:#fff3e0
@@ -605,6 +611,34 @@ Each program has a specific job, and they all communicate with each other.
 - speaker0, speaker1, speaker2 - Remote speakers
 - slides, slides_overlay - Reveal.js presentations
 
+## VDO.ninja
+
+**Version**: v28+  
+**Port**: 8443 (local), 18443 (via FRP)  
+**Location**: /opt/vdo.ninja
+
+**Purpose**: Browser-based live video mixer
+
+**Services**:
+- vdo-ninja.service - Signaling server
+- vdo-webapp.service - Web application
+- ninja-publish-cam1/2/3.service - Camera publishers (optional)
+
+**Key Features**:
+- Real-time video mixing in browser
+- WHEP support (pulls from MediaMTX)
+- Remote guest integration
+- Professional broadcast interface
+
+**Why VDO.ninja?**:
+- No software installation needed
+- Works in any modern browser
+- Professional mixing features
+- Remote collaboration built-in
+- Free and open source
+
+**Critical Requirement**: v28+ for WHEP support
+
 ## FRP (Fast Reverse Proxy)
 
 **Config**: /opt/frp/frpc.toml  
@@ -677,11 +711,12 @@ These choices were made after trying many alternatives!
 | Layer | Technology | Why Chosen |
 |-------|------------|------------|
 | Hardware | RK3588 | Best ARM SoC for video (MPP encoders) |
-| OS | Debian 12 | Stable, good ARM support |
+| OS | Custom Debian 12 | Mekotronics build with Rockchip drivers |
 | Runtime | Python 3 | Rapid development, good libraries |
 | Web Framework | FastAPI | Async, type hints, auto docs |
-| Media | GStreamer | Hardware encoder access, flexible |
-| Streaming | MediaMTX | WHIP/WHEP, TCP WebRTC support |
+| Media | GStreamer 1.22.9 | Hardware encoder access, Rockchip plugins |
+| Streaming | MediaMTX v1.15.5+ | WHIP/WHEP, TCP WebRTC support |
+| Live Mixer | VDO.ninja v28+ | Browser-based mixing, WHEP support |
 | Tunnel | FRP | Works through NAT, TCP+UDP |
 | SSL | Traefik | Auto Let's Encrypt |
 | Proxy | nginx | CORS handling |
@@ -728,6 +763,33 @@ These choices were made after trying many alternatives!
 - **Active Development**: Frequent updates, responsive maintainer
 
 **Critical Feature**: TCP WebRTC support (v1.15.5+) enables WebRTC through FRP tunnel
+
+**Version Matters!**
+- Started with v1.5.1: Many issues, no TCP WebRTC
+- Updated to v1.15.5: 80% of problems disappeared
+- **Lesson**: Always use latest stable version (10+ versions of fixes)
+
+## Why VDO.ninja?
+
+**Alternatives Considered**:
+- ❌ OBS Studio: Desktop app, not browser-based
+- ❌ Custom mixer: Too much development time
+- ❌ Hardware switcher: Expensive, not remote-capable
+- ✅ VDO.ninja: Perfect fit
+
+**Advantages**:
+- **Browser-Based**: No software installation
+- **WHEP Support**: Pulls from MediaMTX (v28+)
+- **Professional Features**: Scenes, transitions, effects
+- **Remote Guests**: WHIP publishing built-in
+- **Free**: Open source, no licensing costs
+
+**Critical Feature**: WHEP support (v28+) enables server-based mixing through tunnels
+
+**Version Matters!**
+- Started with v25: No WHEP support, P2P only
+- Updated to v28: WHEP support added
+- **Lesson**: v28+ required for our architecture
 
 ## Why FRP?
 
