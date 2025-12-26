@@ -875,13 +875,12 @@
         const API_BASE = window.location.origin;
         const HOSTNAME = window.location.hostname;
         
-        // Detect if accessing remotely via Cloudflare Tunnel
+        // Detect if accessing remotely via itagenten.no domain
         const IS_REMOTE = window.location.hostname.includes('itagenten.no');
         
         // MediaMTX streaming URLs
-        // For remote access: use HLS proxy through FastAPI (/hls endpoint)
-        // For local access: use MediaMTX ports directly
-        // Note: WebRTC doesn't work through Cloudflare Tunnel, so we use HLS for remote
+        // Both local and remote access now use WHEP (WebRTC) via MediaMTX
+        // HLS is kept as a fallback if WHEP fails
         function getHLSUrl(streamPath) {
             if (IS_REMOTE) {
                 // Use the HLS proxy endpoint through FastAPI
@@ -893,13 +892,18 @@
         }
         
         function getWebRTCUrl(streamPath) {
-            // Use proxied WHEP endpoint to avoid CORS issues
-            return `${API_BASE}/whep/${streamPath}`;
+            if (IS_REMOTE) {
+                // Remote access: use WHEP via r58-mediamtx.itagenten.no
+                return `https://r58-mediamtx.itagenten.no/${streamPath}/whep`;
+            } else {
+                // Local access: use proxied WHEP endpoint
+                return `${API_BASE}/whep/${streamPath}`;
+            }
         }
         
         // Log access mode for debugging
-        console.log(`Access mode: ${IS_REMOTE ? 'REMOTE (HLS via Cloudflare tunnel)' : 'LOCAL (WebRTC + HLS fallback)'}`);
-        console.log(`HLS URL example: ${getHLSUrl('cam0')}`);
+        console.log(`Access mode: ${IS_REMOTE ? 'REMOTE (WHEP via r58-mediamtx.itagenten.no)' : 'LOCAL (WHEP via local MediaMTX)'}`);
+        console.log(`WHEP URL example: ${getWebRTCUrl('cam0')}`);
         
         let recordingState = false;
         let hlsPlayers = {};
@@ -1374,15 +1378,15 @@
             // In always-on ingest architecture, all streams use cam0, cam1, etc.
             const streamPath = `${camId}`;
             
-            // Try WebRTC first for ultra-low latency (local access only - doesn't work through Cloudflare tunnel)
-            if (window.RTCPeerConnection && !IS_REMOTE) {
-                console.log(`🎥 [${camId}] Attempting WebRTC connection (local access)`);
+            // Try WHEP (WebRTC) first for ultra-low latency (works both locally and remotely)
+            if (window.RTCPeerConnection) {
+                console.log(`🎥 [${camId}] Attempting WHEP connection (${IS_REMOTE ? 'remote' : 'local'} access)`);
                 const webrtcUrl = getWebRTCUrl(streamPath);
-                console.log(`🎥 [${camId}] WebRTC URL: ${webrtcUrl}`);
+                console.log(`🎥 [${camId}] WHEP URL: ${webrtcUrl}`);
                 startWebRTCPreview(video, webrtcUrl, camId, placeholder);
             } else {
-                console.log(`📺 [${camId}] Using HLS for ${IS_REMOTE ? 'remote' : 'local'} access`);
-                // Use HLS for remote access (WebRTC doesn't work through Cloudflare tunnel)
+                console.log(`📺 [${camId}] WebRTC not supported, falling back to HLS`);
+                // Fallback to HLS if WebRTC is not supported
                 startHLSPreview(video, camId, placeholder, streamPath);
             }
         }

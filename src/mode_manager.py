@@ -22,28 +22,21 @@ class ModeStatus:
 
 
 class ModeManager:
-    """Manages switching between Recorder and VDO.ninja modes.
+    """Manages recorder mode.
     
     Recorder Mode:
     - preke-recorder ingest pipelines active (internal)
     - MediaMTX receives streams via RTSP
-    - Used for recording and direct WHEP viewing
+    - Used for recording and WHEP viewing (local and remote)
+    - VDO.ninja integration via WHEP (no separate publishers needed)
     
-    VDO.ninja Mode:
-    - raspberry.ninja publishers active (systemd services)
-    - VDO.ninja signaling server receives streams
-    - Used for full VDO.ninja mixer/director features
+    Note: The dual-mode system (recorder/vdoninja) has been simplified.
+    VDO.ninja now works via WHEP streams from MediaMTX, eliminating the need
+    for separate raspberry.ninja publisher services.
     """
     
-    MODES = ["recorder", "vdoninja"]
+    MODES = ["recorder"]  # Simplified to single mode
     STATE_FILE = Path("/tmp/r58_mode_state.json")
-    
-    # VDO.ninja publisher services (systemd)
-    VDONINJA_SERVICES = [
-        "ninja-publish-cam1",
-        "ninja-publish-cam2", 
-        "ninja-publish-cam3",
-    ]
     
     def __init__(self, ingest_manager=None, config=None):
         """Initialize mode manager.

@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, UploadFile, File, Response, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import JSONResponse, FileResponse, HTMLResponse, StreamingResponse
+from fastapi.responses import JSONResponse, FileResponse, HTMLResponse, StreamingResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 import shutil
 import uuid
@@ -216,6 +216,12 @@ async def switcher():
     if switcher_path.exists():
         return switcher_path.read_text()
     raise HTTPException(status_code=404, detail="Switcher interface not found")
+
+
+@app.get("/static/r58_remote_mixer")
+async def remote_mixer_redirect():
+    """Redirect /static/r58_remote_mixer to /static/r58_remote_mixer.html"""
+    return RedirectResponse(url="/static/r58_remote_mixer.html")
 
 
 @app.get("/cairo", response_class=HTMLResponse)
