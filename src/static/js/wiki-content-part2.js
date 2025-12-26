@@ -166,14 +166,14 @@ Once connected, you can type commands to control the R58.
 R58_VPS="65.109.32.111"
 R58_PORT="10022"
 R58_USER="linaro"
-R58_PASSWORD="${R58_PASSWORD:-linaro}"
+R58_PASSWORD="\${R58_PASSWORD:-linaro}"
 
-sshpass -p "${R58_PASSWORD}" ssh \\
+sshpass -p "\${R58_PASSWORD}" ssh \\
     -o StrictHostKeyChecking=no \\
     -o PreferredAuthentications=password \\
     -o PubkeyAuthentication=no \\
-    -p ${R58_PORT} \\
-    ${R58_USER}@${R58_VPS} \\
+    -p \${R58_PORT} \\
+    \${R58_USER}@\${R58_VPS} \\
     "$@"
 \`\`\`
 
@@ -853,7 +853,7 @@ curl https://r58-api.itagenten.no/record/status/cam1
 \`\`\`bash
 #!/bin/bash
 for cam in cam0 cam1 cam2 cam3; do
-    curl -X POST https://r58-api.itagenten.no/record/start/$cam
+    curl -X POST https://r58-api.itagenten.no/record/start/\$cam
     echo ""
 done
 \`\`\`

@@ -984,15 +984,13 @@ remotePort = 18189
 
 ## Key Insight
 
-**The breakthrough**: MediaMTX v1.15.5+ added \`webrtcLocalTCPAddress\` support.
+**The breakthrough**: MediaMTX v1.15.5+ added webrtcLocalTCPAddress support.
 
 This enables WebRTC to work over TCP, which FRP can tunnel!
 
-\`\`\`yaml
-# mediamtx.yml
-webrtcLocalTCPAddress: :8190
-webrtcAdditionalHosts: ["65.109.32.111:18189"]
-\`\`\`
+**mediamtx.yml setting**:
+- webrtcLocalTCPAddress: :8190
+- webrtcAdditionalHosts: ["65.109.32.111:18189"]
 
 Combined with FRP's UDP tunneling for the media path, we get full WebRTC support through the tunnel.
 
@@ -1338,7 +1336,7 @@ Each choice was made after testing alternatives.
 
 **Pros**:
 - WHIP/WHEP support (HTTP-based WebRTC)
-- TCP WebRTC (webrtcLocalTCPAddress)
+- TCP WebRTC (webrtcLocalTCPAddress setting)
 - Multi-protocol (RTSP, RTMP, HLS, SRT, WebRTC)
 - Single Go binary
 - Low resource usage
@@ -1561,7 +1559,7 @@ v4l2src → encode → h264parse → flvmux → rtmpsink location=rtmp://localho
 - No benefit over RTSP for our use case
 - flvmux limitation to H.264 only
 
-**Code Removed**: `build_preview_pipeline()` and `build_r58_preview_pipeline()` functions deleted (not in use).
+**Code Removed**: build_preview_pipeline() and build_r58_preview_pipeline() functions deleted (not in use).
 
 ---
 
