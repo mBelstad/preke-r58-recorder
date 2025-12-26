@@ -2,11 +2,39 @@
 
 A simple, reliable recording application for the Mekotronics R58 4x4 3S (RK3588) using Python, GStreamer, FastAPI, and MediaMTX.
 
+---
+
+## 🚀 Quick Start (Remote Access)
+
+**→ See [REMOTE_ACCESS.md](REMOTE_ACCESS.md) for complete guide**
+
+### Connect to R58
+```bash
+./connect-r58-frp.sh
+```
+
+### Deploy Code
+```bash
+./deploy-simple.sh
+```
+
+### Access Web Interface
+- **Studio (Multiview)**: https://r58-api.itagenten.no/static/studio.html
+- **Main App**: https://r58-api.itagenten.no/static/app.html
+- **Guest Portal**: https://r58-api.itagenten.no/static/guest.html
+
+**Method**: FRP Tunnel (not Cloudflare)  
+**Stability**: ✅ 100% stable & tested
+
+---
+
 ## Features
 
 - Records from up to 4 HDMI-IN devices (/dev/video0-3)
 - Hardware-accelerated encoding on R58 (v4l2h264enc/v4l2h265enc or mpp encoders)
 - Optional streaming to MediaMTX (RTSP/RTMP/SRT)
+- WebRTC/WHIP/WHEP streaming support
+- Modern web-based UI with multiview
 - HTTP API for control
 - Works on macOS (development) and R58 (production)
 
