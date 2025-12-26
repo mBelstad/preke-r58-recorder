@@ -9,7 +9,7 @@ Object.assign(wikiContent, {
     
     'remote-overview': {
         title: 'Remote Access Overview',
-        simple: \`
+        simple: `
 You can access the R58 from anywhere in the world through the internet!
 
 There are two ways to access it:
@@ -18,7 +18,7 @@ There are two ways to access it:
 
 Both methods are secure and use encrypted connections.
         `,
-        technical: \`
+        technical: `
 **Architecture**: FRP Reverse Proxy Tunnel
 
 The R58 is behind NAT (no public IP). We use FRP (Fast Reverse Proxy) to create a secure tunnel to a public VPS:
@@ -39,7 +39,7 @@ R58 (local) → FRP Client → SSH Tunnel → VPS FRP Server → Internet
 - All web traffic over HTTPS
 - SSH on non-standard port (10022)
         `,
-        diagram: \`
+        diagram: `
 flowchart LR
     subgraph Local[Your Computer]
         SSH[SSH Client]
@@ -73,7 +73,7 @@ flowchart LR
     style VPS fill:#fff3e0
     style R58 fill:#e3f2fd
 `,
-        content: \`
+        content: `
 ## Access Methods
 
 ### 1. SSH Access
@@ -139,7 +139,7 @@ sshpass -p linaro ssh -p 10022 linaro@65.109.32.111
     
     'ssh-access': {
         title: 'SSH Access Guide',
-        simple: \`
+        simple: `
 SSH lets you control the R58 using text commands. It's like having a direct line to the computer's brain!
 
 **To connect**:
@@ -152,7 +152,7 @@ SSH lets you control the R58 using text commands. It's like having a direct line
 
 Once connected, you can type commands to control the R58.
         `,
-        technical: \`
+        technical: `
 **Connection Details** (Verified):
 - **Host**: 65.109.32.111
 - **Port**: 10022 (FRP-mapped from R58:22)
@@ -162,17 +162,17 @@ Once connected, you can type commands to control the R58.
 
 **Script**: ./connect-r58-frp.sh
 
-**Source code**:
-- Uses sshpass for password authentication
-- Connects to 65.109.32.111:10022
-- Passes through commands to R58
-- Password defaults to "linaro"
+**What it does**:
+- Uses sshpass for password authentication  
+- Connects to 65.109.32.111 port 10022
+- User: linaro, Password: linaro
+- Passes through any commands you provide
 
 **Requirements**:
-- sshpass installed (\`brew install sshpass\` on macOS)
+- sshpass installed (brew install sshpass on macOS)
 - Network access to VPS port 10022
         `,
-        content: \`
+        content: `
 ## Basic SSH Commands
 
 **Connect**:
@@ -284,7 +284,7 @@ nc -zv 65.109.32.111 10022
     
     'web-interfaces': {
         title: 'Web Interfaces',
-        simple: \`
+        simple: `
 The R58 has several web pages you can open in your browser:
 
 1. **Studio** - See all cameras at once (like a TV control room)
@@ -294,7 +294,7 @@ The R58 has several web pages you can open in your browser:
 
 All pages work on phones, tablets, and computers.
         `,
-        technical: \`
+        technical: `
 **Base URL**: https://r58-api.itagenten.no
 
 **Static Files Served by FastAPI**:
@@ -312,7 +312,7 @@ All pages work on phones, tablets, and computers.
 - OPTIONS preflight support
 - Required for WebRTC WHEP/WHIP
         `,
-        content: \`
+        content: `
 ## Available Interfaces
 
 ### Studio (Multiview)
@@ -421,7 +421,7 @@ All interfaces are responsive and work on mobile devices:
     
     'deployment': {
         title: 'Deployment Guide',
-        simple: \`
+        simple: `
 To update the R58 with new code, just run one command:
 
 \`\`\`bash
@@ -436,7 +436,7 @@ This script will:
 
 It takes about 30 seconds!
         `,
-        technical: \`
+        technical: `
 **Deployment Script**: ./deploy-simple.sh
 
 **Process**:
@@ -457,7 +457,7 @@ It takes about 30 seconds!
 - Service restart: ✅
 - Zero downtime: ~5 seconds
         `,
-        content: \`
+        content: `
 ## Simple Deployment
 
 **One-Command Deploy**:
@@ -596,7 +596,7 @@ For critical systems:
     
     'api-overview': {
         title: 'API Overview',
-        simple: \`
+        simple: `
 The R58 has a REST API - a way for programs to talk to it using web requests.
 
 You can use the API to:
@@ -607,7 +607,7 @@ You can use the API to:
 
 You can test the API using your web browser or command-line tools like curl.
         `,
-        technical: \`
+        technical: `
 **Framework**: FastAPI (Python)  
 **Base URL**: https://r58-api.itagenten.no  
 **Documentation**: https://r58-api.itagenten.no/docs (Swagger UI)
@@ -629,7 +629,7 @@ You can test the API using your web browser or command-line tools like curl.
 - ✅ /api/mixer/status
 - ✅ /api/scenes
         `,
-        content: \`
+        content: `
 ## API Base URL
 
 **Production**: https://r58-api.itagenten.no  
@@ -727,7 +727,7 @@ curl https://r58-api.itagenten.no/status
     
     'api-recording': {
         title: 'Recording API',
-        simple: \`
+        simple: `
 Control camera recording with simple web requests:
 
 **Start recording**:
@@ -742,7 +742,7 @@ curl -X POST https://r58-api.itagenten.no/record/stop/cam1
 
 That's it! The R58 handles everything else automatically.
         `,
-        technical: \`
+        technical: `
 **Endpoints**:
 
 \`\`\`
@@ -772,7 +772,7 @@ curl -X POST https://r58-api.itagenten.no/record/start/cam1
 # Response: {"status":"started","camera":"cam1"}
 \`\`\`
         `,
-        content: \`
+        content: `
 ## Start Recording
 
 **Endpoint**: \`POST /record/start/{cam_id}\`
@@ -840,22 +840,15 @@ curl https://r58-api.itagenten.no/record/status/cam1
 
 ## Start All Cameras
 
-**Bash Script Example**:
-- Loop through cam0, cam1, cam2, cam3
-- POST to /record/start/{cam_id} for each
-- Use a simple for loop or parallel requests
+**To start all cameras at once**:
 
-**Python Script**:
-\`\`\`python
-import requests
+Loop through each camera (cam0, cam1, cam2, cam3) and POST to /record/start/{cam_id}.
 
-base_url = "https://r58-api.itagenten.no"
-cameras = ["cam0", "cam1", "cam2", "cam3"]
-
-for cam in cameras:
-    response = requests.post(f"{base_url}/record/start/{cam}")
-    print(f"{cam}: {response.json()}")
-\`\`\`
+Example approaches:
+- Use a bash for loop
+- Use Python requests library  
+- Use parallel curl commands
+- Use the web interface
 
 ## Recording Settings
 
@@ -870,12 +863,12 @@ cameras:
 \`\`\`
 
 **File Naming**:
-- \`%Y\\` - Year (2025)
-- \`%m\\` - Month (12)
-- \`%d\\` - Day (26)
-- \`%H\\` - Hour (15)
-- \`%M\\` - Minute (30)
-- \`%S\\` - Second (22)
+- \`%Y\` - Year (2025)
+- \`%m\` - Month (12)
+- \`%d\` - Day (26)
+- \`%H\` - Hour (15)
+- \`%M\` - Minute (30)
+- \`%S\` - Second (22)
 
 **Example**: recording_20251226_153022.mkv
         `,
@@ -890,7 +883,7 @@ cameras:
     
     'api-mixer': {
         title: 'Mixer API',
-        simple: \`
+        simple: `
 Control the video mixer (combining multiple cameras) via API:
 
 **Start mixer**:
@@ -907,7 +900,7 @@ curl -X POST https://r58-api.itagenten.no/api/mixer/set_scene \\
 
 The mixer lets you create professional multi-camera layouts!
         `,
-        technical: \`
+        technical: `
 **Endpoints**:
 
 \`\`\`
@@ -935,7 +928,7 @@ GET  /api/mixer/status     - Get mixer status
 }
 \`\`\`
         `,
-        content: \`
+        content: `
 ## Start Mixer
 
 **Endpoint**: \`POST /api/mixer/start\`
@@ -997,12 +990,12 @@ curl -X POST https://r58-api.itagenten.no/api/mixer/set_scene \\
 \`\`\`
 
 **Available Scenes**:
-- \`quad\\` - 2x2 grid of all 4 cameras
-- \`cam0_full\\` - Camera 0 fullscreen
-- \`cam1_full\\` - Camera 1 fullscreen
-- \`cam2_full\\` - Camera 2 fullscreen
-- \`cam3_full\\` - Camera 3 fullscreen
-- \`presentation_pip\\` - Presentation with PiP
+- \`quad\` - 2x2 grid of all 4 cameras
+- \`cam0_full\` - Camera 0 fullscreen
+- \`cam1_full\` - Camera 1 fullscreen
+- \`cam2_full\` - Camera 2 fullscreen
+- \`cam3_full\` - Camera 3 fullscreen
+- \`presentation_pip\` - Presentation with PiP
 
 ## Get Mixer Status
 
@@ -1028,15 +1021,15 @@ curl https://r58-api.itagenten.no/api/mixer/status
 \`\`\`
 
 **State Values**:
-- \`NULL\\` - Not running
-- \`PLAYING\\` - Active and mixing
-- \`PAUSED\\` - Paused (rare)
+- \`NULL\` - Not running
+- \`PLAYING\` - Active and mixing
+- \`PAUSED\` - Paused (rare)
 
 **Health Values**:
-- \`healthy\\` - Normal operation
-- \`degraded\\` - Minor issues
-- \`unhealthy\\` - Serious issues
-- \`failed\\` - Pipeline failure
+- \`healthy\` - Normal operation
+- \`degraded\` - Minor issues
+- \`unhealthy\` - Serious issues
+- \`failed\` - Pipeline failure
 
 ## Mixer Configuration
 
@@ -1078,7 +1071,7 @@ https://r58-mediamtx.itagenten.no/mixer_program/index.m3u8
     
     'api-scenes': {
         title: 'Scenes API',
-        simple: \`
+        simple: `
 Scenes define how cameras are arranged in the mixer. You can:
 
 **List all scenes**:
@@ -1093,7 +1086,7 @@ curl https://r58-api.itagenten.no/api/scenes/quad
 
 Scenes are stored as JSON files in the \`scenes/\` directory.
         `,
-        technical: \`
+        technical: `
 **Endpoints**:
 
 \`\`\`
@@ -1128,7 +1121,7 @@ GET /api/scenes/{id}  - Get scene definition
 
 **Storage**: scenes/ directory (JSON files)
         `,
-        content: \`
+        content: `
 ## List All Scenes
 
 **Endpoint**: \`GET /api/scenes\`
