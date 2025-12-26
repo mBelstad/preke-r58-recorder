@@ -1550,7 +1550,7 @@ v4l2src → encode → h264parse → flvmux → rtmpsink location=rtmp://localho
 - No benefit over RTSP for our use case
 - flvmux limitation to H.264 only
 
-**Code Removed**: `build_preview_pipeline()` and `build_r58_preview_pipeline()` functions deleted (not in use).
+**Code Removed**: build_preview_pipeline() and build_r58_preview_pipeline() functions deleted (not in use).
 
 ---
 
