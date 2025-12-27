@@ -3358,8 +3358,9 @@ async def get_vdoninja_mixer_url(request: Request, include_inactive: bool = Fals
     vdoninja_base = f"https://{VDONINJA_REMOTE_HOST}" if is_remote else f"https://{VDONINJA_LOCAL_HOST}"
     mediamtx_base = f"https://{MEDIAMTX_REMOTE_HOST}" if is_remote else "http://localhost:8889"
     
-    # Build base mixer URL
-    mixer_url = f"{vdoninja_base}/mixer?room=r58studio&automixer"
+    # Build base mixer URL using VDO.ninja scene view with WHEP sources
+    # Note: /mixer path doesn't exist in VDO.ninja, use ?scene instead
+    mixer_url = f"{vdoninja_base}/?scene"
     
     # Get sources
     sources_response = await get_vdoninja_sources(request)
