@@ -718,11 +718,13 @@
                     const label = `HDMI-${index + 1}`;
                     const whepUrl = encodeURIComponent(`https://${config.apiHost}/whep/${camId}`);
                     // Use &whepshare with &webcam for publishing
-                    // Note: VDO.ninja may briefly show local webcam before WHEP takes over for viewers
-                    // &effects=4 uses a black screen instead of webcam preview
-                    const bridgeUrl = `https://${config.vdoninjaHost}/?push=${pushId}&room=${config.roomName}&whepshare=${whepUrl}&label=${label}&webcam&effects=4&autostart`;
+                    // Note: Popup shows local webcam preview, but viewers get the WHEP stream
+                    // &cover shows a placeholder image instead of webcam in preview
+                    const coverUrl = encodeURIComponent(`https://${config.apiHost}/static/img/camera-placeholder.svg`);
+                    const bridgeUrl = `https://${config.vdoninjaHost}/?push=${pushId}&room=${config.roomName}&whepshare=${whepUrl}&label=${label}&webcam&cover=${coverUrl}&autostart`;
                     
-                    const popup = window.open(bridgeUrl, `bridge_${camId}`, 'width=500,height=400,menubar=no,toolbar=no,location=no,status=no');
+                    // Open minimized popup - it just needs to stay open for the bridge to work
+                    const popup = window.open(bridgeUrl, `bridge_${camId}`, 'width=320,height=200,menubar=no,toolbar=no,location=no,status=no');
                     if (popup) {
                         popupWindows.push(popup);
                     } else {
