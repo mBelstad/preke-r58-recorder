@@ -731,7 +731,9 @@
                     const pushId = `hdmi${index + 1}`;
                     const label = `HDMI-${index + 1}`;
                     const whepUrl = encodeURIComponent(`https://${config.apiHost}/whep/${camId}`);
-                    const bridgeUrl = `https://${config.vdoninjaHost}/?push=${pushId}&room=${config.roomName}&whepshare=${whepUrl}&label=${label}&webcam&autostart`;
+                    // &whepshare provides the video source - no local camera needed
+                    // &novideo&noaudio prevents camera/mic permission prompts
+                    const bridgeUrl = `https://${config.vdoninjaHost}/?push=${pushId}&room=${config.roomName}&whepshare=${whepUrl}&label=${label}&novideo&noaudio&autostart`;
                     
                     // Open as small background window, positioned off-screen
                     // The page just needs to be loaded for WebRTC connection to work
