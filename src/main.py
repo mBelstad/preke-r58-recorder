@@ -3434,6 +3434,68 @@ async def get_vdoninja_scene_url(request: Request) -> Dict[str, Any]:
     }
 
 
+@app.get("/api/vdoninja/bridge-url")
+async def get_vdoninja_bridge_url(request: Request) -> Dict[str, Any]:
+    """Get the camera bridge page URL.
+    
+    The camera bridge page runs on R58 (locally or headlessly) and bridges
+    HDMI cameras from MediaMTX WHEP endpoints into the VDO.ninja room.
+    
+    This is needed because cameras are already in MediaMTX (via GStreamer RTSP)
+    and need to be "bridged" into the VDO.ninja room as guest sources.
+    """
+    # Determine if request is local or remote
+    host = request.headers.get("host", "")
+    is_remote = "itagenten.no" in host or not any(x in host for x in ["localhost", "127.0.0.1", "192.168"])
+    
+    # Bridge page is always accessed via local API
+    bridge_url = f"{request.base_url}static/camera-bridge.html"
+    
+    return {
+        "url": bridge_url,
+        "vdoninja_host": VDONINJA_REMOTE_HOST,
+        "mediamtx_host": MEDIAMTX_REMOTE_HOST,
+        "room": "r58studio",
+        "is_remote": is_remote,
+        "description": "Open this page to bridge HDMI cameras into VDO.ninja room",
+        "service_name": "r58-camera-bridge.service",
+        "service_status_command": "systemctl status r58-camera-bridge"
+    }
+
+
+@app.get("/api/vdoninja/whep-view-url/{stream_id}")
+async def get_vdoninja_whep_view_url(request: Request, stream_id: str) -> Dict[str, Any]:
+    """Get a VDO.ninja URL to view a single WHEP stream from MediaMTX.
+    
+    This is useful for testing and debugging individual camera streams.
+    The &whepplay= parameter allows VDO.ninja to pull any WHEP stream directly.
+    
+    Args:
+        stream_id: The MediaMTX stream path (e.g., 'cam0', 'cam2', 'speaker0')
+    """
+    # Determine if request is local or remote
+    host = request.headers.get("host", "")
+    is_remote = "itagenten.no" in host or not any(x in host for x in ["localhost", "127.0.0.1", "192.168"])
+    
+    vdoninja_base = f"https://{VDONINJA_REMOTE_HOST}" if is_remote else f"https://{VDONINJA_LOCAL_HOST}"
+    mediamtx_host = MEDIAMTX_REMOTE_HOST if is_remote else "localhost:8889"
+    
+    whep_endpoint = f"https://{mediamtx_host}/{stream_id}/whep"
+    
+    # Build VDO.ninja URL with whepplay parameter
+    view_url = f"{vdoninja_base}/?whepplay={whep_endpoint}&stereo=2&whepwait=2000"
+    
+    return {
+        "url": view_url,
+        "stream_id": stream_id,
+        "whep_endpoint": whep_endpoint,
+        "vdoninja_host": VDONINJA_REMOTE_HOST if is_remote else VDONINJA_LOCAL_HOST,
+        "mediamtx_host": mediamtx_host,
+        "is_remote": is_remote,
+        "description": f"View {stream_id} stream via VDO.ninja WHEP playback"
+    }
+
+
 # =====================================================================
 # Camera-to-Slot Mapping API
 # =====================================================================

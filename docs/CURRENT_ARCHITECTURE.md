@@ -453,15 +453,29 @@ https://r58-vdo.itagenten.no/?director=r58studio&mediamtx=r58-mediamtx.itagenten
 
 ## Related Documentation
 
-- **Cloudflare History**: `docs/CLOUDFLARE_HISTORY.md`
-- **Mixer Guide**: `docs/MIXER_GUIDE.md` (to be created)
-- **Remote Speakers**: `docs/REMOTE_SPEAKERS.md` (to be created)
-- **Archived Docs**: `docs/archive/` (historical reference)
+### Internal Documentation
+
+- **VDO.ninja WHEP Integration**: `docs/VDONINJA_WHEP_INTEGRATION.md` - Detailed guide on WHEP integration
+- **Cloudflare History**: `docs/CLOUDFLARE_HISTORY.md` - Why Cloudflare tunnels don't work
+- **Archived Docs**: `docs/archive/` - Historical reference
+
+### External Documentation
+
+- [VDO.ninja WHIP/WHEP Tooling](https://docs.vdo.ninja/steves-helper-apps/whip-and-whep-tooling)
+- [Deploy Your Own MediaMTX (Meshcast-like)](https://docs.vdo.ninja/guides/deploy-your-own-meshcast-like-service)
+- [VDO.ninja Advanced URL Parameters](https://docs.vdo.ninja/advanced-settings)
+- [MediaMTX GitHub](https://github.com/bluenviron/mediamtx)
+
+### Key Files
+
+- **Camera Bridge**: `src/static/camera-bridge.html` - Bridges cameras to VDO.ninja room
+- **MediaMTX Mixer**: `src/static/mediamtx_mixer.html` - Custom WHEP-based mixer
+- **Bridge Service**: `systemd/r58-camera-bridge.service` - Headless bridge runner
 
 ---
 
 **Status**: ✅ Production Ready  
 **Last Tested**: December 27, 2025  
-**VDO.ninja Mode**: MediaMTX WHEP (raspberry.ninja P2P disabled)
+**VDO.ninja Mode**: MediaMTX WHEP (raspberry.ninja P2P disabled)  
 **Maintainer**: R58 Team
 
