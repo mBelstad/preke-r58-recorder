@@ -3597,6 +3597,7 @@ async def get_vdoninja_bridge_status() -> Dict[str, Any]:
         "service_active": False,
         "chromium_running": False,
         "tabs": [],
+        "tabs_open": 0,
         "error": None
     }
     
@@ -3623,6 +3624,7 @@ async def get_vdoninja_bridge_status() -> Dict[str, Any]:
                     {"title": t.get("title", ""), "url": t.get("url", "")}
                     for t in tabs
                 ]
+                status["tabs_open"] = len(tabs)
     except Exception:
         pass  # Chromium not running
     

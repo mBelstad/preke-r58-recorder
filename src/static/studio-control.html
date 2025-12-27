@@ -446,11 +446,11 @@
         <aside class="sidebar">
             <!-- Bridge Status -->
             <div class="control-panel">
-                <h3>Camera Bridge</h3>
-                <div class="helper-text">Cameras auto-connect when this page is open</div>
+                <h3>VDO.ninja Bridge</h3>
+                <div class="helper-text" id="bridgeHelper">Checking bridge status...</div>
                 <div class="control-buttons">
-                    <button class="btn btn-danger" id="bridgeToggle" onclick="toggleBridge()">
-                        Disconnect Cameras
+                    <button class="btn btn-success" id="bridgeToggle" onclick="toggleServerBridge()">
+                        Start Bridge
                     </button>
                 </div>
             </div>
@@ -530,18 +530,15 @@
         
         // Bridge state
         let bridgeActive = false;
-        let bridgeWindows = [];
         
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             loadSettings();
             initializePreviews();
-            
-            // Auto-connect cameras
-            setTimeout(startBridge, 1000);
+            checkBridgeStatus();
             
             // Check status periodically
-            setInterval(checkBridgeWindows, 5000);
+            setInterval(checkBridgeStatus, 10000);
         });
         
         // Load settings
@@ -645,83 +642,6 @@
             showToast('Refreshed');
         }
         
-        // Toggle bridge
-        function toggleBridge() {
-            if (bridgeActive) {
-                stopBridge();
-            } else {
-                startBridge();
-            }
-        }
-        
-        // Start bridge
-        function startBridge() {
-            bridgeWindows = [];
-            
-            config.cameras.forEach((camId, index) => {
-                const pushId = `hdmi${index + 1}`;
-                const label = `HDMI-${index + 1}`;
-                const whepUrl = encodeURIComponent(`https://${config.apiHost}/whep/${camId}`);
-                const bridgeUrl = `https://${config.vdoninjaHost}/?push=${pushId}&room=${config.roomName}&whepshare=${whepUrl}&label=${label}&webcam&autostart`;
-                
-                const popup = window.open(bridgeUrl, `bridge_${camId}`, 'width=400,height=300,menubar=no,toolbar=no,location=no,status=no');
-                
-                if (popup) {
-                    bridgeWindows.push({ camId, pushId, popup });
-                } else {
-                    showToast(`Popup blocked for ${label}. Allow popups.`, 'error');
-                }
-            });
-            
-            bridgeActive = bridgeWindows.length > 0;
-            updateBridgeUI();
-            
-            if (bridgeActive) {
-                showToast('Cameras connected to VDO.ninja');
-            }
-        }
-        
-        // Stop bridge
-        function stopBridge() {
-            bridgeWindows.forEach(({ popup }) => {
-                try { if (popup && !popup.closed) popup.close(); } catch(e) {}
-            });
-            bridgeWindows = [];
-            bridgeActive = false;
-            updateBridgeUI();
-            showToast('Cameras disconnected');
-        }
-        
-        // Update bridge UI
-        function updateBridgeUI() {
-            const btn = document.getElementById('bridgeToggle');
-            const statusDot = document.getElementById('bridgeStatus');
-            const statusText = document.getElementById('bridgeStatusText');
-            
-            if (bridgeActive) {
-                btn.className = 'btn btn-danger';
-                btn.textContent = 'Disconnect Cameras';
-                statusDot.classList.add('live');
-                statusDot.classList.remove('error');
-                statusText.textContent = 'Connected';
-            } else {
-                btn.className = 'btn btn-success';
-                btn.textContent = 'Connect Cameras';
-                statusDot.classList.remove('live');
-                statusText.textContent = 'Disconnected';
-            }
-        }
-        
-        // Check bridge windows
-        function checkBridgeWindows() {
-            if (bridgeActive) {
-                bridgeWindows = bridgeWindows.filter(({ popup }) => popup && !popup.closed);
-                if (bridgeWindows.length === 0) {
-                    bridgeActive = false;
-                    updateBridgeUI();
-                }
-            }
-        }
         
         // Open director
         function openDirector() {
@@ -773,6 +693,76 @@
             
             closeSettings();
             showToast('Settings saved');
+        }
+        
+        // Check R58 bridge status via API
+        async function checkBridgeStatus() {
+            try {
+                const response = await fetch('/api/vdoninja/bridge/status');
+                const data = await response.json();
+                
+                const btn = document.getElementById('bridgeToggle');
+                const helper = document.getElementById('bridgeHelper');
+                const statusDot = document.getElementById('bridgeStatus');
+                const statusText = document.getElementById('bridgeStatusText');
+                
+                if (data.service_active && data.chromium_running) {
+                    bridgeActive = true;
+                    btn.className = 'btn btn-danger';
+                    btn.textContent = 'Stop Bridge';
+                    helper.textContent = `Bridge running (${data.tabs_open || 0} tabs)`;
+                    statusDot.classList.add('live');
+                    statusDot.classList.remove('error');
+                    statusText.textContent = 'Bridge Active';
+                } else {
+                    bridgeActive = false;
+                    btn.className = 'btn btn-success';
+                    btn.textContent = 'Start Bridge';
+                    helper.textContent = 'R58 bridge service is stopped';
+                    statusDot.classList.remove('live');
+                    statusText.textContent = 'Bridge Stopped';
+                }
+            } catch (error) {
+                console.error('Bridge status check failed:', error);
+                document.getElementById('bridgeHelper').textContent = 'Could not check bridge status';
+            }
+        }
+        
+        // Toggle server-side bridge
+        async function toggleServerBridge() {
+            const btn = document.getElementById('bridgeToggle');
+            btn.disabled = true;
+            btn.textContent = bridgeActive ? 'Stopping...' : 'Starting...';
+            
+            try {
+                if (bridgeActive) {
+                    const response = await fetch('/api/vdoninja/bridge/stop', { method: 'POST' });
+                    const data = await response.json();
+                    if (data.success) {
+                        showToast('Bridge stopped');
+                    } else {
+                        showToast('Failed to stop bridge: ' + (data.error || 'Unknown error'), 'error');
+                    }
+                } else {
+                    const params = new URLSearchParams({
+                        room: config.roomName,
+                        cameras: config.cameras.map((c, i) => `${c}:hdmi${i+1}:HDMI-${i+1}`).join(',')
+                    });
+                    const response = await fetch(`/api/vdoninja/bridge/start?${params}`, { method: 'POST' });
+                    const data = await response.json();
+                    if (data.success) {
+                        showToast('Bridge started');
+                    } else {
+                        showToast('Failed to start bridge: ' + (data.error || 'Unknown error'), 'error');
+                    }
+                }
+            } catch (error) {
+                showToast('Bridge control failed: ' + error.message, 'error');
+            }
+            
+            btn.disabled = false;
+            // Refresh status after a delay
+            setTimeout(checkBridgeStatus, 2000);
         }
         
         // Toast
