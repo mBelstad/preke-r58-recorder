@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WHEP to VDO.ninja Room Bridge</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #e0e0e0;
+            padding: 20px;
+        }
+        .container { max-width: 900px; margin: 0 auto; }
+        h1 { 
+            text-align: center; 
+            margin-bottom: 10px;
+            color: #4fc3f7;
+            font-weight: 500;
+        }
+        .subtitle {
+            text-align: center;
+            color: #888;
+            margin-bottom: 30px;
+            font-size: 0.9rem;
+        }
+        .card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .card h2 {
+            font-size: 1rem;
+            color: #4fc3f7;
+            margin-bottom: 15px;
+            font-weight: 500;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 0.85rem;
+            color: #aaa;
+        }
+        input, select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 6px;
+            background: rgba(0,0,0,0.3);
+            color: #fff;
+            font-size: 0.9rem;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #4fc3f7;
+        }
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        .btn-primary {
+            background: #4fc3f7;
+            color: #1a1a2e;
+        }
+        .btn-primary:hover { background: #81d4fa; }
+        .btn-primary:disabled { 
+            background: #444; 
+            color: #888;
+            cursor: not-allowed;
+        }
+        .btn-danger {
+            background: #ef5350;
+            color: white;
+        }
+        .btn-danger:hover { background: #f44336; }
+        .video-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .video-box {
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            aspect-ratio: 16/9;
+            position: relative;
+        }
+        .video-box video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        .video-label {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+        }
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+        }
+        .status.connecting { background: rgba(255, 193, 7, 0.2); }
+        .status.connected { background: rgba(76, 175, 80, 0.2); }
+        .status.error { background: rgba(244, 67, 54, 0.2); }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+        .status.connecting .status-dot { background: #ffc107; animation: pulse 1s infinite; }
+        .status.connected .status-dot { background: #4caf50; }
+        .status.error .status-dot { background: #f44336; }
+        @keyframes pulse { 50% { opacity: 0.5; } }
+        .log {
+            background: rgba(0,0,0,0.4);
+            border-radius: 6px;
+            padding: 10px;
+            max-height: 150px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 0.75rem;
+            line-height: 1.6;
+        }
+        .log-entry { margin-bottom: 2px; }
+        .log-entry.info { color: #4fc3f7; }
+        .log-entry.success { color: #4caf50; }
+        .log-entry.error { color: #f44336; }
+        .log-entry.warn { color: #ffc107; }
+        .controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .hidden { display: none; }
+        #vdoFrame {
+            width: 100%;
+            height: 300px;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>WHEP → VDO.ninja Room Bridge</h1>
+        <p class="subtitle">Bridges a WHEP stream (MediaMTX) into a VDO.ninja room</p>
+        
+        <div class="card">
+            <h2>Configuration</h2>
+            <div class="form-group">
+                <label>WHEP Source URL</label>
+                <input type="text" id="whepUrl" value="https://r58-mediamtx.itagenten.no/cam3/whep" placeholder="https://mediamtx-server/stream/whep">
+            </div>
+            <div class="form-group">
+                <label>VDO.ninja Room</label>
+                <input type="text" id="roomName" value="r58studio" placeholder="room-name">
+            </div>
+            <div class="form-group">
+                <label>Stream Label</label>
+                <input type="text" id="streamLabel" value="Camera3" placeholder="Camera-1">
+            </div>
+            <div class="form-group">
+                <label>VDO.ninja Server</label>
+                <input type="text" id="vdoServer" value="https://r58-vdo.itagenten.no" placeholder="https://vdo.ninja or your server">
+            </div>
+            <div class="controls">
+                <button class="btn-primary" id="startBtn" onclick="startBridge()">Start Bridge</button>
+                <button class="btn-danger" id="stopBtn" onclick="stopBridge()" disabled>Stop Bridge</button>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>Status</h2>
+            <div class="status connecting" id="whepStatus">
+                <span class="status-dot"></span>
+                <span id="whepStatusText">WHEP: Not connected</span>
+            </div>
+            <div class="status connecting" id="vdoStatus">
+                <span class="status-dot"></span>
+                <span id="vdoStatusText">VDO.ninja: Not connected</span>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>Video Preview</h2>
+            <div class="video-container">
+                <div class="video-box">
+                    <span class="video-label">WHEP Input</span>
+                    <video id="whepVideo" autoplay muted playsinline></video>
+                </div>
+                <div class="video-box">
+                    <span class="video-label">VDO.ninja Room</span>
+                    <iframe id="vdoFrame" allow="camera;microphone;autoplay;display-capture"></iframe>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>Activity Log</h2>
+            <div class="log" id="log"></div>
+        </div>
+    </div>
+    
+    <script>
+        // State
+        let whepPeerConnection = null;
+        let mediaStream = null;
+        let vdoNinjaReady = false;
+        
+        function log(message, type = 'info') {
+            const logEl = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logEl.insertBefore(entry, logEl.firstChild);
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+        
+        function updateStatus(id, status, text) {
+            const el = document.getElementById(id);
+            const textEl = document.getElementById(id + 'Text');
+            el.className = `status ${status}`;
+            textEl.textContent = text;
+        }
+        
+        async function connectWhep(whepUrl) {
+            log(`Connecting to WHEP: ${whepUrl}`);
+            updateStatus('whepStatus', 'connecting', 'WHEP: Connecting...');
+            
+            try {
+                // Create peer connection
+                whepPeerConnection = new RTCPeerConnection({
+                    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+                });
+                
+                // Add transceivers for receiving
+                whepPeerConnection.addTransceiver('video', { direction: 'recvonly' });
+                whepPeerConnection.addTransceiver('audio', { direction: 'recvonly' });
+                
+                // Handle incoming tracks
+                whepPeerConnection.ontrack = (event) => {
+                    log(`Received track: ${event.track.kind}`, 'success');
+                    mediaStream = event.streams[0];
+                    document.getElementById('whepVideo').srcObject = mediaStream;
+                    updateStatus('whepStatus', 'connected', 'WHEP: Connected ✓');
+                    
+                    // Now we have the stream, we can send it to VDO.ninja
+                    if (vdoNinjaReady) {
+                        sendStreamToVDO(mediaStream);
+                    }
+                };
+                
+                whepPeerConnection.oniceconnectionstatechange = () => {
+                    log(`ICE state: ${whepPeerConnection.iceConnectionState}`);
+                    if (whepPeerConnection.iceConnectionState === 'failed') {
+                        updateStatus('whepStatus', 'error', 'WHEP: ICE Failed');
+                        log('ICE connection failed', 'error');
+                    }
+                };
+                
+                // Create offer
+                const offer = await whepPeerConnection.createOffer();
+                await whepPeerConnection.setLocalDescription(offer);
+                
+                // Wait for ICE gathering
+                await new Promise((resolve) => {
+                    if (whepPeerConnection.iceGatheringState === 'complete') {
+                        resolve();
+                    } else {
+                        whepPeerConnection.onicecandidate = (e) => {
+                            if (e.candidate === null) resolve();
+                        };
+                        setTimeout(resolve, 3000);
+                    }
+                });
+                
+                log('ICE gathering complete, sending offer to WHEP server');
+                
+                // Send offer to WHEP endpoint
+                const response = await fetch(whepUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/sdp' },
+                    body: whepPeerConnection.localDescription.sdp
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`WHEP request failed: ${response.status} ${response.statusText}`);
+                }
+                
+                const answerSdp = await response.text();
+                log('Received WHEP answer, setting remote description');
+                await whepPeerConnection.setRemoteDescription({ type: 'answer', sdp: answerSdp });
+                
+            } catch (error) {
+                log(`WHEP error: ${error.message}`, 'error');
+                updateStatus('whepStatus', 'error', `WHEP: ${error.message}`);
+                throw error;
+            }
+        }
+        
+        function setupVDONinja(roomName, label, serverUrl) {
+            log(`Setting up VDO.ninja room: ${roomName}`);
+            updateStatus('vdoStatus', 'connecting', 'VDO.ninja: Loading...');
+            
+            // Build VDO.ninja URL for publishing
+            // Using &push to publish, &label for stream name
+            // &webcam=0 to prevent camera access prompt
+            // &audiodevice=0 to prevent audio device access
+            const params = new URLSearchParams({
+                push: label.toLowerCase().replace(/\s+/g, '-'),
+                room: roomName,
+                label: label,
+                webcam: '0',
+                audiodevice: '0',
+                autostart: '',
+                cleanoutput: ''
+            });
+            
+            const vdoUrl = `${serverUrl}/?${params.toString()}`;
+            log(`VDO.ninja URL: ${vdoUrl}`);
+            
+            const iframe = document.getElementById('vdoFrame');
+            iframe.src = vdoUrl;
+            
+            iframe.onload = () => {
+                log('VDO.ninja iframe loaded', 'success');
+                vdoNinjaReady = true;
+                updateStatus('vdoStatus', 'connected', 'VDO.ninja: Ready');
+                
+                // If we already have a stream, send it
+                if (mediaStream) {
+                    sendStreamToVDO(mediaStream);
+                }
+            };
+        }
+        
+        function sendStreamToVDO(stream) {
+            log('Attempting to send MediaStream to VDO.ninja iframe', 'info');
+            
+            const iframe = document.getElementById('vdoFrame');
+            
+            // VDO.ninja iframe API - try to inject the stream
+            // Note: This may not work due to cross-origin restrictions
+            // The iframe needs to be from the same origin or use postMessage
+            
+            try {
+                // Method 1: postMessage API
+                // VDO.ninja supports receiving streams via postMessage
+                iframe.contentWindow.postMessage({
+                    target: 'vdo.ninja',
+                    action: 'externalStream',
+                    stream: stream
+                }, '*');
+                
+                log('Sent stream via postMessage (Method 1)', 'info');
+            } catch (e) {
+                log(`postMessage failed: ${e.message}`, 'warn');
+            }
+            
+            // Method 2: If above doesn't work, we may need to use the SDK
+            // or a different approach - log for debugging
+            log('Note: Cross-origin stream injection may require VDO.ninja SDK', 'warn');
+            log('Check if stream appears in the director view', 'info');
+        }
+        
+        async function startBridge() {
+            const whepUrl = document.getElementById('whepUrl').value;
+            const roomName = document.getElementById('roomName').value;
+            const streamLabel = document.getElementById('streamLabel').value;
+            const vdoServer = document.getElementById('vdoServer').value;
+            
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+            
+            try {
+                // Start VDO.ninja first (so it's ready when stream arrives)
+                setupVDONinja(roomName, streamLabel, vdoServer);
+                
+                // Connect to WHEP
+                await connectWhep(whepUrl);
+                
+                log('Bridge started successfully!', 'success');
+            } catch (error) {
+                log(`Bridge failed: ${error.message}`, 'error');
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+            }
+        }
+        
+        function stopBridge() {
+            log('Stopping bridge...');
+            
+            if (whepPeerConnection) {
+                whepPeerConnection.close();
+                whepPeerConnection = null;
+            }
+            
+            mediaStream = null;
+            vdoNinjaReady = false;
+            
+            document.getElementById('whepVideo').srcObject = null;
+            document.getElementById('vdoFrame').src = '';
+            
+            updateStatus('whepStatus', 'connecting', 'WHEP: Not connected');
+            updateStatus('vdoStatus', 'connecting', 'VDO.ninja: Not connected');
+            
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            
+            log('Bridge stopped', 'info');
+        }
+        
+        // Parse URL params for auto-start
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('whep')) document.getElementById('whepUrl').value = urlParams.get('whep');
+        if (urlParams.get('room')) document.getElementById('roomName').value = urlParams.get('room');
+        if (urlParams.get('label')) document.getElementById('streamLabel').value = urlParams.get('label');
+        if (urlParams.get('server')) document.getElementById('vdoServer').value = urlParams.get('server');
+        if (urlParams.get('autostart')) {
+            window.addEventListener('load', () => setTimeout(startBridge, 500));
+        }
+    </script>
+</body>
+</html>
+
