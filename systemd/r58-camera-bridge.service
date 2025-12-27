@@ -12,13 +12,15 @@ Environment=DISPLAY=:0
 Environment=XDG_RUNTIME_DIR=/run/user/1000
 
 # Use chromium in headless mode to run the bridge page
+# Using --headless=new for newer Chromium and --ozone-platform for ARM
 ExecStart=/usr/bin/chromium \
-    --headless \
-    --disable-gpu \
+    --headless=new \
     --no-sandbox \
+    --disable-gpu \
     --disable-software-rasterizer \
     --disable-dev-shm-usage \
     --remote-debugging-port=9222 \
+    --ozone-platform=headless \
     --window-size=1280,720 \
     http://localhost:8000/static/camera-bridge.html
 
