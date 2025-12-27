@@ -884,6 +884,122 @@ async def whip_options(stream_path: str):
     )
 
 
+# =============================================================================
+# MediaMTX-compatible routes for VDO.ninja's &mediamtx= parameter
+# VDO.ninja expects: /{stream}/whip and /{stream}/whep (stream name comes first)
+# =============================================================================
+
+@app.post("/{stream_name}/whip")
+@app.options("/{stream_name}/whip")
+async def mediamtx_whip_compat(stream_name: str, request: Request):
+    """MediaMTX-compatible WHIP route for VDO.ninja &mediamtx= parameter.
+    
+    VDO.ninja's MediaMTX mode expects paths like /{stream}/whip
+    This redirects to our standard /whip/{stream} endpoint.
+    """
+    # Skip for paths that look like API routes or static files
+    if stream_name in ["api", "static", "whip", "whep", "docs", "openapi.json"]:
+        raise HTTPException(status_code=404, detail="Not found")
+    
+    # Handle OPTIONS preflight
+    if request.method == "OPTIONS":
+        return Response(
+            status_code=200,
+            headers={
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "POST, OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type",
+                "Access-Control-Max-Age": "86400",
+            }
+        )
+    
+    try:
+        sdp_offer = await request.body()
+        mediamtx_url = f"http://localhost:8889/{stream_name}/whip"
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                mediamtx_url,
+                content=sdp_offer,
+                headers={"Content-Type": "application/sdp"},
+                timeout=10.0
+            )
+            
+            location = response.headers.get("Location")
+            response_headers = {
+                "Access-Control-Allow-Origin": "*",
+                "Content-Type": response.headers.get("Content-Type", "application/sdp"),
+            }
+            if location:
+                response_headers["Location"] = location
+            
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                headers=response_headers
+            )
+    except Exception as e:
+        logger.error(f"MediaMTX WHIP compat error for {stream_name}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/{stream_name}/whep")
+@app.options("/{stream_name}/whep")
+async def mediamtx_whep_compat(stream_name: str, request: Request):
+    """MediaMTX-compatible WHEP route for VDO.ninja &mediamtx= parameter.
+    
+    VDO.ninja's MediaMTX mode expects paths like /{stream}/whep
+    This redirects to our standard /whep/{stream} endpoint.
+    """
+    # Skip for paths that look like API routes or static files
+    if stream_name in ["api", "static", "whip", "whep", "docs", "openapi.json"]:
+        raise HTTPException(status_code=404, detail="Not found")
+    
+    # Handle OPTIONS preflight
+    if request.method == "OPTIONS":
+        return Response(
+            status_code=200,
+            headers={
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "POST, OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type, Accept",
+                "Access-Control-Max-Age": "86400",
+            }
+        )
+    
+    try:
+        body = await request.body()
+        mediamtx_url = f"http://localhost:8889/{stream_name}/whep"
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                mediamtx_url,
+                content=body,
+                headers={
+                    "Content-Type": request.headers.get("Content-Type", "application/sdp"),
+                    "Accept": request.headers.get("Accept", "application/sdp"),
+                },
+                timeout=10.0
+            )
+            
+            location = response.headers.get("Location")
+            response_headers = {
+                "Access-Control-Allow-Origin": "*",
+                "Content-Type": response.headers.get("Content-Type", "application/sdp"),
+            }
+            if location:
+                response_headers["Location"] = location
+            
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                headers=response_headers
+            )
+    except Exception as e:
+        logger.error(f"MediaMTX WHEP compat error for {stream_name}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/api/turn-credentials")
 async def get_turn_credentials() -> Dict[str, Any]:
     """Get TURN credentials from Coolify TURN API.
