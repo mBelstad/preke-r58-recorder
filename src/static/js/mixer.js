@@ -226,14 +226,17 @@ async function loadMixerContent(container) {
             <div class="mixer-card">
                 <h3><span>🎬</span> VDO.ninja Controls</h3>
                 <div class="action-buttons">
-                    <button class="btn action-btn primary" onclick="openMixerWithSources()">
-                        🎛️ Open Mixer
+                    <button class="btn action-btn primary" onclick="startStreamingAndOpenMixer()" id="startMixerBtn">
+                        🎛️ Start Streaming & Open Mixer
                     </button>
                     <button class="btn action-btn secondary" onclick="openDirector()">
                         🎥 Open Director
                     </button>
                     <button class="btn action-btn secondary" onclick="copyMixerUrl()">
                         📋 Copy Mixer URL
+                    </button>
+                    <button class="btn action-btn secondary" onclick="startIngestOnly()" id="startIngestBtn">
+                        📹 Start Camera Streaming
                     </button>
                 </div>
                 <div class="url-display" id="mixerUrlDisplay">
@@ -435,6 +438,86 @@ async function copyMixerUrl() {
 }
 
 /**
+ * Start camera ingest pipelines (stream to MediaMTX)
+ */
+async function startIngestOnly() {
+    const btn = document.getElementById('startIngestBtn');
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = '⏳ Starting...';
+    }
+    
+    try {
+        const response = await fetch('/api/ingest/start', { method: 'POST' });
+        const data = await response.json();
+        
+        if (data.streaming_count > 0) {
+            showMixerToast(`Started streaming ${data.streaming_count} camera(s)`);
+        } else {
+            showMixerToast('No cameras with signal to start');
+        }
+        
+        // Refresh sources after starting
+        await refreshSources();
+        
+    } catch (error) {
+        console.error('Failed to start ingest:', error);
+        showMixerToast('Failed to start camera streaming');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = '📹 Start Camera Streaming';
+        }
+    }
+}
+
+/**
+ * Start streaming and then open mixer
+ */
+async function startStreamingAndOpenMixer() {
+    const btn = document.getElementById('startMixerBtn');
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = '⏳ Starting cameras...';
+    }
+    
+    try {
+        // First start the ingest pipelines
+        const ingestResponse = await fetch('/api/ingest/start', { method: 'POST' });
+        const ingestData = await ingestResponse.json();
+        
+        if (ingestData.streaming_count > 0) {
+            showMixerToast(`Started ${ingestData.streaming_count} camera(s), opening mixer...`);
+        }
+        
+        // Wait a moment for streams to stabilize
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
+        // Refresh sources
+        await refreshSources();
+        
+        // Now open the mixer
+        const mixerResponse = await fetch('/api/vdoninja/mixer-url');
+        const mixerData = await mixerResponse.json();
+        
+        if (mixerData.url) {
+            window.open(mixerData.url, '_blank');
+        } else {
+            showMixerToast('Failed to generate mixer URL');
+        }
+        
+    } catch (error) {
+        console.error('Failed to start streaming and open mixer:', error);
+        showMixerToast('Error starting streaming');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = '🎛️ Start Streaming & Open Mixer';
+        }
+    }
+}
+
+/**
  * Show toast notification
  */
 function showMixerToast(message) {
@@ -473,4 +556,6 @@ window.refreshSources = refreshSources;
 window.openMixerWithSources = openMixerWithSources;
 window.openDirector = openDirector;
 window.copyMixerUrl = copyMixerUrl;
+window.startIngestOnly = startIngestOnly;
+window.startStreamingAndOpenMixer = startStreamingAndOpenMixer;
 

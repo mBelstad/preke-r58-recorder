@@ -26,10 +26,16 @@ webrtcAllowOrigins: ["*"]
 webrtcEncryption: no
 
 # ICE configuration for NAT traversal via FRP
-# Tell clients to connect to the VPS public IP with the FRP-mapped port
-webrtcAdditionalHosts: ["65.109.32.111:18189"]
-# Use single UDP port for all WebRTC (mapped via FRP to 18189)
+# webrtcAdditionalHosts: IP addresses only (not IP:port!)
+# This tells ICE to advertise this IP to remote clients
+webrtcAdditionalHosts: ["65.109.32.111"]
+
+# UDP port for WebRTC media (mapped via FRP to 18189 on VPS)
 webrtcLocalUDPAddress: :8189
+
+# TCP port for WebRTC when UDP fails (essential for FRP tunnel)
+# This enables WebRTC to work over TCP through the FRP tunnel
+webrtcLocalTCPAddress: :8190
 
 # STUN servers for ICE gathering
 webrtcICEServers2:

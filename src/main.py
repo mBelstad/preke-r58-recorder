@@ -3255,11 +3255,28 @@ VDONINJA_REMOTE_HOST = "r58-vdo.itagenten.no"
 MEDIAMTX_REMOTE_HOST = "r58-mediamtx.itagenten.no"
 
 
+async def _check_mediamtx_stream_ready(stream_id: str) -> bool:
+    """Check if a stream is actually available in MediaMTX."""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"http://127.0.0.1:9997/v3/paths/get/{stream_id}",
+                timeout=1.0
+            )
+            if response.status_code == 200:
+                data = response.json()
+                return data.get("sourceReady", False)
+    except Exception:
+        pass
+    return False
+
+
 @app.get("/api/vdoninja/sources")
 async def get_vdoninja_sources(request: Request) -> Dict[str, Any]:
     """Get all available sources (cameras + speakers) for VDO.ninja mixer.
     
     Returns a list of all sources with their status and WHEP URLs.
+    Checks both ingest manager state AND MediaMTX stream availability.
     """
     sources = []
     
@@ -3268,11 +3285,19 @@ async def get_vdoninja_sources(request: Request) -> Dict[str, Any]:
     is_remote = "itagenten.no" in host or not any(x in host for x in ["localhost", "127.0.0.1", "192.168"])
     mediamtx_base = f"https://{MEDIAMTX_REMOTE_HOST}" if is_remote else "http://localhost:8889"
     
-    # Get camera sources from ingest manager
+    # Get camera sources - check both ingest manager AND MediaMTX
     ingest_statuses = ingest_manager.get_status()
     for i, (cam_id, status) in enumerate(sorted(ingest_statuses.items())):
         cam_number = i + 1
-        has_signal = status.has_signal and status.status == "streaming"
+        
+        # Check if ingest is streaming
+        ingest_streaming = status.status == "streaming"
+        
+        # Also check MediaMTX directly for stream availability
+        mediamtx_ready = await _check_mediamtx_stream_ready(cam_id)
+        
+        # Stream is active if MediaMTX has the stream ready
+        is_active = mediamtx_ready
         
         resolution_str = None
         if status.resolution:
@@ -3283,25 +3308,16 @@ async def get_vdoninja_sources(request: Request) -> Dict[str, Any]:
             "stream": cam_id,
             "type": "camera",
             "whep_url": f"{mediamtx_base}/{cam_id}/whep",
-            "active": has_signal,
+            "active": is_active,
+            "ingest_status": status.status,
+            "has_signal": status.has_signal,
             "resolution": resolution_str
         })
     
     # Get speaker sources from MediaMTX API
     speaker_streams = ["speaker0", "speaker1", "speaker2"]
     for i, speaker_id in enumerate(speaker_streams):
-        speaker_active = False
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    f"http://127.0.0.1:9997/v3/paths/get/{speaker_id}",
-                    timeout=1.0
-                )
-                if response.status_code == 200:
-                    data = response.json()
-                    speaker_active = data.get("sourceReady", False)
-        except Exception:
-            pass
+        speaker_active = await _check_mediamtx_stream_ready(speaker_id)
         
         sources.append({
             "name": f"Speaker {i + 1}",
@@ -3382,6 +3398,127 @@ async def get_vdoninja_director_url(request: Request) -> Dict[str, Any]:
         "room": "r58studio",
         "vdoninja_host": VDONINJA_REMOTE_HOST if is_remote else VDONINJA_LOCAL_HOST,
         "is_remote": is_remote
+    }
+
+
+# =====================================================================
+# Ingest Control API Endpoints
+# =====================================================================
+
+@app.post("/api/ingest/start")
+async def start_ingest_all() -> Dict[str, Any]:
+    """Start ingest pipelines for all cameras with signal.
+    
+    This will start streaming cameras to MediaMTX so they become
+    available via WHEP for VDO.ninja mixer.
+    """
+    if not ingest_manager:
+        raise HTTPException(status_code=503, detail="Ingest manager not available")
+    
+    results = ingest_manager.start_all()
+    
+    # Get updated status
+    statuses = ingest_manager.get_status()
+    status_info = {
+        cam_id: {
+            "started": results.get(cam_id, False),
+            "status": status.status,
+            "has_signal": status.has_signal,
+            "resolution": f"{status.resolution[0]}x{status.resolution[1]}" if status.resolution else None
+        }
+        for cam_id, status in statuses.items()
+    }
+    
+    return {
+        "status": "completed",
+        "cameras": status_info,
+        "streaming_count": sum(1 for s in statuses.values() if s.status == "streaming")
+    }
+
+
+@app.post("/api/ingest/start/{cam_id}")
+async def start_ingest_camera(cam_id: str) -> Dict[str, Any]:
+    """Start ingest pipeline for a specific camera.
+    
+    Args:
+        cam_id: Camera ID (cam0, cam1, cam2, cam3)
+    """
+    if not ingest_manager:
+        raise HTTPException(status_code=503, detail="Ingest manager not available")
+    
+    if cam_id not in ingest_manager.config.cameras:
+        raise HTTPException(status_code=404, detail=f"Camera {cam_id} not found")
+    
+    success = ingest_manager.start_ingest(cam_id)
+    
+    # Get updated status
+    status = ingest_manager.get_camera_status(cam_id)
+    
+    return {
+        "camera": cam_id,
+        "started": success,
+        "status": status.status if status else "unknown",
+        "has_signal": status.has_signal if status else False,
+        "resolution": f"{status.resolution[0]}x{status.resolution[1]}" if status and status.resolution else None
+    }
+
+
+@app.post("/api/ingest/stop")
+async def stop_ingest_all() -> Dict[str, Any]:
+    """Stop all ingest pipelines."""
+    if not ingest_manager:
+        raise HTTPException(status_code=503, detail="Ingest manager not available")
+    
+    results = ingest_manager.stop_all()
+    
+    return {
+        "status": "completed",
+        "cameras": results
+    }
+
+
+@app.post("/api/ingest/stop/{cam_id}")
+async def stop_ingest_camera(cam_id: str) -> Dict[str, Any]:
+    """Stop ingest pipeline for a specific camera."""
+    if not ingest_manager:
+        raise HTTPException(status_code=503, detail="Ingest manager not available")
+    
+    if cam_id not in ingest_manager.config.cameras:
+        raise HTTPException(status_code=404, detail=f"Camera {cam_id} not found")
+    
+    success = ingest_manager.stop_ingest(cam_id)
+    
+    return {
+        "camera": cam_id,
+        "stopped": success
+    }
+
+
+@app.get("/api/ingest/status")
+async def get_ingest_status() -> Dict[str, Any]:
+    """Get status of all ingest pipelines."""
+    if not ingest_manager:
+        raise HTTPException(status_code=503, detail="Ingest manager not available")
+    
+    statuses = ingest_manager.get_status()
+    
+    status_info = {}
+    for cam_id, status in statuses.items():
+        # Also check MediaMTX for actual stream availability
+        mediamtx_ready = await _check_mediamtx_stream_ready(cam_id)
+        
+        status_info[cam_id] = {
+            "status": status.status,
+            "has_signal": status.has_signal,
+            "resolution": f"{status.resolution[0]}x{status.resolution[1]}" if status.resolution else None,
+            "stream_url": status.stream_url,
+            "mediamtx_ready": mediamtx_ready
+        }
+    
+    return {
+        "cameras": status_info,
+        "streaming_count": sum(1 for s in statuses.values() if s.status == "streaming"),
+        "signal_count": sum(1 for s in statuses.values() if s.has_signal)
     }
 
 
