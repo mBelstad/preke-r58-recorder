@@ -145,21 +145,29 @@ def build_r58_pipeline(
     logger.info(f"Building recording pipeline for {cam_id}: device_type={device_type}, caps={caps}")
     
     if device_type == "hdmirx":
-        # HDMI input: RK hdmirx currently exposes NV16 (4:2:2); convert to NV12 for encoders
-        # Must use io-mode=mmap for hdmirx
-        # Use actual detected resolution, not configured resolution
-        # IMPORTANT: Don't force framerate - let v4l2src negotiate natively
-        src_width = caps.get('width') or int(width)
-        src_height = caps.get('height') or int(height)
-        logger.info(f"{cam_id}: hdmirx recording using detected resolution {src_width}x{src_height} (native framerate)")
-        source_str = (
-            f"v4l2src device={device} io-mode=mmap ! "
-            f"video/x-raw,format=NV16,width={src_width},height={src_height} ! "
-            f"videorate ! video/x-raw,framerate=30/1 ! "
-            f"videoconvert ! "
-            f"videoscale ! "
-            f"video/x-raw,width={width},height={height},format=NV12"
-        )
+        # Check for signal first - hdmirx reports 640x480 BGR when no signal
+        if not caps['has_signal']:
+            logger.warning(f"{cam_id}: No HDMI signal on {device}, using test pattern for recording")
+            source_str = (
+                f"videotestsrc pattern=black is-live=true ! "
+                f"video/x-raw,width={width},height={height},framerate=30/1,format=NV12"
+            )
+        else:
+            # HDMI input: RK hdmirx currently exposes NV16 (4:2:2); convert to NV12 for encoders
+            # Must use io-mode=mmap for hdmirx
+            # Use actual detected resolution, not configured resolution
+            # IMPORTANT: Don't force framerate - let v4l2src negotiate natively
+            src_width = caps.get('width') or int(width)
+            src_height = caps.get('height') or int(height)
+            logger.info(f"{cam_id}: hdmirx recording using detected resolution {src_width}x{src_height} (native framerate)")
+            source_str = (
+                f"v4l2src device={device} io-mode=mmap ! "
+                f"video/x-raw,format=NV16,width={src_width},height={src_height} ! "
+                f"videorate ! video/x-raw,framerate=30/1 ! "
+                f"videoconvert ! "
+                f"videoscale ! "
+                f"video/x-raw,width={width},height={height},format=NV12"
+            )
     elif device_type == "hdmi_rkcif":
         # HDMI input via rkcif (LT6911 bridge): Use explicit format like hdmirx
         # Query actual device capabilities for reliable pipeline construction
@@ -341,21 +349,29 @@ def build_r58_ingest_pipeline(
     logger.info(f"Building ingest pipeline for {cam_id}: device_type={device_type}, caps={caps}")
     
     if device_type == "hdmirx":
-        # Use actual detected resolution, not configured resolution
-        # This is critical for hdmirx which may receive 4K even if config says 1080p
-        # IMPORTANT: Don't force format or framerate - let v4l2src negotiate natively
-        # The camera may output at various formats (NV16, BGR, etc.) and framerates
-        src_width = caps.get('width') or int(width)
-        src_height = caps.get('height') or int(height)
-        logger.info(f"{cam_id}: hdmirx using detected resolution {src_width}x{src_height} (native format/framerate)")
-        source_str = (
-            f"v4l2src device={device} io-mode=mmap ! "
-            f"video/x-raw,width={src_width},height={src_height} ! "
-            f"videorate ! video/x-raw,framerate=30/1 ! "
-            f"videoconvert ! "
-            f"videoscale ! "
-            f"video/x-raw,width={width},height={height},format=NV12"
-        )
+        # Check for signal first - hdmirx reports 640x480 BGR when no signal
+        if not caps['has_signal']:
+            logger.warning(f"{cam_id}: No HDMI signal on {device}, using test pattern")
+            source_str = (
+                f"videotestsrc pattern=black is-live=true ! "
+                f"video/x-raw,width={width},height={height},framerate=30/1,format=NV12"
+            )
+        else:
+            # Use actual detected resolution, not configured resolution
+            # This is critical for hdmirx which may receive 4K even if config says 1080p
+            # IMPORTANT: Don't force format or framerate - let v4l2src negotiate natively
+            # The camera may output at various formats (NV16, BGR, etc.) and framerates
+            src_width = caps.get('width') or int(width)
+            src_height = caps.get('height') or int(height)
+            logger.info(f"{cam_id}: hdmirx using detected resolution {src_width}x{src_height} (native format/framerate)")
+            source_str = (
+                f"v4l2src device={device} io-mode=mmap ! "
+                f"video/x-raw,width={src_width},height={src_height} ! "
+                f"videorate ! video/x-raw,framerate=30/1 ! "
+                f"videoconvert ! "
+                f"videoscale ! "
+                f"video/x-raw,width={width},height={height},format=NV12"
+            )
     elif device_type == "hdmi_rkcif":
         if not caps['has_signal']:
             logger.warning(f"{cam_id}: No HDMI signal on {device}, using test pattern")
