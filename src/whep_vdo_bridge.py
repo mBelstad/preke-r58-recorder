@@ -77,9 +77,10 @@ class WHEPClient:
         logger.info(f"Connecting to WHEP endpoint: {self.whep_url}")
         
         # Create peer connection
-        self.pc = RTCPeerConnection(configuration={
-            "iceServers": self.ice_servers
-        })
+        from aiortc import RTCConfiguration, RTCIceServer
+        ice_servers = [RTCIceServer(urls=s["urls"]) for s in self.ice_servers]
+        config = RTCConfiguration(iceServers=ice_servers)
+        self.pc = RTCPeerConnection(configuration=config)
         
         # Add receive-only transceivers
         self.pc.addTransceiver("video", direction="recvonly")
@@ -361,9 +362,10 @@ class VDONinjaBridge:
         if peer_uuid in self.peer_connections:
             await self.peer_connections[peer_uuid].close()
         
-        pc = RTCPeerConnection(configuration={
-            "iceServers": self.ice_servers
-        })
+        from aiortc import RTCConfiguration, RTCIceServer
+        ice_servers = [RTCIceServer(urls=s["urls"]) for s in self.ice_servers]
+        config = RTCConfiguration(iceServers=ice_servers)
+        pc = RTCPeerConnection(configuration=config)
         self.peer_connections[peer_uuid] = pc
         
         @pc.on("connectionstatechange")
