@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WHEP to VDO.ninja Room Bridge</title>
+    <title>WHEP → WHIP Bridge (MediaMTX to VDO.ninja)</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -85,9 +85,14 @@
             color: white;
         }
         .btn-danger:hover { background: #f44336; }
+        .btn-secondary {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+        }
+        .btn-secondary:hover { background: rgba(255,255,255,0.2); }
         .video-container {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr;
             gap: 20px;
         }
         .video-box {
@@ -135,7 +140,7 @@
             background: rgba(0,0,0,0.4);
             border-radius: 6px;
             padding: 10px;
-            max-height: 150px;
+            max-height: 200px;
             overflow-y: auto;
             font-family: monospace;
             font-size: 0.75rem;
@@ -151,41 +156,67 @@
             gap: 10px;
             flex-wrap: wrap;
         }
-        .hidden { display: none; }
-        #vdoFrame {
-            width: 100%;
-            height: 300px;
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 8px;
+        .links-box {
+            background: rgba(0,0,0,0.3);
+            border-radius: 6px;
+            padding: 12px;
+            margin-top: 15px;
+        }
+        .links-box a {
+            color: #4fc3f7;
+            text-decoration: none;
+            display: block;
+            margin: 5px 0;
+            word-break: break-all;
+        }
+        .links-box a:hover { text-decoration: underline; }
+        .info-box {
+            background: rgba(79, 195, 247, 0.1);
+            border: 1px solid rgba(79, 195, 247, 0.3);
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 15px;
+            font-size: 0.85rem;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>WHEP → VDO.ninja Room Bridge</h1>
-        <p class="subtitle">Bridges a WHEP stream (MediaMTX) into a VDO.ninja room</p>
+        <h1>WHEP → WHIP Bridge</h1>
+        <p class="subtitle">Bridges a MediaMTX WHEP stream to VDO.ninja via WHIP</p>
+        
+        <div class="info-box">
+            <strong>How it works:</strong> This page pulls a stream from MediaMTX (WHEP), then publishes it to VDO.ninja's WHIP endpoint. The stream becomes available at a WHEP URL that you can view directly or add to a mixer.
+        </div>
         
         <div class="card">
-            <h2>Configuration</h2>
+            <h2>Source (WHEP - Pull from MediaMTX)</h2>
             <div class="form-group">
                 <label>WHEP Source URL</label>
                 <input type="text" id="whepUrl" value="https://r58-mediamtx.itagenten.no/cam3/whep" placeholder="https://mediamtx-server/stream/whep">
             </div>
+        </div>
+        
+        <div class="card">
+            <h2>Destination (WHIP - Push to VDO.ninja)</h2>
             <div class="form-group">
-                <label>VDO.ninja Room</label>
-                <input type="text" id="roomName" value="r58studio" placeholder="room-name">
+                <label>Stream ID (used in WHIP/WHEP URLs)</label>
+                <input type="text" id="streamId" value="r58-cam3" placeholder="my-camera-stream">
             </div>
             <div class="form-group">
-                <label>Stream Label</label>
-                <input type="text" id="streamLabel" value="Camera3" placeholder="Camera-1">
-            </div>
-            <div class="form-group">
-                <label>VDO.ninja Server</label>
-                <input type="text" id="vdoServer" value="https://r58-vdo.itagenten.no" placeholder="https://vdo.ninja or your server">
+                <label>VDO.ninja WHIP Server</label>
+                <input type="text" id="whipServer" value="https://whip.vdo.ninja" placeholder="https://whip.vdo.ninja">
             </div>
             <div class="controls">
                 <button class="btn-primary" id="startBtn" onclick="startBridge()">Start Bridge</button>
                 <button class="btn-danger" id="stopBtn" onclick="stopBridge()" disabled>Stop Bridge</button>
+                <button class="btn-secondary" onclick="openViewer()">Open Viewer</button>
+            </div>
+            
+            <div class="links-box" id="linksBox" style="display: none;">
+                <strong>Stream URLs (after connected):</strong>
+                <a href="#" id="whepViewUrl" target="_blank">WHEP View URL</a>
+                <a href="#" id="vdoViewUrl" target="_blank">VDO.ninja Viewer URL</a>
             </div>
         </div>
         
@@ -193,24 +224,20 @@
             <h2>Status</h2>
             <div class="status connecting" id="whepStatus">
                 <span class="status-dot"></span>
-                <span id="whepStatusText">WHEP: Not connected</span>
+                <span id="whepStatusText">WHEP Source: Not connected</span>
             </div>
-            <div class="status connecting" id="vdoStatus">
+            <div class="status connecting" id="whipStatus">
                 <span class="status-dot"></span>
-                <span id="vdoStatusText">VDO.ninja: Not connected</span>
+                <span id="whipStatusText">WHIP Publish: Not connected</span>
             </div>
         </div>
         
         <div class="card">
-            <h2>Video Preview</h2>
+            <h2>Video Preview (WHEP Source)</h2>
             <div class="video-container">
                 <div class="video-box">
                     <span class="video-label">WHEP Input</span>
                     <video id="whepVideo" autoplay muted playsinline></video>
-                </div>
-                <div class="video-box">
-                    <span class="video-label">VDO.ninja Room</span>
-                    <iframe id="vdoFrame" allow="camera;microphone;autoplay;display-capture"></iframe>
                 </div>
             </div>
         </div>
@@ -224,8 +251,8 @@
     <script>
         // State
         let whepPeerConnection = null;
+        let whipPeerConnection = null;
         let mediaStream = null;
-        let vdoNinjaReady = false;
         
         function log(message, type = 'info') {
             const logEl = document.getElementById('log');
@@ -244,49 +271,40 @@
         }
         
         async function connectWhep(whepUrl) {
-            log(`Connecting to WHEP: ${whepUrl}`);
-            updateStatus('whepStatus', 'connecting', 'WHEP: Connecting...');
+            log(`Connecting to WHEP source: ${whepUrl}`);
+            updateStatus('whepStatus', 'connecting', 'WHEP Source: Connecting...');
             
             try {
-                // Create peer connection
                 whepPeerConnection = new RTCPeerConnection({
                     iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
                 });
                 
-                // Add transceivers for receiving
                 whepPeerConnection.addTransceiver('video', { direction: 'recvonly' });
                 whepPeerConnection.addTransceiver('audio', { direction: 'recvonly' });
                 
-                // Handle incoming tracks
-                whepPeerConnection.ontrack = (event) => {
-                    log(`Received track: ${event.track.kind}`, 'success');
-                    mediaStream = event.streams[0];
-                    document.getElementById('whepVideo').srcObject = mediaStream;
-                    updateStatus('whepStatus', 'connected', 'WHEP: Connected ✓');
-                    
-                    // Now we have the stream, we can send it to VDO.ninja
-                    if (vdoNinjaReady) {
-                        sendStreamToVDO(mediaStream);
-                    }
-                };
+                const streamPromise = new Promise((resolve) => {
+                    whepPeerConnection.ontrack = (event) => {
+                        log(`Received track: ${event.track.kind}`, 'success');
+                        mediaStream = event.streams[0];
+                        document.getElementById('whepVideo').srcObject = mediaStream;
+                        updateStatus('whepStatus', 'connected', 'WHEP Source: Connected ✓');
+                        resolve(mediaStream);
+                    };
+                });
                 
                 whepPeerConnection.oniceconnectionstatechange = () => {
-                    log(`ICE state: ${whepPeerConnection.iceConnectionState}`);
+                    log(`WHEP ICE state: ${whepPeerConnection.iceConnectionState}`);
                     if (whepPeerConnection.iceConnectionState === 'failed') {
-                        updateStatus('whepStatus', 'error', 'WHEP: ICE Failed');
-                        log('ICE connection failed', 'error');
+                        updateStatus('whepStatus', 'error', 'WHEP Source: ICE Failed');
                     }
                 };
                 
-                // Create offer
                 const offer = await whepPeerConnection.createOffer();
                 await whepPeerConnection.setLocalDescription(offer);
                 
-                // Wait for ICE gathering
                 await new Promise((resolve) => {
-                    if (whepPeerConnection.iceGatheringState === 'complete') {
-                        resolve();
-                    } else {
+                    if (whepPeerConnection.iceGatheringState === 'complete') resolve();
+                    else {
                         whepPeerConnection.onicecandidate = (e) => {
                             if (e.candidate === null) resolve();
                         };
@@ -294,9 +312,8 @@
                     }
                 });
                 
-                log('ICE gathering complete, sending offer to WHEP server');
+                log('WHEP: ICE gathering complete, sending offer');
                 
-                // Send offer to WHEP endpoint
                 const response = await fetch(whepUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/sdp' },
@@ -304,100 +321,128 @@
                 });
                 
                 if (!response.ok) {
-                    throw new Error(`WHEP request failed: ${response.status} ${response.statusText}`);
+                    throw new Error(`WHEP request failed: ${response.status}`);
                 }
                 
                 const answerSdp = await response.text();
-                log('Received WHEP answer, setting remote description');
                 await whepPeerConnection.setRemoteDescription({ type: 'answer', sdp: answerSdp });
+                
+                // Wait for stream
+                return await streamPromise;
                 
             } catch (error) {
                 log(`WHEP error: ${error.message}`, 'error');
-                updateStatus('whepStatus', 'error', `WHEP: ${error.message}`);
+                updateStatus('whepStatus', 'error', `WHEP Source: ${error.message}`);
                 throw error;
             }
         }
         
-        function setupVDONinja(roomName, label, serverUrl) {
-            log(`Setting up VDO.ninja room: ${roomName}`);
-            updateStatus('vdoStatus', 'connecting', 'VDO.ninja: Loading...');
-            
-            // Build VDO.ninja URL for publishing
-            // Using &push to publish, &label for stream name
-            // &webcam=0 to prevent camera access prompt
-            // &audiodevice=0 to prevent audio device access
-            const params = new URLSearchParams({
-                push: label.toLowerCase().replace(/\s+/g, '-'),
-                room: roomName,
-                label: label,
-                webcam: '0',
-                audiodevice: '0',
-                autostart: '',
-                cleanoutput: ''
-            });
-            
-            const vdoUrl = `${serverUrl}/?${params.toString()}`;
-            log(`VDO.ninja URL: ${vdoUrl}`);
-            
-            const iframe = document.getElementById('vdoFrame');
-            iframe.src = vdoUrl;
-            
-            iframe.onload = () => {
-                log('VDO.ninja iframe loaded', 'success');
-                vdoNinjaReady = true;
-                updateStatus('vdoStatus', 'connected', 'VDO.ninja: Ready');
-                
-                // If we already have a stream, send it
-                if (mediaStream) {
-                    sendStreamToVDO(mediaStream);
-                }
-            };
-        }
-        
-        function sendStreamToVDO(stream) {
-            log('Attempting to send MediaStream to VDO.ninja iframe', 'info');
-            
-            const iframe = document.getElementById('vdoFrame');
-            
-            // VDO.ninja iframe API - try to inject the stream
-            // Note: This may not work due to cross-origin restrictions
-            // The iframe needs to be from the same origin or use postMessage
+        async function publishWhip(stream, whipUrl) {
+            log(`Publishing to WHIP: ${whipUrl}`);
+            updateStatus('whipStatus', 'connecting', 'WHIP Publish: Connecting...');
             
             try {
-                // Method 1: postMessage API
-                // VDO.ninja supports receiving streams via postMessage
-                iframe.contentWindow.postMessage({
-                    target: 'vdo.ninja',
-                    action: 'externalStream',
-                    stream: stream
-                }, '*');
+                whipPeerConnection = new RTCPeerConnection({
+                    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+                });
                 
-                log('Sent stream via postMessage (Method 1)', 'info');
-            } catch (e) {
-                log(`postMessage failed: ${e.message}`, 'warn');
+                // Add tracks from the stream
+                stream.getTracks().forEach(track => {
+                    log(`Adding track to WHIP: ${track.kind}`);
+                    whipPeerConnection.addTrack(track, stream);
+                });
+                
+                whipPeerConnection.oniceconnectionstatechange = () => {
+                    log(`WHIP ICE state: ${whipPeerConnection.iceConnectionState}`);
+                    if (whipPeerConnection.iceConnectionState === 'connected') {
+                        updateStatus('whipStatus', 'connected', 'WHIP Publish: Connected ✓');
+                        showLinks();
+                    } else if (whipPeerConnection.iceConnectionState === 'failed') {
+                        updateStatus('whipStatus', 'error', 'WHIP Publish: ICE Failed');
+                    }
+                };
+                
+                const offer = await whipPeerConnection.createOffer();
+                await whipPeerConnection.setLocalDescription(offer);
+                
+                await new Promise((resolve) => {
+                    if (whipPeerConnection.iceGatheringState === 'complete') resolve();
+                    else {
+                        whipPeerConnection.onicecandidate = (e) => {
+                            if (e.candidate === null) resolve();
+                        };
+                        setTimeout(resolve, 3000);
+                    }
+                });
+                
+                log('WHIP: ICE gathering complete, sending offer');
+                
+                const response = await fetch(whipUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/sdp' },
+                    body: whipPeerConnection.localDescription.sdp
+                });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`WHIP request failed: ${response.status} - ${errorText}`);
+                }
+                
+                const answerSdp = await response.text();
+                await whipPeerConnection.setRemoteDescription({ type: 'answer', sdp: answerSdp });
+                
+                log('WHIP: Published successfully!', 'success');
+                
+            } catch (error) {
+                log(`WHIP error: ${error.message}`, 'error');
+                updateStatus('whipStatus', 'error', `WHIP Publish: ${error.message}`);
+                throw error;
             }
+        }
+        
+        function showLinks() {
+            const streamId = document.getElementById('streamId').value;
+            const whipServer = document.getElementById('whipServer').value;
             
-            // Method 2: If above doesn't work, we may need to use the SDK
-            // or a different approach - log for debugging
-            log('Note: Cross-origin stream injection may require VDO.ninja SDK', 'warn');
-            log('Check if stream appears in the director view', 'info');
+            // VDO.ninja uses whep.vdo.ninja for playback
+            const whepBase = whipServer.replace('whip.', 'whep.');
+            const whepViewUrl = `${whepBase}/${streamId}`;
+            const vdoViewUrl = `https://vdo.ninja/?whepplay=${encodeURIComponent(whepViewUrl)}`;
+            
+            document.getElementById('whepViewUrl').href = whepViewUrl;
+            document.getElementById('whepViewUrl').textContent = `WHEP: ${whepViewUrl}`;
+            document.getElementById('vdoViewUrl').href = vdoViewUrl;
+            document.getElementById('vdoViewUrl').textContent = `VDO.ninja: ${vdoViewUrl}`;
+            document.getElementById('linksBox').style.display = 'block';
+        }
+        
+        function openViewer() {
+            const streamId = document.getElementById('streamId').value;
+            const whipServer = document.getElementById('whipServer').value;
+            const whepBase = whipServer.replace('whip.', 'whep.');
+            const whepViewUrl = `${whepBase}/${streamId}`;
+            const vdoViewUrl = `https://vdo.ninja/?whepplay=${encodeURIComponent(whepViewUrl)}`;
+            window.open(vdoViewUrl, '_blank');
         }
         
         async function startBridge() {
             const whepUrl = document.getElementById('whepUrl').value;
-            const roomName = document.getElementById('roomName').value;
-            const streamLabel = document.getElementById('streamLabel').value;
-            const vdoServer = document.getElementById('vdoServer').value;
+            const streamId = document.getElementById('streamId').value;
+            const whipServer = document.getElementById('whipServer').value;
+            const whipUrl = `${whipServer}/${streamId}`;
             
             document.getElementById('startBtn').disabled = true;
             document.getElementById('stopBtn').disabled = false;
             
             try {
-                // Start VDO.ninja first (so it's ready when stream arrives)
-                setupVDONinja(roomName, streamLabel, vdoServer);
+                // Step 1: Connect to WHEP source
+                const stream = await connectWhep(whepUrl);
                 
-                // Connect to WHEP
-                await connectWhep(whepUrl);
+                // Step 2: Wait a moment for tracks to stabilize
+                await new Promise(r => setTimeout(r, 1000));
+                
+                // Step 3: Publish to WHIP destination
+                await publishWhip(stream, whipUrl);
                 
                 log('Bridge started successfully!', 'success');
             } catch (error) {
@@ -415,14 +460,18 @@
                 whepPeerConnection = null;
             }
             
+            if (whipPeerConnection) {
+                whipPeerConnection.close();
+                whipPeerConnection = null;
+            }
+            
             mediaStream = null;
-            vdoNinjaReady = false;
             
             document.getElementById('whepVideo').srcObject = null;
-            document.getElementById('vdoFrame').src = '';
+            document.getElementById('linksBox').style.display = 'none';
             
-            updateStatus('whepStatus', 'connecting', 'WHEP: Not connected');
-            updateStatus('vdoStatus', 'connecting', 'VDO.ninja: Not connected');
+            updateStatus('whepStatus', 'connecting', 'WHEP Source: Not connected');
+            updateStatus('whipStatus', 'connecting', 'WHIP Publish: Not connected');
             
             document.getElementById('startBtn').disabled = false;
             document.getElementById('stopBtn').disabled = true;
@@ -433,9 +482,8 @@
         // Parse URL params for auto-start
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('whep')) document.getElementById('whepUrl').value = urlParams.get('whep');
-        if (urlParams.get('room')) document.getElementById('roomName').value = urlParams.get('room');
-        if (urlParams.get('label')) document.getElementById('streamLabel').value = urlParams.get('label');
-        if (urlParams.get('server')) document.getElementById('vdoServer').value = urlParams.get('server');
+        if (urlParams.get('streamid')) document.getElementById('streamId').value = urlParams.get('streamid');
+        if (urlParams.get('whipserver')) document.getElementById('whipServer').value = urlParams.get('whipserver');
         if (urlParams.get('autostart')) {
             window.addEventListener('load', () => setTimeout(startBridge, 500));
         }
