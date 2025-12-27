@@ -60,7 +60,8 @@ start_chromium() {
     pkill -f chromium 2>/dev/null || true
     sleep 2
     
-    # Start Chromium with remote debugging
+    # Start Chromium with remote debugging and auto-select tab capture
+    # The --auto-select-tab-capture-source-by-title flag auto-selects a tab matching the title
     nohup chromium \
         --remote-debugging-port=9222 \
         --disable-infobars \
@@ -68,6 +69,7 @@ start_chromium() {
         --disable-session-crashed-bubble \
         --disable-features=TranslateUI \
         --autoplay-policy=no-user-gesture-required \
+        --auto-select-tab-capture-source-by-title="View=false" \
         "https://$VDONINJA_HOST/?whepplay=$WHEP_URL" \
         >/dev/null 2>&1 &
     
@@ -178,29 +180,13 @@ main().catch(err => {
 });
 "
     
-    log "Puppeteer setup complete, using xdotool for picker..."
+    log "Puppeteer setup complete"
     
-    # Wait for picker dialog to appear
-    sleep 3
+    # With --auto-select-tab-capture-source-by-title flag, Chrome should auto-select
+    # Wait for auto-selection to complete
+    sleep 5
     
-    # The Chrome tab picker dialog appears in the center of the screen
-    # Screen is 1920x1080, dialog is approximately centered
-    # Tab list items are around x=620, first item at y=230, second at y=258
-    # Share button is around x=877, y=549
-    
-    log "Clicking on WHEP tab in picker (second item)..."
-    xdotool mousemove 620 258
-    sleep 0.2
-    xdotool click 1
-    sleep 0.5
-    
-    log "Clicking Share button..."
-    xdotool mousemove 877 549
-    sleep 0.2
-    xdotool click 1
-    sleep 1
-    
-    log "Screen share selection complete"
+    log "Screen share should be active (auto-selected by Chrome flag)"
 }
 
 verify_bridge() {
