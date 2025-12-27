@@ -1,22 +1,33 @@
-"""Mode manager for switching between Recorder and VDO.ninja modes."""
+"""Mode manager for R58 recorder.
+
+Note: The dual-mode system (recorder/vdoninja) has been simplified.
+VDO.ninja now works via WHEP streams from MediaMTX, eliminating the need
+for separate raspberry.ninja publisher services or mode switching.
+
+The R58 always runs in "recorder" mode, which:
+- Runs ingest pipelines to stream cameras to MediaMTX via RTSP
+- MediaMTX exposes cameras via WHEP endpoints
+- VDO.ninja connects to MediaMTX using &mediamtx= parameter
+- Works both locally and remotely through FRP tunnels
+
+DEPRECATED: raspberry.ninja P2P publishers - they don't work through tunnels.
+"""
 import asyncio
 import logging
-import subprocess
 import json
 from typing import Dict, Optional, List
 from pathlib import Path
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
 class ModeStatus:
-    """Status information for a mode."""
+    """Status information for recorder mode."""
     current_mode: str
     available_modes: List[str]
     recorder_services: Dict[str, str]  # service_name -> status
-    vdoninja_services: Dict[str, str]  # service_name -> status
     can_switch: bool
     message: Optional[str] = None
 
@@ -24,18 +35,17 @@ class ModeStatus:
 class ModeManager:
     """Manages recorder mode.
     
-    Recorder Mode:
+    Recorder Mode (only mode):
     - preke-recorder ingest pipelines active (internal)
     - MediaMTX receives streams via RTSP
     - Used for recording and WHEP viewing (local and remote)
-    - VDO.ninja integration via WHEP (no separate publishers needed)
+    - VDO.ninja integration via WHEP using &mediamtx= parameter
     
-    Note: The dual-mode system (recorder/vdoninja) has been simplified.
-    VDO.ninja now works via WHEP streams from MediaMTX, eliminating the need
-    for separate raspberry.ninja publisher services.
+    Note: raspberry.ninja P2P publishers have been deprecated because
+    P2P WebRTC does NOT work through FRP tunnels. Use MediaMTX WHEP instead.
     """
     
-    MODES = ["recorder"]  # Simplified to single mode
+    MODES = ["recorder"]  # Single mode only
     STATE_FILE = Path("/tmp/r58_mode_state.json")
     
     def __init__(self, ingest_manager=None, config=None):
@@ -47,7 +57,7 @@ class ModeManager:
         """
         self.ingest_manager = ingest_manager
         self.config = config
-        self._current_mode: Optional[str] = None
+        self._current_mode: str = "recorder"
         self._load_state()
     
     def _load_state(self):
@@ -78,12 +88,10 @@ class ModeManager:
     
     async def get_current_mode(self) -> str:
         """Get the current active mode."""
-        if self._current_mode is None:
-            self._load_state()
         return self._current_mode
     
     async def get_status(self) -> ModeStatus:
-        """Get detailed status of both modes."""
+        """Get detailed status of recorder mode."""
         current_mode = await self.get_current_mode()
         
         # Check recorder services (ingest pipelines)
@@ -94,98 +102,47 @@ class ModeManager:
         else:
             recorder_services = {"ingest": "unavailable"}
         
-        # Check VDO.ninja services (systemd)
-        vdoninja_services = {}
-        for service in self.VDONINJA_SERVICES:
-            status = await self._get_service_status(service)
-            vdoninja_services[service] = status
-        
-        # Determine if we can switch
-        can_switch = True
-        message = None
-        
         return ModeStatus(
             current_mode=current_mode,
             available_modes=self.MODES,
             recorder_services=recorder_services,
-            vdoninja_services=vdoninja_services,
-            can_switch=can_switch,
-            message=message
+            can_switch=False,  # No mode switching needed
+            message="VDO.ninja uses MediaMTX WHEP mode. No mode switching required."
         )
     
     async def switch_to_recorder(self) -> Dict[str, any]:
         """Switch to Recorder Mode.
         
+        Note: This is now a no-op since recorder mode is always active.
+        VDO.ninja connects via MediaMTX WHEP, not separate publishers.
+        
         Returns:
             Dict with success status and message
         """
-        logger.info("Switching to Recorder Mode...")
+        logger.info("Recorder mode is already active (MediaMTX WHEP mode)")
         
-        try:
-            # Stop VDO.ninja services
-            await self._stop_vdoninja_services()
-            
-            # Wait a moment for services to stop and release devices
-            await asyncio.sleep(2)
-            
-            # Start recorder services
-            await self._start_recorder_services()
-            
-            # Update state
-            self._current_mode = 'recorder'
-            self._save_state()
-            
-            logger.info("Successfully switched to Recorder Mode")
-            return {
-                "success": True,
-                "mode": "recorder",
-                "message": "Switched to Recorder Mode. Cameras streaming to MediaMTX."
-            }
-        
-        except Exception as e:
-            logger.error(f"Failed to switch to Recorder Mode: {e}")
-            return {
-                "success": False,
-                "mode": self._current_mode,
-                "message": f"Failed to switch: {str(e)}"
-            }
+        return {
+            "success": True,
+            "mode": "recorder",
+            "message": "Recorder mode is always active. VDO.ninja uses MediaMTX WHEP."
+        }
     
     async def switch_to_vdoninja(self) -> Dict[str, any]:
-        """Switch to VDO.ninja Mode.
+        """Switch to VDO.ninja Mode - DEPRECATED.
+        
+        VDO.ninja now uses MediaMTX WHEP mode, no separate mode needed.
+        raspberry.ninja P2P publishers have been deprecated.
         
         Returns:
-            Dict with success status and message
+            Dict with info message
         """
-        logger.info("Switching to VDO.ninja Mode...")
+        logger.info("VDO.ninja mode switch not needed - use &mediamtx= parameter instead")
         
-        try:
-            # Stop recorder services
-            await self._stop_recorder_services()
-            
-            # Wait a moment for pipelines to stop and release devices
-            await asyncio.sleep(2)
-            
-            # Start VDO.ninja services
-            await self._start_vdoninja_services()
-            
-            # Update state
-            self._current_mode = 'vdoninja'
-            self._save_state()
-            
-            logger.info("Successfully switched to VDO.ninja Mode")
-            return {
-                "success": True,
-                "mode": "vdoninja",
-                "message": "Switched to VDO.ninja Mode. Cameras publishing to VDO.ninja signaling."
-            }
-        
-        except Exception as e:
-            logger.error(f"Failed to switch to VDO.ninja Mode: {e}")
-            return {
-                "success": False,
-                "mode": self._current_mode,
-                "message": f"Failed to switch: {str(e)}"
-            }
+        return {
+            "success": True,
+            "mode": "recorder",
+            "message": "VDO.ninja now uses MediaMTX WHEP mode. Open mixer/director with &mediamtx= parameter. No mode switch required."
+        }
     
     async def _stop_recorder_services(self):
         """Stop recorder ingest pipelines."""
@@ -232,86 +189,3 @@ class ModeManager:
                 logger.warning(f"Failed to start ingest for {cam_id}")
         
         logger.info(f"Started {started}/{len(enabled_cameras)} recorder ingest pipelines")
-    
-    async def _stop_vdoninja_services(self):
-        """Stop VDO.ninja publisher services."""
-        logger.info("Stopping VDO.ninja publisher services...")
-        
-        for service in self.VDONINJA_SERVICES:
-            try:
-                logger.info(f"Stopping {service}")
-                result = await self._run_systemctl("stop", service)
-                if result.returncode != 0:
-                    logger.warning(f"Failed to stop {service}: {result.stderr}")
-            except Exception as e:
-                logger.error(f"Error stopping {service}: {e}")
-        
-        logger.info("Stopped VDO.ninja publisher services")
-    
-    async def _start_vdoninja_services(self):
-        """Start VDO.ninja publisher services."""
-        logger.info("Starting VDO.ninja publisher services...")
-        
-        started = 0
-        for service in self.VDONINJA_SERVICES:
-            try:
-                logger.info(f"Starting {service}")
-                result = await self._run_systemctl("start", service)
-                if result.returncode == 0:
-                    started += 1
-                else:
-                    logger.warning(f"Failed to start {service}: {result.stderr}")
-            except Exception as e:
-                logger.error(f"Error starting {service}: {e}")
-        
-        logger.info(f"Started {started}/{len(self.VDONINJA_SERVICES)} VDO.ninja publisher services")
-    
-    async def _run_systemctl(self, action: str, service: str):
-        """Run systemctl command.
-        
-        Args:
-            action: systemctl action (start, stop, status, etc.)
-            service: service name
-            
-        Returns:
-            CompletedProcess result
-        """
-        cmd = ["sudo", "systemctl", action, service]
-        proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
-        )
-        stdout, stderr = await proc.communicate()
-        
-        return type('Result', (), {
-            'returncode': proc.returncode,
-            'stdout': stdout.decode(),
-            'stderr': stderr.decode()
-        })()
-    
-    async def _get_service_status(self, service: str) -> str:
-        """Get systemd service status.
-        
-        Args:
-            service: service name
-            
-        Returns:
-            Status string: active, inactive, failed, not-found
-        """
-        try:
-            result = await self._run_systemctl("is-active", service)
-            status = result.stdout.strip()
-            
-            if status == "active":
-                return "active"
-            elif status == "inactive":
-                return "inactive"
-            elif status == "failed":
-                return "failed"
-            else:
-                return "unknown"
-        except Exception as e:
-            logger.error(f"Error getting status for {service}: {e}")
-            return "error"
-

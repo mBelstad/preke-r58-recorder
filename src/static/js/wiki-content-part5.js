@@ -30,20 +30,19 @@ All services start automatically when the R58 boots up.
 | Service | Port | Purpose | Status |
 |---------|------|---------|--------|
 | preke-recorder.service | 8000 | Main FastAPI application | Active |
-| mediamtx.service | 8889, 8554, 9997 | Streaming server | Active |
+| mediamtx.service | 8889, 8554, 9997 | Streaming server (WHEP) | Active |
 | frpc.service | - | FRP client (tunnel) | Active |
 | frp-ssh-tunnel.service | - | SSH tunnel for FRP | Active |
 | vdo-ninja.service | 8443 | VDO.ninja signaling | Active |
 | vdo-webapp.service | 8444 | VDO.ninja web app | Active |
-| ninja-publish-cam1 | - | Camera 1 publisher | Active |
-| ninja-publish-cam2 | - | Camera 2 publisher | Active |
-| ninja-publish-cam3 | - | Camera 3 publisher | Active |
 | r58-admin-api.service | 8088 | Legacy admin API | Active |
 | r58-fleet-agent.service | - | Fleet management | Active |
 
+**DISABLED Services** (don't use):
+- ninja-publish-cam1/2/3 - P2P publishers (don't work through tunnels)
+
 **Service Dependencies**:
 - mediamtx must start before preke-recorder
-- vdo-ninja must start before ninja-publish services
 - frp-ssh-tunnel must start before frpc
         `,
         content: `
@@ -73,9 +72,9 @@ Restart streaming server:
 sudo systemctl restart mediamtx
 \`\`\`
 
-Restart all ninja services:
+Restart VDO.ninja services:
 \`\`\`bash
-sudo systemctl restart vdo-ninja ninja-publish-cam{1,2,3}
+sudo systemctl restart vdo-ninja vdo-webapp
 \`\`\`
 
 ### View Logs
@@ -184,9 +183,12 @@ All service files are in:
 - Port: 8444
 - Server: Python http.server
 
-### ninja-publish-cam1/2/3.service
+### ninja-publish-cam1/2/3.service (DEPRECATED - DISABLED)
 
-**Purpose**: Publish camera feeds to VDO.ninja
+**Purpose**: (Was) Publish camera feeds to VDO.ninja via P2P WebRTC
+
+**Status**: DISABLED - P2P WebRTC doesn't work through FRP tunnels.
+Use MediaMTX WHEP mode instead (VDO.ninja with &mediamtx= parameter).
 
 **Technology**: raspberry.ninja v9.0.0
 
@@ -241,12 +243,15 @@ All service files are in:
 These services are installed but not running:
 
 - cloudflared.service - Old Cloudflare tunnel (replaced by FRP)
-- ninja-publish-cam0.service - Camera 0 publisher (unused)
+- ninja-publish-cam0/1/2/3.service - P2P publishers (replaced by MediaMTX WHEP)
 - ninja-receive-guest1/2.service - Guest receivers (old approach)
 - ninja-rtmp-restream.service - RTMP test
 - ninja-rtmp-test.service - RTMP test
 - ninja-rtsp-restream.service - RTSP test
 - ninja-pipeline-test.service - Pipeline test
+
+**Note**: ninja-publish services were disabled because P2P WebRTC doesn't work 
+through FRP tunnels. Use MediaMTX WHEP mode instead (&mediamtx= parameter).
 - r58-opencast-agent.service - Opencast integration (unused)
 
 These can be removed if not needed.
@@ -893,14 +898,16 @@ sudo systemctl daemon-reload
 
 ## Disabled Ninja Services
 
-These were created during development/testing:
+These were created during development but are now DEPRECATED:
 
-- ninja-publish-cam0.service - Camera 0 (unused)
+- ninja-publish-cam0/1/2/3.service - P2P publishers (don't work through tunnels)
 - ninja-receive-guest1.service - Guest receiver (old approach)
 - ninja-receive-guest2.service - Guest receiver (old approach)
 - ninja-rtmp-restream.service - RTMP test
 - ninja-rtmp-test.service - RTMP test
 - ninja-rtsp-restream.service - RTSP test
+
+**DO NOT re-enable** ninja-publish services. Use MediaMTX WHEP mode instead.
 - ninja-pipeline-test.service - Pipeline test
 
 **Status**: All disabled

@@ -622,7 +622,11 @@ Each program has a specific job, and they all communicate with each other.
 **Services**:
 - vdo-ninja.service - Signaling server
 - vdo-webapp.service - Web application
-- ninja-publish-cam1/2/3.service - Camera publishers (optional)
+
+**Integration Mode**: MediaMTX WHEP (recommended)
+- Use &mediamtx= parameter to pull streams from MediaMTX
+- Works both locally and remotely through FRP tunnels
+- No separate camera publishers needed
 
 **Key Features**:
 - Real-time video mixing in browser

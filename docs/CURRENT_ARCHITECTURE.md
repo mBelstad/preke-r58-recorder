@@ -401,6 +401,56 @@ sudo journalctl -u preke-recorder -f
 
 ---
 
+## Lessons Learned: raspberry.ninja vs MediaMTX WHEP
+
+### What Doesn't Work (DO NOT USE)
+
+1. **raspberry.ninja P2P publishers through FRP tunnels**
+   - Services: `ninja-publish-cam1/2/3.service`
+   - Status: DISABLED (Dec 27, 2025)
+   - Problem: P2P WebRTC requires direct UDP connections between peers
+   
+2. **VDO.ninja room-based mode through tunnels**
+   - URL pattern: `?room=r58studio&wss=...`
+   - Problem: Room mode uses P2P WebRTC which can't traverse tunnels
+
+3. **Any P2P WebRTC through HTTP tunnels**
+   - Architectural mismatch: HTTP tunnels don't support UDP/P2P negotiation
+
+### What Works (USE THIS)
+
+1. **MediaMTX WHEP/WHIP through FRP tunnels**
+   - WHIP (publish) and WHEP (view) are HTTP-based
+   - Works perfectly through FRP TCP tunnels
+
+2. **VDO.ninja with `&mediamtx=` parameter**
+   - URL pattern: `mixer.html?mediamtx=r58-mediamtx.itagenten.no`
+   - VDO.ninja pulls streams via WHEP (HTTP-based, not P2P)
+   - Works both locally AND remotely
+
+3. **Single-hop architecture**
+   - Camera → MediaMTX → WHEP → Browser
+   - No relay servers or P2P negotiation needed
+
+### DO NOT re-enable without explicit confirmation:
+- `ninja-publish-cam*` services
+- VDO.ninja room-based URLs (`?room=`, `&wss=`)
+- raspberry.ninja for remote access
+
+### Correct URLs for Remote Access
+
+**Mixer**:
+```
+https://r58-vdo.itagenten.no/mixer.html?mediamtx=r58-mediamtx.itagenten.no
+```
+
+**Director**:
+```
+https://r58-vdo.itagenten.no/?director=r58studio&mediamtx=r58-mediamtx.itagenten.no
+```
+
+---
+
 ## Related Documentation
 
 - **Cloudflare History**: `docs/CLOUDFLARE_HISTORY.md`
@@ -411,6 +461,7 @@ sudo journalctl -u preke-recorder -f
 ---
 
 **Status**: ✅ Production Ready  
-**Last Tested**: December 25, 2025  
+**Last Tested**: December 27, 2025  
+**VDO.ninja Mode**: MediaMTX WHEP (raspberry.ninja P2P disabled)
 **Maintainer**: R58 Team
 

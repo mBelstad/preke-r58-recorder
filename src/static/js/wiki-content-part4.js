@@ -258,30 +258,32 @@ Think of it as having both a virtual TV studio AND a hardware switcher!
         technical: `
 **VDO.ninja** (formerly OBS.ninja) is an open-source WebRTC-based video mixing platform.
 
-**Verified Running on R58** (Dec 26, 2025):
+**Verified Running on R58** (Dec 27, 2025):
 - **Signaling Server**: vdo-ninja.service (Node.js, port 8443) ✅
-- **Web App**: vdo-webapp.service (Python HTTP server, port 8444) ✅  
-- **Publishers**: 
-  - ninja-publish-cam1.service ✅ (publishes /dev/video60)
-  - ninja-publish-cam2.service ✅ (publishes /dev/video11)
-  - ninja-publish-cam3.service ✅ (publishes /dev/video22)
+- **Web App**: vdo-webapp.service (Python HTTP server, port 8444) ✅
 
-**Location**: /opt/vdo.ninja/ and /opt/raspberry_ninja/
+**Integration Mode**: MediaMTX WHEP (recommended)
+- VDO.ninja uses &mediamtx= parameter to pull streams
+- Works both locally AND remotely through FRP tunnels
+- No separate camera publishers needed
+
+**Location**: /opt/vdo.ninja/
 
 **How It Works**:
-- raspberry.ninja captures from V4L2 devices
-- Publishes via WebRTC P2P to VDO.ninja signaling
-- VDO.ninja mixer (browser) connects to signaling server
-- Works on local network (wss://localhost:8443)
+- Cameras stream to MediaMTX via GStreamer ingest pipelines
+- MediaMTX exposes WHEP endpoints (/cam0/whep, /cam1/whep, etc.)
+- VDO.ninja mixer uses &mediamtx= parameter to pull streams
+- Works remotely through FRP tunnel
 
 **Remote Access**:
-- VPS proxies port 8443 → 18443
-- Access via: https://r58-vdo.itagenten.no
-- FRP tunnel carries WebSocket signaling
+- Mixer: https://r58-vdo.itagenten.no/mixer.html?mediamtx=r58-mediamtx.itagenten.no
+- Director: https://r58-vdo.itagenten.no/?director=r58studio&mediamtx=r58-mediamtx.itagenten.no
 
 **Note**: This is SEPARATE from the GStreamer mixer (MixerCore) in preke-recorder!
 
-**Version**: v28+ (verified by git log in /opt/vdo.ninja/)
+**Version**: v28+ (supports &mediamtx= parameter)
+
+**DEPRECATED**: raspberry.ninja P2P publishers - they don't work through FRP tunnels.
         `,
         diagram: `
 flowchart TB
@@ -317,22 +319,23 @@ flowchart TB
         content: `
 ## VDO.ninja Services
 
-**Running Services** (Verified Dec 26, 2025):
+**Running Services** (Verified Dec 27, 2025):
 - vdo-ninja.service - VDO.ninja signaling server ✅
 - vdo-webapp.service - VDO.ninja web application ✅
-- ninja-publish-cam1.service - Camera 1 publisher ✅
-- ninja-publish-cam2.service - Camera 2 publisher ✅
-- ninja-publish-cam3.service - Camera 3 publisher ✅
 
-## How It Works
+**DEPRECATED Services** (disabled, do not use):
+- ninja-publish-cam1/2/3.service - P2P publishers (don't work through tunnels)
+
+## How It Works (MediaMTX WHEP Mode)
 
 **1. Camera Capture**:
-- Cameras stream to MediaMTX via RTSP
+- Cameras stream to MediaMTX via GStreamer ingest pipelines
 - MediaMTX provides WHEP endpoints
 - Each camera available at: /cam0/whep, /cam1/whep, etc.
 
 **2. VDO.ninja Mixer**:
 - Browser-based mixing interface
+- Uses &mediamtx= parameter to pull WHEP streams
 - Pulls camera streams via WHEP
 - No P2P WebRTC (server-based)
 - Supports up to 8+ sources
@@ -418,17 +421,17 @@ You can use either one or both depending on your needs!
         technical: `
 **Two Independent Mixer Architectures**:
 
-**1. VDO.ninja + raspberry.ninja Stack** (ACTIVE):
+**1. VDO.ninja + MediaMTX WHEP** (RECOMMENDED):
 
 Services Running:
 - vdo-ninja.service (Node.js signaling, port 8443)
 - vdo-webapp.service (HTTP server, port 8444)
-- ninja-publish-cam1/2/3.service (WebRTC publishers)
+- MediaMTX (WHEP endpoints)
 
 Architecture:
-Camera (V4L2) → raspberry.ninja → P2P WebRTC → VDO.ninja signaling → Browser mixer
+Camera → GStreamer Ingest → MediaMTX → WHEP endpoint → VDO.ninja mixer (via &mediamtx=)
 
-Use case: Local network mixing, browser-based control
+Use case: Remote mixing through FRP tunnel, browser-based control
 
 **2. GStreamer Compositor (MixerCore)**:
 
@@ -485,14 +488,16 @@ Use case: API-controlled mixing, programmatic control, recording
 - Encoding: ~10-15% CPU (hardware)
 - Total R58 impact: ~25-35% CPU
 
-## Current Status (Verified Dec 26, 2025)
+## Current Status (Verified Dec 27, 2025)
 
-**VDO.ninja Stack**:
-- vdo-ninja.service: ✅ ACTIVE (19h uptime)
+**VDO.ninja Stack** (MediaMTX WHEP Mode):
+- vdo-ninja.service: ✅ ACTIVE
 - vdo-webapp.service: ✅ ACTIVE
-- ninja-publish-cam1: ✅ ACTIVE
-- ninja-publish-cam2: ✅ ACTIVE
-- ninja-publish-cam3: ✅ ACTIVE
+- MediaMTX: ✅ ACTIVE (provides WHEP endpoints)
+- Integration: &mediamtx= parameter
+
+**DEPRECATED** (disabled):
+- ninja-publish-cam1/2/3: ❌ DISABLED (P2P doesn't work through tunnels)
 
 **GStreamer Mixer**:
 - State: NULL (not running, but available)
@@ -560,20 +565,19 @@ Flow: Camera → raspberry.ninja publisher → VDO.ninja signaling → P2P WebRT
 3. **Tunnel Incompatibility**: P2P WebRTC doesn't work through FRP tunnel
 4. **UDP Requirements**: Needs UDP ports that can't be reliably tunneled
 
-**Services Created** (still running but not used):
-- ninja-publish-cam1.service
-- ninja-publish-cam2.service
-- ninja-publish-cam3.service
+**Services Created** (now DISABLED):
+- ninja-publish-cam1.service - DISABLED
+- ninja-publish-cam2.service - DISABLED
+- ninja-publish-cam3.service - DISABLED
 
-**Why They're Still Running**:
-- Can be used on local network
-- Useful for ZeroTier/VPN scenarios
-- Kept for potential future use
-- Don't interfere with current WHEP approach
+**Why They're Disabled**:
+- P2P WebRTC doesn't work through FRP tunnels
+- MediaMTX WHEP mode works better for remote access
+- Simpler architecture with fewer failure points
 
-**Current Solution**: MediaMTX WHEP
+**Current Solution**: MediaMTX WHEP (Working!)
 
-Flow: Camera → MediaMTX → WHEP endpoint → VDO.ninja mixer (server-based, not P2P)
+Flow: Camera → GStreamer Ingest → MediaMTX → WHEP endpoint → VDO.ninja mixer (via &mediamtx=)
 
 **Why This Works**:
 - Server-based (no P2P)
@@ -632,19 +636,18 @@ Flow: Camera → MediaMTX → WHEP endpoint → VDO.ninja mixer (server-based, n
 
 ## Configuration
 
-**If you want to use raspberry.ninja** (local network only):
+**MediaMTX WHEP Mode** (Recommended for both local and remote):
 
-Services are already installed and running on R58:
-- ninja-publish-cam1.service
-- ninja-publish-cam2.service  
-- ninja-publish-cam3.service
+URLs with &mediamtx= parameter:
+- Mixer: https://r58-vdo.itagenten.no/mixer.html?mediamtx=r58-mediamtx.itagenten.no
+- Director: https://r58-vdo.itagenten.no/?director=r58studio&mediamtx=r58-mediamtx.itagenten.no
 
 **Local Access**:
-- VDO.ninja director interface on local network
-- Cameras appear as: cam1, cam2, cam3
-- Works on local network only
+- Mixer: https://localhost:8443/mixer.html?mediamtx=localhost:8889
+- Director: https://localhost:8443/?director=r58studio&mediamtx=localhost:8889
 
-**For Remote Access**: Use WHEP approach instead (see VDO.ninja overview section)
+**DO NOT USE** raspberry.ninja P2P publishers - they have been disabled because P2P WebRTC
+doesn't work through FRP tunnels. Use MediaMTX WHEP mode instead.
 
 ## Lessons Learned
 
