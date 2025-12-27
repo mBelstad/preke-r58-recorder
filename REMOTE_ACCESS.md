@@ -1,7 +1,7 @@
 # R58 Remote Access - Complete Guide
 
-**Last Updated**: December 26, 2025  
-**Status**: ✅ STABLE & WORKING
+**Last Updated**: December 28, 2025  
+**Status**: ✅ STABLE & WORKING (SSH Key Auth)
 
 ---
 
@@ -9,7 +9,8 @@
 
 ### Connect to R58
 ```bash
-./connect-r58-frp.sh
+./connect-r58-frp.sh                    # Interactive shell
+./connect-r58-frp.sh "ls -la"          # Run command
 ```
 
 ### Deploy Code to R58
@@ -19,8 +20,8 @@
 
 ### Access Web Interface
 - **Main App**: https://r58-api.itagenten.no/static/app.html
+- **Studio Control**: https://r58-api.itagenten.no/static/studio-control.html
 - **Studio (Multiview)**: https://r58-api.itagenten.no/static/studio.html
-- **Guest Portal**: https://r58-api.itagenten.no/static/guest.html
 - **Dev Tools**: https://r58-api.itagenten.no/static/dev.html
 
 ---
@@ -31,7 +32,7 @@
 
 ```
 Your Mac
-    ↓ SSH (via sshpass)
+    ↓ SSH (via SSH key - ~/.ssh/r58_key)
     ↓
 Coolify VPS (65.109.32.111:10022)
     ↓ FRP Tunnel
@@ -43,6 +44,7 @@ R58 Device (local port 22)
 - **FRP Server**: Running on Coolify VPS
 - **FRP Client**: Running on R58 device
 - **Tunnel Port**: 10022 (SSH), 18000 (API), 18889 (MediaMTX)
+- **SSH Key**: `~/.ssh/r58_key` (no passphrase, auto-generated)
 
 ---
 
@@ -50,16 +52,23 @@ R58 Device (local port 22)
 
 ### Connection Scripts
 
-#### `connect-r58-frp.sh` (PRIMARY)
+#### `connect-r58-frp.sh` (PRIMARY - USE THIS!)
 **Purpose**: SSH to R58 via FRP tunnel  
+**Auth**: SSH key (`~/.ssh/r58_key`) - faster & more reliable than password  
+**Features**:
+- ConnectTimeout=15 (fails fast instead of hanging)
+- ServerAliveInterval=30 (detects dead connections)
+- TCPKeepAlive (connection health monitoring)
+
 **Usage**: 
 ```bash
 ./connect-r58-frp.sh                    # Interactive shell
 ./connect-r58-frp.sh "ls -la"          # Run command
 ./connect-r58-frp.sh "sudo systemctl status preke-recorder"
+./connect-r58-frp.sh --password "cmd"  # Force password auth (fallback)
 ```
 
-**Stability**: ✅ 100% stable (tested 5/5 successful connections)
+**Stability**: ✅ Reliable with SSH key auth
 
 #### `connect-r58-local.sh` (BACKUP)
 **Purpose**: SSH to R58 on local network  
