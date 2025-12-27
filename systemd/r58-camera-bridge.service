@@ -12,7 +12,7 @@ Environment=DISPLAY=:0
 Environment=XDG_RUNTIME_DIR=/run/user/1000
 
 # Use chromium in headless mode to run the bridge page
-ExecStart=/usr/bin/chromium-browser \
+ExecStart=/usr/bin/chromium \
     --headless \
     --disable-gpu \
     --no-sandbox \
