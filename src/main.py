@@ -3344,25 +3344,24 @@ async def get_vdoninja_sources(request: Request) -> Dict[str, Any]:
 
 @app.get("/api/vdoninja/mixer-url")
 async def get_vdoninja_mixer_url(request: Request, include_inactive: bool = False) -> Dict[str, Any]:
-    """Get VDO.ninja mixer URL for the r58studio room.
+    """Get VDO.ninja mixer URL using MediaMTX backend.
     
     Args:
         include_inactive: If True, include sources without signal in response (default False)
     
-    Returns the VDO.ninja mixer.html URL for the r58studio room.
-    The mixer uses a room-based system where cameras are added as external sources.
+    Returns the VDO.ninja mixer.html URL configured to use MediaMTX for WHEP streams.
+    This works both locally and remotely through FRP tunnels (unlike P2P room mode).
     """
     # Determine if request is local or remote
     host = request.headers.get("host", "")
     is_remote = "itagenten.no" in host or not any(x in host for x in ["localhost", "127.0.0.1", "192.168"])
     
     vdoninja_base = f"https://{VDONINJA_REMOTE_HOST}" if is_remote else f"https://{VDONINJA_LOCAL_HOST}"
-    mediamtx_base = f"https://{MEDIAMTX_REMOTE_HOST}" if is_remote else "http://localhost:8889"
+    mediamtx_host = MEDIAMTX_REMOTE_HOST if is_remote else "localhost:8889"
     
-    # Build mixer URL - use /mixer.html with room parameter
-    # Add &wss= to use our custom signaling server
-    wss_param = f"&wss=wss://{VDONINJA_REMOTE_HOST}/" if is_remote else ""
-    mixer_url = f"{vdoninja_base}/mixer.html?room=r58studio{wss_param}"
+    # Build mixer URL using MediaMTX backend (NOT room-based P2P which doesn't work through tunnels)
+    # The &mediamtx= parameter makes VDO.ninja use WHEP to pull streams from MediaMTX
+    mixer_url = f"{vdoninja_base}/mixer.html?mediamtx={mediamtx_host}"
     
     # Get sources for info
     sources_response = await get_vdoninja_sources(request)
@@ -3377,7 +3376,7 @@ async def get_vdoninja_mixer_url(request: Request, include_inactive: bool = Fals
     return {
         "url": mixer_url,
         "vdoninja_host": VDONINJA_REMOTE_HOST if is_remote else VDONINJA_LOCAL_HOST,
-        "mediamtx_host": MEDIAMTX_REMOTE_HOST if is_remote else "localhost:8889",
+        "mediamtx_host": mediamtx_host,
         "active_sources": active_sources,
         "source_count": len(active_sources),
         "is_remote": is_remote
@@ -3386,23 +3385,24 @@ async def get_vdoninja_mixer_url(request: Request, include_inactive: bool = Fals
 
 @app.get("/api/vdoninja/director-url")
 async def get_vdoninja_director_url(request: Request) -> Dict[str, Any]:
-    """Get VDO.ninja director room URL.
+    """Get VDO.ninja director URL using MediaMTX backend.
     
-    Returns the director URL for the r58studio room.
+    Returns the director URL configured to use MediaMTX for WHEP streams.
+    This works both locally and remotely through FRP tunnels (unlike P2P room mode).
     """
     # Determine if request is local or remote
     host = request.headers.get("host", "")
     is_remote = "itagenten.no" in host or not any(x in host for x in ["localhost", "127.0.0.1", "192.168"])
     
     vdoninja_base = f"https://{VDONINJA_REMOTE_HOST}" if is_remote else f"https://{VDONINJA_LOCAL_HOST}"
+    mediamtx_host = MEDIAMTX_REMOTE_HOST if is_remote else "localhost:8889"
     
-    # Add &wss= to use our custom signaling server
-    wss_param = f"&wss=wss://{VDONINJA_REMOTE_HOST}/" if is_remote else ""
-    
+    # Use MediaMTX backend instead of room-based P2P (which doesn't work through tunnels)
     return {
-        "url": f"{vdoninja_base}/?director=r58studio{wss_param}",
+        "url": f"{vdoninja_base}/?director=r58studio&mediamtx={mediamtx_host}",
         "room": "r58studio",
         "vdoninja_host": VDONINJA_REMOTE_HOST if is_remote else VDONINJA_LOCAL_HOST,
+        "mediamtx_host": mediamtx_host,
         "is_remote": is_remote
     }
 
@@ -3413,22 +3413,22 @@ async def get_vdoninja_scene_url(request: Request) -> Dict[str, Any]:
     
     This is the URL that OBS or other capture tools would use to display 
     the mixed output from the VDO.ninja mixer.
+    Uses MediaMTX backend for reliable remote access through FRP tunnels.
     """
     # Determine if request is local or remote
     host = request.headers.get("host", "")
     is_remote = "itagenten.no" in host or not any(x in host for x in ["localhost", "127.0.0.1", "192.168"])
     
     vdoninja_base = f"https://{VDONINJA_REMOTE_HOST}" if is_remote else f"https://{VDONINJA_LOCAL_HOST}"
+    mediamtx_host = MEDIAMTX_REMOTE_HOST if is_remote else "localhost:8889"
     
-    # Scene view URL format for VDO.ninja
-    # Add &wss= to use our custom signaling server
-    wss_param = f"&wss=wss://{VDONINJA_REMOTE_HOST}/" if is_remote else ""
-    scene_url = f"{vdoninja_base}/?scene&room=r58studio{wss_param}&clean&transparent"
+    # Scene view URL using MediaMTX backend (NOT room-based P2P which doesn't work through tunnels)
+    scene_url = f"{vdoninja_base}/?scene&mediamtx={mediamtx_host}&clean&transparent"
     
     return {
         "url": scene_url,
-        "room": "r58studio",
         "vdoninja_host": VDONINJA_REMOTE_HOST if is_remote else VDONINJA_LOCAL_HOST,
+        "mediamtx_host": mediamtx_host,
         "is_remote": is_remote,
         "description": "Use this URL in OBS Browser Source to capture the mixer output"
     }
