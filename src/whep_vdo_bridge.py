@@ -230,6 +230,20 @@ class VDONinjaBridge:
         }
         await self.ws.send(json.dumps(message))
         logger.debug(f"Sent joinroom: {message}")
+        
+        # Send seed message to announce we're ready to publish
+        await asyncio.sleep(0.2)
+        await self._send_seed()
+    
+    async def _send_seed(self):
+        """Send seed message to announce we're ready to publish"""
+        message = {
+            "request": "seed",
+            "streamID": self.stream_id,
+            "UUID": self.uuid
+        }
+        await self.ws.send(json.dumps(message))
+        logger.info(f"Sent seed announcement for {self.stream_id}")
     
     async def run(self):
         """Run the signaling message loop"""
@@ -253,15 +267,24 @@ class VDONinjaBridge:
             logger.warning(f"Invalid JSON message: {message[:100]}")
             return
         
+        # Log all incoming messages for debugging
+        msg_preview = str(message)[:300]
+        logger.info(f"[SIGNALING] Received: {msg_preview}")
+        
         # Ignore our own messages
         if data.get("UUID") == self.uuid:
             return
         
-        peer_uuid = data.get("UUID", "unknown")
+        peer_uuid = data.get("UUID") or data.get("from") or "unknown"
         
         # Handle different message types
         if data.get("request") == "joinroom":
-            logger.info(f"Peer joined room: {data.get('streamid', 'unknown')}")
+            stream_id = data.get('streamid', data.get('streamID', 'unknown'))
+            logger.info(f"Peer joined room: {stream_id}")
+            # If this is a viewer (no stream ID or different from ours), send them our stream
+            if stream_id != self.stream_id and peer_uuid != "unknown":
+                logger.info(f"New viewer detected, sending offer to {peer_uuid}")
+                await self._send_offer_to_peer(peer_uuid)
             
         elif "description" in data:
             desc = data["description"]
@@ -272,6 +295,11 @@ class VDONinjaBridge:
                 
         elif "candidate" in data:
             await self._handle_ice_candidate(peer_uuid, data["candidate"])
+        
+        elif "candidates" in data:
+            # VDO.ninja sometimes sends candidates as an array
+            for candidate_data in data["candidates"]:
+                await self._handle_ice_candidate(peer_uuid, candidate_data)
             
         elif data.get("request") == "offerSDP":
             # Peer is requesting our stream
@@ -315,8 +343,18 @@ class VDONinjaBridge:
     async def _handle_answer(self, peer_uuid: str, description: dict):
         """Handle incoming WebRTC answer"""
         pc = self.peer_connections.get(peer_uuid)
+        
+        # If not found by UUID, try the first available peer connection
+        # (VDO.ninja may use different identifiers in different messages)
+        if not pc and len(self.peer_connections) == 1:
+            stored_uuid = list(self.peer_connections.keys())[0]
+            pc = self.peer_connections[stored_uuid]
+            logger.info(f"Answer from {peer_uuid}, mapping to stored peer {stored_uuid}")
+            # Map this UUID to the peer connection as well
+            self.peer_connections[peer_uuid] = pc
+        
         if not pc:
-            logger.warning(f"No peer connection for answer from {peer_uuid}")
+            logger.warning(f"No peer connection for answer from {peer_uuid}, have: {list(self.peer_connections.keys())}")
             return
         
         answer = RTCSessionDescription(
@@ -329,7 +367,17 @@ class VDONinjaBridge:
     async def _handle_ice_candidate(self, peer_uuid: str, candidate_data: dict):
         """Handle incoming ICE candidate"""
         pc = self.peer_connections.get(peer_uuid)
+        
+        # If not found by UUID, try looking it up or use the first available
+        if not pc and len(self.peer_connections) > 0:
+            # Try to find any existing peer connection
+            for stored_uuid, stored_pc in self.peer_connections.items():
+                pc = stored_pc
+                self.peer_connections[peer_uuid] = pc  # Map this UUID too
+                break
+        
         if not pc:
+            logger.debug(f"No peer connection for ICE candidate from {peer_uuid}")
             return
         
         try:
@@ -339,6 +387,7 @@ class VDONinjaBridge:
                 candidate=candidate_data.get("candidate", "")
             )
             await pc.addIceCandidate(candidate)
+            logger.debug(f"Added ICE candidate from {peer_uuid}")
         except Exception as e:
             logger.debug(f"Failed to add ICE candidate: {e}")
     
@@ -390,10 +439,12 @@ class VDONinjaBridge:
     
     async def _send_description(self, peer_uuid: str, description: RTCSessionDescription):
         """Send SDP description to peer via signaling"""
+        # UUID is used for routing by signaling server, so it should be the target's UUID
+        # from is our own identifier so the receiver knows who sent it
         message = {
-            "UUID": self.uuid,
+            "UUID": peer_uuid,  # Target UUID for routing
+            "from": self.uuid,  # Our UUID so receiver knows the sender
             "streamID": self.stream_id,
-            "targetUUID": peer_uuid,
             "description": {
                 "type": description.type,
                 "sdp": description.sdp
@@ -403,10 +454,11 @@ class VDONinjaBridge:
     
     async def _send_ice_candidate(self, peer_uuid: str, candidate: RTCIceCandidate):
         """Send ICE candidate to peer via signaling"""
+        # UUID is used for routing by signaling server, so it should be the target's UUID
         message = {
-            "UUID": self.uuid,
+            "UUID": peer_uuid,  # Target UUID for routing
+            "from": self.uuid,  # Our UUID so receiver knows the sender
             "streamID": self.stream_id,
-            "targetUUID": peer_uuid,
             "candidate": {
                 "candidate": candidate.candidate,
                 "sdpMid": candidate.sdpMid,
@@ -474,10 +526,12 @@ class CameraBridge:
                     continue
                 
                 # Connect to VDO.ninja
+                # Use r58- prefix for stream ID so signaling server recognizes us as a publisher
+                stream_id = f"r58-{self.camera_id}"
                 self.vdo_bridge = VDONinjaBridge(
                     self.config.signaling_url,
                     self.config.room,
-                    self.camera_id,
+                    stream_id,
                     self.config.ice_servers,
                     ssl_verify=self.config.ssl_verify
                 )

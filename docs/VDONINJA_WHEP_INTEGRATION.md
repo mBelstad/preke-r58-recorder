@@ -1,7 +1,7 @@
 # VDO.ninja WHEP Integration Guide
 
-**Last Updated**: December 27, 2025  
-**Status**: Documented based on extensive research and testing
+**Last Updated**: December 27, 2025 (17:30 UTC)  
+**Status**: WORKING - Direct WHEP playback confirmed working through FRP tunnels
 
 ---
 
@@ -69,23 +69,37 @@ We have HDMI cameras connected to an R58 device. These cameras are captured via 
 - View camera: `https://r58-mediamtx.itagenten.no/cam2/whep`
 - Publish speaker: `https://r58-mediamtx.itagenten.no/speaker0/whip`
 
-### 2. VDO.ninja `&whepplay=` Parameter
+### 2. VDO.ninja `&whepplay=` Parameter ⭐ RECOMMENDED
 
-**Status**: Works for viewing single streams
+**Status**: ✅ WORKING - This is the best method for viewing HDMI cameras remotely
 
 **URL Pattern**:
 ```
-https://r58-vdo.itagenten.no/?whepplay=https://r58-mediamtx.itagenten.no/cam2/whep
+https://r58-vdo.itagenten.no/?whepplay=https://r58-mediamtx.itagenten.no/cam3/whep
 ```
 
 **What it does**:
 - Pulls a WHEP stream from any MediaMTX endpoint
 - Displays it in the VDO.ninja player
 - Works remotely through FRP tunnels
+- Video confirmed working December 27, 2025
+
+**Best Practices**:
+- Use this URL directly in OBS as a Browser Source for each camera
+- Use in the VDO.ninja WHIP/WHEP tool page (`/whip.html`) for testing
+- Each camera gets its own `&whepplay=` URL
+
+**Example URLs**:
+| Camera | URL |
+|--------|-----|
+| cam0 | `https://r58-vdo.itagenten.no/?whepplay=https://r58-mediamtx.itagenten.no/cam0/whep` |
+| cam2 | `https://r58-vdo.itagenten.no/?whepplay=https://r58-mediamtx.itagenten.no/cam2/whep` |
+| cam3 | `https://r58-vdo.itagenten.no/?whepplay=https://r58-mediamtx.itagenten.no/cam3/whep` |
 
 **Limitations**:
 - Views the stream but doesn't automatically inject it into a VDO.ninja room
 - Combining with `&push=` and `&room=` opens a Director view, not a guest view
+- VDO.ninja room P2P still doesn't work through FRP for video transport
 
 ### 3. VDO.ninja `&mediamtx=` Parameter for Rooms
 
@@ -269,29 +283,75 @@ https://r58-vdo.itagenten.no/?whepplay=https://r58-mediamtx.itagenten.no/cam2/wh
 
 ---
 
+## Recommended Production Setup
+
+### For HDMI Cameras (via MediaMTX WHEP)
+
+Use `&whepplay=` URLs directly in your production software:
+
+**In OBS Studio**:
+1. Add Browser Source
+2. URL: `https://r58-vdo.itagenten.no/?whepplay=https://r58-mediamtx.itagenten.no/cam3/whep`
+3. Width: 1920, Height: 1080
+
+**In VDO.ninja WHIP/WHEP Tool**:
+1. Navigate to `https://r58-vdo.itagenten.no/whip.html`
+2. Scroll to "Play a remote video stream available via WHEP"
+3. Enter: `https://r58-mediamtx.itagenten.no/cam3/whep`
+4. Click GO
+
+### For Remote Human Guests (via VDO.ninja with MediaMTX)
+
+Use VDO.ninja room with `&mediamtx=` parameter:
+
+**Guest Invite Link**:
+```
+https://r58-vdo.itagenten.no/?room=r58studio&wss=wss://r58-vdo.itagenten.no&mediamtx=r58-mediamtx.itagenten.no
+```
+
+**Director View**:
+```
+https://r58-vdo.itagenten.no/?director=r58studio&wss=wss://r58-vdo.itagenten.no&mediamtx=r58-mediamtx.itagenten.no
+```
+
+### Hybrid Workflow
+
+For a production with both HDMI cameras and remote guests:
+
+1. **HDMI Cameras**: Use `&whepplay=` URLs as OBS Browser Sources
+2. **Remote Guests**: Use VDO.ninja Director with `&mediamtx=` for guest management
+3. **Mixing**: Combine in OBS with scenes for each camera and guest
+
+---
+
 ## Lessons Learned Summary
 
-1. **P2P WebRTC through HTTP tunnels fails** - Always use MediaMTX WHEP/WHIP
-2. **`&mediamtx=` is for guests publishing** - Not for importing existing streams
-3. **`&whepplay=` views but doesn't republish** - Needs bridge for room integration
-4. **raspberry.ninja conflicts with MediaMTX** - Both try to access V4L2 devices
-5. **Headless browser bridge is required** - To inject cameras into VDO.ninja rooms
+1. **P2P WebRTC through HTTP tunnels fails** - Always use MediaMTX WHEP/WHIP for video transport
+2. **`&mediamtx=` is for NEW guests publishing** - Not for importing existing MediaMTX streams
+3. **`&whepplay=` is the best method for cameras** - Works reliably through FRP tunnels
+4. **VDO.ninja rooms are for guests, not cameras** - Use WHEP URLs for HDMI cameras
+5. **raspberry.ninja is deprecated** - Use MediaMTX + GStreamer instead
+6. **The WHIP/WHEP test page (`/whip.html`) is very useful** - For debugging and testing
 
 ---
 
-## DO NOT Re-enable Without Confirmation
+## Failed Approaches (Do Not Retry)
 
-The following have been disabled because they don't work through FRP tunnels:
+The following have been tested and confirmed NOT to work:
 
-- `ninja-publish-cam*` systemd services
-- VDO.ninja room-based URLs without `&mediamtx=`
-- raspberry.ninja for remote access
+| Approach | Why It Fails |
+|----------|--------------|
+| `ninja-publish-cam*` services | P2P WebRTC doesn't work through FRP |
+| VDO.ninja rooms without `&mediamtx=` | P2P video transport fails |
+| Headless Chromium on ARM | Browser fails on ARM architecture |
+| Python aiortc bridge | P2P WebRTC doesn't work through FRP |
+| `&whepplay=` + `&push=` + `&room=` | P2P video transport still fails |
 
-Contact the maintainer before re-enabling any of these.
+Contact the maintainer before re-attempting any of these.
 
 ---
 
-**Status**: Implementation complete  
-**Last Tested**: December 27, 2025  
+**Status**: WORKING - `&whepplay=` confirmed functional  
+**Last Tested**: December 27, 2025 17:30 UTC  
 **Maintainer**: R58 Team
 

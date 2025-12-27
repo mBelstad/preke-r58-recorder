@@ -1,7 +1,7 @@
 # R58 Current Architecture
 
-**Last Updated**: December 25, 2025  
-**Status**: ✅ Working and Tested
+**Last Updated**: December 27, 2025 17:30 UTC  
+**Status**: ✅ WORKING - HDMI cameras accessible remotely via MediaMTX WHEP
 
 ---
 
