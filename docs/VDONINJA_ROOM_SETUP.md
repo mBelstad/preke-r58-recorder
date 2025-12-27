@@ -1,10 +1,15 @@
 # VDO.ninja Room Setup Guide
 
-## Current Status (Dec 27, 2025)
+## Current Status (Dec 27, 2025) - FULLY WORKING! 🎉
 
 ### What Works ✅
 
-1. **WHEP Viewing**: HDMI cameras can be viewed via VDO.ninja using WHEP:
+1. **HDMI Camera in VDO.ninja Room**: Successfully tested and working!
+   - HDMI camera (cam2) streams to MediaMTX via WHEP
+   - Screen share from R58 pushes the WHEP viewer tab to VDO.ninja room
+   - Video appears in Director with full controls (mute, highlight, add to scene, etc.)
+
+2. **WHEP Viewing**: HDMI cameras can be viewed via VDO.ninja using WHEP:
    ```
    https://r58-vdo.itagenten.no/?whepplay=https://r58-api.itagenten.no/whep/cam2
    ```
@@ -20,13 +25,28 @@
    - Director: `https://r58-vdo.itagenten.no/?director=ROOMNAME`
    - Scene: `https://r58-vdo.itagenten.no/?scene&room=ROOMNAME`
 
-### What Doesn't Work (Automation Limitations) ❌
+### Limitations
 
 1. **Combining `&whepplay=` with `&room=` or `&push=`**: VDO.ninja ignores WHEP when joining rooms
-2. **Automated screen share**: Browser's screen picker dialog cannot be automated remotely
-3. **`&mediamtx=` parameter**: Routes P2P traffic through MediaMTX, but doesn't PULL streams from MediaMTX into rooms
+2. **`&mediamtx=` parameter**: Routes P2P traffic through MediaMTX, but doesn't PULL streams from MediaMTX into rooms
 
-## Solution: Manual Screen Share Setup (One-Time)
+## Automated Setup (Tested Working!)
+
+The screen share can be automated using `xdotool` on R58. The process:
+
+1. Open WHEP viewer tab → plays the HDMI camera
+2. Open Director tab → claims the room
+3. Open screen share page → triggers getDisplayMedia
+4. xdotool/Puppeteer clicks through the native picker dialog
+
+```bash
+# Install xdotool if not present
+sudo apt-get install -y xdotool
+
+# The automation is handled by Puppeteer scripts in /opt/preke-r58-recorder
+```
+
+## Manual Screen Share Setup (Alternative)
 
 ### Step 1: Open WHEP Viewer on R58
 
