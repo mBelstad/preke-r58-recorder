@@ -447,10 +447,10 @@
             <!-- Bridge Status -->
             <div class="control-panel">
                 <h3>VDO.ninja Bridge</h3>
-                <div class="helper-text" id="bridgeHelper">Connect cameras to VDO.ninja room</div>
+                <div class="helper-text" id="bridgeHelper">Auto-connects when page loads</div>
                 <div class="control-buttons" style="display: flex; flex-direction: column; gap: 8px;">
                     <button class="btn btn-success" id="popupBridge" onclick="togglePopupBridge()">
-                        📺 Connect from Browser
+                        📺 Connect
                     </button>
                     <button class="btn btn-secondary" id="serverBridge" onclick="toggleServerBridge()">
                         🖥️ R58 Service
@@ -545,8 +545,21 @@
             initializePreviews();
             checkBridgeStatus();
             
+            // Auto-connect to VDO.ninja when page loads
+            // The connection runs in a background window
+            setTimeout(() => {
+                if (popupWindows.length === 0) {
+                    togglePopupBridge();
+                }
+            }, 2000);
+            
             // Check status periodically
             setInterval(checkBridgeStatus, 10000);
+            
+            // Disconnect when leaving page
+            window.addEventListener('beforeunload', () => {
+                popupWindows.forEach(w => { try { w.close(); } catch(e) {} });
+            });
         });
         
         // Load settings
@@ -704,29 +717,37 @@
         }
         
         // Toggle popup-based bridge (runs in your browser)
+        // The popup runs in background - needed because VDO.ninja blocks iframes
         function togglePopupBridge() {
             if (popupWindows.length > 0) {
                 // Close all popups
                 popupWindows.forEach(w => { try { w.close(); } catch(e) {} });
                 popupWindows = [];
                 updatePopupUI(false);
-                showToast('Popup bridge closed');
+                showToast('Disconnected');
             } else {
-                // Open popups for each camera
+                // Open hidden background popups for each camera
                 config.cameras.forEach((camId, index) => {
                     const pushId = `hdmi${index + 1}`;
                     const label = `HDMI-${index + 1}`;
                     const whepUrl = encodeURIComponent(`https://${config.apiHost}/whep/${camId}`);
-                    // Use &whepshare with &webcam for publishing
-                    // Note: Popup shows local webcam preview, but viewers get the WHEP stream
-                    // &cover shows a placeholder image instead of webcam in preview
-                    const coverUrl = encodeURIComponent(`https://${config.apiHost}/static/img/camera-placeholder.svg`);
-                    const bridgeUrl = `https://${config.vdoninjaHost}/?push=${pushId}&room=${config.roomName}&whepshare=${whepUrl}&label=${label}&webcam&cover=${coverUrl}&autostart`;
+                    const bridgeUrl = `https://${config.vdoninjaHost}/?push=${pushId}&room=${config.roomName}&whepshare=${whepUrl}&label=${label}&webcam&autostart`;
                     
-                    // Open minimized popup - it just needs to stay open for the bridge to work
-                    const popup = window.open(bridgeUrl, `bridge_${camId}`, 'width=320,height=200,menubar=no,toolbar=no,location=no,status=no');
+                    // Open as small background window, positioned off-screen
+                    // The page just needs to be loaded for WebRTC connection to work
+                    const popup = window.open(
+                        bridgeUrl, 
+                        `bridge_${camId}`, 
+                        'width=1,height=1,left=-1000,top=-1000,menubar=no,toolbar=no,location=no,status=no,resizable=no'
+                    );
+                    
                     if (popup) {
                         popupWindows.push(popup);
+                        // Blur focus back to main window
+                        try { 
+                            popup.blur();
+                            window.focus();
+                        } catch(e) {}
                     } else {
                         showToast(`Popup blocked! Allow popups for this site.`, 'error');
                     }
@@ -734,7 +755,9 @@
                 
                 if (popupWindows.length > 0) {
                     updatePopupUI(true);
-                    showToast('Cameras connected via browser');
+                    showToast('Connected to VDO.ninja');
+                    // Focus back on main window
+                    window.focus();
                 }
             }
         }
@@ -746,12 +769,12 @@
             
             if (active) {
                 btn.className = 'btn btn-danger';
-                btn.textContent = '📺 Disconnect Browser';
+                btn.textContent = '📺 Disconnect';
                 if (statusDot) statusDot.classList.add('live');
                 if (statusText) statusText.textContent = 'Browser Bridge';
             } else {
                 btn.className = 'btn btn-success';
-                btn.textContent = '📺 Connect from Browser';
+                btn.textContent = '📺 Connect';
             }
         }
         
