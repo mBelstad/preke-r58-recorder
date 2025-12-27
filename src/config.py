@@ -184,6 +184,7 @@ class AppConfig:
                 output_path=cam_data.get("output_path", ""),
                 mediamtx_enabled=cam_data.get("mediamtx_enabled", False),
                 mediamtx_path=cam_data.get("mediamtx_path", None),
+                enabled=cam_data.get("enabled", True),
             )
         
         # Load recording config
