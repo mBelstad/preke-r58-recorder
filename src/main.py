@@ -3360,7 +3360,9 @@ async def get_vdoninja_mixer_url(request: Request, include_inactive: bool = Fals
     mediamtx_base = f"https://{MEDIAMTX_REMOTE_HOST}" if is_remote else "http://localhost:8889"
     
     # Build mixer URL - use /mixer.html with room parameter
-    mixer_url = f"{vdoninja_base}/mixer.html?room=r58studio"
+    # Add &wss= to use our custom signaling server
+    wss_param = f"&wss=wss://{VDONINJA_REMOTE_HOST}/" if is_remote else ""
+    mixer_url = f"{vdoninja_base}/mixer.html?room=r58studio{wss_param}"
     
     # Get sources for info
     sources_response = await get_vdoninja_sources(request)
@@ -3394,8 +3396,11 @@ async def get_vdoninja_director_url(request: Request) -> Dict[str, Any]:
     
     vdoninja_base = f"https://{VDONINJA_REMOTE_HOST}" if is_remote else f"https://{VDONINJA_LOCAL_HOST}"
     
+    # Add &wss= to use our custom signaling server
+    wss_param = f"&wss=wss://{VDONINJA_REMOTE_HOST}/" if is_remote else ""
+    
     return {
-        "url": f"{vdoninja_base}/?director=r58studio",
+        "url": f"{vdoninja_base}/?director=r58studio{wss_param}",
         "room": "r58studio",
         "vdoninja_host": VDONINJA_REMOTE_HOST if is_remote else VDONINJA_LOCAL_HOST,
         "is_remote": is_remote
@@ -3416,7 +3421,9 @@ async def get_vdoninja_scene_url(request: Request) -> Dict[str, Any]:
     vdoninja_base = f"https://{VDONINJA_REMOTE_HOST}" if is_remote else f"https://{VDONINJA_LOCAL_HOST}"
     
     # Scene view URL format for VDO.ninja
-    scene_url = f"{vdoninja_base}/?scene&room=r58studio&clean&transparent"
+    # Add &wss= to use our custom signaling server
+    wss_param = f"&wss=wss://{VDONINJA_REMOTE_HOST}/" if is_remote else ""
+    scene_url = f"{vdoninja_base}/?scene&room=r58studio{wss_param}&clean&transparent"
     
     return {
         "url": scene_url,
