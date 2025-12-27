@@ -3344,12 +3344,13 @@ async def get_vdoninja_sources(request: Request) -> Dict[str, Any]:
 
 @app.get("/api/vdoninja/mixer-url")
 async def get_vdoninja_mixer_url(request: Request, include_inactive: bool = False) -> Dict[str, Any]:
-    """Get VDO.ninja mixer URL with all active sources pre-configured.
+    """Get VDO.ninja mixer URL for the r58studio room.
     
     Args:
-        include_inactive: If True, include sources without signal (default False)
+        include_inactive: If True, include sources without signal in response (default False)
     
-    Returns the full VDO.ninja mixer URL with WHEP parameters for all active sources.
+    Returns the VDO.ninja mixer.html URL for the r58studio room.
+    The mixer uses a room-based system where cameras are added as external sources.
     """
     # Determine if request is local or remote
     host = request.headers.get("host", "")
@@ -3358,19 +3359,17 @@ async def get_vdoninja_mixer_url(request: Request, include_inactive: bool = Fals
     vdoninja_base = f"https://{VDONINJA_REMOTE_HOST}" if is_remote else f"https://{VDONINJA_LOCAL_HOST}"
     mediamtx_base = f"https://{MEDIAMTX_REMOTE_HOST}" if is_remote else "http://localhost:8889"
     
-    # Build base mixer URL using VDO.ninja scene view with WHEP sources
-    # Note: /mixer path doesn't exist in VDO.ninja, use ?scene instead
-    mixer_url = f"{vdoninja_base}/?scene"
+    # Build mixer URL - use /mixer.html with room parameter
+    mixer_url = f"{vdoninja_base}/mixer.html?room=r58studio"
     
-    # Get sources
+    # Get sources for info
     sources_response = await get_vdoninja_sources(request)
     sources = sources_response["sources"]
     
-    # Add WHEP parameters for active (or all) sources
+    # Collect active sources info
     active_sources = []
     for source in sources:
         if source["active"] or include_inactive:
-            mixer_url += f"&whep={source['whep_url']}&label={source['name']}"
             active_sources.append(source["name"])
     
     return {
@@ -3400,6 +3399,183 @@ async def get_vdoninja_director_url(request: Request) -> Dict[str, Any]:
         "room": "r58studio",
         "vdoninja_host": VDONINJA_REMOTE_HOST if is_remote else VDONINJA_LOCAL_HOST,
         "is_remote": is_remote
+    }
+
+
+@app.get("/api/vdoninja/scene-url")
+async def get_vdoninja_scene_url(request: Request) -> Dict[str, Any]:
+    """Get VDO.ninja scene view URL (program output).
+    
+    This is the URL that OBS or other capture tools would use to display 
+    the mixed output from the VDO.ninja mixer.
+    """
+    # Determine if request is local or remote
+    host = request.headers.get("host", "")
+    is_remote = "itagenten.no" in host or not any(x in host for x in ["localhost", "127.0.0.1", "192.168"])
+    
+    vdoninja_base = f"https://{VDONINJA_REMOTE_HOST}" if is_remote else f"https://{VDONINJA_LOCAL_HOST}"
+    
+    # Scene view URL format for VDO.ninja
+    scene_url = f"{vdoninja_base}/?scene&room=r58studio&clean&transparent"
+    
+    return {
+        "url": scene_url,
+        "room": "r58studio",
+        "vdoninja_host": VDONINJA_REMOTE_HOST if is_remote else VDONINJA_LOCAL_HOST,
+        "is_remote": is_remote,
+        "description": "Use this URL in OBS Browser Source to capture the mixer output"
+    }
+
+
+# =====================================================================
+# Camera-to-Slot Mapping API
+# =====================================================================
+
+def _get_mapping_file_path() -> Path:
+    """Get path to camera-slot mapping config file."""
+    data_dir = Path(__file__).parent.parent / "data"
+    data_dir.mkdir(exist_ok=True)
+    return data_dir / "camera_mapping.json"
+
+
+def _load_camera_mapping() -> Dict[str, Any]:
+    """Load camera mapping from file or return defaults."""
+    mapping_file = _get_mapping_file_path()
+    
+    if mapping_file.exists():
+        try:
+            import json
+            with open(mapping_file, 'r') as f:
+                return json.load(f)
+        except Exception:
+            pass
+    
+    # Default mapping: CAM1->Slot 0, CAM2->Slot 1, etc.
+    return {
+        "mappings": {
+            "cam0": 0,  # CAM 1 -> Slot 0
+            "cam1": 1,  # CAM 2 -> Slot 1
+            "cam2": 2,  # CAM 3 -> Slot 2
+            "cam3": 3,  # CAM 4 -> Slot 3
+            "guest1": 4,
+            "guest2": 5,
+            "guest3": 6,
+            "guest4": 7
+        },
+        "version": 1
+    }
+
+
+def _save_camera_mapping(mapping: Dict[str, Any]) -> bool:
+    """Save camera mapping to file."""
+    mapping_file = _get_mapping_file_path()
+    try:
+        import json
+        with open(mapping_file, 'w') as f:
+            json.dump(mapping, f, indent=2)
+        return True
+    except Exception:
+        return False
+
+
+@app.get("/api/vdoninja/mapping")
+async def get_camera_mapping(request: Request) -> Dict[str, Any]:
+    """Get current camera-to-slot mappings.
+    
+    Returns the mapping of camera stream IDs to VDO.ninja mixer slots.
+    Also includes WHEP URLs for each mapped source.
+    """
+    # Determine if request is local or remote
+    host = request.headers.get("host", "")
+    is_remote = "itagenten.no" in host or not any(x in host for x in ["localhost", "127.0.0.1", "192.168"])
+    mediamtx_base = f"https://{MEDIAMTX_REMOTE_HOST}" if is_remote else "http://localhost:8889"
+    
+    mapping_data = _load_camera_mapping()
+    
+    # Enhance with WHEP URLs
+    mappings_with_urls = {}
+    for stream_id, slot in mapping_data.get("mappings", {}).items():
+        whep_url = f"{mediamtx_base}/{stream_id}/whep"
+        mappings_with_urls[stream_id] = {
+            "slot": slot,
+            "whep_url": whep_url
+        }
+    
+    return {
+        "mappings": mappings_with_urls,
+        "raw_mappings": mapping_data.get("mappings", {}),
+        "version": mapping_data.get("version", 1)
+    }
+
+
+@app.post("/api/vdoninja/mapping")
+async def save_camera_mapping(request: Request) -> Dict[str, Any]:
+    """Save camera-to-slot mappings.
+    
+    Expects JSON body with format:
+    {
+        "mappings": {
+            "cam0": 0,
+            "cam1": 1,
+            ...
+        }
+    }
+    """
+    try:
+        body = await request.json()
+        mappings = body.get("mappings", {})
+        
+        if not mappings:
+            raise HTTPException(status_code=400, detail="No mappings provided")
+        
+        # Validate: slot numbers should be 0-9
+        for stream_id, slot in mappings.items():
+            if not isinstance(slot, int) or slot < 0 or slot > 9:
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Invalid slot {slot} for {stream_id}. Must be 0-9."
+                )
+        
+        # Load existing and update
+        existing = _load_camera_mapping()
+        existing["mappings"] = mappings
+        existing["version"] = existing.get("version", 0) + 1
+        
+        if _save_camera_mapping(existing):
+            return {
+                "success": True,
+                "mappings": mappings,
+                "version": existing["version"]
+            }
+        else:
+            raise HTTPException(status_code=500, detail="Failed to save mapping")
+            
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/vdoninja/mapping/reset")
+async def reset_camera_mapping() -> Dict[str, Any]:
+    """Reset camera mappings to defaults.
+    
+    Restores the default auto-mapping:
+    CAM1->Slot 0, CAM2->Slot 1, etc.
+    """
+    mapping_file = _get_mapping_file_path()
+    
+    # Remove existing file to use defaults
+    if mapping_file.exists():
+        mapping_file.unlink()
+    
+    # Return the default mapping
+    default = _load_camera_mapping()
+    
+    return {
+        "success": True,
+        "message": "Mapping reset to defaults",
+        "mappings": default.get("mappings", {})
     }
 
 

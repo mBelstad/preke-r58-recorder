@@ -7,7 +7,9 @@
 const mixerState = {
     sources: [],
     refreshInterval: null,
-    isLoading: false
+    isLoading: false,
+    mappings: {},
+    hasChanges: false
 };
 
 /**
@@ -199,6 +201,76 @@ async function loadMixerContent(container) {
                 50% { opacity: 0.5; }
             }
 
+            .mapper-card {
+                grid-column: 1 / -1;
+            }
+
+            .mapper-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+                gap: var(--spacing-md);
+            }
+
+            .mapper-item {
+                display: flex;
+                flex-direction: column;
+                gap: var(--spacing-sm);
+                padding: var(--spacing-md);
+                background: var(--bg-secondary);
+                border-radius: var(--radius-md);
+                border-left: 4px solid var(--accent);
+            }
+
+            .mapper-item.inactive {
+                opacity: 0.6;
+                border-left-color: var(--text-tertiary);
+            }
+
+            .mapper-label {
+                font-weight: var(--weight-semibold);
+                display: flex;
+                align-items: center;
+                gap: var(--spacing-sm);
+            }
+
+            .mapper-select {
+                padding: 8px 12px;
+                background: var(--bg-tertiary);
+                border: 1px solid var(--border);
+                border-radius: var(--radius-md);
+                color: var(--text-primary);
+                font-size: var(--text-sm);
+                cursor: pointer;
+            }
+
+            .mapper-select:focus {
+                outline: none;
+                border-color: var(--accent);
+            }
+
+            .mapper-actions {
+                display: flex;
+                gap: var(--spacing-md);
+                margin-top: var(--spacing-md);
+            }
+
+            .mapper-actions .btn {
+                flex: 1;
+            }
+
+            .scene-url-section {
+                margin-top: var(--spacing-lg);
+                padding-top: var(--spacing-lg);
+                border-top: 1px solid var(--border);
+            }
+
+            .scene-url-section h4 {
+                margin-bottom: var(--spacing-sm);
+                display: flex;
+                align-items: center;
+                gap: var(--spacing-sm);
+            }
+
             @media (max-width: 768px) {
                 .mixer-layout {
                     grid-template-columns: 1fr;
@@ -242,6 +314,35 @@ async function loadMixerContent(container) {
                 <div class="url-display" id="mixerUrlDisplay">
                     Loading mixer URL...
                 </div>
+                
+                <div class="scene-url-section">
+                    <h4><span>📺</span> Scene View (Program Output)</h4>
+                    <div class="url-display" id="sceneUrlDisplay">Loading...</div>
+                    <button class="btn action-btn secondary" onclick="copySceneUrl()" style="margin-top: var(--spacing-sm);">
+                        📋 Copy Scene URL
+                    </button>
+                </div>
+            </div>
+
+            <div class="mixer-card mapper-card">
+                <h3>
+                    <span>🔗</span> Camera-to-Slot Mapper
+                    <button class="btn btn-ghost refresh-btn" onclick="loadMappings()" title="Reload mappings">🔄</button>
+                </h3>
+                <p style="color: var(--text-secondary); margin-bottom: var(--spacing-md); font-size: var(--text-sm);">
+                    Assign cameras to VDO.ninja mixer slots (0-9). Use "Add Stream ID" in the mixer to add cameras.
+                </p>
+                <div id="mapperGrid" class="mapper-grid">
+                    <div class="loading-spinner">Loading mappings...</div>
+                </div>
+                <div class="mapper-actions">
+                    <button class="btn action-btn primary" onclick="saveMappings()" id="saveMappingsBtn" disabled>
+                        💾 Save Mappings
+                    </button>
+                    <button class="btn action-btn secondary" onclick="resetMappings()">
+                        🔄 Reset to Defaults
+                    </button>
+                </div>
             </div>
         </div>
     `;
@@ -251,10 +352,14 @@ async function loadMixerContent(container) {
 }
 
 /**
- * Initialize mixer - load sources and start refresh
+ * Initialize mixer - load sources, mappings and start refresh
  */
 async function initializeMixer() {
-    await refreshSources();
+    await Promise.all([
+        refreshSources(),
+        loadMappings(),
+        loadSceneUrl()
+    ]);
     
     // Auto-refresh every 5 seconds
     if (mixerState.refreshInterval) {
@@ -550,6 +655,191 @@ function showMixerToast(message) {
     }, 2000);
 }
 
+/**
+ * Load scene URL
+ */
+async function loadSceneUrl() {
+    try {
+        const response = await fetch('/api/vdoninja/scene-url');
+        const data = await response.json();
+        
+        const urlDisplay = document.getElementById('sceneUrlDisplay');
+        if (urlDisplay) {
+            urlDisplay.textContent = data.url || 'No URL available';
+        }
+        
+        mixerState.sceneUrl = data.url;
+    } catch (error) {
+        console.error('Failed to load scene URL:', error);
+    }
+}
+
+/**
+ * Copy scene URL to clipboard
+ */
+async function copySceneUrl() {
+    if (mixerState.sceneUrl) {
+        await navigator.clipboard.writeText(mixerState.sceneUrl);
+        showMixerToast('Scene URL copied! Use in OBS Browser Source.');
+    } else {
+        showMixerToast('No scene URL available');
+    }
+}
+
+/**
+ * Load camera-to-slot mappings
+ */
+async function loadMappings() {
+    try {
+        const response = await fetch('/api/vdoninja/mapping');
+        const data = await response.json();
+        
+        mixerState.mappings = data.raw_mappings || {};
+        mixerState.hasChanges = false;
+        
+        renderMapperGrid();
+        updateSaveButton();
+        
+    } catch (error) {
+        console.error('Failed to load mappings:', error);
+        document.getElementById('mapperGrid').innerHTML = `
+            <div class="mapper-item inactive">
+                <span class="mapper-label">Error loading mappings</span>
+            </div>
+        `;
+    }
+}
+
+/**
+ * Render the mapper grid
+ */
+function renderMapperGrid() {
+    const container = document.getElementById('mapperGrid');
+    if (!container) return;
+    
+    // Define all possible sources
+    const allSources = [
+        { id: 'cam0', name: 'CAM 1 (HDMI 1)', type: 'camera' },
+        { id: 'cam1', name: 'CAM 2 (HDMI 2)', type: 'camera' },
+        { id: 'cam2', name: 'CAM 3 (HDMI 3)', type: 'camera' },
+        { id: 'cam3', name: 'CAM 4 (HDMI 4)', type: 'camera' },
+        { id: 'guest1', name: 'Guest 1', type: 'speaker' },
+        { id: 'guest2', name: 'Guest 2', type: 'speaker' },
+        { id: 'guest3', name: 'Guest 3', type: 'speaker' },
+        { id: 'guest4', name: 'Guest 4', type: 'speaker' }
+    ];
+    
+    // Check which sources are currently active
+    const activeSources = new Set(mixerState.sources.filter(s => s.active).map(s => s.stream));
+    
+    container.innerHTML = allSources.map(source => {
+        const isActive = activeSources.has(source.id);
+        const currentSlot = mixerState.mappings[source.id] ?? '';
+        const icon = source.type === 'camera' ? '📹' : '👤';
+        
+        // Generate slot options
+        const options = ['<option value="">Not mapped</option>'];
+        for (let i = 0; i <= 9; i++) {
+            const selected = currentSlot === i ? 'selected' : '';
+            options.push(`<option value="${i}" ${selected}>Slot ${i}</option>`);
+        }
+        
+        return `
+            <div class="mapper-item ${isActive ? '' : 'inactive'}">
+                <div class="mapper-label">
+                    <span>${icon}</span>
+                    <span>${source.name}</span>
+                    ${isActive ? '<span style="color: var(--success);">●</span>' : ''}
+                </div>
+                <select class="mapper-select" data-source="${source.id}" onchange="onMappingChange('${source.id}', this.value)">
+                    ${options.join('')}
+                </select>
+            </div>
+        `;
+    }).join('');
+}
+
+/**
+ * Handle mapping change
+ */
+function onMappingChange(sourceId, value) {
+    if (value === '') {
+        delete mixerState.mappings[sourceId];
+    } else {
+        mixerState.mappings[sourceId] = parseInt(value, 10);
+    }
+    mixerState.hasChanges = true;
+    updateSaveButton();
+}
+
+/**
+ * Update save button state
+ */
+function updateSaveButton() {
+    const btn = document.getElementById('saveMappingsBtn');
+    if (btn) {
+        btn.disabled = !mixerState.hasChanges;
+        btn.textContent = mixerState.hasChanges ? '💾 Save Mappings *' : '💾 Save Mappings';
+    }
+}
+
+/**
+ * Save mappings to server
+ */
+async function saveMappings() {
+    const btn = document.getElementById('saveMappingsBtn');
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = '⏳ Saving...';
+    }
+    
+    try {
+        const response = await fetch('/api/vdoninja/mapping', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mappings: mixerState.mappings })
+        });
+        
+        if (response.ok) {
+            mixerState.hasChanges = false;
+            showMixerToast('Mappings saved successfully!');
+        } else {
+            const error = await response.json();
+            showMixerToast(`Failed to save: ${error.detail}`);
+        }
+    } catch (error) {
+        console.error('Failed to save mappings:', error);
+        showMixerToast('Error saving mappings');
+    } finally {
+        updateSaveButton();
+    }
+}
+
+/**
+ * Reset mappings to defaults
+ */
+async function resetMappings() {
+    if (!confirm('Reset all mappings to defaults?')) return;
+    
+    try {
+        const response = await fetch('/api/vdoninja/mapping/reset', { method: 'POST' });
+        
+        if (response.ok) {
+            const data = await response.json();
+            mixerState.mappings = data.mappings || {};
+            mixerState.hasChanges = false;
+            renderMapperGrid();
+            updateSaveButton();
+            showMixerToast('Mappings reset to defaults');
+        } else {
+            showMixerToast('Failed to reset mappings');
+        }
+    } catch (error) {
+        console.error('Failed to reset mappings:', error);
+        showMixerToast('Error resetting mappings');
+    }
+}
+
 // Make functions available globally
 window.loadMixerContent = loadMixerContent;
 window.refreshSources = refreshSources;
@@ -558,4 +848,9 @@ window.openDirector = openDirector;
 window.copyMixerUrl = copyMixerUrl;
 window.startIngestOnly = startIngestOnly;
 window.startStreamingAndOpenMixer = startStreamingAndOpenMixer;
+window.loadMappings = loadMappings;
+window.onMappingChange = onMappingChange;
+window.saveMappings = saveMappings;
+window.resetMappings = resetMappings;
+window.copySceneUrl = copySceneUrl;
 
