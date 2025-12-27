@@ -1,0 +1,26 @@
+[Unit]
+Description=VDO.ninja Bridge - HDMI Camera to VDO.ninja Room
+After=network-online.target graphical.target preke-recorder.service
+Wants=network-online.target
+Requires=graphical.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=linaro
+Group=linaro
+Environment=DISPLAY=:0
+Environment=VDONINJA_ROOM=r58studio
+Environment=WHEP_URL=https://r58-api.itagenten.no/whep/cam2
+Environment=VDONINJA_HOST=r58-vdo.itagenten.no
+Environment=CAMERA_LABEL=HDMI-Camera
+Environment=CAMERA_PUSH_ID=hdmicam
+WorkingDirectory=/opt/preke-r58-recorder
+ExecStartPre=/bin/sleep 10
+ExecStart=/opt/preke-r58-recorder/scripts/start-vdoninja-bridge.sh
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=graphical.target
+
