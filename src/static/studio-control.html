@@ -447,11 +447,18 @@
             <!-- Bridge Status -->
             <div class="control-panel">
                 <h3>VDO.ninja Bridge</h3>
-                <div class="helper-text" id="bridgeHelper">Checking bridge status...</div>
-                <div class="control-buttons">
-                    <button class="btn btn-success" id="bridgeToggle" onclick="toggleServerBridge()">
-                        Start Bridge
+                <div class="helper-text" id="bridgeHelper">Connect cameras to VDO.ninja room</div>
+                <div class="control-buttons" style="display: flex; flex-direction: column; gap: 8px;">
+                    <button class="btn btn-success" id="popupBridge" onclick="togglePopupBridge()">
+                        📺 Connect from Browser
                     </button>
+                    <button class="btn btn-secondary" id="serverBridge" onclick="toggleServerBridge()">
+                        🖥️ R58 Service
+                    </button>
+                </div>
+                <div class="helper-text" style="margin-top: 8px; font-size: 10px; opacity: 0.6;">
+                    Browser: Uses your browser (reliable)<br>
+                    R58 Service: Runs on device (background)
                 </div>
             </div>
             
@@ -530,6 +537,7 @@
         
         // Bridge state
         let bridgeActive = false;
+        let popupWindows = [];
         
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
@@ -694,6 +702,64 @@
             closeSettings();
             showToast('Settings saved');
         }
+        
+        // Toggle popup-based bridge (runs in your browser)
+        function togglePopupBridge() {
+            if (popupWindows.length > 0) {
+                // Close all popups
+                popupWindows.forEach(w => { try { w.close(); } catch(e) {} });
+                popupWindows = [];
+                updatePopupUI(false);
+                showToast('Popup bridge closed');
+            } else {
+                // Open popups for each camera
+                config.cameras.forEach((camId, index) => {
+                    const pushId = `hdmi${index + 1}`;
+                    const label = `HDMI-${index + 1}`;
+                    const whepUrl = encodeURIComponent(`https://${config.apiHost}/whep/${camId}`);
+                    const bridgeUrl = `https://${config.vdoninjaHost}/?push=${pushId}&room=${config.roomName}&whepshare=${whepUrl}&label=${label}&webcam&autostart`;
+                    
+                    const popup = window.open(bridgeUrl, `bridge_${camId}`, 'width=400,height=300,menubar=no,toolbar=no,location=no,status=no');
+                    if (popup) {
+                        popupWindows.push(popup);
+                    } else {
+                        showToast(`Popup blocked! Allow popups for this site.`, 'error');
+                    }
+                });
+                
+                if (popupWindows.length > 0) {
+                    updatePopupUI(true);
+                    showToast('Cameras connected via browser');
+                }
+            }
+        }
+        
+        function updatePopupUI(active) {
+            const btn = document.getElementById('popupBridge');
+            const statusDot = document.getElementById('bridgeStatus');
+            const statusText = document.getElementById('bridgeStatusText');
+            
+            if (active) {
+                btn.className = 'btn btn-danger';
+                btn.textContent = '📺 Disconnect Browser';
+                if (statusDot) statusDot.classList.add('live');
+                if (statusText) statusText.textContent = 'Browser Bridge';
+            } else {
+                btn.className = 'btn btn-success';
+                btn.textContent = '📺 Connect from Browser';
+            }
+        }
+        
+        // Check popup windows periodically
+        function checkPopupWindows() {
+            if (popupWindows.length > 0) {
+                popupWindows = popupWindows.filter(w => w && !w.closed);
+                if (popupWindows.length === 0) {
+                    updatePopupUI(false);
+                }
+            }
+        }
+        setInterval(checkPopupWindows, 3000);
         
         // Check R58 bridge status via API
         async function checkBridgeStatus() {
