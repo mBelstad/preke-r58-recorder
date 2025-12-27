@@ -1,7 +1,7 @@
 #!/bin/bash
 # VDO.ninja Bridge Auto-Start Script (Simplified with &whepshare)
-# This script opens browser tabs that share WHEP streams to VDO.ninja rooms
-# No screen sharing required - uses VDO.ninja's &whepshare parameter
+# Uses VDO.ninja's &whepshare parameter to share WHEP streams directly
+# No screen sharing or complex automation required!
 
 set -e
 
@@ -74,6 +74,10 @@ wait_for_mediamtx() {
     log "MediaMTX is available"
 }
 
+url_encode() {
+    python3 -c "import urllib.parse; print(urllib.parse.quote('$1', safe=''))"
+}
+
 start_chromium() {
     log "Starting Chromium..."
     
@@ -89,19 +93,25 @@ start_chromium() {
         
         # URL encode the WHEP URL
         local whep_url="https://$API_HOST/whep/$stream_id"
-        local encoded_whep=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$whep_url', safe=''))")
+        local encoded_whep=$(url_encode "$whep_url")
         
         # Build the VDO.ninja URL with &whepshare
-        local vdo_url="https://$VDONINJA_HOST/?push=$push_id&room=$ROOM_NAME&whepshare=$encoded_whep&label=$label&webcam"
+        # &webcam tells VDO.ninja to auto-select camera mode
+        # &autostart automatically starts streaming
+        local vdo_url="https://$VDONINJA_HOST/?push=$push_id&room=$ROOM_NAME&whepshare=$encoded_whep&label=$label&webcam&autostart"
         urls="$urls $vdo_url"
         
         log "Camera: $label -> $whep_url"
     done
     
-    # Also add the director URL
+    # Also add the director URL for monitoring
     local director_url="https://$VDONINJA_HOST/?director=$ROOM_NAME"
     
     # Start Chromium with all URLs
+    # Key flags:
+    # --use-fake-ui-for-media-stream: Auto-allow camera/mic without prompts
+    # --autoplay-policy=no-user-gesture-required: Allow autoplay
+    # --disable-features=TranslateUI: No translation popups
     log "Opening browser tabs..."
     nohup chromium \
         --remote-debugging-port=9222 \
@@ -112,10 +122,13 @@ start_chromium() {
         --autoplay-policy=no-user-gesture-required \
         --use-fake-ui-for-media-stream \
         --disable-notifications \
+        --disable-popup-blocking \
+        --start-maximized \
         $director_url $urls \
         >/dev/null 2>&1 &
     
-    log "Chromium started, waiting for it to be ready..."
+    CHROMIUM_PID=$!
+    log "Chromium started (PID: $CHROMIUM_PID), waiting for it to be ready..."
     sleep 5
     
     # Wait for debugger to be available
@@ -132,12 +145,13 @@ start_chromium() {
     log "Chromium debugger is ready"
 }
 
-auto_join_rooms() {
-    log "Auto-joining camera streams to room..."
+auto_click_start() {
+    log "Auto-clicking START buttons..."
     
     cd "$PROJECT_DIR"
     
     # Use Node.js/Puppeteer to click the START buttons
+    # This handles the case where &autostart doesn't fully work
     node -e "
 const http = require('http');
 const puppeteer = require('puppeteer-core');
@@ -176,22 +190,35 @@ async function main() {
             
             try {
                 await page.bringToFront();
-                await new Promise(r => setTimeout(r, 1000));
+                await new Promise(r => setTimeout(r, 2000));
+                
+                // Check if already in room (has hang up button)
+                const inRoom = await page.evaluate(() => {
+                    return !!document.querySelector('[title*=\"Hang up\"]') || 
+                           !!document.querySelector('[aria-label*=\"Hang up\"]');
+                });
+                
+                if (inRoom) {
+                    console.log('  -> Already in room');
+                    continue;
+                }
                 
                 // Click 'Join Room with Camera' button if visible
                 const joinClicked = await page.evaluate(() => {
-                    const buttons = Array.from(document.querySelectorAll('button'));
+                    // Try clicking the button directly
+                    const buttons = Array.from(document.querySelectorAll('button, [role=\"button\"]'));
                     for (const btn of buttons) {
-                        if (btn.textContent.includes('Join Room with Camera')) {
+                        const text = btn.textContent || btn.innerText || '';
+                        if (text.includes('Join Room with Camera')) {
                             btn.click();
                             return true;
                         }
                     }
-                    // Also try heading click
+                    // Try heading click
                     const headings = Array.from(document.querySelectorAll('h2'));
                     for (const h of headings) {
                         if (h.textContent.includes('Join Room with Camera')) {
-                            h.parentElement.click();
+                            h.parentElement?.click();
                             return true;
                         }
                     }
@@ -200,7 +227,7 @@ async function main() {
                 
                 if (joinClicked) {
                     console.log('  -> Clicked Join Room with Camera');
-                    await new Promise(r => setTimeout(r, 2000));
+                    await new Promise(r => setTimeout(r, 3000));
                 }
                 
                 // Now click START button
@@ -209,23 +236,24 @@ async function main() {
                     const startBtn = document.getElementById('gowebcam');
                     if (startBtn) {
                         startBtn.click();
-                        return true;
+                        return 'by-id';
                     }
-                    // Try by text
-                    const buttons = Array.from(document.querySelectorAll('button'));
+                    // Try by text content
+                    const buttons = Array.from(document.querySelectorAll('button, [role=\"button\"]'));
                     for (const btn of buttons) {
-                        if (btn.textContent.includes('START') || btn.textContent.includes('Start')) {
+                        const text = btn.textContent || btn.innerText || '';
+                        if (text.toUpperCase().includes('START')) {
                             btn.click();
-                            return true;
+                            return 'by-text';
                         }
                     }
                     return false;
                 });
                 
                 if (startClicked) {
-                    console.log('  -> Clicked START');
+                    console.log('  -> Clicked START (' + startClicked + ')');
                 } else {
-                    console.log('  -> Could not find START button');
+                    console.log('  -> Could not find START button (may already be streaming)');
                 }
                 
                 await new Promise(r => setTimeout(r, 2000));
@@ -245,7 +273,7 @@ main().catch(err => {
 });
 " 2>&1 | tee -a "$LOG_FILE"
     
-    log "Auto-join complete"
+    log "Auto-click complete"
 }
 
 verify_bridge() {
@@ -286,13 +314,14 @@ main() {
     log "=========================================="
     log "VDO.ninja WHEP Bridge Starting"
     log "Room: $ROOM_NAME"
+    log "Cameras: $CAMERAS"
     log "=========================================="
     
     wait_for_display
     wait_for_network
     wait_for_mediamtx
     start_chromium
-    auto_join_rooms
+    auto_click_start
     verify_bridge
     show_urls
     

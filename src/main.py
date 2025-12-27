@@ -3574,9 +3574,159 @@ async def get_vdoninja_bridge_url(request: Request) -> Dict[str, Any]:
         "room": "r58studio",
         "is_remote": is_remote,
         "description": "Open this page to bridge HDMI cameras into VDO.ninja room",
-        "service_name": "r58-camera-bridge.service",
-        "service_status_command": "systemctl status r58-camera-bridge"
+        "service_name": "vdoninja-bridge.service",
+        "service_status_command": "systemctl status vdoninja-bridge"
     }
+
+
+# =====================================================================
+# VDO.ninja Bridge Control API
+# =====================================================================
+
+@app.get("/api/vdoninja/bridge/status")
+async def get_vdoninja_bridge_status() -> Dict[str, Any]:
+    """Get the status of the VDO.ninja bridge service.
+    
+    Returns:
+        Status of the bridge service including whether Chromium is running
+        and which tabs are open.
+    """
+    import subprocess
+    
+    status = {
+        "service_active": False,
+        "chromium_running": False,
+        "tabs": [],
+        "error": None
+    }
+    
+    # Check if service is active
+    try:
+        result = subprocess.run(
+            ["systemctl", "is-active", "vdoninja-bridge"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        status["service_active"] = result.returncode == 0
+    except Exception as e:
+        status["error"] = f"Could not check service status: {e}"
+    
+    # Check if Chromium debugger is responding
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get("http://127.0.0.1:9222/json", timeout=2.0)
+            if response.status_code == 200:
+                status["chromium_running"] = True
+                tabs = response.json()
+                status["tabs"] = [
+                    {"title": t.get("title", ""), "url": t.get("url", "")}
+                    for t in tabs
+                ]
+    except Exception:
+        pass  # Chromium not running
+    
+    return status
+
+
+@app.post("/api/vdoninja/bridge/start")
+async def start_vdoninja_bridge(
+    room: str = "r58studio",
+    cameras: Optional[str] = None
+) -> Dict[str, Any]:
+    """Start the VDO.ninja bridge service.
+    
+    Args:
+        room: VDO.ninja room name (default: r58studio)
+        cameras: Comma-separated camera config (format: stream_id:push_id:label)
+                 Example: cam2:hdmi1:Camera-1,cam3:hdmi2:Camera-2
+    
+    Returns:
+        Result of starting the bridge service.
+    """
+    import subprocess
+    
+    # Build environment for the service
+    env_vars = {"VDONINJA_ROOM": room}
+    
+    if cameras:
+        env_vars["CAMERAS"] = cameras
+    else:
+        # Use default cameras from config
+        camera_list = []
+        for i, (cam_id, cam_config) in enumerate(config.cameras.items()):
+            if cam_config.enabled:
+                label = getattr(cam_config, 'label', None) or f"HDMI-{cam_id.upper()}"
+                push_id = f"hdmi{i+1}"
+                camera_list.append(f"{cam_id}:{push_id}:{label}")
+        if camera_list:
+            env_vars["CAMERAS"] = ",".join(camera_list)
+    
+    try:
+        # First stop any existing instance
+        subprocess.run(
+            ["sudo", "systemctl", "stop", "vdoninja-bridge"],
+            capture_output=True,
+            timeout=10
+        )
+        
+        # Update environment in service file
+        for key, value in env_vars.items():
+            subprocess.run(
+                ["sudo", "systemctl", "set-environment", f"{key}={value}"],
+                capture_output=True,
+                timeout=5
+            )
+        
+        # Start the service
+        result = subprocess.run(
+            ["sudo", "systemctl", "start", "vdoninja-bridge"],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        
+        if result.returncode == 0:
+            return {
+                "success": True,
+                "message": f"VDO.ninja bridge started for room '{room}'",
+                "room": room,
+                "cameras": env_vars.get("CAMERAS", "default")
+            }
+        else:
+            return {
+                "success": False,
+                "error": result.stderr or "Failed to start service",
+                "room": room
+            }
+    except subprocess.TimeoutExpired:
+        return {"success": False, "error": "Command timed out"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@app.post("/api/vdoninja/bridge/stop")
+async def stop_vdoninja_bridge() -> Dict[str, Any]:
+    """Stop the VDO.ninja bridge service."""
+    import subprocess
+    
+    try:
+        result = subprocess.run(
+            ["sudo", "systemctl", "stop", "vdoninja-bridge"],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        
+        # Also kill any Chromium processes
+        subprocess.run(["pkill", "-f", "chromium"], capture_output=True, timeout=5)
+        
+        return {
+            "success": result.returncode == 0,
+            "message": "VDO.ninja bridge stopped" if result.returncode == 0 else result.stderr
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 
 @app.get("/api/vdoninja/whep-view-url/{stream_id}")
