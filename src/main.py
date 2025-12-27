@@ -3265,7 +3265,8 @@ async def _check_mediamtx_stream_ready(stream_id: str) -> bool:
             )
             if response.status_code == 200:
                 data = response.json()
-                return data.get("sourceReady", False)
+                # MediaMTX v3 API uses "ready" field, not "sourceReady"
+                return data.get("ready", False)
     except Exception:
         pass
     return False
