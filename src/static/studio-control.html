@@ -717,9 +717,11 @@
                     const pushId = `hdmi${index + 1}`;
                     const label = `HDMI-${index + 1}`;
                     const whepUrl = encodeURIComponent(`https://${config.apiHost}/whep/${camId}`);
-                    const bridgeUrl = `https://${config.vdoninjaHost}/?push=${pushId}&room=${config.roomName}&whepshare=${whepUrl}&label=${label}&webcam&autostart`;
+                    // Use &whepshare without &webcam to avoid local camera access
+                    // &vd=0&ad=0 prevents camera/mic permission prompts
+                    const bridgeUrl = `https://${config.vdoninjaHost}/?push=${pushId}&room=${config.roomName}&whepshare=${whepUrl}&label=${label}&vd=0&ad=0&autostart`;
                     
-                    const popup = window.open(bridgeUrl, `bridge_${camId}`, 'width=400,height=300,menubar=no,toolbar=no,location=no,status=no');
+                    const popup = window.open(bridgeUrl, `bridge_${camId}`, 'width=500,height=400,menubar=no,toolbar=no,location=no,status=no');
                     if (popup) {
                         popupWindows.push(popup);
                     } else {
