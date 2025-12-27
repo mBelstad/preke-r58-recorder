@@ -14,18 +14,18 @@
             margin: 0;
             padding: 0;
             font-family: var(--font-sans);
-            background: var(--bg-secondary);
-            color: var(--text-primary);
+            background: #1a1a1a;
+            color: #fff;
             min-height: 100vh;
         }
         
         .studio-layout {
             display: grid;
-            grid-template-columns: 1fr 350px;
+            grid-template-columns: 1fr 320px;
             grid-template-rows: auto 1fr auto;
             height: 100vh;
-            gap: var(--spacing-md);
-            padding: var(--spacing-md);
+            gap: 16px;
+            padding: 16px;
         }
         
         /* Header */
@@ -34,144 +34,165 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            background: var(--bg-primary);
-            padding: var(--spacing-md) var(--spacing-lg);
-            border-radius: var(--radius-lg);
-            box-shadow: var(--shadow-sm);
+            background: #2a2a2a;
+            padding: 12px 20px;
+            border-radius: 12px;
         }
         
         .header h1 {
             margin: 0;
-            font-size: var(--text-xl);
-            font-weight: var(--weight-semibold);
+            font-size: 18px;
+            font-weight: 600;
             display: flex;
             align-items: center;
-            gap: var(--spacing-sm);
-        }
-        
-        .header h1::before {
-            content: '🎬';
+            gap: 8px;
         }
         
         .header-status {
             display: flex;
-            gap: var(--spacing-lg);
+            gap: 20px;
             align-items: center;
         }
         
         .status-indicator {
             display: flex;
             align-items: center;
-            gap: var(--spacing-xs);
-            font-size: var(--text-sm);
-            color: var(--text-secondary);
+            gap: 6px;
+            font-size: 13px;
+            color: #888;
         }
         
         .status-dot {
             width: 8px;
             height: 8px;
             border-radius: 50%;
-            background: var(--text-tertiary);
+            background: #666;
         }
         
         .status-dot.live {
-            background: var(--success);
-            animation: pulse 2s infinite;
+            background: #34C759;
+            box-shadow: 0 0 8px #34C759;
         }
         
         .status-dot.error {
-            background: var(--danger);
-        }
-        
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+            background: #FF3B30;
         }
         
         /* Main content area */
         .main-content {
             display: flex;
             flex-direction: column;
-            gap: var(--spacing-md);
+            gap: 16px;
             min-height: 0;
         }
         
         /* Program output (Scene) */
         .program-section {
             flex: 1;
-            background: var(--bg-primary);
-            border-radius: var(--radius-lg);
-            box-shadow: var(--shadow-sm);
+            background: #000;
+            border-radius: 12px;
             overflow: hidden;
             display: flex;
             flex-direction: column;
             min-height: 0;
+            position: relative;
         }
         
         .section-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: var(--spacing-sm) var(--spacing-md);
-            background: var(--bg-tertiary);
-            border-bottom: 1px solid var(--border);
+            padding: 8px 12px;
+            background: rgba(0,0,0,0.8);
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 10;
         }
         
         .section-title {
-            font-size: var(--text-sm);
-            font-weight: var(--weight-semibold);
+            font-size: 12px;
+            font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            color: var(--text-secondary);
+            color: #888;
         }
         
-        .program-frame {
+        .program-video-container {
             flex: 1;
-            width: 100%;
-            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             background: #000;
         }
         
-        /* Multi-view preview */
+        .program-video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        
+        .program-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            color: #666;
+            text-align: center;
+            padding: 40px;
+        }
+        
+        .program-placeholder a {
+            color: #007AFF;
+            text-decoration: none;
+        }
+        
+        .program-placeholder a:hover {
+            text-decoration: underline;
+        }
+        
+        /* Preview Grid */
         .preview-section {
-            height: 200px;
-            background: var(--bg-primary);
-            border-radius: var(--radius-lg);
-            box-shadow: var(--shadow-sm);
+            background: #2a2a2a;
+            border-radius: 12px;
             overflow: hidden;
         }
         
         .preview-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: var(--spacing-sm);
-            padding: var(--spacing-sm);
-            height: calc(100% - 40px);
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 8px;
+            padding: 8px;
         }
         
         .preview-item {
             position: relative;
-            background: #1a1a1a;
-            border-radius: var(--radius-md);
+            background: #000;
+            border-radius: 8px;
             overflow: hidden;
             cursor: pointer;
-            transition: all var(--transition-fast);
+            transition: all 0.2s;
             border: 2px solid transparent;
+            /* 16:9 aspect ratio */
+            aspect-ratio: 16 / 9;
         }
         
         .preview-item:hover {
-            border-color: var(--accent);
+            border-color: #007AFF;
         }
         
         .preview-item.selected {
-            border-color: var(--danger);
+            border-color: #FF3B30;
             box-shadow: 0 0 0 2px rgba(255, 59, 48, 0.3);
         }
         
         .preview-item video {
             width: 100%;
             height: 100%;
-            object-fit: cover;
+            object-fit: contain;
+            background: #000;
         }
         
         .preview-label {
@@ -179,92 +200,100 @@
             bottom: 0;
             left: 0;
             right: 0;
-            padding: var(--spacing-xs) var(--spacing-sm);
-            background: linear-gradient(transparent, rgba(0,0,0,0.8));
+            padding: 4px 8px;
+            background: linear-gradient(transparent, rgba(0,0,0,0.9));
             color: white;
-            font-size: var(--text-xs);
-            font-weight: var(--weight-medium);
+            font-size: 11px;
+            font-weight: 500;
         }
         
         .preview-status {
             position: absolute;
-            top: var(--spacing-xs);
-            right: var(--spacing-xs);
-            width: 8px;
-            height: 8px;
+            top: 6px;
+            right: 6px;
+            width: 10px;
+            height: 10px;
             border-radius: 50%;
-            background: var(--text-tertiary);
+            background: #666;
+            border: 2px solid #000;
         }
         
         .preview-status.connected {
-            background: var(--success);
+            background: #34C759;
+            box-shadow: 0 0 6px #34C759;
         }
         
         /* Sidebar */
         .sidebar {
             display: flex;
             flex-direction: column;
-            gap: var(--spacing-md);
+            gap: 16px;
             min-height: 0;
+            overflow-y: auto;
         }
         
         .control-panel {
-            background: var(--bg-primary);
-            border-radius: var(--radius-lg);
-            box-shadow: var(--shadow-sm);
-            padding: var(--spacing-md);
+            background: #2a2a2a;
+            border-radius: 12px;
+            padding: 16px;
         }
         
         .control-panel h3 {
-            margin: 0 0 var(--spacing-md) 0;
-            font-size: var(--text-sm);
-            font-weight: var(--weight-semibold);
+            margin: 0 0 12px 0;
+            font-size: 12px;
+            font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            color: var(--text-secondary);
+            color: #888;
+        }
+        
+        .control-panel .helper-text {
+            font-size: 11px;
+            color: #666;
+            margin-bottom: 12px;
         }
         
         .control-buttons {
             display: flex;
             flex-direction: column;
-            gap: var(--spacing-sm);
+            gap: 8px;
         }
         
         .btn {
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: var(--spacing-sm);
-            padding: var(--spacing-sm) var(--spacing-md);
+            gap: 8px;
+            padding: 10px 16px;
             border: none;
-            border-radius: var(--radius-md);
-            font-size: var(--text-sm);
-            font-weight: var(--weight-medium);
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
             cursor: pointer;
-            transition: all var(--transition-fast);
+            transition: all 0.2s;
             font-family: inherit;
         }
         
         .btn-primary {
-            background: var(--accent);
+            background: #007AFF;
             color: white;
         }
         
         .btn-primary:hover {
-            background: var(--accent-hover);
+            background: #0056B3;
         }
         
         .btn-secondary {
-            background: var(--bg-tertiary);
-            color: var(--text-primary);
+            background: #3a3a3a;
+            color: #fff;
         }
         
         .btn-secondary:hover {
-            background: var(--bg-hover);
+            background: #4a4a4a;
         }
         
         .btn-success {
-            background: var(--success);
+            background: #34C759;
             color: white;
         }
         
@@ -273,7 +302,7 @@
         }
         
         .btn-danger {
-            background: var(--danger);
+            background: #FF3B30;
             color: white;
         }
         
@@ -281,23 +310,36 @@
             background: #e0342b;
         }
         
-        /* Director embed */
-        .director-panel {
-            flex: 1;
-            background: var(--bg-primary);
-            border-radius: var(--radius-lg);
-            box-shadow: var(--shadow-sm);
-            overflow: hidden;
+        /* Links section */
+        .link-item {
             display: flex;
-            flex-direction: column;
-            min-height: 300px;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 0;
+            border-bottom: 1px solid #3a3a3a;
         }
         
-        .director-frame {
+        .link-item:last-child {
+            border-bottom: none;
+        }
+        
+        .link-item a {
+            color: #007AFF;
+            text-decoration: none;
+            font-size: 13px;
             flex: 1;
-            width: 100%;
-            border: none;
-            background: #000;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .link-item a:hover {
+            text-decoration: underline;
+        }
+        
+        .link-item button {
+            padding: 4px 8px;
+            font-size: 11px;
         }
         
         /* Footer */
@@ -306,25 +348,24 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: var(--spacing-sm) var(--spacing-md);
-            background: var(--bg-primary);
-            border-radius: var(--radius-lg);
-            box-shadow: var(--shadow-sm);
-            font-size: var(--text-sm);
-            color: var(--text-secondary);
+            padding: 8px 16px;
+            background: #2a2a2a;
+            border-radius: 12px;
+            font-size: 12px;
+            color: #666;
         }
         
         .footer-links a {
-            color: var(--accent);
+            color: #007AFF;
             text-decoration: none;
-            margin-left: var(--spacing-md);
+            margin-left: 16px;
         }
         
         .footer-links a:hover {
             text-decoration: underline;
         }
         
-        /* Config modal */
+        /* Settings modal */
         .modal-overlay {
             display: none;
             position: fixed;
@@ -332,8 +373,8 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0,0,0,0.5);
-            z-index: var(--z-overlay);
+            background: rgba(0,0,0,0.7);
+            z-index: 100;
             align-items: center;
             justify-content: center;
         }
@@ -343,88 +384,81 @@
         }
         
         .modal {
-            background: var(--bg-primary);
-            border-radius: var(--radius-lg);
-            padding: var(--spacing-lg);
+            background: #2a2a2a;
+            border-radius: 16px;
+            padding: 24px;
             width: 90%;
-            max-width: 500px;
-            box-shadow: var(--shadow-xl);
+            max-width: 400px;
         }
         
         .modal h2 {
-            margin: 0 0 var(--spacing-md) 0;
+            margin: 0 0 16px 0;
+            font-size: 18px;
         }
         
         .form-group {
-            margin-bottom: var(--spacing-md);
+            margin-bottom: 16px;
         }
         
         .form-group label {
             display: block;
-            margin-bottom: var(--spacing-xs);
-            font-size: var(--text-sm);
-            font-weight: var(--weight-medium);
+            margin-bottom: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #888;
         }
         
         .form-group input {
             width: 100%;
-            padding: var(--spacing-sm) var(--spacing-md);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-md);
-            font-size: var(--text-base);
+            padding: 10px 12px;
+            border: 1px solid #3a3a3a;
+            border-radius: 8px;
+            font-size: 14px;
             font-family: inherit;
-            background: var(--bg-secondary);
+            background: #1a1a1a;
+            color: #fff;
         }
         
         .form-group input:focus {
             outline: none;
-            border-color: var(--accent);
+            border-color: #007AFF;
         }
         
         .modal-actions {
             display: flex;
-            gap: var(--spacing-sm);
+            gap: 8px;
             justify-content: flex-end;
-            margin-top: var(--spacing-lg);
+            margin-top: 20px;
         }
         
-        /* Toast notifications */
+        /* Toast */
         .toast-container {
             position: fixed;
-            bottom: var(--spacing-lg);
-            right: var(--spacing-lg);
-            z-index: var(--z-toast);
+            bottom: 20px;
+            right: 20px;
+            z-index: 200;
             display: flex;
             flex-direction: column;
-            gap: var(--spacing-sm);
+            gap: 8px;
         }
         
         .toast {
-            padding: var(--spacing-md) var(--spacing-lg);
-            background: var(--bg-primary);
-            border-radius: var(--radius-md);
-            box-shadow: var(--shadow-lg);
-            font-size: var(--text-sm);
+            padding: 12px 20px;
+            background: #2a2a2a;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+            font-size: 13px;
             animation: slideIn 0.3s ease;
-        }
-        
-        .toast.success {
-            border-left: 4px solid var(--success);
+            border-left: 3px solid #34C759;
         }
         
         .toast.error {
-            border-left: 4px solid var(--danger);
+            border-left-color: #FF3B30;
         }
         
         @keyframes slideIn {
-            from {
-                transform: translateX(100%);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
         }
     </style>
 </head>
@@ -436,7 +470,7 @@
             <div class="header-status">
                 <div class="status-indicator">
                     <span class="status-dot" id="bridgeStatus"></span>
-                    <span id="bridgeStatusText">Checking...</span>
+                    <span id="bridgeStatusText">Connecting...</span>
                 </div>
                 <div class="status-indicator">
                     <span class="status-dot" id="mediaStatus"></span>
@@ -447,25 +481,29 @@
         
         <!-- Main content -->
         <main class="main-content">
-            <!-- Program Output (Scene) -->
+            <!-- Program Output -->
             <section class="program-section">
                 <div class="section-header">
-                    <span class="section-title">🔴 Program Output</span>
-                    <button class="btn btn-secondary" onclick="openFullscreen('programFrame')" style="padding: 4px 8px; font-size: 11px;">⛶ Fullscreen</button>
+                    <span class="section-title">Program Output</span>
+                    <button class="btn btn-secondary" onclick="openSceneFullscreen()" style="padding: 4px 10px; font-size: 11px;">Open Scene</button>
                 </div>
-                <iframe 
-                    id="programFrame"
-                    class="program-frame" 
-                    src="" 
-                    allow="autoplay; camera; microphone"
-                ></iframe>
+                <div class="program-video-container">
+                    <video id="programVideo" class="program-video" autoplay muted playsinline></video>
+                    <div class="program-placeholder" id="programPlaceholder" style="display: none;">
+                        <div style="font-size: 48px;">📺</div>
+                        <div>
+                            <strong>Scene Output</strong><br>
+                            <a href="#" onclick="openSceneFullscreen(); return false;">Open in new window</a>
+                        </div>
+                    </div>
+                </div>
             </section>
             
             <!-- Preview Grid -->
             <section class="preview-section">
-                <div class="section-header">
-                    <span class="section-title">📹 Camera Preview</span>
-                    <button class="btn btn-secondary" onclick="refreshPreviews()" style="padding: 4px 8px; font-size: 11px;">↻ Refresh</button>
+                <div class="section-header" style="position: relative; background: transparent;">
+                    <span class="section-title">Camera Preview</span>
+                    <button class="btn btn-secondary" onclick="refreshPreviews()" style="padding: 4px 10px; font-size: 11px;">Refresh</button>
                 </div>
                 <div class="preview-grid" id="previewGrid">
                     <!-- Populated dynamically -->
@@ -475,66 +513,51 @@
         
         <!-- Sidebar -->
         <aside class="sidebar">
-            <!-- Quick Actions -->
+            <!-- Bridge Status -->
             <div class="control-panel">
-                <h3>🎛️ Camera Bridge</h3>
-                <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">
-                    Cameras auto-connect when this page is open
-                </div>
+                <h3>Camera Bridge</h3>
+                <div class="helper-text">Cameras auto-connect when this page is open</div>
                 <div class="control-buttons">
                     <button class="btn btn-danger" id="bridgeToggle" onclick="toggleBridge()">
-                        ⏹️ Disconnect
+                        Disconnect Cameras
                     </button>
-                    <button class="btn btn-primary" onclick="openVDODirector()">
-                        📺 Open Director
-                    </button>
-                    <button class="btn btn-secondary" onclick="openSettings()">
-                        ⚙️ Settings
-                    </button>
-                </div>
-                <div id="bridgeFrames" style="display: none;">
-                    <!-- Hidden iframes for &whepshare bridges -->
                 </div>
             </div>
             
-            <!-- Room Links -->
+            <!-- Quick Links -->
             <div class="control-panel">
-                <h3>🔗 Quick Links</h3>
-                <div class="control-buttons">
-                    <button class="btn btn-secondary" onclick="copyLink('scene')">
-                        📋 Copy Scene URL
-                    </button>
-                    <button class="btn btn-secondary" onclick="copyLink('guest')">
-                        📋 Copy Guest Invite
-                    </button>
-                    <button class="btn btn-secondary" onclick="copyLink('whep')">
-                        📋 Copy WHEP URL
-                    </button>
+                <h3>Quick Links</h3>
+                <div class="link-item">
+                    <a href="#" onclick="openDirector(); return false;">Director Room</a>
+                    <button class="btn btn-secondary" onclick="copyLink('director')">Copy</button>
+                </div>
+                <div class="link-item">
+                    <a href="#" onclick="openSceneFullscreen(); return false;">Scene Output (OBS)</a>
+                    <button class="btn btn-secondary" onclick="copyLink('scene')">Copy</button>
+                </div>
+                <div class="link-item">
+                    <a href="#" onclick="openGuestInvite(); return false;">Guest Invite</a>
+                    <button class="btn btn-secondary" onclick="copyLink('guest')">Copy</button>
                 </div>
             </div>
             
-            <!-- Director Embed -->
-            <section class="director-panel">
-                <div class="section-header">
-                    <span class="section-title">👔 Director Panel</span>
-                    <button class="btn btn-secondary" onclick="openVDODirector()" style="padding: 4px 8px; font-size: 11px;">↗️ Open</button>
+            <!-- Settings -->
+            <div class="control-panel">
+                <h3>Settings</h3>
+                <div class="control-buttons">
+                    <button class="btn btn-secondary" onclick="openSettings()">
+                        Configure Room & Cameras
+                    </button>
                 </div>
-                <iframe 
-                    id="directorFrame"
-                    class="director-frame" 
-                    src="" 
-                    allow="autoplay; camera; microphone"
-                ></iframe>
-            </section>
+            </div>
         </aside>
         
         <!-- Footer -->
         <footer class="footer">
-            <span>R58 Preke Recorder • VDO.ninja Integration</span>
+            <span>R58 Preke Recorder</span>
             <div class="footer-links">
-                <a href="/docs" target="_blank">API Docs</a>
+                <a href="/docs" target="_blank">API</a>
                 <a href="/api/status" target="_blank">Status</a>
-                <a href="https://docs.vdo.ninja" target="_blank">VDO.ninja Docs</a>
             </div>
         </footer>
     </div>
@@ -542,17 +565,17 @@
     <!-- Settings Modal -->
     <div class="modal-overlay" id="settingsModal">
         <div class="modal">
-            <h2>⚙️ Settings</h2>
+            <h2>Settings</h2>
             <div class="form-group">
-                <label for="vdoninjaHost">VDO.ninja Host</label>
+                <label>VDO.ninja Host</label>
                 <input type="text" id="vdoninjaHost" placeholder="r58-vdo.itagenten.no">
             </div>
             <div class="form-group">
-                <label for="roomName">Room Name</label>
+                <label>Room Name</label>
                 <input type="text" id="roomName" placeholder="r58studio">
             </div>
             <div class="form-group">
-                <label for="apiHost">API Host</label>
+                <label>API Host</label>
                 <input type="text" id="apiHost" placeholder="r58-api.itagenten.no">
             </div>
             <div class="modal-actions">
@@ -571,49 +594,35 @@
             vdoninjaHost: localStorage.getItem('vdoninjaHost') || 'r58-vdo.itagenten.no',
             roomName: localStorage.getItem('roomName') || 'r58studio',
             apiHost: localStorage.getItem('apiHost') || window.location.host,
-            cameras: ['cam2'] // Active cameras
+            cameras: ['cam2']
         };
         
-        // Initialize on load
+        // Bridge state
+        let bridgeActive = false;
+        let bridgeWindows = [];
+        let programPeerConnection = null;
+        
+        // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             loadSettings();
-            initializeFrames();
             initializePreviews();
-            checkStatus();
+            initializeProgramOutput();
             
-            // Auto-connect cameras when page loads
-            // Small delay to ensure page is ready
-            setTimeout(() => {
-                startBridge();
-            }, 1000);
+            // Auto-connect cameras
+            setTimeout(startBridge, 1000);
             
-            // Check status every 10 seconds
-            setInterval(() => {
-                checkStatus();
-                checkBridgeWindows();
-            }, 10000);
+            // Check status periodically
+            setInterval(checkBridgeWindows, 5000);
         });
         
-        // Load settings into form
+        // Load settings
         function loadSettings() {
             document.getElementById('vdoninjaHost').value = config.vdoninjaHost;
             document.getElementById('roomName').value = config.roomName;
             document.getElementById('apiHost').value = config.apiHost;
         }
         
-        // Initialize iframes
-        function initializeFrames() {
-            // Scene URL with autoadd for active cameras
-            const cameraIds = config.cameras.map((c, i) => `hdmi${i + 1}`).join(',');
-            const sceneUrl = `https://${config.vdoninjaHost}/?scene&room=${config.roomName}&autoadd=${cameraIds}`;
-            document.getElementById('programFrame').src = sceneUrl;
-            
-            // Director URL
-            const directorUrl = `https://${config.vdoninjaHost}/?director=${config.roomName}`;
-            document.getElementById('directorFrame').src = directorUrl;
-        }
-        
-        // Initialize camera previews
+        // Initialize camera previews with WHEP
         function initializePreviews() {
             const grid = document.getElementById('previewGrid');
             grid.innerHTML = '';
@@ -630,15 +639,30 @@
                 item.onclick = () => selectPreview(camId);
                 grid.appendChild(item);
                 
-                // Connect WHEP
-                connectWHEP(camId);
+                connectWHEP(camId, `video-${camId}`, `status-${camId}`);
             });
         }
         
+        // Initialize program output with WHEP (shows first camera)
+        function initializeProgramOutput() {
+            if (config.cameras.length > 0) {
+                const programVideo = document.getElementById('programVideo');
+                const placeholder = document.getElementById('programPlaceholder');
+                
+                connectWHEP(config.cameras[0], 'programVideo', null, () => {
+                    programVideo.style.display = 'block';
+                    placeholder.style.display = 'none';
+                }, () => {
+                    programVideo.style.display = 'none';
+                    placeholder.style.display = 'flex';
+                });
+            }
+        }
+        
         // Connect to WHEP endpoint
-        async function connectWHEP(camId) {
-            const video = document.getElementById(`video-${camId}`);
-            const status = document.getElementById(`status-${camId}`);
+        async function connectWHEP(camId, videoId, statusId, onSuccess, onError) {
+            const video = document.getElementById(videoId);
+            const status = statusId ? document.getElementById(statusId) : null;
             
             try {
                 const pc = new RTCPeerConnection({
@@ -647,27 +671,28 @@
                 
                 pc.ontrack = (event) => {
                     video.srcObject = event.streams[0];
-                    status.classList.add('connected');
+                    if (status) status.classList.add('connected');
+                    if (onSuccess) onSuccess();
                 };
                 
                 pc.oniceconnectionstatechange = () => {
                     if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed') {
-                        status.classList.remove('connected');
+                        if (status) status.classList.remove('connected');
+                        if (onError) onError();
                     }
                 };
                 
-                // Create offer
-                const offer = await pc.createOffer({
-                    offerToReceiveVideo: true,
-                    offerToReceiveAudio: true
-                });
+                // Add transceiver for receiving
+                pc.addTransceiver('video', { direction: 'recvonly' });
+                pc.addTransceiver('audio', { direction: 'recvonly' });
+                
+                const offer = await pc.createOffer();
                 await pc.setLocalDescription(offer);
                 
                 // Wait for ICE gathering
                 await new Promise((resolve) => {
-                    if (pc.iceGatheringState === 'complete') {
-                        resolve();
-                    } else {
+                    if (pc.iceGatheringState === 'complete') resolve();
+                    else {
                         pc.onicegatheringstatechange = () => {
                             if (pc.iceGatheringState === 'complete') resolve();
                         };
@@ -675,9 +700,7 @@
                     }
                 });
                 
-                // Send to WHEP endpoint
-                const whepUrl = `/whep/${camId}`;
-                const response = await fetch(whepUrl, {
+                const response = await fetch(`/whep/${camId}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/sdp' },
                     body: pc.localDescription.sdp
@@ -686,13 +709,13 @@
                 if (response.ok) {
                     const answer = await response.text();
                     await pc.setRemoteDescription({ type: 'answer', sdp: answer });
-                    status.classList.add('connected');
                 } else {
                     throw new Error(`WHEP failed: ${response.status}`);
                 }
             } catch (error) {
                 console.error(`WHEP error for ${camId}:`, error);
-                status.classList.remove('connected');
+                if (status) status.classList.remove('connected');
+                if (onError) onError();
             }
         }
         
@@ -705,52 +728,11 @@
         // Refresh previews
         function refreshPreviews() {
             initializePreviews();
-            showToast('Previews refreshed', 'success');
+            initializeProgramOutput();
+            showToast('Previews refreshed');
         }
         
-        // Check bridge and media status
-        async function checkStatus() {
-            try {
-                // Check API status
-                const response = await fetch('/api/status');
-                const data = await response.json();
-                
-                // Update bridge status
-                const bridgeStatus = document.getElementById('bridgeStatus');
-                const bridgeText = document.getElementById('bridgeStatusText');
-                
-                if (data.status === 'healthy') {
-                    bridgeStatus.classList.add('live');
-                    bridgeStatus.classList.remove('error');
-                    bridgeText.textContent = 'Bridge Running';
-                } else {
-                    bridgeStatus.classList.remove('live');
-                    bridgeStatus.classList.add('error');
-                    bridgeText.textContent = 'Bridge Error';
-                }
-                
-                // Update media status
-                const mediaStatus = document.getElementById('mediaStatus');
-                const mediaText = document.getElementById('mediaStatusText');
-                
-                if (data.mediamtx?.status === 'running') {
-                    mediaStatus.classList.add('live');
-                    mediaStatus.classList.remove('error');
-                    mediaText.textContent = 'MediaMTX OK';
-                } else {
-                    mediaStatus.classList.remove('live');
-                    mediaText.textContent = 'MediaMTX';
-                }
-            } catch (error) {
-                console.error('Status check error:', error);
-            }
-        }
-        
-        // Bridge state
-        let bridgeActive = false;
-        let bridgeWindows = [];
-        
-        // Toggle bridge - opens windows to join cameras to the room
+        // Toggle bridge
         function toggleBridge() {
             if (bridgeActive) {
                 stopBridge();
@@ -759,166 +741,106 @@
             }
         }
         
-        // Start bridge - opens popup windows with &whepshare URLs
-        // The &whepshare parameter tells VDO.ninja to share the WHEP stream to viewers
+        // Start bridge
         function startBridge() {
-            const container = document.getElementById('bridgeFrames');
-            container.innerHTML = '';
             bridgeWindows = [];
             
             config.cameras.forEach((camId, index) => {
                 const pushId = `hdmi${index + 1}`;
                 const label = `HDMI-${index + 1}`;
                 const whepUrl = encodeURIComponent(`https://${config.apiHost}/whep/${camId}`);
-                
-                // Build URL with &whepshare - this tells VDO.ninja to share the WHEP stream
                 const bridgeUrl = `https://${config.vdoninjaHost}/?push=${pushId}&room=${config.roomName}&whepshare=${whepUrl}&label=${label}&webcam&autostart`;
                 
-                // Open in a small popup window (needed for WebRTC to work)
-                const popup = window.open(
-                    bridgeUrl, 
-                    `bridge_${camId}`,
-                    'width=400,height=300,menubar=no,toolbar=no,location=no,status=no'
-                );
+                const popup = window.open(bridgeUrl, `bridge_${camId}`, 'width=400,height=300,menubar=no,toolbar=no,location=no,status=no');
                 
                 if (popup) {
                     bridgeWindows.push({ camId, pushId, popup });
-                    showToast(`Connecting ${label}...`, 'success');
                 } else {
-                    showToast(`Popup blocked for ${label}. Please allow popups.`, 'error');
+                    showToast(`Popup blocked for ${label}. Allow popups.`, 'error');
                 }
             });
             
             bridgeActive = bridgeWindows.length > 0;
-            updateBridgeButton();
+            updateBridgeUI();
             
-            // Give VDO.ninja time to connect, then refresh the scene
-            setTimeout(() => {
-                document.getElementById('programFrame').src = document.getElementById('programFrame').src;
-            }, 5000);
-        }
-        
-        // Stop bridge - closes popup windows
-        function stopBridge() {
-            bridgeWindows.forEach(({ popup, camId }) => {
-                try {
-                    if (popup && !popup.closed) {
-                        popup.close();
-                    }
-                } catch (e) {
-                    console.warn(`Could not close popup for ${camId}:`, e);
-                }
-            });
-            bridgeWindows = [];
-            bridgeActive = false;
-            updateBridgeButton();
-            showToast('Bridge stopped', 'success');
-        }
-        
-        // Update bridge button state
-        function updateBridgeButton() {
-            const btn = document.getElementById('bridgeToggle');
             if (bridgeActive) {
-                btn.className = 'btn btn-danger';
-                btn.innerHTML = '⏹️ Disconnect Cameras';
-            } else {
-                btn.className = 'btn btn-success';
-                btn.innerHTML = '▶️ Connect Cameras';
+                showToast('Cameras connected to VDO.ninja');
             }
         }
         
-        // Check if bridge windows are still open
+        // Stop bridge
+        function stopBridge() {
+            bridgeWindows.forEach(({ popup }) => {
+                try { if (popup && !popup.closed) popup.close(); } catch(e) {}
+            });
+            bridgeWindows = [];
+            bridgeActive = false;
+            updateBridgeUI();
+            showToast('Cameras disconnected');
+        }
+        
+        // Update bridge UI
+        function updateBridgeUI() {
+            const btn = document.getElementById('bridgeToggle');
+            const statusDot = document.getElementById('bridgeStatus');
+            const statusText = document.getElementById('bridgeStatusText');
+            
+            if (bridgeActive) {
+                btn.className = 'btn btn-danger';
+                btn.textContent = 'Disconnect Cameras';
+                statusDot.classList.add('live');
+                statusDot.classList.remove('error');
+                statusText.textContent = 'Connected';
+            } else {
+                btn.className = 'btn btn-success';
+                btn.textContent = 'Connect Cameras';
+                statusDot.classList.remove('live');
+                statusText.textContent = 'Disconnected';
+            }
+        }
+        
+        // Check bridge windows
         function checkBridgeWindows() {
             if (bridgeActive) {
                 bridgeWindows = bridgeWindows.filter(({ popup }) => popup && !popup.closed);
                 if (bridgeWindows.length === 0) {
                     bridgeActive = false;
-                    updateBridgeButton();
+                    updateBridgeUI();
                 }
             }
         }
         
-        // Start R58 server-side bridge (legacy, for when this control panel is not open)
-        async function startServerBridge() {
-            try {
-                const camerasStr = config.cameras.map((c, i) => 
-                    `${c}:hdmi${i + 1}:HDMI-${i + 1}`
-                ).join(',');
-                
-                const params = new URLSearchParams({
-                    room: config.roomName,
-                    cameras: camerasStr
-                });
-                
-                const response = await fetch(`/api/vdoninja/bridge/start?${params}`, {
-                    method: 'POST'
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    showToast('R58 bridge started', 'success');
-                    checkStatus();
-                } else {
-                    throw new Error(data.error || 'Failed to start R58 bridge');
-                }
-            } catch (error) {
-                showToast('Failed to start R58 bridge: ' + error.message, 'error');
-            }
-        }
-        
-        // Stop R58 server-side bridge
-        async function stopServerBridge() {
-            try {
-                const response = await fetch('/api/vdoninja/bridge/stop', { method: 'POST' });
-                const data = await response.json();
-                
-                if (data.success) {
-                    showToast('R58 bridge stopped', 'success');
-                    checkStatus();
-                } else {
-                    throw new Error(data.error || data.message || 'Failed to stop R58 bridge');
-                }
-            } catch (error) {
-                showToast('Failed to stop R58 bridge: ' + error.message, 'error');
-            }
-        }
-        
-        // Open VDO.ninja director in new tab
-        function openVDODirector() {
+        // Open director
+        function openDirector() {
             window.open(`https://${config.vdoninjaHost}/?director=${config.roomName}`, '_blank');
         }
         
-        // Open fullscreen
-        function openFullscreen(elementId) {
-            const el = document.getElementById(elementId);
-            if (el.requestFullscreen) {
-                el.requestFullscreen();
-            } else if (el.webkitRequestFullscreen) {
-                el.webkitRequestFullscreen();
-            }
+        // Open scene fullscreen
+        function openSceneFullscreen() {
+            const cameraIds = config.cameras.map((c, i) => `hdmi${i + 1}`).join(',');
+            window.open(`https://${config.vdoninjaHost}/?scene&room=${config.roomName}&autoadd=${cameraIds}`, '_blank');
+        }
+        
+        // Open guest invite
+        function openGuestInvite() {
+            window.open(`https://${config.vdoninjaHost}/?room=${config.roomName}`, '_blank');
         }
         
         // Copy link
         function copyLink(type) {
-            let url = '';
-            switch (type) {
-                case 'scene':
-                    url = `https://${config.vdoninjaHost}/?scene&room=${config.roomName}`;
-                    break;
-                case 'guest':
-                    url = `https://${config.vdoninjaHost}/?room=${config.roomName}`;
-                    break;
-                case 'whep':
-                    url = `https://${config.apiHost}/whep/cam2`;
-                    break;
-            }
-            navigator.clipboard.writeText(url).then(() => {
-                showToast(`Copied: ${url}`, 'success');
+            const cameraIds = config.cameras.map((c, i) => `hdmi${i + 1}`).join(',');
+            const urls = {
+                director: `https://${config.vdoninjaHost}/?director=${config.roomName}`,
+                scene: `https://${config.vdoninjaHost}/?scene&room=${config.roomName}&autoadd=${cameraIds}`,
+                guest: `https://${config.vdoninjaHost}/?room=${config.roomName}`
+            };
+            
+            navigator.clipboard.writeText(urls[type]).then(() => {
+                showToast('Link copied!');
             });
         }
         
-        // Settings modal
+        // Settings
         function openSettings() {
             document.getElementById('settingsModal').classList.add('active');
         }
@@ -937,23 +859,18 @@
             localStorage.setItem('apiHost', config.apiHost);
             
             closeSettings();
-            initializeFrames();
-            showToast('Settings saved', 'success');
+            showToast('Settings saved');
         }
         
-        // Toast notifications
+        // Toast
         function showToast(message, type = 'success') {
             const container = document.getElementById('toastContainer');
             const toast = document.createElement('div');
-            toast.className = `toast ${type}`;
+            toast.className = `toast ${type === 'error' ? 'error' : ''}`;
             toast.textContent = message;
             container.appendChild(toast);
-            
-            setTimeout(() => {
-                toast.remove();
-            }, 3000);
+            setTimeout(() => toast.remove(), 3000);
         }
     </script>
 </body>
 </html>
-
