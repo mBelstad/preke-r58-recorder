@@ -180,23 +180,25 @@ main().catch(err => {
     
     log "Puppeteer setup complete, using xdotool for picker..."
     
-    # Wait for picker dialog
-    sleep 2
+    # Wait for picker dialog to appear
+    sleep 3
     
-    # Use xdotool to select the WHEP tab and click Share
-    # The picker dialog should be focused, use keyboard navigation
-    # Tab = first item, Down = next item, Enter = select, Tab to Share button, Enter
+    # The Chrome tab picker dialog appears in the center of the screen
+    # Screen is 1920x1080, dialog is approximately centered
+    # Tab list items are around x=620, first item at y=230, second at y=258
+    # Share button is around x=877, y=549
     
-    # Click on the second item in the list (WHEP viewer tab)
-    xdotool key Down
-    sleep 0.3
-    xdotool key Return
+    log "Clicking on WHEP tab in picker (second item)..."
+    xdotool mousemove 620 258
+    sleep 0.2
+    xdotool click 1
     sleep 0.5
     
-    # Tab to Share button and click
-    xdotool key Tab
-    sleep 0.3
-    xdotool key Return
+    log "Clicking Share button..."
+    xdotool mousemove 877 549
+    sleep 0.2
+    xdotool click 1
+    sleep 1
     
     log "Screen share selection complete"
 }
