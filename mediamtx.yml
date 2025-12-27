@@ -2,6 +2,10 @@
 logLevel: info
 logDestinations: [stdout]
 
+# API settings - needed for stream status checks
+api: yes
+apiAddress: :9997
+
 # RTSP settings
 rtspAddress: :8554
 
