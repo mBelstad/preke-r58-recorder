@@ -477,13 +477,10 @@
         <aside class="sidebar">
             <!-- Quick Actions -->
             <div class="control-panel">
-                <h3>🎛️ Quick Actions</h3>
+                <h3>🎛️ Camera Bridge</h3>
                 <div class="control-buttons">
-                    <button class="btn btn-success" onclick="startBridge()">
-                        ▶️ Start Bridge
-                    </button>
-                    <button class="btn btn-danger" onclick="stopBridge()">
-                        ⏹️ Stop Bridge
+                    <button class="btn btn-success" id="bridgeToggle" onclick="toggleBridge()">
+                        ▶️ Connect Cameras
                     </button>
                     <button class="btn btn-primary" onclick="openVDODirector()">
                         📺 Open Director
@@ -491,6 +488,9 @@
                     <button class="btn btn-secondary" onclick="openSettings()">
                         ⚙️ Settings
                     </button>
+                </div>
+                <div id="bridgeFrames" style="display: none;">
+                    <!-- Hidden iframes for &whepshare bridges -->
                 </div>
             </div>
             
@@ -579,7 +579,10 @@
             checkStatus();
             
             // Check status every 10 seconds
-            setInterval(checkStatus, 10000);
+            setInterval(() => {
+                checkStatus();
+                checkBridgeWindows();
+            }, 10000);
         });
         
         // Load settings into form
@@ -734,10 +737,101 @@
             }
         }
         
-        // Start bridge
-        async function startBridge() {
+        // Bridge state
+        let bridgeActive = false;
+        let bridgeWindows = [];
+        
+        // Toggle bridge - opens windows to join cameras to the room
+        function toggleBridge() {
+            if (bridgeActive) {
+                stopBridge();
+            } else {
+                startBridge();
+            }
+        }
+        
+        // Start bridge - opens popup windows with &whepshare URLs
+        // The &whepshare parameter tells VDO.ninja to share the WHEP stream to viewers
+        function startBridge() {
+            const container = document.getElementById('bridgeFrames');
+            container.innerHTML = '';
+            bridgeWindows = [];
+            
+            config.cameras.forEach((camId, index) => {
+                const pushId = `hdmi${index + 1}`;
+                const label = `HDMI-${index + 1}`;
+                const whepUrl = encodeURIComponent(`https://${config.apiHost}/whep/${camId}`);
+                
+                // Build URL with &whepshare - this tells VDO.ninja to share the WHEP stream
+                const bridgeUrl = `https://${config.vdoninjaHost}/?push=${pushId}&room=${config.roomName}&whepshare=${whepUrl}&label=${label}&webcam&autostart`;
+                
+                // Open in a small popup window (needed for WebRTC to work)
+                const popup = window.open(
+                    bridgeUrl, 
+                    `bridge_${camId}`,
+                    'width=400,height=300,menubar=no,toolbar=no,location=no,status=no'
+                );
+                
+                if (popup) {
+                    bridgeWindows.push({ camId, pushId, popup });
+                    showToast(`Connecting ${label}...`, 'success');
+                } else {
+                    showToast(`Popup blocked for ${label}. Please allow popups.`, 'error');
+                }
+            });
+            
+            bridgeActive = bridgeWindows.length > 0;
+            updateBridgeButton();
+            
+            // Give VDO.ninja time to connect, then refresh the scene
+            setTimeout(() => {
+                document.getElementById('programFrame').src = document.getElementById('programFrame').src;
+            }, 5000);
+        }
+        
+        // Stop bridge - closes popup windows
+        function stopBridge() {
+            bridgeWindows.forEach(({ popup, camId }) => {
+                try {
+                    if (popup && !popup.closed) {
+                        popup.close();
+                    }
+                } catch (e) {
+                    console.warn(`Could not close popup for ${camId}:`, e);
+                }
+            });
+            bridgeWindows = [];
+            bridgeActive = false;
+            updateBridgeButton();
+            showToast('Bridge stopped', 'success');
+        }
+        
+        // Update bridge button state
+        function updateBridgeButton() {
+            const btn = document.getElementById('bridgeToggle');
+            if (bridgeActive) {
+                btn.className = 'btn btn-danger';
+                btn.innerHTML = '⏹️ Disconnect Cameras';
+            } else {
+                btn.className = 'btn btn-success';
+                btn.innerHTML = '▶️ Connect Cameras';
+            }
+        }
+        
+        // Check if bridge windows are still open
+        function checkBridgeWindows() {
+            if (bridgeActive) {
+                bridgeWindows = bridgeWindows.filter(({ popup }) => popup && !popup.closed);
+                if (bridgeWindows.length === 0) {
+                    bridgeActive = false;
+                    updateBridgeButton();
+                }
+            }
+        }
+        
+        // Start R58 server-side bridge (legacy, for when this control panel is not open)
+        async function startServerBridge() {
             try {
-                // Build cameras string: stream_id:push_id:label
                 const camerasStr = config.cameras.map((c, i) => 
                     `${c}:hdmi${i + 1}:HDMI-${i + 1}`
                 ).join(',');
@@ -754,30 +848,30 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    showToast('Bridge started successfully', 'success');
+                    showToast('R58 bridge started', 'success');
                     checkStatus();
                 } else {
-                    throw new Error(data.error || 'Failed to start bridge');
+                    throw new Error(data.error || 'Failed to start R58 bridge');
                 }
             } catch (error) {
-                showToast('Failed to start bridge: ' + error.message, 'error');
+                showToast('Failed to start R58 bridge: ' + error.message, 'error');
             }
         }
         
-        // Stop bridge
-        async function stopBridge() {
+        // Stop R58 server-side bridge
+        async function stopServerBridge() {
             try {
                 const response = await fetch('/api/vdoninja/bridge/stop', { method: 'POST' });
                 const data = await response.json();
                 
                 if (data.success) {
-                    showToast('Bridge stopped', 'success');
+                    showToast('R58 bridge stopped', 'success');
                     checkStatus();
                 } else {
-                    throw new Error(data.error || data.message || 'Failed to stop bridge');
+                    throw new Error(data.error || data.message || 'Failed to stop R58 bridge');
                 }
             } catch (error) {
-                showToast('Failed to stop bridge: ' + error.message, 'error');
+                showToast('Failed to stop R58 bridge: ' + error.message, 'error');
             }
         }
         
