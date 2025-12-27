@@ -118,13 +118,13 @@ function loadGuestsContent(container) {
                 <h3>🎬 VDO.ninja Director</h3>
                 <p>Full control room for managing all guests and cameras</p>
                 <div class="invite-link">
-                    <div class="invite-url">https://vdo.itagenten.no/?director=r58studio</div>
+                    <div class="invite-url" id="directorLink">https://r58-vdo.itagenten.no/?director=r58studio</div>
                 </div>
                 <div class="flex gap-sm">
                     <button class="btn btn-primary flex-1" onclick="copyDirectorLink()">
                         📋 Copy Link
                     </button>
-                    <button class="btn btn-secondary" onclick="openDirector()">
+                    <button class="btn btn-secondary" onclick="openDirectorRoom()">
                         🔗 Open
                     </button>
                 </div>
@@ -132,11 +132,11 @@ function loadGuestsContent(container) {
 
             <div class="invite-card">
                 <h3>🎛️ Full Mixer</h3>
-                <p>VDO.ninja mixer with all 4 cameras via WHEP streaming</p>
+                <p>VDO.ninja mixer with all active cameras and speakers</p>
                 <div class="invite-link">
-                    <div class="invite-url text-xs">https://vdo.itagenten.no/mixer?room=r58studio&slots=4...</div>
+                    <div class="invite-url text-xs" id="mixerLinkPreview">Loading mixer URL...</div>
                 </div>
-                <button class="btn btn-primary w-full" onclick="openMixer()">
+                <button class="btn btn-primary w-full" onclick="openMixerFromGuests()">
                     🔗 Open Mixer
                 </button>
             </div>
@@ -181,7 +181,7 @@ function loadGuestsContent(container) {
     initializeGuests();
 }
 
-function initializeGuests() {
+async function initializeGuests() {
     // Set guest invite link
     const guestLink = `${window.location.origin}/static/guest`;
     const linkEl = document.getElementById('guestInviteLink');
@@ -189,9 +189,38 @@ function initializeGuests() {
         linkEl.textContent = guestLink;
     }
 
+    // Fetch and display VDO.ninja URLs
+    await updateVDOninjaLinks();
+
     // Poll for active guests
     updateGuestSlots();
     setInterval(updateGuestSlots, 5000);
+}
+
+async function updateVDOninjaLinks() {
+    try {
+        // Update director link
+        const dirResponse = await fetch('/api/vdoninja/director-url');
+        const dirData = await dirResponse.json();
+        const dirEl = document.getElementById('directorLink');
+        if (dirEl && dirData.url) {
+            dirEl.textContent = dirData.url;
+        }
+
+        // Update mixer link preview
+        const mixResponse = await fetch('/api/vdoninja/mixer-url');
+        const mixData = await mixResponse.json();
+        const mixEl = document.getElementById('mixerLinkPreview');
+        if (mixEl && mixData.url) {
+            // Truncate for display
+            const shortUrl = mixData.url.length > 60 
+                ? mixData.url.substring(0, 60) + '...'
+                : mixData.url;
+            mixEl.textContent = shortUrl;
+        }
+    } catch (error) {
+        console.warn('Could not fetch VDO.ninja URLs:', error);
+    }
 }
 
 async function updateGuestSlots() {
@@ -206,24 +235,55 @@ function copyGuestLink() {
     });
 }
 
-function copyDirectorLink() {
-    const link = 'https://vdo.itagenten.no/?director=r58studio';
-    navigator.clipboard.writeText(link).then(() => {
-        showToast('Director link copied!');
-    });
+async function copyDirectorLink() {
+    try {
+        const response = await fetch('/api/vdoninja/director-url');
+        const data = await response.json();
+        if (data.url) {
+            await navigator.clipboard.writeText(data.url);
+            showToast('Director link copied!');
+        }
+    } catch (error) {
+        // Fallback to hardcoded URL
+        const link = 'https://r58-vdo.itagenten.no/?director=r58studio';
+        navigator.clipboard.writeText(link).then(() => {
+            showToast('Director link copied!');
+        });
+    }
 }
 
 function openGuestPortal() {
     window.open('/static/guest', '_blank');
 }
 
-function openDirector() {
-    window.open('https://vdo.itagenten.no/?director=r58studio', '_blank');
+async function openDirectorRoom() {
+    try {
+        const response = await fetch('/api/vdoninja/director-url');
+        const data = await response.json();
+        if (data.url) {
+            window.open(data.url, '_blank');
+        } else {
+            // Fallback
+            window.open('https://r58-vdo.itagenten.no/?director=r58studio', '_blank');
+        }
+    } catch (error) {
+        window.open('https://r58-vdo.itagenten.no/?director=r58studio', '_blank');
+    }
 }
 
-function openMixer() {
-    const mixerUrl = `https://vdo.itagenten.no/mixer?room=r58studio&slots=4&automixer&whep=https://r58-mediamtx.itagenten.no/cam0/whep&label=CAM0&whep=https://r58-mediamtx.itagenten.no/cam1/whep&label=CAM1&whep=https://r58-mediamtx.itagenten.no/cam2/whep&label=CAM2&whep=https://r58-mediamtx.itagenten.no/cam3/whep&label=CAM3`;
-    window.open(mixerUrl, '_blank');
+async function openMixerFromGuests() {
+    try {
+        const response = await fetch('/api/vdoninja/mixer-url');
+        const data = await response.json();
+        if (data.url) {
+            window.open(data.url, '_blank');
+        } else {
+            showToast('Failed to generate mixer URL');
+        }
+    } catch (error) {
+        console.error('Failed to open mixer:', error);
+        showToast('Error opening mixer');
+    }
 }
 
 function showToast(message) {
@@ -255,6 +315,6 @@ window.loadGuestsContent = loadGuestsContent;
 window.copyGuestLink = copyGuestLink;
 window.copyDirectorLink = copyDirectorLink;
 window.openGuestPortal = openGuestPortal;
-window.openDirector = openDirector;
-window.openMixer = openMixer;
+window.openDirectorRoom = openDirectorRoom;
+window.openMixerFromGuests = openMixerFromGuests;
 

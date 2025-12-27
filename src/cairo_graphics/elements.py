@@ -619,3 +619,4 @@ class LogoOverlay(GraphicsElement):
         context.restore()
 
 
+

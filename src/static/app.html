@@ -9,6 +9,7 @@
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <script src="/static/js/studio.js" defer></script>
     <script src="/static/js/guests.js" defer></script>
+    <script src="/static/js/mixer.js" defer></script>
     <style>
         /* App Shell Layout */
         .app-container {
@@ -259,6 +260,10 @@
                     <span class="nav-item-icon">📚</span>
                     <span class="nav-item-text">Library</span>
                 </a>
+                <a href="#" class="nav-item" data-section="mixer">
+                    <span class="nav-item-icon">🎛️</span>
+                    <span class="nav-item-text">Mixer</span>
+                </a>
                 <a href="#" class="nav-item" data-section="graphics">
                     <span class="nav-item-icon">🎨</span>
                     <span class="nav-item-text">Graphics</span>
@@ -305,6 +310,11 @@
                 <!-- Library Section -->
                 <div class="section" id="library-section">
                     <div id="library-content"></div>
+                </div>
+
+                <!-- Mixer Section -->
+                <div class="section" id="mixer-section">
+                    <div id="mixer-content"></div>
                 </div>
 
                 <!-- Graphics Section -->
@@ -354,6 +364,7 @@
             // Update title
             const titles = {
                 'studio': 'Studio',
+                'mixer': 'VDO.ninja Mixer',
                 'library': 'Library',
                 'graphics': 'Graphics',
                 'guests': 'Guests',
@@ -378,6 +389,9 @@
             switch(sectionName) {
                 case 'studio':
                     loadStudioContent(contentDiv);
+                    break;
+                case 'mixer':
+                    loadMixerContent(contentDiv);
                     break;
                 case 'library':
                     loadLibraryContent(contentDiv);

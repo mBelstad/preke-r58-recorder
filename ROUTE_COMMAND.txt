@@ -11,3 +11,4 @@ If that works, open VDO.ninja:
 open "https://192.168.1.24:8443/?director=r58studio&wss=192.168.1.24:8443"
 
 
+

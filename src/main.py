@@ -3244,6 +3244,147 @@ async def clear_queue() -> Dict[str, str]:
     return {"status": "cleared"}
 
 
+# ============================================================================
+# VDO.ninja Integration API Endpoints
+# ============================================================================
+
+# VDO.ninja URL configuration
+# Use local instance via FRP tunnel for remote access
+VDONINJA_LOCAL_HOST = "localhost:8443"
+VDONINJA_REMOTE_HOST = "r58-vdo.itagenten.no"
+MEDIAMTX_REMOTE_HOST = "r58-mediamtx.itagenten.no"
+
+
+@app.get("/api/vdoninja/sources")
+async def get_vdoninja_sources(request: Request) -> Dict[str, Any]:
+    """Get all available sources (cameras + speakers) for VDO.ninja mixer.
+    
+    Returns a list of all sources with their status and WHEP URLs.
+    """
+    sources = []
+    
+    # Determine if request is local or remote
+    host = request.headers.get("host", "")
+    is_remote = "itagenten.no" in host or not any(x in host for x in ["localhost", "127.0.0.1", "192.168"])
+    mediamtx_base = f"https://{MEDIAMTX_REMOTE_HOST}" if is_remote else "http://localhost:8889"
+    
+    # Get camera sources from ingest manager
+    ingest_statuses = ingest_manager.get_status()
+    for i, (cam_id, status) in enumerate(sorted(ingest_statuses.items())):
+        cam_number = i + 1
+        has_signal = status.has_signal and status.status == "streaming"
+        
+        resolution_str = None
+        if status.resolution:
+            resolution_str = f"{status.resolution[0]}x{status.resolution[1]}"
+        
+        sources.append({
+            "name": f"CAM{cam_number}",
+            "stream": cam_id,
+            "type": "camera",
+            "whep_url": f"{mediamtx_base}/{cam_id}/whep",
+            "active": has_signal,
+            "resolution": resolution_str
+        })
+    
+    # Get speaker sources from MediaMTX API
+    speaker_streams = ["speaker0", "speaker1", "speaker2"]
+    for i, speaker_id in enumerate(speaker_streams):
+        speaker_active = False
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"http://127.0.0.1:9997/v3/paths/get/{speaker_id}",
+                    timeout=1.0
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    speaker_active = data.get("sourceReady", False)
+        except Exception:
+            pass
+        
+        sources.append({
+            "name": f"Speaker {i + 1}",
+            "stream": speaker_id,
+            "type": "speaker",
+            "whep_url": f"{mediamtx_base}/{speaker_id}/whep",
+            "active": speaker_active,
+            "resolution": None
+        })
+    
+    return {
+        "sources": sources,
+        "summary": {
+            "total": len(sources),
+            "active": sum(1 for s in sources if s["active"]),
+            "cameras": sum(1 for s in sources if s["type"] == "camera"),
+            "speakers": sum(1 for s in sources if s["type"] == "speaker"),
+            "active_cameras": sum(1 for s in sources if s["type"] == "camera" and s["active"]),
+            "active_speakers": sum(1 for s in sources if s["type"] == "speaker" and s["active"])
+        }
+    }
+
+
+@app.get("/api/vdoninja/mixer-url")
+async def get_vdoninja_mixer_url(request: Request, include_inactive: bool = False) -> Dict[str, Any]:
+    """Get VDO.ninja mixer URL with all active sources pre-configured.
+    
+    Args:
+        include_inactive: If True, include sources without signal (default False)
+    
+    Returns the full VDO.ninja mixer URL with WHEP parameters for all active sources.
+    """
+    # Determine if request is local or remote
+    host = request.headers.get("host", "")
+    is_remote = "itagenten.no" in host or not any(x in host for x in ["localhost", "127.0.0.1", "192.168"])
+    
+    vdoninja_base = f"https://{VDONINJA_REMOTE_HOST}" if is_remote else f"https://{VDONINJA_LOCAL_HOST}"
+    mediamtx_base = f"https://{MEDIAMTX_REMOTE_HOST}" if is_remote else "http://localhost:8889"
+    
+    # Build base mixer URL
+    mixer_url = f"{vdoninja_base}/mixer?room=r58studio&automixer"
+    
+    # Get sources
+    sources_response = await get_vdoninja_sources(request)
+    sources = sources_response["sources"]
+    
+    # Add WHEP parameters for active (or all) sources
+    active_sources = []
+    for source in sources:
+        if source["active"] or include_inactive:
+            mixer_url += f"&whep={source['whep_url']}&label={source['name']}"
+            active_sources.append(source["name"])
+    
+    return {
+        "url": mixer_url,
+        "vdoninja_host": VDONINJA_REMOTE_HOST if is_remote else VDONINJA_LOCAL_HOST,
+        "mediamtx_host": MEDIAMTX_REMOTE_HOST if is_remote else "localhost:8889",
+        "active_sources": active_sources,
+        "source_count": len(active_sources),
+        "is_remote": is_remote
+    }
+
+
+@app.get("/api/vdoninja/director-url")
+async def get_vdoninja_director_url(request: Request) -> Dict[str, Any]:
+    """Get VDO.ninja director room URL.
+    
+    Returns the director URL for the r58studio room.
+    """
+    # Determine if request is local or remote
+    host = request.headers.get("host", "")
+    is_remote = "itagenten.no" in host or not any(x in host for x in ["localhost", "127.0.0.1", "192.168"])
+    
+    vdoninja_base = f"https://{VDONINJA_REMOTE_HOST}" if is_remote else f"https://{VDONINJA_LOCAL_HOST}"
+    
+    return {
+        "url": f"{vdoninja_base}/?director=r58studio",
+        "room": "r58studio",
+        "vdoninja_host": VDONINJA_REMOTE_HOST if is_remote else VDONINJA_LOCAL_HOST,
+        "is_remote": is_remote
+    }
+
+
 if __name__ == "__main__":
     import uvicorn
 
