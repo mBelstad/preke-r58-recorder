@@ -3804,8 +3804,8 @@ async def get_vdoninja_whepshare_url(
     actual_label = label or f"HDMI-{stream_id.upper()}"
     
     # Build VDO.ninja URL with whepshare parameter
-    # &novideo&noaudio prevents camera/mic prompts - &whepshare provides the video
-    room_url = f"{vdoninja_base}/?push={actual_push_id}&room={room}&whepshare={encoded_whep}&label={actual_label}&novideo&noaudio&autostart"
+    # &videodevice=0&audiodevice=0 disables local devices (no permission prompts)
+    room_url = f"{vdoninja_base}/?push={actual_push_id}&room={room}&whepshare={encoded_whep}&label={actual_label}&videodevice=0&audiodevice=0&autostart"
     
     return {
         "url": room_url,
@@ -3866,8 +3866,8 @@ async def get_vdoninja_room_urls(
         label = cam_config.label if hasattr(cam_config, 'label') and cam_config.label else f"HDMI-{cam_id.upper()}"
         push_id = f"hdmi{cam_id[-1]}" if cam_id.startswith("cam") else cam_id
         
-        # &novideo&noaudio prevents camera/mic prompts - &whepshare provides the video
-        cam_url = f"{vdoninja_base}/?push={push_id}&room={room}&whepshare={encoded_whep}&label={label}&novideo&noaudio&autostart"
+        # &videodevice=0&audiodevice=0 disables local devices (no permission prompts)
+        cam_url = f"{vdoninja_base}/?push={push_id}&room={room}&whepshare={encoded_whep}&label={label}&videodevice=0&audiodevice=0&autostart"
         
         cameras.append({
             "cam_id": cam_id,
