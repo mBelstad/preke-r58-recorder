@@ -86,29 +86,11 @@
             min-height: 0;
         }
         
-        /* Program output (Scene) */
-        .program-section {
-            flex: 1;
-            background: #000;
-            border-radius: 12px;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            min-height: 0;
-            position: relative;
-        }
-        
         .section-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             padding: 8px 12px;
-            background: rgba(0,0,0,0.8);
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            z-index: 10;
         }
         
         .section-title {
@@ -116,48 +98,15 @@
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            color: #888;
+            color: #aaa;
         }
         
-        .program-video-container {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #000;
-        }
-        
-        .program-video {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-        }
-        
-        .program-placeholder {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 16px;
-            color: #666;
-            text-align: center;
-            padding: 40px;
-        }
-        
-        .program-placeholder a {
-            color: #007AFF;
-            text-decoration: none;
-        }
-        
-        .program-placeholder a:hover {
-            text-decoration: underline;
-        }
-        
-        /* Preview Grid */
+        /* Preview Section - Main Camera View */
         .preview-section {
-            background: #2a2a2a;
+            background: #000;
             border-radius: 12px;
             overflow: hidden;
+            position: relative;
         }
         
         .preview-grid {
@@ -481,31 +430,13 @@
         
         <!-- Main content -->
         <main class="main-content">
-            <!-- Program Output -->
-            <section class="program-section">
-                <div class="section-header">
-                    <span class="section-title">Program Output</span>
-                    <button class="btn btn-secondary" onclick="openSceneFullscreen()" style="padding: 4px 10px; font-size: 11px;">Open Scene</button>
-                </div>
-                <div class="program-video-container">
-                    <video id="programVideo" class="program-video" autoplay muted playsinline></video>
-                    <div class="program-placeholder" id="programPlaceholder" style="display: none;">
-                        <div style="font-size: 48px;">📺</div>
-                        <div>
-                            <strong>Scene Output</strong><br>
-                            <a href="#" onclick="openSceneFullscreen(); return false;">Open in new window</a>
-                        </div>
-                    </div>
-                </div>
-            </section>
-            
-            <!-- Preview Grid -->
-            <section class="preview-section">
-                <div class="section-header" style="position: relative; background: transparent;">
-                    <span class="section-title">Camera Preview</span>
+            <!-- Camera Preview - Main View -->
+            <section class="preview-section" style="flex: 1;">
+                <div class="section-header" style="position: absolute; top: 0; left: 0; right: 0; z-index: 10; background: rgba(0,0,0,0.6); padding: 8px 12px;">
+                    <span class="section-title">Live Camera Feed</span>
                     <button class="btn btn-secondary" onclick="refreshPreviews()" style="padding: 4px 10px; font-size: 11px;">Refresh</button>
                 </div>
-                <div class="preview-grid" id="previewGrid">
+                <div class="preview-grid" id="previewGrid" style="height: 100%; padding: 0;">
                     <!-- Populated dynamically -->
                 </div>
             </section>
@@ -600,13 +531,11 @@
         // Bridge state
         let bridgeActive = false;
         let bridgeWindows = [];
-        let programPeerConnection = null;
         
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             loadSettings();
             initializePreviews();
-            initializeProgramOutput();
             
             // Auto-connect cameras
             setTimeout(startBridge, 1000);
@@ -643,21 +572,6 @@
             });
         }
         
-        // Initialize program output with WHEP (shows first camera)
-        function initializeProgramOutput() {
-            if (config.cameras.length > 0) {
-                const programVideo = document.getElementById('programVideo');
-                const placeholder = document.getElementById('programPlaceholder');
-                
-                connectWHEP(config.cameras[0], 'programVideo', null, () => {
-                    programVideo.style.display = 'block';
-                    placeholder.style.display = 'none';
-                }, () => {
-                    programVideo.style.display = 'none';
-                    placeholder.style.display = 'flex';
-                });
-            }
-        }
         
         // Connect to WHEP endpoint
         async function connectWHEP(camId, videoId, statusId, onSuccess, onError) {
@@ -728,8 +642,7 @@
         // Refresh previews
         function refreshPreviews() {
             initializePreviews();
-            initializeProgramOutput();
-            showToast('Previews refreshed');
+            showToast('Refreshed');
         }
         
         // Toggle bridge
