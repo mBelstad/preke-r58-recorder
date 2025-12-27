@@ -3803,8 +3803,9 @@ async def get_vdoninja_whepshare_url(
     actual_push_id = push_id or stream_id
     actual_label = label or f"HDMI-{stream_id.upper()}"
     
-    # Build VDO.ninja URL with whepshare parameter (no local camera needed)
-    room_url = f"{vdoninja_base}/?push={actual_push_id}&room={room}&whepshare={encoded_whep}&label={actual_label}&vd=0&ad=0&autostart"
+    # Build VDO.ninja URL with whepshare parameter
+    # &webcam needed for publishing, &effects=4 shows black instead of webcam preview
+    room_url = f"{vdoninja_base}/?push={actual_push_id}&room={room}&whepshare={encoded_whep}&label={actual_label}&webcam&effects=4&autostart"
     
     return {
         "url": room_url,
@@ -3865,8 +3866,8 @@ async def get_vdoninja_room_urls(
         label = cam_config.label if hasattr(cam_config, 'label') and cam_config.label else f"HDMI-{cam_id.upper()}"
         push_id = f"hdmi{cam_id[-1]}" if cam_id.startswith("cam") else cam_id
         
-        # Use &vd=0&ad=0 to prevent camera/mic prompts (WHEP provides the media)
-        cam_url = f"{vdoninja_base}/?push={push_id}&room={room}&whepshare={encoded_whep}&label={label}&vd=0&ad=0&autostart"
+        # &webcam needed for publishing, &effects=4 shows black instead of webcam preview
+        cam_url = f"{vdoninja_base}/?push={push_id}&room={room}&whepshare={encoded_whep}&label={label}&webcam&effects=4&autostart"
         
         cameras.append({
             "cam_id": cam_id,

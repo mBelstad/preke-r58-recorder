@@ -717,9 +717,10 @@
                     const pushId = `hdmi${index + 1}`;
                     const label = `HDMI-${index + 1}`;
                     const whepUrl = encodeURIComponent(`https://${config.apiHost}/whep/${camId}`);
-                    // Use &whepshare without &webcam to avoid local camera access
-                    // &vd=0&ad=0 prevents camera/mic permission prompts
-                    const bridgeUrl = `https://${config.vdoninjaHost}/?push=${pushId}&room=${config.roomName}&whepshare=${whepUrl}&label=${label}&vd=0&ad=0&autostart`;
+                    // Use &whepshare with &webcam for publishing
+                    // Note: VDO.ninja may briefly show local webcam before WHEP takes over for viewers
+                    // &effects=4 uses a black screen instead of webcam preview
+                    const bridgeUrl = `https://${config.vdoninjaHost}/?push=${pushId}&room=${config.roomName}&whepshare=${whepUrl}&label=${label}&webcam&effects=4&autostart`;
                     
                     const popup = window.open(bridgeUrl, `bridge_${camId}`, 'width=500,height=400,menubar=no,toolbar=no,location=no,status=no');
                     if (popup) {

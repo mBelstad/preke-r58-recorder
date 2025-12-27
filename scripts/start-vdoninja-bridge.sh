@@ -96,9 +96,9 @@ start_chromium() {
         local encoded_whep=$(url_encode "$whep_url")
         
         # Build the VDO.ninja URL with &whepshare
-        # &vd=0&ad=0 prevents camera/mic permission prompts
+        # &webcam is needed for publishing, &effects=4 shows black instead of webcam
         # &autostart automatically starts streaming
-        local vdo_url="https://$VDONINJA_HOST/?push=$push_id&room=$ROOM_NAME&whepshare=$encoded_whep&label=$label&vd=0&ad=0&autostart"
+        local vdo_url="https://$VDONINJA_HOST/?push=$push_id&room=$ROOM_NAME&whepshare=$encoded_whep&label=$label&webcam&effects=4&autostart"
         urls="$urls $vdo_url"
         
         log "Camera: $label -> $whep_url"
