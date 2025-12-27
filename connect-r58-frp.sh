@@ -22,13 +22,24 @@ SSH_OPTS=(
     -p ${R58_PORT}
 )
 
-# Prefer SSH key if available, fall back to password
-if [[ -f "$R58_KEY" ]]; then
+# Check for --password flag to force password auth
+USE_PASSWORD=false
+ARGS=()
+for arg in "$@"; do
+    if [[ "$arg" == "--password" ]]; then
+        USE_PASSWORD=true
+    else
+        ARGS+=("$arg")
+    fi
+done
+
+# Prefer SSH key if available (unless --password flag), fall back to password
+if [[ -f "$R58_KEY" ]] && [[ "$USE_PASSWORD" == "false" ]]; then
     echo "Using SSH key authentication"
     ssh "${SSH_OPTS[@]}" \
         -i "$R58_KEY" \
         ${R58_USER}@${R58_VPS} \
-        "$@"
+        "${ARGS[@]}"
 else
     # Fall back to password authentication
     if ! command -v sshpass >/dev/null 2>&1; then
@@ -43,7 +54,7 @@ else
         -o PreferredAuthentications=password \
         -o PubkeyAuthentication=no \
         ${R58_USER}@${R58_VPS} \
-        "$@"
+        "${ARGS[@]}"
 fi
 
 
