@@ -500,6 +500,9 @@
         </footer>
     </div>
     
+    <!-- Hidden container for VDO.ninja bridge iframes -->
+    <div id="bridgeIframes" style="position: absolute; width: 1px; height: 1px; overflow: hidden; left: -9999px;"></div>
+    
     <!-- Settings Modal -->
     <div class="modal-overlay" id="settingsModal">
         <div class="modal">
@@ -537,7 +540,6 @@
         
         // Bridge state
         let bridgeActive = false;
-        let popupWindows = [];
         
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
@@ -546,9 +548,9 @@
             checkBridgeStatus();
             
             // Auto-connect to VDO.ninja when page loads
-            // The connection runs in a background window
+            // The connection runs in a hidden iframe
             setTimeout(() => {
-                if (popupWindows.length === 0) {
+                if (!bridgeActive) {
                     togglePopupBridge();
                 }
             }, 2000);
@@ -558,7 +560,7 @@
             
             // Disconnect when leaving page
             window.addEventListener('beforeunload', () => {
-                popupWindows.forEach(w => { try { w.close(); } catch(e) {} });
+                document.getElementById('bridgeIframes').innerHTML = '';
             });
         });
         
@@ -569,24 +571,31 @@
             document.getElementById('apiHost').value = config.apiHost;
         }
         
-        // Initialize camera previews with WHEP
+        // Initialize camera previews using VDO.ninja iframe with &whepplay
         function initializePreviews() {
             const grid = document.getElementById('previewGrid');
             grid.innerHTML = '';
             
             config.cameras.forEach((camId, index) => {
+                const whepUrl = encodeURIComponent(`https://${config.apiHost}/whep/${camId}`);
+                // Use VDO.ninja &whepplay for clean video playback in iframe
+                const vdoUrl = `https://${config.vdoninjaHost}/?whepplay=${whepUrl}&cleanoutput&autoplay`;
+                
                 const item = document.createElement('div');
                 item.className = 'preview-item';
                 item.id = `preview-${camId}`;
                 item.innerHTML = `
-                    <video id="video-${camId}" autoplay muted playsinline></video>
-                    <div class="preview-status" id="status-${camId}"></div>
+                    <iframe 
+                        id="video-${camId}" 
+                        src="${vdoUrl}" 
+                        allow="autoplay; fullscreen"
+                        style="width: 100%; height: 100%; border: none;"
+                    ></iframe>
+                    <div class="preview-status connected" id="status-${camId}"></div>
                     <div class="preview-label">HDMI ${index + 1} (${camId})</div>
                 `;
                 item.onclick = () => selectPreview(camId);
                 grid.appendChild(item);
-                
-                connectWHEP(camId, `video-${camId}`, `status-${camId}`);
             });
         }
         
@@ -716,51 +725,39 @@
             showToast('Settings saved');
         }
         
-        // Toggle popup-based bridge (runs in your browser)
-        // The popup runs in background - needed because VDO.ninja blocks iframes
+        // Toggle iframe-based bridge (hidden iframe on page)
         function togglePopupBridge() {
-            if (popupWindows.length > 0) {
-                // Close all popups
-                popupWindows.forEach(w => { try { w.close(); } catch(e) {} });
-                popupWindows = [];
+            const bridgeContainer = document.getElementById('bridgeIframes');
+            
+            if (bridgeActive) {
+                // Remove bridge iframes
+                bridgeContainer.innerHTML = '';
+                bridgeActive = false;
                 updatePopupUI(false);
-                showToast('Disconnected');
+                showToast('Disconnected from VDO.ninja');
             } else {
-                // Open hidden background popups for each camera
+                // Create hidden iframes for each camera to connect to room
+                bridgeContainer.innerHTML = '';
+                
                 config.cameras.forEach((camId, index) => {
                     const pushId = `hdmi${index + 1}`;
                     const label = `HDMI-${index + 1}`;
                     const whepUrl = encodeURIComponent(`https://${config.apiHost}/whep/${camId}`);
-                    // &whepshare provides the video source
-                    // &videodevice=0&audiodevice=0 disables local devices (no permission prompts)
-                    const bridgeUrl = `https://${config.vdoninjaHost}/?push=${pushId}&room=${config.roomName}&whepshare=${whepUrl}&label=${label}&videodevice=0&audiodevice=0&autostart`;
+                    // &whepshare provides the video source to viewers
+                    // &cleanoutput removes UI, &autostart auto-joins
+                    const bridgeUrl = `https://${config.vdoninjaHost}/?push=${pushId}&room=${config.roomName}&whepshare=${whepUrl}&label=${label}&cleanoutput&autostart`;
                     
-                    // Open as small background window, positioned off-screen
-                    // The page just needs to be loaded for WebRTC connection to work
-                    const popup = window.open(
-                        bridgeUrl, 
-                        `bridge_${camId}`, 
-                        'width=1,height=1,left=-1000,top=-1000,menubar=no,toolbar=no,location=no,status=no,resizable=no'
-                    );
-                    
-                    if (popup) {
-                        popupWindows.push(popup);
-                        // Blur focus back to main window
-                        try { 
-                            popup.blur();
-                            window.focus();
-                        } catch(e) {}
-                    } else {
-                        showToast(`Popup blocked! Allow popups for this site.`, 'error');
-                    }
+                    const iframe = document.createElement('iframe');
+                    iframe.src = bridgeUrl;
+                    iframe.id = `bridge-${camId}`;
+                    iframe.allow = 'autoplay';
+                    iframe.style.cssText = 'width: 1px; height: 1px; position: absolute; left: -9999px; opacity: 0;';
+                    bridgeContainer.appendChild(iframe);
                 });
                 
-                if (popupWindows.length > 0) {
-                    updatePopupUI(true);
-                    showToast('Connected to VDO.ninja');
-                    // Focus back on main window
-                    window.focus();
-                }
+                bridgeActive = true;
+                updatePopupUI(true);
+                showToast('Connected to VDO.ninja room');
             }
         }
         
@@ -780,16 +777,16 @@
             }
         }
         
-        // Check popup windows periodically
-        function checkPopupWindows() {
-            if (popupWindows.length > 0) {
-                popupWindows = popupWindows.filter(w => w && !w.closed);
-                if (popupWindows.length === 0) {
-                    updatePopupUI(false);
-                }
+        // Check bridge iframes periodically
+        function checkBridgeIframes() {
+            const container = document.getElementById('bridgeIframes');
+            const hasIframes = container && container.children.length > 0;
+            if (bridgeActive && !hasIframes) {
+                bridgeActive = false;
+                updatePopupUI(false);
             }
         }
-        setInterval(checkPopupWindows, 3000);
+        setInterval(checkBridgeIframes, 5000);
         
         // Check R58 bridge status via API
         async function checkBridgeStatus() {
