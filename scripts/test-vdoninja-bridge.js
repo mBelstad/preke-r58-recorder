@@ -6,7 +6,7 @@
 
 const puppeteer = require('puppeteer-core');
 
-const CHROMIUM_WS = 'ws://localhost:9222';
+const CHROMIUM_WS = 'ws://127.0.0.1:9222';
 const BRIDGE_URL = 'https://r58-api.itagenten.no/static/vdoninja-guest-bridge.html';
 const ROOM = process.argv[2] || 'testroom4';
 const VDO_HOST = 'r58-vdo.itagenten.no';
@@ -16,10 +16,22 @@ async function main() {
     console.log(`Room: ${ROOM}`);
     
     try {
+        // Get browser WebSocket endpoint
+        console.log('\n1. Getting browser endpoint...');
+        const http = require('http');
+        const versionData = await new Promise((resolve, reject) => {
+            http.get('http://127.0.0.1:9222/json/version', (res) => {
+                let data = '';
+                res.on('data', chunk => data += chunk);
+                res.on('end', () => resolve(JSON.parse(data)));
+            }).on('error', reject);
+        });
+        console.log(`   Browser: ${versionData.Browser}`);
+        
         // Connect to existing browser
-        console.log('\n1. Connecting to Chromium...');
+        console.log('\n2. Connecting to Chromium...');
         const browser = await puppeteer.connect({
-            browserWSEndpoint: `${CHROMIUM_WS}/devtools/browser/63464dac-23bc-4d01-bfb3-89d5d536adb3`,
+            browserWSEndpoint: versionData.webSocketDebuggerUrl,
         });
         console.log('   ✓ Connected to browser');
         
@@ -31,16 +43,16 @@ async function main() {
         let bridgePage = pages.find(p => p.url().includes('vdoninja-guest-bridge'));
         
         if (!bridgePage) {
-            console.log('\n2. Opening bridge page...');
+            console.log('\n3. Opening bridge page...');
             bridgePage = await browser.newPage();
             await bridgePage.goto(`${BRIDGE_URL}?room=${ROOM}&autostart`, { waitUntil: 'networkidle0', timeout: 30000 });
         } else {
-            console.log('\n2. Using existing bridge page');
+            console.log('\n3. Using existing bridge page');
         }
         console.log(`   URL: ${bridgePage.url()}`);
         
         // Wait for WHEP to connect
-        console.log('\n3. Checking WHEP status...');
+        console.log('\n4. Checking WHEP status...');
         await bridgePage.waitForFunction(
             () => document.getElementById('whepStatus')?.textContent?.includes('Connected'),
             { timeout: 15000 }
@@ -64,7 +76,7 @@ async function main() {
         console.log(`   Video: ${videoStats ? `${videoStats.width}x${videoStats.height}` : 'No video'}`);
         
         // Now open a new tab to join the room with screenshare
-        console.log('\n4. Opening VDO.ninja screenshare tab...');
+        console.log('\n5. Opening VDO.ninja screenshare tab...');
         const screensharePage = await browser.newPage();
         
         // Navigate to screenshare URL
@@ -76,7 +88,7 @@ async function main() {
         await new Promise(r => setTimeout(r, 3000));
         
         // Try to click the "SELECT SCREEN TO SHARE" button
-        console.log('\n5. Looking for screen share button...');
+        console.log('\n6. Looking for screen share button...');
         const buttonFound = await screensharePage.evaluate(() => {
             const buttons = Array.from(document.querySelectorAll('button'));
             const shareBtn = buttons.find(b => b.textContent.includes('SELECT SCREEN'));
@@ -96,7 +108,7 @@ async function main() {
         }
         
         // Open director to monitor
-        console.log('\n6. Opening Director page...');
+        console.log('\n7. Opening Director page...');
         const directorPage = await browser.newPage();
         await directorPage.goto(`https://${VDO_HOST}/?director=${ROOM}`, { waitUntil: 'networkidle0', timeout: 30000 });
         
@@ -109,7 +121,7 @@ async function main() {
         console.log(`   Director page loaded, guest elements: ${guestCount}`);
         
         // Take a screenshot of the director
-        console.log('\n7. Taking screenshot of director...');
+        console.log('\n8. Taking screenshot of director...');
         await directorPage.screenshot({ path: '/tmp/director-screenshot.png', fullPage: true });
         console.log('   Saved to /tmp/director-screenshot.png');
         
