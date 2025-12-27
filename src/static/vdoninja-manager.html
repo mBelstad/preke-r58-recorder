@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VDO.ninja Camera Manager</title>
+    <style>
+        :root {
+            --bg-primary: #0f0f0f;
+            --bg-secondary: #1a1a1a;
+            --bg-card: #242424;
+            --accent: #00d4aa;
+            --accent-hover: #00ffcc;
+            --text-primary: #ffffff;
+            --text-secondary: #888888;
+            --border: #333333;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --error: #ef4444;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        h1 {
+            font-size: 1.8rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        h1 .icon {
+            color: var(--accent);
+        }
+        
+        .room-selector {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        
+        .room-selector input {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 1rem;
+            width: 200px;
+        }
+        
+        .room-selector input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+        
+        .btn {
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .btn-primary {
+            background: var(--accent);
+            color: var(--bg-primary);
+        }
+        
+        .btn-primary:hover {
+            background: var(--accent-hover);
+        }
+        
+        .btn-secondary {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+        
+        .btn-secondary:hover {
+            border-color: var(--accent);
+        }
+        
+        .quick-links {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .link-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid var(--border);
+            transition: all 0.2s;
+        }
+        
+        .link-card:hover {
+            border-color: var(--accent);
+            transform: translateY(-2px);
+        }
+        
+        .link-card h3 {
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .link-card p {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            margin-bottom: 1rem;
+        }
+        
+        .link-card .url {
+            font-family: monospace;
+            font-size: 0.75rem;
+            color: var(--accent);
+            word-break: break-all;
+            background: var(--bg-secondary);
+            padding: 0.5rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+        }
+        
+        .link-card .actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .cameras-section h2 {
+            font-size: 1.3rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .camera-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 1rem;
+        }
+        
+        .camera-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+        
+        .camera-card.active {
+            border-color: var(--success);
+        }
+        
+        .camera-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            background: var(--bg-secondary);
+        }
+        
+        .camera-header h3 {
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .camera-status {
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            font-size: 0.8rem;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+        
+        .status-dot.online {
+            background: var(--success);
+        }
+        
+        .status-dot.offline {
+            background: var(--error);
+        }
+        
+        .camera-body {
+            padding: 1rem;
+        }
+        
+        .camera-info {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            font-size: 0.85rem;
+        }
+        
+        .camera-info dt {
+            color: var(--text-secondary);
+        }
+        
+        .camera-info dd {
+            font-family: monospace;
+            font-size: 0.8rem;
+        }
+        
+        .camera-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        
+        .copy-toast {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--success);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+        
+        .copy-toast.show {
+            opacity: 1;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-secondary);
+        }
+        
+        .loading::after {
+            content: '';
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--accent);
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 0.5rem;
+            vertical-align: middle;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid var(--error);
+            color: var(--error);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><span class="icon">📹</span> VDO.ninja Camera Manager</h1>
+            <div class="room-selector">
+                <label for="room">Room:</label>
+                <input type="text" id="room" value="r58studio" placeholder="Room name">
+                <button class="btn btn-primary" onclick="loadRoomUrls()">Load</button>
+            </div>
+        </header>
+        
+        <div id="content">
+            <div class="loading">Loading room configuration...</div>
+        </div>
+        
+        <div class="copy-toast" id="copyToast">Copied to clipboard!</div>
+    </div>
+    
+    <script>
+        let roomData = null;
+        
+        async function loadRoomUrls() {
+            const room = document.getElementById('room').value || 'r58studio';
+            const content = document.getElementById('content');
+            
+            content.innerHTML = '<div class="loading">Loading room configuration...</div>';
+            
+            try {
+                const response = await fetch(`/api/vdoninja/room-urls?room=${encodeURIComponent(room)}`);
+                if (!response.ok) throw new Error('Failed to load room URLs');
+                
+                roomData = await response.json();
+                renderContent();
+            } catch (error) {
+                content.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+        
+        function renderContent() {
+            if (!roomData) return;
+            
+            const content = document.getElementById('content');
+            
+            content.innerHTML = `
+                <section class="quick-links">
+                    <div class="link-card">
+                        <h3>🎬 Director</h3>
+                        <p>Control room, manage guests, create scenes</p>
+                        <div class="url">${roomData.urls.director}</div>
+                        <div class="actions">
+                            <button class="btn btn-primary" onclick="openUrl('${roomData.urls.director}')">Open</button>
+                            <button class="btn btn-secondary" onclick="copyUrl('${roomData.urls.director}')">Copy</button>
+                        </div>
+                    </div>
+                    
+                    <div class="link-card">
+                        <h3>🎥 Scene (OBS)</h3>
+                        <p>Use in OBS as browser source for program output</p>
+                        <div class="url">${roomData.urls.scene}</div>
+                        <div class="actions">
+                            <button class="btn btn-primary" onclick="openUrl('${roomData.urls.scene}')">Open</button>
+                            <button class="btn btn-secondary" onclick="copyUrl('${roomData.urls.scene}')">Copy</button>
+                        </div>
+                    </div>
+                    
+                    <div class="link-card">
+                        <h3>👥 Guest Invite</h3>
+                        <p>Share with guests to join the room</p>
+                        <div class="url">${roomData.urls.guest_invite}</div>
+                        <div class="actions">
+                            <button class="btn btn-primary" onclick="openUrl('${roomData.urls.guest_invite}')">Open</button>
+                            <button class="btn btn-secondary" onclick="copyUrl('${roomData.urls.guest_invite}')">Copy</button>
+                        </div>
+                    </div>
+                </section>
+                
+                <section class="cameras-section">
+                    <h2>📹 HDMI Cameras</h2>
+                    <p style="color: var(--text-secondary); margin-bottom: 1rem;">
+                        Click "Join Room" to add each camera to the VDO.ninja room using &whepshare
+                    </p>
+                    
+                    <div class="camera-grid">
+                        ${roomData.cameras.map(cam => `
+                            <div class="camera-card" id="cam-${cam.cam_id}">
+                                <div class="camera-header">
+                                    <h3>📹 ${cam.label}</h3>
+                                    <div class="camera-status">
+                                        <span class="status-dot offline"></span>
+                                        <span>Checking...</span>
+                                    </div>
+                                </div>
+                                <div class="camera-body">
+                                    <dl class="camera-info">
+                                        <dt>Stream ID:</dt>
+                                        <dd>${cam.cam_id}</dd>
+                                        <dt>Push ID:</dt>
+                                        <dd>${cam.push_id}</dd>
+                                        <dt>WHEP:</dt>
+                                        <dd>${cam.whep_endpoint}</dd>
+                                    </dl>
+                                    <div class="camera-actions">
+                                        <button class="btn btn-primary" onclick="openUrl('${cam.room_url}')">Join Room</button>
+                                        <button class="btn btn-secondary" onclick="openUrl('${cam.view_url}')">View Solo</button>
+                                        <button class="btn btn-secondary" onclick="copyUrl('${cam.room_url}')">Copy URL</button>
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </section>
+                
+                <section style="margin-top: 2rem;">
+                    <h2 style="margin-bottom: 1rem;">📋 Quick Start</h2>
+                    <ol style="color: var(--text-secondary); padding-left: 1.5rem; line-height: 2;">
+                        <li>Click <strong>"Join Room"</strong> for each camera you want to add</li>
+                        <li>In each tab, click <strong>"Join Room with Camera"</strong> then <strong>"START"</strong></li>
+                        <li>Open the <strong>Director</strong> to see all cameras and manage the mix</li>
+                        <li>Use the <strong>Scene URL</strong> in OBS as a Browser Source</li>
+                    </ol>
+                </section>
+            `;
+            
+            // Check camera status
+            roomData.cameras.forEach(cam => {
+                checkCameraStatus(cam);
+            });
+        }
+        
+        async function checkCameraStatus(cam) {
+            const card = document.getElementById(`cam-${cam.cam_id}`);
+            if (!card) return;
+            
+            const statusDiv = card.querySelector('.camera-status');
+            
+            try {
+                const response = await fetch(`/api/cameras/${cam.cam_id}/signal`);
+                const data = await response.json();
+                
+                if (data.has_signal) {
+                    statusDiv.innerHTML = '<span class="status-dot online"></span><span>Online</span>';
+                    card.classList.add('active');
+                } else {
+                    statusDiv.innerHTML = '<span class="status-dot offline"></span><span>No Signal</span>';
+                }
+            } catch {
+                statusDiv.innerHTML = '<span class="status-dot offline"></span><span>Unknown</span>';
+            }
+        }
+        
+        function openUrl(url) {
+            window.open(url, '_blank');
+        }
+        
+        function copyUrl(url) {
+            navigator.clipboard.writeText(url);
+            showToast('Copied to clipboard!');
+        }
+        
+        function showToast(message) {
+            const toast = document.getElementById('copyToast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2000);
+        }
+        
+        // Load on page load
+        loadRoomUrls();
+    </script>
+</body>
+</html>
+

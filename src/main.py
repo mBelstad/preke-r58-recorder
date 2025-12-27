@@ -3612,6 +3612,132 @@ async def get_vdoninja_whep_view_url(request: Request, stream_id: str) -> Dict[s
     }
 
 
+@app.get("/api/vdoninja/whepshare-url/{stream_id}")
+async def get_vdoninja_whepshare_url(
+    request: Request, 
+    stream_id: str,
+    room: str = "r58studio",
+    push_id: Optional[str] = None,
+    label: Optional[str] = None
+) -> Dict[str, Any]:
+    """Get a VDO.ninja URL to share a WHEP stream as a guest in a room.
+    
+    This uses the &whepshare parameter which tells VDO.ninja to share
+    the WHEP stream to other viewers in the room without republishing.
+    
+    Args:
+        stream_id: The MediaMTX stream path (e.g., 'cam0', 'cam2')
+        room: The VDO.ninja room name (default: r58studio)
+        push_id: Custom push ID (default: stream_id)
+        label: Display name in VDO.ninja (default: HDMI-{stream_id})
+    
+    Example:
+        GET /api/vdoninja/whepshare-url/cam2?room=myroom&label=Camera-1
+    """
+    import urllib.parse
+    
+    # Determine if request is local or remote
+    host = request.headers.get("host", "")
+    is_remote = "itagenten.no" in host or not any(x in host for x in ["localhost", "127.0.0.1", "192.168"])
+    
+    vdoninja_base = f"https://{VDONINJA_REMOTE_HOST}" if is_remote else f"https://{VDONINJA_LOCAL_HOST}"
+    mediamtx_host = MEDIAMTX_REMOTE_HOST if is_remote else "localhost:8889"
+    
+    # Build WHEP endpoint URL
+    whep_endpoint = f"https://{mediamtx_host}/whep/{stream_id}"
+    encoded_whep = urllib.parse.quote(whep_endpoint, safe='')
+    
+    # Use defaults if not provided
+    actual_push_id = push_id or stream_id
+    actual_label = label or f"HDMI-{stream_id.upper()}"
+    
+    # Build VDO.ninja URL with whepshare parameter
+    room_url = f"{vdoninja_base}/?push={actual_push_id}&room={room}&whepshare={encoded_whep}&label={actual_label}&webcam"
+    
+    return {
+        "url": room_url,
+        "stream_id": stream_id,
+        "room": room,
+        "push_id": actual_push_id,
+        "label": actual_label,
+        "whep_endpoint": whep_endpoint,
+        "is_remote": is_remote,
+        "description": f"Share {stream_id} as a guest in VDO.ninja room '{room}'",
+        "instructions": "Open this URL in a browser to join the room. Click 'Join Room with Camera' then 'START' to share the WHEP stream."
+    }
+
+
+@app.get("/api/vdoninja/room-urls")
+async def get_vdoninja_room_urls(
+    request: Request,
+    room: str = "r58studio"
+) -> Dict[str, Any]:
+    """Get all VDO.ninja URLs for a room including cameras and management links.
+    
+    This provides a complete set of URLs needed to set up a VDO.ninja session:
+    - Director URL for room management
+    - Scene URL for OBS capture
+    - Camera URLs using &whepshare for each active camera
+    - Guest invite link
+    
+    Args:
+        room: The VDO.ninja room name (default: r58studio)
+    """
+    import urllib.parse
+    
+    # Determine if request is local or remote
+    host = request.headers.get("host", "")
+    is_remote = "itagenten.no" in host or not any(x in host for x in ["localhost", "127.0.0.1", "192.168"])
+    
+    vdoninja_base = f"https://{VDONINJA_REMOTE_HOST}" if is_remote else f"https://{VDONINJA_LOCAL_HOST}"
+    mediamtx_host = MEDIAMTX_REMOTE_HOST if is_remote else "localhost:8889"
+    
+    # Build management URLs
+    urls = {
+        "director": f"{vdoninja_base}/?director={room}",
+        "scene": f"{vdoninja_base}/?scene&room={room}",
+        "guest_invite": f"{vdoninja_base}/?room={room}",
+    }
+    
+    # Build camera URLs for each configured camera
+    cameras = []
+    for cam_id, cam_config in config.cameras.items():
+        if not cam_config.enabled:
+            continue
+        
+        # Build WHEP share URL
+        whep_endpoint = f"https://{mediamtx_host}/whep/{cam_id}"
+        encoded_whep = urllib.parse.quote(whep_endpoint, safe='')
+        
+        # Create meaningful label from camera config or ID
+        label = cam_config.label if hasattr(cam_config, 'label') and cam_config.label else f"HDMI-{cam_id.upper()}"
+        push_id = f"hdmi{cam_id[-1]}" if cam_id.startswith("cam") else cam_id
+        
+        cam_url = f"{vdoninja_base}/?push={push_id}&room={room}&whepshare={encoded_whep}&label={label}&webcam"
+        
+        cameras.append({
+            "cam_id": cam_id,
+            "label": label,
+            "push_id": push_id,
+            "whep_endpoint": whep_endpoint,
+            "room_url": cam_url,
+            "view_url": f"{vdoninja_base}/?view={push_id}&room={room}"
+        })
+    
+    return {
+        "room": room,
+        "is_remote": is_remote,
+        "urls": urls,
+        "cameras": cameras,
+        "all_camera_urls": [c["room_url"] for c in cameras],
+        "instructions": {
+            "step1": "Open the camera URLs in browsers (on R58 or any device) and click 'Join Room with Camera' then 'START'",
+            "step2": "Open the Director URL to manage the room and see all participants",
+            "step3": "Use the Scene URL in OBS as a browser source to capture the mix"
+        }
+    }
+
+
 # =====================================================================
 # Camera-to-Slot Mapping API
 # =====================================================================
