@@ -35,6 +35,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger('whep-vdo-bridge')
 
+# Suppress noisy aiortc codec warnings (H264 decode errors during relay)
+# These warnings are normal when relaying without transcoding
+logging.getLogger('aiortc.codecs.h264').setLevel(logging.ERROR)
+logging.getLogger('aiortc.codecs').setLevel(logging.ERROR)
+logging.getLogger('aioice').setLevel(logging.WARNING)
+
 
 @dataclass
 class BridgeConfig:
@@ -538,7 +544,7 @@ class WHEPVDOBridgeManager:
         
         return self.config.cameras
     
-    async def start(self, auto_discover: bool = True):
+    async def start(self, auto_discover: bool = True, single_camera: bool = False):
         """Start all camera bridges"""
         self._running = True
         
@@ -551,6 +557,11 @@ class WHEPVDOBridgeManager:
         if not cameras:
             logger.warning("No cameras to bridge")
             return
+        
+        # Single camera mode for testing
+        if single_camera and cameras:
+            cameras = [cameras[0]]
+            logger.info(f"Single camera mode: only bridging {cameras[0]}")
         
         logger.info(f"Starting bridges for cameras: {cameras}")
         
@@ -591,6 +602,8 @@ async def main():
                         help="Comma-separated camera IDs (empty for auto-discover)")
     parser.add_argument("--no-discover", action="store_true",
                         help="Disable camera auto-discovery")
+    parser.add_argument("--single", action="store_true",
+                        help="Only bridge first camera (for testing)")
     parser.add_argument("--debug", action="store_true",
                         help="Enable debug logging")
     
@@ -628,7 +641,10 @@ async def main():
     
     # Run
     try:
-        await manager.start(auto_discover=not args.no_discover)
+        await manager.start(
+            auto_discover=not args.no_discover,
+            single_camera=args.single
+        )
     except KeyboardInterrupt:
         pass
     finally:

@@ -14,11 +14,13 @@ WorkingDirectory=/opt/preke-r58-recorder
 Environment=PYTHONUNBUFFERED=1
 
 # Main command - bridge cameras to VDO.ninja room
+# Using --single for now to test with one camera
 ExecStart=/usr/bin/python3 /opt/preke-r58-recorder/src/whep_vdo_bridge.py \
     --signaling wss://localhost:8443 \
     --mediamtx http://localhost:8889 \
     --api http://localhost:8000 \
-    --room r58studio
+    --room r58studio \
+    --single
 
 # Restart policy
 Restart=always
