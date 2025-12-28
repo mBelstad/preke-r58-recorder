@@ -198,6 +198,31 @@ class PipelineClient:
     async def get_recording_status(self) -> Dict[str, Any]:
         """Get current recording status"""
         return await self._send_command({"cmd": "recording.status"})
+    
+    async def start_preview(self, input_id: str) -> Dict[str, Any]:
+        """Start preview pipeline for an input"""
+        return await self._send_command({
+            "cmd": "preview.start",
+            "input_id": input_id,
+        })
+    
+    async def stop_preview(self, input_id: str) -> Dict[str, Any]:
+        """Stop preview pipeline for an input"""
+        return await self._send_command({
+            "cmd": "preview.stop",
+            "input_id": input_id,
+        })
+    
+    async def get_preview_status(self, input_id: Optional[str] = None) -> Dict[str, Any]:
+        """Get preview status for one or all inputs"""
+        cmd = {"cmd": "preview.status"}
+        if input_id:
+            cmd["input_id"] = input_id
+        return await self._send_command(cmd)
+    
+    async def get_pipeline_status(self) -> Dict[str, Any]:
+        """Get status of all pipelines (preview and recording)"""
+        return await self._send_command({"cmd": "pipeline.status"})
 
 
 # Singleton instance

@@ -22,6 +22,11 @@ class EventType(str, Enum):
     RECORDING_STOPPED = "recorder.stopped"
     RECORDING_PROGRESS = "recorder.progress"
     
+    # Pipeline/Preview
+    PREVIEW_STARTED = "preview.started"
+    PREVIEW_STOPPED = "preview.stopped"
+    PIPELINE_ERROR = "pipeline.error"
+    
     # Mixer
     SCENE_CHANGED = "mixer.scene_changed"
     SOURCE_UPDATED = "mixer.source_updated"
@@ -109,6 +114,72 @@ class InputSignalEvent(BaseEvent):
                 "has_signal": has_signal,
                 "resolution": resolution,
                 "framerate": framerate,
+            }
+        )
+
+
+class PreviewStartedEvent(BaseEvent):
+    """Preview pipeline started"""
+    type: EventType = EventType.PREVIEW_STARTED
+    
+    @classmethod
+    def create(
+        cls,
+        input_id: str,
+        rtsp_url: Optional[str] = None,
+        device_id: str = "",
+        seq: int = 0
+    ) -> "PreviewStartedEvent":
+        return cls(
+            seq=seq,
+            device_id=device_id,
+            payload={
+                "input_id": input_id,
+                "rtsp_url": rtsp_url,
+            }
+        )
+
+
+class PreviewStoppedEvent(BaseEvent):
+    """Preview pipeline stopped"""
+    type: EventType = EventType.PREVIEW_STOPPED
+    
+    @classmethod
+    def create(
+        cls,
+        input_id: str,
+        device_id: str = "",
+        seq: int = 0
+    ) -> "PreviewStoppedEvent":
+        return cls(
+            seq=seq,
+            device_id=device_id,
+            payload={
+                "input_id": input_id,
+            }
+        )
+
+
+class PipelineErrorEvent(BaseEvent):
+    """Pipeline error occurred"""
+    type: EventType = EventType.PIPELINE_ERROR
+    
+    @classmethod
+    def create(
+        cls,
+        pipeline_id: str,
+        error: str,
+        input_id: Optional[str] = None,
+        device_id: str = "",
+        seq: int = 0
+    ) -> "PipelineErrorEvent":
+        return cls(
+            seq=seq,
+            device_id=device_id,
+            payload={
+                "pipeline_id": pipeline_id,
+                "error": error,
+                "input_id": input_id,
             }
         )
 

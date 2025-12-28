@@ -9,6 +9,12 @@ import uuid
 
 from .state import PipelineState
 from .watchdog import get_watchdog, RecordingWatchdog
+from .config import get_config, get_enabled_cameras, CameraConfig
+from .gstreamer.runner import get_runner, PipelineState as GstPipelineState
+from .gstreamer.pipelines import (
+    build_preview_pipeline_string,
+    build_recording_pipeline_string,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -24,10 +30,22 @@ class IPCServer:
         self.server = None
         self.running = False
         self.watchdog = get_watchdog()
+        self.config = get_config()
+        self.gst_runner = get_runner(on_state_change=self._on_pipeline_state_change)
         
         # Set up watchdog callbacks
         self.watchdog.on_stall = self._handle_stall
         self.watchdog.on_disk_low = self._handle_disk_low
+    
+    def _on_pipeline_state_change(self, pipeline_id: str, new_state: GstPipelineState, error: Optional[str] = None):
+        """Handle GStreamer pipeline state changes."""
+        logger.info(f"Pipeline {pipeline_id} state changed to {new_state.value}")
+        
+        if error:
+            logger.error(f"Pipeline {pipeline_id} error: {error}")
+            self.state.set_error(f"Pipeline {pipeline_id}: {error}")
+        
+        # TODO: Emit WebSocket event to notify UI
     
     async def _handle_stall(self, session_id: str, input_id: str) -> None:
         """Handle a stalled recording input"""
@@ -126,23 +144,65 @@ class IPCServer:
             
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             input_paths = {}
-            for input_id in inputs:
-                file_path = RECORDINGS_DIR / f"{session_id}_{input_id}_{timestamp}.mp4"
-                input_paths[input_id] = str(file_path)
+            started_pipelines = []
             
-            # Start recording
+            enabled_cameras = get_enabled_cameras(self.config)
+            
+            for input_id in inputs:
+                # Get camera config if available
+                cam_config = enabled_cameras.get(input_id)
+                if not cam_config:
+                    logger.warning(f"Input {input_id} not found in config, skipping")
+                    continue
+                
+                # Create output file path
+                file_path = RECORDINGS_DIR / f"{session_id}_{input_id}_{timestamp}.mkv"
+                input_paths[input_id] = str(file_path)
+                
+                # Build and start GStreamer pipeline
+                try:
+                    pipeline_str = build_recording_pipeline_string(
+                        cam_id=input_id,
+                        device=cam_config.device,
+                        output_path=str(file_path),
+                        bitrate=cam_config.bitrate,
+                        resolution=cam_config.resolution,
+                        with_preview=cam_config.mediamtx_enabled,
+                    )
+                    
+                    pipeline_id = f"recording_{input_id}"
+                    success = self.gst_runner.start_pipeline(
+                        pipeline_id=pipeline_id,
+                        pipeline_string=pipeline_str,
+                        pipeline_type="recording",
+                        output_path=str(file_path),
+                        device=cam_config.device,
+                    )
+                    
+                    if success:
+                        started_pipelines.append(input_id)
+                        logger.info(f"Started recording pipeline for {input_id}")
+                    else:
+                        logger.error(f"Failed to start recording pipeline for {input_id}")
+                        
+                except Exception as e:
+                    logger.error(f"Error starting pipeline for {input_id}: {e}")
+            
+            if not started_pipelines:
+                return {"error": "Failed to start any recording pipelines"}
+            
+            # Start recording state
             self.state.start_recording(session_id, input_paths)
             
             # Start watchdog
             self.watchdog.start_watching(session_id, input_paths)
             
-            # TODO: Actually start GStreamer pipelines here
-            
-            logger.info(f"Recording started: session={session_id}, inputs={list(input_paths.keys())}")
+            logger.info(f"Recording started: session={session_id}, inputs={started_pipelines}")
             
             return {
                 "session_id": session_id,
                 "inputs": input_paths,
+                "started_pipelines": started_pipelines,
                 "status": "started",
             }
         
@@ -159,10 +219,23 @@ class IPCServer:
             # Stop watchdog
             self.watchdog.stop_watching()
             
-            # Stop recording
-            final_state = self.state.stop_recording()
+            # Stop all recording GStreamer pipelines
+            stopped_pipelines = []
+            if self.state.active_recording:
+                for input_id in self.state.active_recording.inputs.keys():
+                    pipeline_id = f"recording_{input_id}"
+                    try:
+                        success = self.gst_runner.stop_pipeline(pipeline_id)
+                        if success:
+                            stopped_pipelines.append(input_id)
+                            logger.info(f"Stopped recording pipeline for {input_id}")
+                        else:
+                            logger.warning(f"Failed to stop pipeline for {input_id}")
+                    except Exception as e:
+                        logger.error(f"Error stopping pipeline for {input_id}: {e}")
             
-            # TODO: Actually stop GStreamer pipelines here
+            # Stop recording state
+            final_state = self.state.stop_recording()
             
             logger.info(f"Recording stopped: session={final_state.session_id if final_state else 'none'}")
             
@@ -170,6 +243,7 @@ class IPCServer:
                 "session_id": final_state.session_id if final_state else None,
                 "duration_ms": int((datetime.now() - final_state.started_at).total_seconds() * 1000) if final_state else 0,
                 "files": final_state.inputs if final_state else {},
+                "stopped_pipelines": stopped_pipelines,
                 "status": "stopped",
             }
         
@@ -216,6 +290,94 @@ class IPCServer:
                     for input_id, (bytes_val, ts) in self.watchdog._input_state.items()
                 },
             }
+        
+        elif cmd == "preview.start":
+            input_id = command.get("input_id")
+            
+            if not input_id:
+                return {"error": "Missing input_id"}
+            
+            enabled_cameras = get_enabled_cameras(self.config)
+            cam_config = enabled_cameras.get(input_id)
+            
+            if not cam_config:
+                return {"error": f"Input {input_id} not found or not enabled"}
+            
+            pipeline_id = f"preview_{input_id}"
+            
+            # Check if already running
+            if self.gst_runner.is_running(pipeline_id):
+                return {"status": "already_running", "input_id": input_id}
+            
+            try:
+                pipeline_str = build_preview_pipeline_string(
+                    cam_id=input_id,
+                    device=cam_config.device,
+                    bitrate=cam_config.bitrate,
+                    resolution=cam_config.resolution,
+                )
+                
+                success = self.gst_runner.start_pipeline(
+                    pipeline_id=pipeline_id,
+                    pipeline_string=pipeline_str,
+                    pipeline_type="preview",
+                    device=cam_config.device,
+                )
+                
+                if success:
+                    logger.info(f"Started preview pipeline for {input_id}")
+                    return {
+                        "status": "started",
+                        "input_id": input_id,
+                        "rtsp_url": f"rtsp://127.0.0.1:{self.config.mediamtx_rtsp_port}/{input_id}",
+                    }
+                else:
+                    return {"error": f"Failed to start preview pipeline for {input_id}"}
+                    
+            except Exception as e:
+                logger.error(f"Error starting preview for {input_id}: {e}")
+                return {"error": str(e)}
+        
+        elif cmd == "preview.stop":
+            input_id = command.get("input_id")
+            
+            if not input_id:
+                return {"error": "Missing input_id"}
+            
+            pipeline_id = f"preview_{input_id}"
+            
+            try:
+                success = self.gst_runner.stop_pipeline(pipeline_id)
+                if success:
+                    logger.info(f"Stopped preview pipeline for {input_id}")
+                    return {"status": "stopped", "input_id": input_id}
+                else:
+                    return {"error": f"Failed to stop preview pipeline for {input_id}"}
+            except Exception as e:
+                logger.error(f"Error stopping preview for {input_id}: {e}")
+                return {"error": str(e)}
+        
+        elif cmd == "preview.status":
+            input_id = command.get("input_id")
+            
+            if input_id:
+                # Status for single input
+                pipeline_id = f"preview_{input_id}"
+                info = self.gst_runner.get_pipeline_info(pipeline_id)
+                return {"input_id": input_id, "pipeline": info}
+            else:
+                # Status for all previews
+                all_pipelines = self.gst_runner.get_all_pipelines()
+                previews = {
+                    pid.replace("preview_", ""): info
+                    for pid, info in all_pipelines.items()
+                    if pid.startswith("preview_")
+                }
+                return {"previews": previews}
+        
+        elif cmd == "pipeline.status":
+            # Get status of all pipelines
+            return {"pipelines": self.gst_runner.get_all_pipelines()}
         
         else:
             return {"error": f"Unknown command: {cmd}"}

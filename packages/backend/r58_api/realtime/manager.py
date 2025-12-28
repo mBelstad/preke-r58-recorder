@@ -149,6 +149,23 @@ class ConnectionManager:
                 input_id = event.payload.get("input_id")
                 if input_id:
                     self._current_state["inputs"][input_id] = event.payload
+        
+        elif event.type == EventType.PREVIEW_STARTED:
+            if event.payload:
+                input_id = event.payload.get("input_id")
+                if input_id:
+                    if "previews" not in self._current_state:
+                        self._current_state["previews"] = {}
+                    self._current_state["previews"][input_id] = {
+                        "running": True,
+                        "rtsp_url": event.payload.get("rtsp_url"),
+                    }
+        
+        elif event.type == EventType.PREVIEW_STOPPED:
+            if event.payload:
+                input_id = event.payload.get("input_id")
+                if input_id and "previews" in self._current_state:
+                    self._current_state["previews"][input_id] = {"running": False}
     
     async def send_to(self, client_id: str, event: BaseEvent) -> bool:
         """Send an event to a specific client"""
