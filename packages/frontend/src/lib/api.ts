@@ -268,13 +268,23 @@ export async function apiDelete<T>(url: string, options?: Omit<ApiOptions, 'meth
 
 /**
  * Build API URL from base path
+ * 
+ * When accessed via reverse proxy (standard ports 80/443), use same-origin API.
+ * When accessed directly (e.g., localhost:5173 for dev), connect to API port 8000.
  */
 export function buildApiUrl(path: string): string {
-  // Use current host with API port
   const host = window.location.hostname
-  const port = 8000 // API port
+  const currentPort = window.location.port
   const protocol = window.location.protocol
-  return `${protocol}//${host}:${port}${path}`
+  
+  // If accessed via standard port (no port in URL, or 80/443), API is same-origin
+  if (!currentPort || currentPort === '80' || currentPort === '443') {
+    return path // Same-origin API (frontend + backend served together)
+  }
+  
+  // Dev mode: connect to API on port 8000
+  const apiPort = 8000
+  return `${protocol}//${host}:${apiPort}${path}`
 }
 
 /**
