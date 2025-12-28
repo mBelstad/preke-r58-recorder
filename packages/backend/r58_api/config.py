@@ -27,7 +27,8 @@ class Settings(BaseSettings):
     
     # MediaMTX
     mediamtx_api_url: str = "http://localhost:9997"
-    mediamtx_whep_base: str = "http://localhost:8889"
+    # Use HTTPS for WHEP since MediaMTX has TLS enabled
+    mediamtx_whep_base: str = "https://localhost:8889"
     mediamtx_whep_port: int = 8889
     
     # VDO.ninja (LOCAL on R58)

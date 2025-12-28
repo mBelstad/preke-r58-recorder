@@ -18,7 +18,8 @@ def get_client() -> httpx.AsyncClient:
     """Get or create HTTP client for MediaMTX requests."""
     global _client
     if _client is None:
-        _client = httpx.AsyncClient(timeout=10.0)
+        # Disable SSL verification for localhost (self-signed cert)
+        _client = httpx.AsyncClient(timeout=10.0, verify=False)
     return _client
 
 
