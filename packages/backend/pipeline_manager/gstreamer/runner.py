@@ -224,7 +224,16 @@ class PipelineRunner:
                 # Start pipeline
                 ret = pipeline.set_state(Gst.State.PLAYING)
                 if ret == Gst.StateChangeReturn.FAILURE:
-                    logger.error(f"Failed to start pipeline {pipeline_id}")
+                    # Get more detailed error from bus
+                    bus = pipeline.get_bus()
+                    msg = bus.timed_pop_filtered(Gst.SECOND, Gst.MessageType.ERROR)
+                    if msg:
+                        err, debug = msg.parse_error()
+                        logger.error(f"Failed to start pipeline {pipeline_id}: {err.message}")
+                        logger.error(f"Debug info: {debug}")
+                    else:
+                        logger.error(f"Failed to start pipeline {pipeline_id} (no error message)")
+                    pipeline.set_state(Gst.State.NULL)
                     return False
                 
                 self._pipelines[pipeline_id] = info
