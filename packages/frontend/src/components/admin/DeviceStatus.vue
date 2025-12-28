@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { onMounted } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useCapabilitiesStore } from '@/stores/capabilities'
 
 const capabilitiesStore = useCapabilitiesStore()
+const { capabilities } = storeToRefs(capabilitiesStore)
 
 onMounted(() => {
   capabilitiesStore.fetchCapabilities()
 })
-
-const capabilities = capabilitiesStore.capabilities
 </script>
 
 <template>
