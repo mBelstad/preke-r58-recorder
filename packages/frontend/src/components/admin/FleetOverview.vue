@@ -1,4 +1,12 @@
 <script setup lang="ts">
+/**
+ * LAN Device Discovery Component
+ * 
+ * Discovers and lists R58 devices on the local network (same subnet).
+ * Uses /api/v1/lan-devices endpoints on the local R58 device.
+ * 
+ * Note: For centralized fleet management (cloud), see /fleet routes.
+ */
 import { ref, onMounted } from 'vue'
 
 interface Device {
@@ -17,7 +25,7 @@ const scanning = ref(false)
 async function fetchDevices() {
   loading.value = true
   try {
-    const response = await fetch('/api/v1/devices')
+    const response = await fetch('/api/v1/lan-devices')
     if (response.ok) {
       const data = await response.json()
       devices.value = data.map((d: any) => ({
@@ -30,7 +38,7 @@ async function fetchDevices() {
       }))
     }
   } catch (e) {
-    console.error('Failed to fetch devices:', e)
+    console.error('Failed to fetch LAN devices:', e)
   } finally {
     loading.value = false
   }
@@ -41,7 +49,7 @@ onMounted(fetchDevices)
 async function scanNetwork() {
   scanning.value = true
   try {
-    const response = await fetch('/api/v1/devices/scan', { method: 'POST' })
+    const response = await fetch('/api/v1/lan-devices/scan', { method: 'POST' })
     if (response.ok) {
       const data = await response.json()
       // Add newly discovered devices
@@ -60,7 +68,7 @@ async function scanNetwork() {
       }
     }
   } catch (e) {
-    console.error('Network scan failed:', e)
+    console.error('LAN network scan failed:', e)
   } finally {
     scanning.value = false
   }
@@ -68,7 +76,7 @@ async function scanNetwork() {
 
 async function connectToDevice(device: Device) {
   try {
-    const response = await fetch(`/api/v1/devices/${device.id}/connect`, { method: 'POST' })
+    const response = await fetch(`/api/v1/lan-devices/${device.id}/connect`, { method: 'POST' })
     const data = await response.json()
     
     if (data.connected) {
@@ -87,7 +95,7 @@ async function connectToDevice(device: Device) {
   <div class="space-y-6">
     <!-- Header -->
     <div class="flex items-center justify-between">
-      <h2 class="text-lg font-semibold">Fleet Devices</h2>
+      <h2 class="text-lg font-semibold">LAN Devices</h2>
       <button @click="scanNetwork" :disabled="scanning" class="btn">
         <span v-if="scanning">Scanning...</span>
         <span v-else>Scan Network</span>

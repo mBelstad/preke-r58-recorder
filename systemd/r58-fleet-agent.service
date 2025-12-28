@@ -1,0 +1,40 @@
+[Unit]
+Description=R58 Fleet Management Agent
+Documentation=https://github.com/itagenten/preke-r58-recorder
+After=network-online.target r58-api.service
+Wants=network-online.target
+ConditionPathExists=/opt/r58-app/shared/config/fleet.conf
+
+[Service]
+Type=simple
+User=linaro
+Group=linaro
+WorkingDirectory=/opt/r58-app/current
+
+# Environment
+Environment="PATH=/opt/r58-app/current/venv/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="PYTHONPATH=/opt/r58-app/current/packages/backend"
+
+# Start command
+ExecStart=/opt/r58-app/current/venv/bin/python3 /opt/r58-app/scripts/fleet-agent.py
+
+# Restart policy
+Restart=always
+RestartSec=30
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=r58-fleet-agent
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/r58-app/shared /var/log /tmp
+
+[Install]
+WantedBy=multi-user.target
+

@@ -106,9 +106,6 @@ export const useRecorderStore = defineStore('recorder', () => {
         input.isRecording = false
       })
       
-      // Store final duration before clearing
-      const finalDuration = duration.value
-      
       currentSession.value = null
       sessionId.value = null
       duration.value = 0

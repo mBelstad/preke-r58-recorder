@@ -1,19 +1,91 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRecorderStore } from '@/stores/recorder'
+import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
+import { toast } from '@/composables/useToast'
+import ConfirmDialog from '@/components/shared/ConfirmDialog.vue'
 
 const recorderStore = useRecorderStore()
+const { register } = useKeyboardShortcuts()
+
+const stopConfirmDialog = ref<InstanceType<typeof ConfirmDialog> | null>(null)
+const confirmButtonEnabled = ref(false)
 
 const isRecording = computed(() => recorderStore.status === 'recording')
 const isStarting = computed(() => recorderStore.status === 'starting')
 const isStopping = computed(() => recorderStore.status === 'stopping')
 const duration = computed(() => recorderStore.formattedDuration)
 
+// Register Space shortcut for recording toggle
+let unregisterShortcut: (() => void) | null = null
+
+onMounted(() => {
+  unregisterShortcut = register({
+    key: ' ',
+    description: 'Toggle Recording',
+    action: handleRecordAction,
+    context: 'recorder',
+    enabled: () => !isStarting.value && !isStopping.value,
+  })
+})
+
+onUnmounted(() => {
+  if (unregisterShortcut) {
+    unregisterShortcut()
+  }
+})
+
+async function handleRecordAction() {
+  if (isRecording.value) {
+    // Show confirmation dialog
+    showStopConfirmation()
+  } else {
+    await startRecording()
+  }
+}
+
+async function startRecording() {
+  try {
+    await recorderStore.startRecording()
+    toast.success('Recording started', `Session ID: ${recorderStore.sessionId}`)
+  } catch (error: any) {
+    toast.error('Failed to start recording', error.message || 'Unknown error', {
+      label: 'Retry',
+      onClick: startRecording,
+    })
+  }
+}
+
+async function stopRecording() {
+  try {
+    const result = await recorderStore.stopRecording()
+    toast.success('Recording stopped', `Duration: ${duration.value}`)
+  } catch (error: any) {
+    toast.error('Failed to stop recording', error.message || 'Unknown error')
+  }
+}
+
+function showStopConfirmation() {
+  confirmButtonEnabled.value = false
+  stopConfirmDialog.value?.open()
+  
+  // Enable confirm button after 500ms delay (safeguard)
+  setTimeout(() => {
+    confirmButtonEnabled.value = true
+  }, 500)
+}
+
+function handleConfirmStop() {
+  if (confirmButtonEnabled.value) {
+    stopRecording()
+  }
+}
+
 async function toggleRecording() {
   if (isRecording.value) {
-    await recorderStore.stopRecording()
+    showStopConfirmation()
   } else {
-    await recorderStore.startRecording()
+    await startRecording()
   }
 }
 </script>
@@ -35,6 +107,7 @@ async function toggleRecording() {
           ? 'bg-r58-accent-danger hover:bg-red-600 text-white' 
           : 'bg-r58-accent-success hover:bg-green-600 text-white'
       ]"
+      :title="isRecording ? 'Stop Recording (Space)' : 'Start Recording (Space)'"
     >
       <span v-if="isStarting || isStopping" class="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
       <template v-else>
@@ -43,6 +116,22 @@ async function toggleRecording() {
       </template>
       <span>{{ isRecording ? 'Stop' : 'Start Recording' }}</span>
     </button>
+    
+    <!-- Keyboard hint -->
+    <span class="text-xs text-r58-text-secondary hidden md:inline">
+      Press <kbd class="px-1 py-0.5 bg-r58-bg-tertiary rounded text-xs font-mono">Space</kbd> to {{ isRecording ? 'stop' : 'start' }}
+    </span>
   </div>
+  
+  <!-- Stop Confirmation Dialog -->
+  <ConfirmDialog
+    ref="stopConfirmDialog"
+    title="Stop Recording?"
+    :message="`You have been recording for ${duration}. This will finalize all files.`"
+    confirm-text="Stop Recording"
+    cancel-text="Keep Recording"
+    :danger="true"
+    @confirm="handleConfirmStop"
+  />
 </template>
 

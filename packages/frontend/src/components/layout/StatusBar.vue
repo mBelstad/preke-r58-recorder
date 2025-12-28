@@ -1,5 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useConnectionStatus } from '@/composables/useConnectionStatus'
+
+const { state, latencyMs, statusLabel, statusColor } = useConnectionStatus()
 
 const currentTime = ref(new Date())
 
@@ -33,15 +36,62 @@ const formattedDate = () => {
     day: 'numeric'
   })
 }
+
+const connectionDotClass = computed(() => {
+  switch (statusColor.value) {
+    case 'emerald':
+      return 'bg-emerald-500'
+    case 'amber':
+      return 'bg-amber-500 animate-pulse'
+    case 'orange':
+      return 'bg-orange-500'
+    case 'red':
+      return 'bg-red-500 animate-pulse'
+    default:
+      return 'bg-zinc-500'
+  }
+})
+
+const connectionTooltip = computed(() => {
+  if (state.value === 'connected' && latencyMs.value) {
+    return `API connected, latency: ${latencyMs.value}ms`
+  }
+  if (state.value === 'degraded' && latencyMs.value) {
+    return `High latency detected: ${latencyMs.value}ms`
+  }
+  if (state.value === 'connecting') {
+    return 'Attempting to connect to API...'
+  }
+  if (state.value === 'disconnected') {
+    return 'Connection lost. Reconnecting...'
+  }
+  return 'API status'
+})
 </script>
 
 <template>
   <header class="h-10 bg-r58-bg-secondary border-b border-r58-bg-tertiary flex items-center justify-between px-4 text-sm">
-    <!-- Left: Device info -->
+    <!-- Left: Device info + Connection status -->
     <div class="flex items-center gap-4">
-      <div class="flex items-center gap-2">
-        <span class="w-2 h-2 rounded-full bg-r58-accent-success"></span>
-        <span class="text-r58-text-secondary">R58-001</span>
+      <div 
+        class="flex items-center gap-2 cursor-help"
+        :title="connectionTooltip"
+      >
+        <span 
+          :class="['w-2 h-2 rounded-full transition-colors', connectionDotClass]"
+        ></span>
+        <span class="text-r58-text-secondary">R58</span>
+        <span 
+          :class="[
+            'text-xs px-1.5 py-0.5 rounded',
+            state === 'connected' ? 'text-emerald-400' : '',
+            state === 'degraded' ? 'text-orange-400 bg-orange-500/10' : '',
+            state === 'connecting' ? 'text-amber-400' : '',
+            state === 'disconnected' ? 'text-red-400 bg-red-500/10' : '',
+          ]"
+        >
+          {{ statusLabel }}
+        </span>
       </div>
     </div>
     

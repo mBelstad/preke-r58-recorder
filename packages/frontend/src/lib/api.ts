@@ -390,5 +390,256 @@ export const r58Api = {
       buildApiUrl(`/api/v1/alerts/${alertId}/resolve`)
     )
   },
+
+  // LAN Discovery - Find R58 devices on local network
+  lanDiscovery: {
+    async list() {
+      return apiGet<Array<{
+        id: string
+        name: string
+        ip: string
+        port: number
+        status: string
+        last_seen: string
+        api_version?: string
+        capabilities?: Record<string, unknown>
+      }>>(buildApiUrl('/api/v1/lan-devices'))
+    },
+
+    async scan() {
+      return apiPost<Array<{
+        id: string
+        name: string
+        ip: string
+        status: string
+      }>>(buildApiUrl('/api/v1/lan-devices/scan'))
+    },
+
+    async getDevice(deviceId: string) {
+      return apiGet<{
+        id: string
+        name: string
+        ip: string
+        port: number
+        status: string
+        last_seen: string
+        api_version?: string
+      }>(buildApiUrl(`/api/v1/lan-devices/${deviceId}`))
+    },
+
+    async connect(deviceId: string) {
+      return apiPost<{
+        connected: boolean
+        device?: { id: string; name: string; ip: string }
+        error?: string
+      }>(buildApiUrl(`/api/v1/lan-devices/${deviceId}/connect`))
+    },
+  },
+
+  // Fleet Management - Centralized device management (separate server)
+  fleet: {
+    // Get fleet API URL (may be different from device API)
+    getFleetUrl(path: string): string {
+      const fleetHost = import.meta.env.VITE_FLEET_URL || 'https://fleet.r58.itagenten.no'
+      return `${fleetHost}${path}`
+    },
+
+    // Get auth token from storage
+    getToken(): string | null {
+      return localStorage.getItem('fleet_token')
+    },
+
+    // Set auth token
+    setToken(token: string): void {
+      localStorage.setItem('fleet_token', token)
+    },
+
+    // Clear auth token
+    clearToken(): void {
+      localStorage.removeItem('fleet_token')
+    },
+
+    // Get auth headers
+    getAuthHeaders(): Record<string, string> {
+      const token = this.getToken()
+      return token ? { Authorization: `Bearer ${token}` } : {}
+    },
+
+    // Login
+    async login(email: string, password: string) {
+      const response = await apiPost<{
+        access_token: string
+        token_type: string
+        expires_in: number
+      }>(this.getFleetUrl('/api/v1/auth/login'), { email, password })
+      this.setToken(response.access_token)
+      return response
+    },
+
+    // Logout
+    logout() {
+      this.clearToken()
+    },
+
+    // List devices
+    async devices(options?: { status?: string; search?: string; page?: number }) {
+      const params = new URLSearchParams()
+      if (options?.status) params.set('status', options.status)
+      if (options?.search) params.set('search', options.search)
+      if (options?.page) params.set('page', String(options.page))
+      const query = params.toString()
+      
+      return apiGet<{
+        items: Array<{
+          id: string
+          device_id: string
+          name: string
+          status: string
+          current_version?: string
+          target_version?: string
+          last_heartbeat?: string
+          cpu_percent?: number
+          mem_percent?: number
+          disk_free_gb?: number
+          temperature_c?: number
+          recording_active?: boolean
+          mixer_active?: boolean
+          location?: string
+          tags?: string[]
+          pending_commands?: number
+          active_alerts?: number
+        }>
+        total: number
+        page: number
+        has_more: boolean
+      }>(this.getFleetUrl(`/api/v1/devices${query ? '?' + query : ''}`), {
+        headers: this.getAuthHeaders(),
+      })
+    },
+
+    // Get single device
+    async device(deviceId: string) {
+      return apiGet<{
+        id: string
+        device_id: string
+        name: string
+        status: string
+        current_version?: string
+        target_version?: string
+        update_channel?: string
+        last_heartbeat?: string
+        cpu_percent?: number
+        mem_percent?: number
+        disk_free_gb?: number
+        temperature_c?: number
+        recording_active?: boolean
+        mixer_active?: boolean
+        uptime_seconds?: number
+        platform?: string
+        arch?: string
+        location?: string
+        tags?: string[]
+        capabilities?: Record<string, unknown>
+        pending_commands?: number
+        active_alerts?: number
+        created_at?: string
+      }>(this.getFleetUrl(`/api/v1/devices/${deviceId}`), {
+        headers: this.getAuthHeaders(),
+      })
+    },
+
+    // Update device
+    async updateDevice(deviceId: string, data: {
+      name?: string
+      location?: string
+      tags?: string[]
+      update_channel?: string
+      target_version?: string
+    }) {
+      return apiRequest<{ id: string; device_id: string }>(
+        this.getFleetUrl(`/api/v1/devices/${deviceId}`),
+        {
+          method: 'PATCH',
+          body: JSON.stringify(data),
+          headers: { ...this.getAuthHeaders(), 'Content-Type': 'application/json' },
+        }
+      )
+    },
+
+    // Get device commands
+    async deviceCommands(deviceId: string) {
+      return apiGet<{
+        items: Array<{
+          id: string
+          type: string
+          status: string
+          priority: number
+          created_at: string
+          completed_at?: string
+          error?: string
+        }>
+        total: number
+      }>(this.getFleetUrl(`/api/v1/devices/${deviceId}/commands`), {
+        headers: this.getAuthHeaders(),
+      })
+    },
+
+    // Send command to device
+    async sendCommand(deviceId: string, command: {
+      type: string
+      payload?: Record<string, unknown>
+      priority?: number
+    }) {
+      return apiPost<{ id: string; type: string; status: string }>(
+        this.getFleetUrl(`/api/v1/devices/${deviceId}/commands`),
+        command,
+        { headers: this.getAuthHeaders() }
+      )
+    },
+
+    // Get device heartbeats
+    async deviceHeartbeats(deviceId: string, options?: { since?: string }) {
+      const params = new URLSearchParams()
+      if (options?.since) params.set('since', options.since)
+      const query = params.toString()
+      
+      return apiGet<{
+        items: Array<{
+          received_at: string
+          cpu_percent: number
+          mem_percent: number
+          disk_free_gb: number
+          temperature_c?: number
+        }>
+        total: number
+      }>(this.getFleetUrl(`/api/v1/devices/${deviceId}/heartbeats${query ? '?' + query : ''}`), {
+        headers: this.getAuthHeaders(),
+      })
+    },
+
+    // Request support bundle
+    async requestBundle(deviceId: string, options: {
+      include_logs?: boolean
+      include_config?: boolean
+      include_recordings?: boolean
+    }) {
+      return apiPost<{ id: string; status: string }>(
+        this.getFleetUrl(`/api/v1/devices/${deviceId}/bundles`),
+        options,
+        { headers: this.getAuthHeaders() }
+      )
+    },
+
+    // Get latest release
+    async latestRelease(channel: string = 'stable') {
+      return apiGet<{
+        version: string
+        channel: string
+        download_url: string
+        checksum_sha256: string
+        changelog?: string
+      }>(this.getFleetUrl(`/api/v1/releases/latest?channel=${channel}`))
+    },
+  },
 }
 

@@ -39,6 +39,18 @@ const router = createRouter({
       component: () => import('@/views/GuestView.vue'),
       meta: { title: 'Guest Join', layout: 'minimal' }
     },
+    {
+      path: '/fleet',
+      name: 'fleet',
+      component: () => import('@/views/FleetDashboard.vue'),
+      meta: { title: 'Fleet Management', requiresAuth: true }
+    },
+    {
+      path: '/fleet/devices/:deviceId',
+      name: 'device-detail',
+      component: () => import('@/views/DeviceDetail.vue'),
+      meta: { title: 'Device Details', requiresAuth: true }
+    },
   ]
 })
 

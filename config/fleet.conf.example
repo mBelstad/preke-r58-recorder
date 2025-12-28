@@ -1,0 +1,34 @@
+# =============================================================================
+# R58 Fleet Agent Configuration
+# =============================================================================
+# Copy this file to /opt/r58-app/shared/config/fleet.conf and configure.
+# The fleet agent will automatically connect to the fleet management server.
+
+# Enable/disable fleet management
+# Set to true to enable the fleet agent
+FLEET_ENABLED=false
+
+# Fleet management server URL
+# This is your self-hosted fleet management server
+FLEET_URL=https://fleet.r58.itagenten.no
+
+# Device identification
+# Unique identifier for this device (e.g., r58-studio-001, r58-prod-main)
+# This is shown in the fleet dashboard
+DEVICE_ID=r58-change-me
+
+# Device authentication token
+# This is provided when you register the device with the fleet server
+# KEEP THIS SECRET - do not commit to version control
+DEVICE_TOKEN=
+
+# Heartbeat interval in seconds
+# How often the device reports its status to the fleet server
+# Default: 60 seconds (recommended range: 30-120)
+HEARTBEAT_INTERVAL=60
+
+# Command poll interval in seconds
+# How often the device checks for pending remote commands
+# Default: 30 seconds (recommended range: 10-60)
+COMMAND_POLL_INTERVAL=30
+

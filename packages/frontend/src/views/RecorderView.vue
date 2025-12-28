@@ -1,13 +1,30 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRecorderStore } from '@/stores/recorder'
+import { useRecordingGuard } from '@/composables/useRecordingGuard'
 import RecorderControls from '@/components/recorder/RecorderControls.vue'
 import InputGrid from '@/components/recorder/InputGrid.vue'
 import SessionInfo from '@/components/recorder/SessionInfo.vue'
+import ConfirmDialog from '@/components/shared/ConfirmDialog.vue'
 
 const recorderStore = useRecorderStore()
+const { showLeaveConfirmation, confirmLeave, cancelLeave } = useRecordingGuard()
 
 const isRecording = computed(() => recorderStore.status === 'recording')
+const duration = computed(() => recorderStore.formattedDuration)
+
+// Ref for leave confirmation dialog
+const leaveDialog = ref<InstanceType<typeof ConfirmDialog> | null>(null)
+
+// Watch for leave confirmation request
+import { watch } from 'vue'
+watch(showLeaveConfirmation, (show) => {
+  if (show) {
+    leaveDialog.value?.open()
+  } else {
+    leaveDialog.value?.close()
+  }
+})
 </script>
 
 <template>
@@ -40,6 +57,18 @@ const isRecording = computed(() => recorderStore.status === 'recording')
         <SessionInfo />
       </aside>
     </div>
+    
+    <!-- Leave Confirmation Dialog -->
+    <ConfirmDialog
+      ref="leaveDialog"
+      title="Recording in Progress"
+      :message="`You are currently recording (${duration}). Leaving will stop the recording and save all files.`"
+      confirm-text="Leave and Stop Recording"
+      cancel-text="Stay"
+      :danger="true"
+      @confirm="confirmLeave"
+      @cancel="cancelLeave"
+    />
   </div>
 </template>
 

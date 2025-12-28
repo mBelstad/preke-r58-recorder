@@ -18,7 +18,7 @@ from .control.devices.capabilities import router as capabilities_router
 from .control.vdoninja import router as vdoninja_router
 from .control.sessions.router import router as sessions_router
 from .control.auth.router import router as auth_router
-from .control.fleet.discovery import router as fleet_router
+from .control.lan_discovery.discovery import router as lan_discovery_router
 from .observability.health import router as health_router
 from .observability.metrics import router as metrics_router
 from .observability.support import router as support_router
@@ -91,7 +91,7 @@ def create_app() -> FastAPI:
     # Include routers
     app.include_router(auth_router)
     app.include_router(capabilities_router)
-    app.include_router(fleet_router)
+    app.include_router(lan_discovery_router)
     app.include_router(vdoninja_router)
     app.include_router(sessions_router)
     app.include_router(health_router)
