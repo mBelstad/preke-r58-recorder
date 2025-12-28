@@ -316,6 +316,18 @@ export const r58Api = {
     }>(buildApiUrl('/api/v1/recorder/status'))
   },
 
+  async getInputsStatus() {
+    return apiGet<Array<{
+      id: string
+      label: string
+      has_signal: boolean
+      is_recording: boolean
+      resolution: string | null
+      framerate: number | null
+      device_path: string | null
+    }>>(buildApiUrl('/api/v1/recorder/inputs'))
+  },
+
   async startRecording(options?: { name?: string; inputs?: string[] }) {
     return apiPost<{
       session_id: string

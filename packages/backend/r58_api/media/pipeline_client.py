@@ -224,6 +224,21 @@ class PipelineClient:
         """Get status of all pipelines (preview and recording)"""
         return await self._send_command({"cmd": "pipeline.status"})
 
+    async def check_devices(self, device: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Check device capabilities and signal status.
+
+        Args:
+            device: Optional specific device path. If None, checks all enabled cameras.
+
+        Returns:
+            Dict with device capabilities including has_signal for each input.
+        """
+        cmd = {"cmd": "device.check"}
+        if device:
+            cmd["device"] = device
+        return await self._send_command(cmd)
+
 
 # Singleton instance
 _client: Optional[PipelineClient] = None

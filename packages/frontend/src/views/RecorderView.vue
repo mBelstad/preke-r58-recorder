@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRecorderStore } from '@/stores/recorder'
 import { useRecordingGuard } from '@/composables/useRecordingGuard'
 import RecorderControls from '@/components/recorder/RecorderControls.vue'
@@ -13,6 +13,12 @@ const { showLeaveConfirmation, confirmLeave, cancelLeave } = useRecordingGuard()
 
 const isRecording = computed(() => recorderStore.status === 'recording')
 const duration = computed(() => recorderStore.formattedDuration)
+
+// Fetch real input status on mount
+onMounted(async () => {
+  await recorderStore.fetchInputs()
+  await recorderStore.fetchStatus()
+})
 
 // Ref for leave confirmation dialog
 const leaveDialog = ref<InstanceType<typeof ConfirmDialog> | null>(null)

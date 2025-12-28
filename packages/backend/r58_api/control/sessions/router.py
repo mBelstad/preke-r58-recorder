@@ -70,6 +70,82 @@ class RecordingSession(BaseModel):
     files: List[dict]
 
 
+class InputStatus(BaseModel):
+    """Input status with signal detection"""
+    id: str
+    label: str
+    has_signal: bool
+    is_recording: bool
+    resolution: Optional[str] = None
+    framerate: Optional[int] = None
+    device_path: Optional[str] = None
+
+
+@router.get("/inputs", response_model=List[InputStatus])
+async def get_inputs_status(
+    settings: Settings = Depends(get_settings)
+) -> List[InputStatus]:
+    """
+    Get real-time input status with signal detection.
+
+    Returns status for all configured inputs including:
+    - has_signal: Whether HDMI signal is detected
+    - resolution: Detected resolution if signal present
+    - framerate: Detected framerate if signal present
+    - is_recording: Whether this input is currently recording
+    """
+    client = get_pipeline_client()
+
+    # Get device check from pipeline manager
+    device_check = await client.check_devices()
+
+    # Get recording status to know which inputs are recording
+    recording_status = await client.get_recording_status()
+    recording_inputs = set()
+    if recording_status.get("recording"):
+        recording_inputs = set(recording_status.get("bytes_written", {}).keys())
+
+    inputs = []
+
+    if device_check.get("devices"):
+        # Build from real device data
+        for idx, (input_id, info) in enumerate(device_check["devices"].items()):
+            caps = info.get("capabilities", {})
+            has_signal = caps.get("has_signal", False)
+
+            # Get resolution/framerate only if signal present
+            resolution = None
+            framerate = None
+            if has_signal:
+                width = caps.get("width", 0)
+                height = caps.get("height", 0)
+                resolution = f"{width}x{height}" if width and height else None
+                framerate = caps.get("framerate")
+
+            inputs.append(InputStatus(
+                id=input_id,
+                label=f"HDMI {idx + 1}",
+                has_signal=has_signal,
+                is_recording=input_id in recording_inputs,
+                resolution=resolution,
+                framerate=framerate,
+                device_path=info.get("device"),
+            ))
+    else:
+        # Fallback to configured inputs if pipeline manager unavailable
+        for idx, input_id in enumerate(settings.enabled_inputs):
+            inputs.append(InputStatus(
+                id=input_id,
+                label=f"HDMI {idx + 1}",
+                has_signal=False,  # Unknown
+                is_recording=input_id in recording_inputs,
+                resolution=None,
+                framerate=None,
+            ))
+
+    return inputs
+
+
 @router.get("/status", response_model=RecorderStatus)
 async def get_recorder_status(
     settings: Settings = Depends(get_settings)

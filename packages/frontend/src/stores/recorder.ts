@@ -27,12 +27,8 @@ export const useRecorderStore = defineStore('recorder', () => {
   const currentSession = ref<RecordingSession | null>(null)
   const duration = ref(0)
   const durationMs = ref(0)  // Alias for WebSocket updates
-  const inputs = ref<InputStatus[]>([
-    { id: 'cam1', label: 'HDMI 1', hasSignal: true, isRecording: false, bytesWritten: 0, resolution: '1920x1080', framerate: 30 },
-    { id: 'cam2', label: 'HDMI 2', hasSignal: true, isRecording: false, bytesWritten: 0, resolution: '1920x1080', framerate: 30 },
-    { id: 'cam3', label: 'HDMI 3', hasSignal: false, isRecording: false, bytesWritten: 0, resolution: '', framerate: 0 },
-    { id: 'cam4', label: 'HDMI 4', hasSignal: false, isRecording: false, bytesWritten: 0, resolution: '', framerate: 0 },
-  ])
+  const inputsLoaded = ref(false)
+  const inputs = ref<InputStatus[]>([])
 
   // Computed
   const isRecording = computed(() => status.value === 'recording')
@@ -161,6 +157,33 @@ export const useRecorderStore = defineStore('recorder', () => {
     }
   }
 
+  async function fetchInputs() {
+    /**
+     * Fetch real input status from pipeline manager via API.
+     * This includes signal detection and resolution info.
+     */
+    try {
+      const response = await r58Api.getInputsStatus()
+      
+      // Map API response to InputStatus format
+      inputs.value = response.map((input: any) => ({
+        id: input.id,
+        label: input.label,
+        hasSignal: input.has_signal,
+        isRecording: input.is_recording,
+        bytesWritten: 0,
+        resolution: input.resolution || '',
+        framerate: input.framerate || 0,
+      }))
+      
+      inputsLoaded.value = true
+      console.log(`[Recorder] Loaded ${inputs.value.length} inputs, ${inputs.value.filter(i => i.hasSignal).length} with signal`)
+    } catch (error) {
+      console.error('Failed to fetch inputs status:', error)
+      // Keep existing inputs on error
+    }
+  }
+
   let durationInterval: number | null = null
   
   function startDurationTimer() {
@@ -219,6 +242,7 @@ export const useRecorderStore = defineStore('recorder', () => {
     duration,
     durationMs,
     inputs,
+    inputsLoaded,
     lastError,
     
     // Computed
@@ -230,6 +254,7 @@ export const useRecorderStore = defineStore('recorder', () => {
     startRecording,
     stopRecording,
     fetchStatus,
+    fetchInputs,
     updateFromEvent,
     updateInputSignal,
   }

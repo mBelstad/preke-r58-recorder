@@ -76,7 +76,7 @@ cameras:
     output_path: /mnt/sdcard/recordings/cam0/recording_%Y%m%d_%H%M%S.mkv
     mediamtx_enabled: true
     mediamtx_path: null  # Auto-generated if null: rtsp://localhost:8554/cam0
-    enabled: false  # Disabled - no camera connected
+    enabled: true  # HDMI 1 - 4K camera connected
 
   cam1:
     device: /dev/video60  # HDMI N60 (hdmirx direct)
@@ -86,7 +86,7 @@ cameras:
     output_path: /mnt/sdcard/recordings/cam1/recording_%Y%m%d_%H%M%S.mkv
     mediamtx_enabled: true
     mediamtx_path: null
-    enabled: true  # Primary camera
+    enabled: false  # No HDMI signal detected
 
   cam2:
     device: /dev/video11  # HDMI N11 (rkcif via LT6911 bridge)
@@ -96,7 +96,7 @@ cameras:
     output_path: /mnt/sdcard/recordings/cam2/recording_%Y%m%d_%H%M%S.mkv
     mediamtx_enabled: true
     mediamtx_path: null
-    enabled: true  # Secondary camera
+    enabled: true  # HDMI 2 - 1080p camera connected
 
   cam3:
     device: /dev/video22  # HDMI N21 (rkcif-mipi-lvds2 via LT6911 2-002b bridge)
@@ -106,7 +106,7 @@ cameras:
     output_path: /mnt/sdcard/recordings/cam3/recording_%Y%m%d_%H%M%S.mkv
     mediamtx_enabled: true
     mediamtx_path: null
-    enabled: false  # Will be enabled after testing
+    enabled: true  # HDMI 3 - 4K camera connected
 
 # Recording configuration
 recording:
