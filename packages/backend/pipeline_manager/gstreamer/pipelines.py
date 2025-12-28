@@ -159,10 +159,15 @@ def get_device_capabilities(device_path: str) -> Dict[str, Any]:
                             result['width'] = int(wh[0])
                             result['height'] = int(wh[1])
                 elif "Pixel Format" in line:
-                    # Format: "Pixel Format      : 'NV16'"
+                    # Format: "Pixel Format      : 'UYVY' (UYVY 4:2:2)"
                     parts = line.split(":")
                     if len(parts) >= 2:
-                        fmt = parts[1].strip().strip("'")
+                        fmt_part = parts[1].strip()
+                        # Extract format from quotes: 'UYVY' -> UYVY
+                        if "'" in fmt_part:
+                            fmt = fmt_part.split("'")[1]  # Get string between first two quotes
+                        else:
+                            fmt = fmt_part.split()[0]  # Fallback: get first word
                         result['format'] = fmt
             
             # Check for no signal (640x480 BGR typically means no signal)
