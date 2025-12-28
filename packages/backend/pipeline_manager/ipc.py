@@ -1,5 +1,6 @@
 """IPC server for pipeline manager communication"""
 import asyncio
+import concurrent.futures
 import json
 import logging
 from pathlib import Path
@@ -20,6 +21,9 @@ logger = logging.getLogger(__name__)
 
 SOCKET_PATH = Path("/run/r58/pipeline.sock")
 RECORDINGS_DIR = Path("/opt/r58/recordings")
+
+# Thread pool for GStreamer operations (blocking)
+_executor = concurrent.futures.ThreadPoolExecutor(max_workers=4, thread_name_prefix="gst_")
 
 
 class IPCServer:
@@ -171,12 +175,17 @@ class IPCServer:
                     )
                     
                     pipeline_id = f"recording_{input_id}"
-                    success = self.gst_runner.start_pipeline(
-                        pipeline_id=pipeline_id,
-                        pipeline_string=pipeline_str,
-                        pipeline_type="recording",
-                        output_path=str(file_path),
-                        device=cam_config.device,
+                    # Run GStreamer operation in thread pool to avoid blocking
+                    loop = asyncio.get_event_loop()
+                    success = await loop.run_in_executor(
+                        _executor,
+                        lambda pid=pipeline_id, pstr=pipeline_str, fp=str(file_path), dev=cam_config.device: self.gst_runner.start_pipeline(
+                            pipeline_id=pid,
+                            pipeline_string=pstr,
+                            pipeline_type="recording",
+                            output_path=fp,
+                            device=dev,
+                        )
                     )
                     
                     if success:
@@ -222,10 +231,15 @@ class IPCServer:
             # Stop all recording GStreamer pipelines
             stopped_pipelines = []
             if self.state.active_recording:
+                loop = asyncio.get_event_loop()
                 for input_id in self.state.active_recording.inputs.keys():
                     pipeline_id = f"recording_{input_id}"
                     try:
-                        success = self.gst_runner.stop_pipeline(pipeline_id)
+                        # Run GStreamer operation in thread pool to avoid blocking
+                        success = await loop.run_in_executor(
+                            _executor,
+                            lambda pid=pipeline_id: self.gst_runner.stop_pipeline(pid)
+                        )
                         if success:
                             stopped_pipelines.append(input_id)
                             logger.info(f"Stopped recording pipeline for {input_id}")
@@ -317,11 +331,16 @@ class IPCServer:
                     resolution=cam_config.resolution,
                 )
                 
-                success = self.gst_runner.start_pipeline(
-                    pipeline_id=pipeline_id,
-                    pipeline_string=pipeline_str,
-                    pipeline_type="preview",
-                    device=cam_config.device,
+                # Run GStreamer operation in thread pool to avoid blocking
+                loop = asyncio.get_event_loop()
+                success = await loop.run_in_executor(
+                    _executor,
+                    lambda: self.gst_runner.start_pipeline(
+                        pipeline_id=pipeline_id,
+                        pipeline_string=pipeline_str,
+                        pipeline_type="preview",
+                        device=cam_config.device,
+                    )
                 )
                 
                 if success:
@@ -347,7 +366,12 @@ class IPCServer:
             pipeline_id = f"preview_{input_id}"
             
             try:
-                success = self.gst_runner.stop_pipeline(pipeline_id)
+                # Run GStreamer operation in thread pool to avoid blocking
+                loop = asyncio.get_event_loop()
+                success = await loop.run_in_executor(
+                    _executor,
+                    lambda: self.gst_runner.stop_pipeline(pipeline_id)
+                )
                 if success:
                     logger.info(f"Stopped preview pipeline for {input_id}")
                     return {"status": "stopped", "input_id": input_id}
