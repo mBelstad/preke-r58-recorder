@@ -26,6 +26,7 @@ from .observability.support import router as support_router
 from .observability.alerts import router as alerts_router
 from .degradation import router as degradation_router
 from .realtime.handlers import router as websocket_router
+from .media.whep_proxy import router as whep_proxy_router
 
 
 @asynccontextmanager
@@ -101,6 +102,7 @@ def create_app() -> FastAPI:
     app.include_router(alerts_router)
     app.include_router(degradation_router)
     app.include_router(websocket_router)
+    app.include_router(whep_proxy_router)
     
     return app
 

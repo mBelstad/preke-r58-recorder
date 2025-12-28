@@ -10,13 +10,11 @@ const videoRef = ref<HTMLVideoElement | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
 
-// Get preview URL from capabilities or construct default
+// Get preview URL from API proxy (same origin, avoids mixed content issues)
 function getPreviewUrl(): string {
-  const protocol = props.protocol || 'whep'
-  const host = window.location.hostname
-  const port = 8889 // MediaMTX WHEP port
-  
-  return `http://${host}:${port}/${props.inputId}/whep`
+  // Use API proxy endpoint for WHEP - served over same HTTPS origin
+  const origin = window.location.origin
+  return `${origin}/api/v1/whep/${props.inputId}/whep`
 }
 
 async function initWhepPlayback() {
