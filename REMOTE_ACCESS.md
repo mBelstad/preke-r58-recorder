@@ -288,5 +288,34 @@ bind_port = 10022
 
 **No Cloudflare** - We use FRP tunnel exclusively for remote access.
 
+---
+
+## 🖥️ Coolify VPS Access
+
+### Connect to VPS
+```bash
+./connect-coolify-vps.sh                    # Interactive shell
+./connect-coolify-vps.sh "docker ps"       # Run command
+```
+
+### VPS Details
+- **IP**: 65.109.32.111
+- **User**: root
+- **Port**: 22 (standard SSH)
+- **SSH Key**: `~/.ssh/coolify_vps_key`
+
+### First-Time Setup
+The VPS requires SSH key auth. Add your public key via Coolify dashboard:
+1. Log into Coolify web interface
+2. Go to Settings → SSH Keys  
+3. Add content of `~/.ssh/coolify_vps_key.pub`
+
+Or if you have existing VPS access, run:
+```bash
+ssh-copy-id -i ~/.ssh/coolify_vps_key.pub root@65.109.32.111
+```
+
+---
+
 Everything is stable, documented, and working! 🚀
 
