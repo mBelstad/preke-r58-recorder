@@ -216,7 +216,10 @@ export function buildCameraContributionUrl(
  * Build a program output URL (WHIP push to MediaMTX)
  * 
  * Uses VDO.ninja's scene output to capture the mixed program
- * and push it via WHIP to MediaMTX.
+ * and push it via WHIP to MediaMTX using the &whipout parameter.
+ * 
+ * Note: &whip= is for VIEWING a WHIP stream published TO VDO.ninja
+ *       &whipout= is for PUBLISHING FROM VDO.ninja TO an external WHIP server
  */
 export function buildProgramOutputUrl(whipUrl: string): string {
   const VDO_HOST = getVdoHost()
@@ -232,8 +235,9 @@ export function buildProgramOutputUrl(whipUrl: string): string {
   url.searchParams.set('hideheader', '')
   url.searchParams.set('nologo', '')
   
-  // WHIP output - push to MediaMTX
-  url.searchParams.set('whip', whipUrl)
+  // WHIP OUTPUT - push scene to external MediaMTX WHIP endpoint
+  // Uses &whipout (not &whip) to publish FROM VDO.ninja TO MediaMTX
+  url.searchParams.set('whipout', whipUrl)
   
   // Auto-start without user interaction
   url.searchParams.set('autostart', '')
@@ -244,5 +248,42 @@ export function buildProgramOutputUrl(whipUrl: string): string {
   url.searchParams.set('css', getVdoCssUrl())
   
   return url.toString()
+}
+
+/**
+ * Build a mixer URL with MediaMTX integration
+ * 
+ * Uses the alpha mixer's built-in MediaMTX support for WHEP input
+ * and optional WHIP output via Scene Output Options.
+ */
+export function buildMixerUrl(options: {
+  mediamtxHost?: string
+  room?: string
+} = {}): string {
+  const VDO_HOST = getVdoHost()
+  const VDO_PROTOCOL = getVdoProtocol()
+  const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/mixer.html`)
+  
+  // Room name
+  const room = options.room || VDO_ROOM
+  url.searchParams.set('room', room)
+  
+  // MediaMTX integration - enables WHEP input from MediaMTX
+  if (options.mediamtxHost) {
+    url.searchParams.set('mediamtx', options.mediamtxHost)
+  }
+  
+  // Custom CSS for R58 reskin
+  url.searchParams.set('css', getVdoCssUrl())
+  
+  return url.toString()
+}
+
+/**
+ * Get the default MediaMTX host for the R58 system
+ */
+export function getMediaMtxHost(): string {
+  // Use the public MediaMTX endpoint
+  return 'r58-mediamtx.itagenten.no'
 }
 
