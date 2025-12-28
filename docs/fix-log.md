@@ -22,7 +22,10 @@
   - Using `rc-mode=cbr` (Constant Bitrate) with QP parameters
   - `profile=baseline` (no B-frames, prevents DTS errors)
   - `qp-init=26 qp-min=10 qp-max=51` for quality control
-- **Browser WebRTC Compatibility**: H.264 is required for browser WebRTC playback (H.265 has limited browser support)
+- **Browser WebRTC Compatibility**: H.264 is required for browser WebRTC playback
+  - R58 Chromium version: 126.0.6478.126
+  - H.265 WebRTC requires: Chromium 136+ (10 versions newer)
+  - External viewers (OBS, mobile) also need H.264 compatibility
 - **Decision**: Keep mpph264enc for preview streams, use mpph265enc for recordings
 - **Architecture**:
   ```
