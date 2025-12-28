@@ -1,14 +1,17 @@
 /**
  * VDO.ninja URL builder and configuration
  * 
- * IMPORTANT: VDO.ninja runs LOCALLY on R58, not on public servers
+ * Uses self-hosted VDO.ninja instance at r58-vdo.itagenten.no
  */
 
-// Get VDO.ninja host dynamically based on current page host
+// VDO.ninja host - self-hosted instance with HTTPS
 export function getVdoHost(): string {
-  const host = window.location.hostname
-  const port = 8443 // VDO.ninja port on R58
-  return `${host}:${port}`
+  return 'r58-vdo.itagenten.no'
+}
+
+// Protocol for VDO.ninja URLs
+export function getVdoProtocol(): string {
+  return 'https'
 }
 
 export const VDO_ROOM = 'studio'
@@ -93,9 +96,8 @@ export const embedProfiles = {
  * Get the CSS URL for VDO.ninja reskin
  */
 export function getVdoCssUrl(): string {
-  const host = window.location.hostname
-  const port = 8000 // R58 API port
-  return `http://${host}:${port}/static/css/vdo-theme.css`
+  // Use same origin as the page (works for both local dev and production)
+  return `${window.location.origin}/static/css/vdo-theme.css`
 }
 
 /**
@@ -106,8 +108,9 @@ export function buildVdoUrl(
   vars: Record<string, string> = {}
 ): string {
   const VDO_HOST = getVdoHost()
+  const VDO_PROTOCOL = getVdoProtocol()
   const config = embedProfiles[profile]
-  const url = new URL(`http://${VDO_HOST}/`)
+  const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/`)
   
   // Always add custom CSS for reskin
   url.searchParams.set('css', getVdoCssUrl())
@@ -158,7 +161,8 @@ export function buildVdoUrl(
  */
 export function buildGuestInviteUrl(guestName: string, guestId?: string): string {
   const VDO_HOST = getVdoHost()
-  const url = new URL(`http://${VDO_HOST}/`)
+  const VDO_PROTOCOL = getVdoProtocol()
+  const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/`)
   
   url.searchParams.set('room', VDO_ROOM)
   url.searchParams.set('push', guestId || guestName.toLowerCase().replace(/\s+/g, '-'))
@@ -179,7 +183,8 @@ export function buildCameraContributionUrl(
   label: string
 ): string {
   const VDO_HOST = getVdoHost()
-  const url = new URL(`http://${VDO_HOST}/`)
+  const VDO_PROTOCOL = getVdoProtocol()
+  const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/`)
   
   url.searchParams.set('push', cameraId)
   url.searchParams.set('room', VDO_ROOM)
