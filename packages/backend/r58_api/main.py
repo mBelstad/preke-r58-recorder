@@ -23,6 +23,7 @@ from .observability.health import router as health_router
 from .observability.metrics import router as metrics_router
 from .observability.support import router as support_router
 from .observability.alerts import router as alerts_router
+from .degradation import router as degradation_router
 from .realtime.handlers import router as websocket_router
 
 
@@ -97,6 +98,7 @@ def create_app() -> FastAPI:
     app.include_router(metrics_router)
     app.include_router(support_router)
     app.include_router(alerts_router)
+    app.include_router(degradation_router)
     app.include_router(websocket_router)
     
     return app

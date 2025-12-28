@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { r58Api } from '@/lib/api'
 
 export interface RecordingSession {
   id: string
@@ -44,18 +45,27 @@ export const useRecorderStore = defineStore('recorder', () => {
   })
   const activeInputs = computed(() => inputs.value.filter(i => i.hasSignal))
 
+  // Error state
+  const lastError = ref<string | null>(null)
+
   // Actions
   async function startRecording(sessionName?: string) {
     status.value = 'starting'
+    lastError.value = null
     
     try {
-      // TODO: Call API to start recording
-      // const response = await fetch('/api/v1/recorder/start', { method: 'POST', ... })
+      // Call API to start recording with retry support
+      const response = await r58Api.startRecording({
+        name: sessionName,
+        inputs: activeInputs.value.map(i => i.id),
+      })
+      
+      sessionId.value = response.session_id
       
       currentSession.value = {
-        id: crypto.randomUUID(),
+        id: response.session_id,
         name: sessionName || null,
-        startedAt: new Date(),
+        startedAt: new Date(response.started_at),
         duration: 0,
         inputs: inputs.value.filter(i => i.hasSignal),
       }
@@ -71,30 +81,86 @@ export const useRecorderStore = defineStore('recorder', () => {
       
       // Start duration timer
       startDurationTimer()
-    } catch (error) {
+      
+      console.log(`[Recorder] Started recording: ${response.session_id}`)
+    } catch (error: any) {
       console.error('Failed to start recording:', error)
+      lastError.value = error.message || 'Failed to start recording'
       status.value = 'idle'
+      throw error
     }
   }
 
   async function stopRecording() {
     status.value = 'stopping'
+    lastError.value = null
     
     try {
-      // TODO: Call API to stop recording
-      // const response = await fetch('/api/v1/recorder/stop', { method: 'POST', ... })
+      // Call API to stop recording with retry support
+      const response = await r58Api.stopRecording(sessionId.value || undefined)
+      
+      console.log(`[Recorder] Stopped recording: ${response.session_id}, duration: ${response.duration_ms}ms`)
       
       // Stop all inputs
       inputs.value.forEach(input => {
         input.isRecording = false
       })
       
+      // Store final duration before clearing
+      const finalDuration = duration.value
+      
       currentSession.value = null
+      sessionId.value = null
       duration.value = 0
+      durationMs.value = 0
       status.value = 'idle'
-    } catch (error) {
+      
+      // Stop duration timer
+      if (durationInterval) {
+        clearInterval(durationInterval)
+        durationInterval = null
+      }
+      
+      return { duration_ms: response.duration_ms, files: response.files }
+    } catch (error: any) {
       console.error('Failed to stop recording:', error)
+      lastError.value = error.message || 'Failed to stop recording'
+      // Revert to recording state on failure
       status.value = 'recording'
+      throw error
+    }
+  }
+
+  async function fetchStatus() {
+    /**
+     * Fetch current recorder status from API.
+     * Used to sync state on initial load or after disconnect.
+     */
+    try {
+      const response = await r58Api.getRecorderStatus()
+      
+      if (response.status === 'recording') {
+        status.value = 'recording'
+        sessionId.value = response.session_id || null
+        duration.value = response.duration_ms
+        durationMs.value = response.duration_ms
+        
+        // Mark inputs as recording
+        response.inputs.forEach(inputId => {
+          const input = inputs.value.find(i => i.id === inputId)
+          if (input) {
+            input.isRecording = true
+          }
+        })
+        
+        // Start duration timer
+        startDurationTimer()
+      } else {
+        status.value = 'idle'
+        sessionId.value = null
+      }
+    } catch (error) {
+      console.error('Failed to fetch recorder status:', error)
     }
   }
 
@@ -156,6 +222,7 @@ export const useRecorderStore = defineStore('recorder', () => {
     duration,
     durationMs,
     inputs,
+    lastError,
     
     // Computed
     isRecording,
@@ -165,6 +232,7 @@ export const useRecorderStore = defineStore('recorder', () => {
     // Actions
     startRecording,
     stopRecording,
+    fetchStatus,
     updateFromEvent,
     updateInputSignal,
   }
