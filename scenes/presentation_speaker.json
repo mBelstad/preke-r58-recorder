@@ -1,0 +1,36 @@
+{
+  "id": "presentation_speaker",
+  "label": "Presentation with Speaker",
+  "resolution": "1920x1080",
+  "slots": [
+    {
+      "source": "slides",
+      "source_type": "reveal",
+      "x_rel": 0.0,
+      "y_rel": 0.0,
+      "w_rel": 0.7,
+      "h_rel": 1.0,
+      "z": 0,
+      "alpha": 1.0,
+      "crop_x": 0.0,
+      "crop_y": 0.0,
+      "crop_w": 1.0,
+      "crop_h": 1.0
+    },
+    {
+      "source": "cam1",
+      "source_type": "camera",
+      "x_rel": 0.7,
+      "y_rel": 0.5,
+      "w_rel": 0.3,
+      "h_rel": 0.5,
+      "z": 1,
+      "alpha": 1.0,
+      "crop_x": 0.0,
+      "crop_y": 0.0,
+      "crop_w": 1.0,
+      "crop_h": 1.0
+    }
+  ]
+}
+

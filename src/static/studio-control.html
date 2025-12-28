@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>R58 Studio Control Panel</title>
+    <link rel="stylesheet" href="/static/css/design-system.css">
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: var(--font-sans);
+            background: #1a1a1a;
+            color: #fff;
+            min-height: 100vh;
+        }
+        
+        .studio-layout {
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            grid-template-rows: auto 1fr auto;
+            height: 100vh;
+            gap: 16px;
+            padding: 16px;
+        }
+        
+        /* Header */
+        .header {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #2a2a2a;
+            padding: 12px 20px;
+            border-radius: 12px;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .header-status {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+        
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            color: #888;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #666;
+        }
+        
+        .status-dot.live {
+            background: #34C759;
+            box-shadow: 0 0 8px #34C759;
+        }
+        
+        .status-dot.error {
+            background: #FF3B30;
+        }
+        
+        /* Main content area */
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            min-height: 0;
+        }
+        
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+        }
+        
+        .section-title {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #aaa;
+        }
+        
+        /* Preview Section - Main Camera View */
+        .preview-section {
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .preview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 8px;
+            padding: 8px;
+        }
+        
+        .preview-item {
+            position: relative;
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+            /* 16:9 aspect ratio */
+            aspect-ratio: 16 / 9;
+        }
+        
+        .preview-item:hover {
+            border-color: #007AFF;
+        }
+        
+        .preview-item.selected {
+            border-color: #FF3B30;
+            box-shadow: 0 0 0 2px rgba(255, 59, 48, 0.3);
+        }
+        
+        .preview-item video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background: #000;
+        }
+        
+        .preview-label {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 4px 8px;
+            background: linear-gradient(transparent, rgba(0,0,0,0.9));
+            color: white;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        
+        .preview-status {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #666;
+            border: 2px solid #000;
+        }
+        
+        .preview-status.connected {
+            background: #34C759;
+            box-shadow: 0 0 6px #34C759;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            min-height: 0;
+            overflow-y: auto;
+        }
+        
+        .control-panel {
+            background: #2a2a2a;
+            border-radius: 12px;
+            padding: 16px;
+        }
+        
+        .control-panel h3 {
+            margin: 0 0 12px 0;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #888;
+        }
+        
+        .control-panel .helper-text {
+            font-size: 11px;
+            color: #666;
+            margin-bottom: 12px;
+        }
+        
+        .control-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+        
+        .btn-primary {
+            background: #007AFF;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #0056B3;
+        }
+        
+        .btn-secondary {
+            background: #3a3a3a;
+            color: #fff;
+        }
+        
+        .btn-secondary:hover {
+            background: #4a4a4a;
+        }
+        
+        .btn-success {
+            background: #34C759;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #2da64b;
+        }
+        
+        .btn-danger {
+            background: #FF3B30;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #e0342b;
+        }
+        
+        /* Links section */
+        .link-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 0;
+            border-bottom: 1px solid #3a3a3a;
+        }
+        
+        .link-item:last-child {
+            border-bottom: none;
+        }
+        
+        .link-item a {
+            color: #007AFF;
+            text-decoration: none;
+            font-size: 13px;
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .link-item a:hover {
+            text-decoration: underline;
+        }
+        
+        .link-item button {
+            padding: 4px 8px;
+            font-size: 11px;
+        }
+        
+        /* Footer */
+        .footer {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 16px;
+            background: #2a2a2a;
+            border-radius: 12px;
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .footer-links a {
+            color: #007AFF;
+            text-decoration: none;
+            margin-left: 16px;
+        }
+        
+        .footer-links a:hover {
+            text-decoration: underline;
+        }
+        
+        /* Settings modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-overlay.active {
+            display: flex;
+        }
+        
+        .modal {
+            background: #2a2a2a;
+            border-radius: 16px;
+            padding: 24px;
+            width: 90%;
+            max-width: 400px;
+        }
+        
+        .modal h2 {
+            margin: 0 0 16px 0;
+            font-size: 18px;
+        }
+        
+        .form-group {
+            margin-bottom: 16px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #888;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #3a3a3a;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: #007AFF;
+        }
+        
+        .modal-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+        
+        /* Toast */
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 200;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .toast {
+            padding: 12px 20px;
+            background: #2a2a2a;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+            font-size: 13px;
+            animation: slideIn 0.3s ease;
+            border-left: 3px solid #34C759;
+        }
+        
+        .toast.error {
+            border-left-color: #FF3B30;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="studio-layout">
+        <!-- Header -->
+        <header class="header">
+            <h1>R58 Studio Control</h1>
+            <div class="header-status">
+                <div class="status-indicator">
+                    <span class="status-dot" id="bridgeStatus"></span>
+                    <span id="bridgeStatusText">Connecting...</span>
+                </div>
+                <div class="status-indicator">
+                    <span class="status-dot" id="mediaStatus"></span>
+                    <span id="mediaStatusText">MediaMTX</span>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Main content -->
+        <main class="main-content">
+            <!-- Camera Preview - Main View -->
+            <section class="preview-section" style="flex: 1;">
+                <div class="section-header" style="position: absolute; top: 0; left: 0; right: 0; z-index: 10; background: rgba(0,0,0,0.6); padding: 8px 12px;">
+                    <span class="section-title">Live Camera Feed</span>
+                    <button class="btn btn-secondary" onclick="refreshPreviews()" style="padding: 4px 10px; font-size: 11px;">Refresh</button>
+                </div>
+                <div class="preview-grid" id="previewGrid" style="height: 100%; padding: 0;">
+                    <!-- Populated dynamically -->
+                </div>
+            </section>
+        </main>
+        
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <!-- Bridge Status -->
+            <div class="control-panel">
+                <h3>VDO.ninja Session</h3>
+                <div class="helper-text" id="bridgeHelper">Opens camera stream in VDO.ninja room</div>
+                <div class="control-buttons" style="display: flex; flex-direction: column; gap: 8px;">
+                    <button class="btn btn-success" id="popupBridge" onclick="togglePopupBridge()">
+                        📺 Start Session
+                    </button>
+                    <button class="btn btn-secondary" id="serverBridge" onclick="toggleServerBridge()">
+                        🖥️ R58 Service
+                    </button>
+                </div>
+                <div class="helper-text" style="margin-top: 8px; font-size: 10px; opacity: 0.6;">
+                    Browser: Uses your browser (reliable)<br>
+                    R58 Service: Runs on device (background)
+                </div>
+            </div>
+            
+            <!-- Quick Links -->
+            <div class="control-panel">
+                <h3>Quick Links</h3>
+                <div class="link-item">
+                    <a href="#" onclick="openDirector(); return false;">Director Room</a>
+                    <button class="btn btn-secondary" onclick="copyLink('director')">Copy</button>
+                </div>
+                <div class="link-item">
+                    <a href="#" onclick="openSceneFullscreen(); return false;">Scene Output (OBS)</a>
+                    <button class="btn btn-secondary" onclick="copyLink('scene')">Copy</button>
+                </div>
+                <div class="link-item">
+                    <a href="#" onclick="openGuestInvite(); return false;">Guest Invite</a>
+                    <button class="btn btn-secondary" onclick="copyLink('guest')">Copy</button>
+                </div>
+            </div>
+            
+            <!-- Settings -->
+            <div class="control-panel">
+                <h3>Settings</h3>
+                <div class="control-buttons">
+                    <button class="btn btn-secondary" onclick="openSettings()">
+                        Configure Room & Cameras
+                    </button>
+                </div>
+            </div>
+        </aside>
+        
+        <!-- Footer -->
+        <footer class="footer">
+            <span>R58 Preke Recorder</span>
+            <div class="footer-links">
+                <a href="/docs" target="_blank">API</a>
+                <a href="/api/status" target="_blank">Status</a>
+            </div>
+        </footer>
+    </div>
+    
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settingsModal">
+        <div class="modal">
+            <h2>Settings</h2>
+            <div class="form-group">
+                <label>VDO.ninja Host</label>
+                <input type="text" id="vdoninjaHost" placeholder="r58-vdo.itagenten.no">
+            </div>
+            <div class="form-group">
+                <label>Room Name</label>
+                <input type="text" id="roomName" placeholder="r58studio">
+            </div>
+            <div class="form-group">
+                <label>API Host</label>
+                <input type="text" id="apiHost" placeholder="r58-api.itagenten.no">
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeSettings()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveSettings()">Save</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Toast container -->
+    <div class="toast-container" id="toastContainer"></div>
+    
+    <script>
+        // Configuration
+        const config = {
+            vdoninjaHost: localStorage.getItem('vdoninjaHost') || 'r58-vdo.itagenten.no',
+            roomName: localStorage.getItem('roomName') || 'r58studio',
+            apiHost: localStorage.getItem('apiHost') || window.location.host,
+            cameras: ['cam2']
+        };
+        
+        // Bridge state
+        let bridgeActive = false;
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadSettings();
+            initializePreviews();
+            checkBridgeStatus();
+            
+            // Don't auto-connect - let user click "Start Session"
+            // This avoids permission prompts and popups
+            
+            // Check status periodically
+            setInterval(checkBridgeStatus, 10000);
+            
+            // Note: VDO.ninja session runs in separate tab - user closes it manually
+        });
+        
+        // Load settings
+        function loadSettings() {
+            document.getElementById('vdoninjaHost').value = config.vdoninjaHost;
+            document.getElementById('roomName').value = config.roomName;
+            document.getElementById('apiHost').value = config.apiHost;
+        }
+        
+        // Initialize camera previews with WHEP (direct connection)
+        function initializePreviews() {
+            const grid = document.getElementById('previewGrid');
+            grid.innerHTML = '';
+            
+            config.cameras.forEach((camId, index) => {
+                const item = document.createElement('div');
+                item.className = 'preview-item';
+                item.id = `preview-${camId}`;
+                item.innerHTML = `
+                    <video id="video-${camId}" autoplay muted playsinline></video>
+                    <div class="preview-status" id="status-${camId}"></div>
+                    <div class="preview-label">HDMI ${index + 1} (${camId})</div>
+                `;
+                item.onclick = () => selectPreview(camId);
+                grid.appendChild(item);
+                
+                connectWHEP(camId, `video-${camId}`, `status-${camId}`);
+            });
+        }
+        
+        
+        // Connect to WHEP endpoint
+        async function connectWHEP(camId, videoId, statusId, onSuccess, onError) {
+            const video = document.getElementById(videoId);
+            const status = statusId ? document.getElementById(statusId) : null;
+            
+            try {
+                const pc = new RTCPeerConnection({
+                    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+                });
+                
+                pc.ontrack = (event) => {
+                    video.srcObject = event.streams[0];
+                    if (status) status.classList.add('connected');
+                    if (onSuccess) onSuccess();
+                };
+                
+                pc.oniceconnectionstatechange = () => {
+                    if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed') {
+                        if (status) status.classList.remove('connected');
+                        if (onError) onError();
+                    }
+                };
+                
+                // Add transceiver for receiving
+                pc.addTransceiver('video', { direction: 'recvonly' });
+                pc.addTransceiver('audio', { direction: 'recvonly' });
+                
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+                
+                // Wait for ICE gathering
+                await new Promise((resolve) => {
+                    if (pc.iceGatheringState === 'complete') resolve();
+                    else {
+                        pc.onicegatheringstatechange = () => {
+                            if (pc.iceGatheringState === 'complete') resolve();
+                        };
+                        setTimeout(resolve, 2000);
+                    }
+                });
+                
+                const response = await fetch(`/whep/${camId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/sdp' },
+                    body: pc.localDescription.sdp
+                });
+                
+                if (response.ok) {
+                    const answer = await response.text();
+                    await pc.setRemoteDescription({ type: 'answer', sdp: answer });
+                } else {
+                    throw new Error(`WHEP failed: ${response.status}`);
+                }
+            } catch (error) {
+                console.error(`WHEP error for ${camId}:`, error);
+                if (status) status.classList.remove('connected');
+                if (onError) onError();
+            }
+        }
+        
+        // Select preview
+        function selectPreview(camId) {
+            document.querySelectorAll('.preview-item').forEach(el => el.classList.remove('selected'));
+            document.getElementById(`preview-${camId}`).classList.add('selected');
+        }
+        
+        // Refresh previews
+        function refreshPreviews() {
+            initializePreviews();
+            showToast('Refreshed');
+        }
+        
+        
+        // Open director
+        function openDirector() {
+            window.open(`https://${config.vdoninjaHost}/?director=${config.roomName}`, '_blank');
+        }
+        
+        // Open scene fullscreen
+        function openSceneFullscreen() {
+            const cameraIds = config.cameras.map((c, i) => `hdmi${i + 1}`).join(',');
+            window.open(`https://${config.vdoninjaHost}/?scene&room=${config.roomName}&autoadd=${cameraIds}`, '_blank');
+        }
+        
+        // Open guest invite
+        function openGuestInvite() {
+            window.open(`https://${config.vdoninjaHost}/?room=${config.roomName}`, '_blank');
+        }
+        
+        // Copy link
+        function copyLink(type) {
+            const cameraIds = config.cameras.map((c, i) => `hdmi${i + 1}`).join(',');
+            const urls = {
+                director: `https://${config.vdoninjaHost}/?director=${config.roomName}`,
+                scene: `https://${config.vdoninjaHost}/?scene&room=${config.roomName}&autoadd=${cameraIds}`,
+                guest: `https://${config.vdoninjaHost}/?room=${config.roomName}`
+            };
+            
+            navigator.clipboard.writeText(urls[type]).then(() => {
+                showToast('Link copied!');
+            });
+        }
+        
+        // Settings
+        function openSettings() {
+            document.getElementById('settingsModal').classList.add('active');
+        }
+        
+        function closeSettings() {
+            document.getElementById('settingsModal').classList.remove('active');
+        }
+        
+        function saveSettings() {
+            config.vdoninjaHost = document.getElementById('vdoninjaHost').value;
+            config.roomName = document.getElementById('roomName').value;
+            config.apiHost = document.getElementById('apiHost').value;
+            
+            localStorage.setItem('vdoninjaHost', config.vdoninjaHost);
+            localStorage.setItem('roomName', config.roomName);
+            localStorage.setItem('apiHost', config.apiHost);
+            
+            closeSettings();
+            showToast('Settings saved');
+        }
+        
+        // Open VDO.ninja session in a new tab (user can minimize it)
+        // Uses &whepshare to stream WHEP source to VDO.ninja room viewers
+        function togglePopupBridge() {
+            if (bridgeActive) {
+                // Just update UI - user closes tab manually
+                bridgeActive = false;
+                updatePopupUI(false);
+                showToast('Bridge disconnected. Close the VDO.ninja tab to fully disconnect.');
+            } else {
+                // Open camera bridge in new tab
+                config.cameras.forEach((camId, index) => {
+                    const pushId = `hdmi${index + 1}`;
+                    const label = `HDMI-${index + 1}`;
+                    const whepUrl = encodeURIComponent(`https://${config.apiHost}/whep/${camId}`);
+                    // &whepshare redirects viewers to WHEP source
+                    // &videodevice=0&audiodevice=0 disables local capture
+                    const bridgeUrl = `https://${config.vdoninjaHost}/?push=${pushId}&room=${config.roomName}&whepshare=${whepUrl}&label=${label}&videodevice=0&audiodevice=0&autostart`;
+                    
+                    window.open(bridgeUrl, `vdo_${camId}`);
+                });
+                
+                bridgeActive = true;
+                updatePopupUI(true);
+                showToast('VDO.ninja session opened. You can minimize that tab.');
+            }
+        }
+        
+        function updatePopupUI(active) {
+            const btn = document.getElementById('popupBridge');
+            const statusDot = document.getElementById('bridgeStatus');
+            const statusText = document.getElementById('bridgeStatusText');
+            
+            if (active) {
+                btn.className = 'btn btn-danger';
+                btn.textContent = '📺 Session Active';
+                if (statusDot) statusDot.classList.add('live');
+                if (statusText) statusText.textContent = 'VDO.ninja Connected';
+            } else {
+                btn.className = 'btn btn-success';
+                btn.textContent = '📺 Start Session';
+            }
+        }
+        
+        
+        // Check R58 bridge status via API
+        async function checkBridgeStatus() {
+            try {
+                const response = await fetch('/api/vdoninja/bridge/status');
+                const data = await response.json();
+                
+                const btn = document.getElementById('bridgeToggle');
+                const helper = document.getElementById('bridgeHelper');
+                const statusDot = document.getElementById('bridgeStatus');
+                const statusText = document.getElementById('bridgeStatusText');
+                
+                if (data.service_active && data.chromium_running) {
+                    bridgeActive = true;
+                    btn.className = 'btn btn-danger';
+                    btn.textContent = 'Stop Bridge';
+                    helper.textContent = `Bridge running (${data.tabs_open || 0} tabs)`;
+                    statusDot.classList.add('live');
+                    statusDot.classList.remove('error');
+                    statusText.textContent = 'Bridge Active';
+                } else {
+                    bridgeActive = false;
+                    btn.className = 'btn btn-success';
+                    btn.textContent = 'Start Bridge';
+                    helper.textContent = 'R58 bridge service is stopped';
+                    statusDot.classList.remove('live');
+                    statusText.textContent = 'Bridge Stopped';
+                }
+            } catch (error) {
+                console.error('Bridge status check failed:', error);
+                document.getElementById('bridgeHelper').textContent = 'Could not check bridge status';
+            }
+        }
+        
+        // Toggle server-side bridge
+        async function toggleServerBridge() {
+            const btn = document.getElementById('bridgeToggle');
+            btn.disabled = true;
+            btn.textContent = bridgeActive ? 'Stopping...' : 'Starting...';
+            
+            try {
+                if (bridgeActive) {
+                    const response = await fetch('/api/vdoninja/bridge/stop', { method: 'POST' });
+                    const data = await response.json();
+                    if (data.success) {
+                        showToast('Bridge stopped');
+                    } else {
+                        showToast('Failed to stop bridge: ' + (data.error || 'Unknown error'), 'error');
+                    }
+                } else {
+                    const params = new URLSearchParams({
+                        room: config.roomName,
+                        cameras: config.cameras.map((c, i) => `${c}:hdmi${i+1}:HDMI-${i+1}`).join(',')
+                    });
+                    const response = await fetch(`/api/vdoninja/bridge/start?${params}`, { method: 'POST' });
+                    const data = await response.json();
+                    if (data.success) {
+                        showToast('Bridge started');
+                    } else {
+                        showToast('Failed to start bridge: ' + (data.error || 'Unknown error'), 'error');
+                    }
+                }
+            } catch (error) {
+                showToast('Bridge control failed: ' + error.message, 'error');
+            }
+            
+            btn.disabled = false;
+            // Refresh status after a delay
+            setTimeout(checkBridgeStatus, 2000);
+        }
+        
+        // Toast
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type === 'error' ? 'error' : ''}`;
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+    </script>
+</body>
+</html>

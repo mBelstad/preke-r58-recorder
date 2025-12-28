@@ -2,19 +2,23 @@
 logLevel: info
 logDestinations: [stdout]
 
+# API settings - needed for stream status checks
+api: yes
+apiAddress: :9997
+
 # RTSP settings
 rtspAddress: :8554
 
 # RTMP settings
 rtmpAddress: :1935
 
-# HLS settings (separate port for HLS) - optimized for minimum latency
-# MediaMTX requires 7 segments for LL-HLS, so use 7 segments @ 100ms = 700ms buffer
+# HLS settings - optimized for STABILITY under high load
+# Increased buffer to prevent 404 errors when system is busy
 hlsAddress: :8888
 hlsAlwaysRemux: yes
-hlsSegmentCount: 7
-hlsSegmentDuration: 100ms
-hlsPartDuration: 50ms
+hlsSegmentCount: 10         # 20-second buffer (10 x 2s) - prevents segment expiry under load
+hlsSegmentDuration: 2s      # Longer segments reduce generation frequency and CPU load
+hlsPartDuration: 400ms      # Balanced LL-HLS - still fast but more stable
 hlsAllowOrigin: "*"
 
 # SRT settings
@@ -22,26 +26,64 @@ srtAddress: :8890
 
 # WebRTC settings (low latency for live view)
 webrtcAddress: :8889
-webrtcAllowOrigin: "*"
+webrtcAllowOrigins: ["*"]
 webrtcEncryption: no
 
+# ICE configuration for NAT traversal via FRP
+# webrtcAdditionalHosts: IP addresses only (not IP:port!)
+# This tells ICE to advertise this IP to remote clients
+webrtcAdditionalHosts: ["65.109.32.111"]
+
+# UDP port for WebRTC media (mapped via FRP to 18189 on VPS)
+webrtcLocalUDPAddress: :8189
+
+# TCP port for WebRTC when UDP fails (essential for FRP tunnel)
+# This enables WebRTC to work over TCP through the FRP tunnel
+webrtcLocalTCPAddress: :8190
+
+# STUN servers for ICE gathering
+webrtcICEServers2:
+  - url: stun:stun.l.google.com:19302
+
 # Paths configuration
+# Camera streams published via RTSP (rtspclientsink with H.265)
 paths:
   cam0:
     source: publisher
-  cam0_preview:
-    source: publisher
   cam1:
-    source: publisher
-  cam1_preview:
     source: publisher
   cam2:
     source: publisher
-  cam2_preview:
-    source: publisher
   cam3:
     source: publisher
-  cam3_preview:
-    source: publisher
   mixer_program:
+    source: publisher
+  # Remote guest paths (published via WHIP)
+  guest1:
+    source: publisher
+  guest2:
+    source: publisher
+  # Remote speaker paths (published via WHIP from guest_join page)
+  speaker0:
+    source: publisher
+  speaker1:
+    source: publisher
+  speaker2:
+    source: publisher
+  # Ninja guest paths (published via WebRTC subscriber)
+  ninja_guest1:
+    source: publisher
+  ninja_guest2:
+    source: publisher
+  ninja_guest3:
+    source: publisher
+  ninja_guest4:
+    source: publisher
+  # Ninja program output (if using Ninja mixer)
+  ninja_program:
+    source: publisher
+  # Reveal.js presentation streams
+  slides:
+    source: publisher
+  slides_overlay:
     source: publisher

@@ -1,0 +1,42 @@
+[Unit]
+Description=R58 WHEP to VDO.ninja Bridge
+Documentation=https://docs.vdo.ninja/
+After=network.target mediamtx.service preke-recorder.service
+Wants=mediamtx.service
+
+[Service]
+Type=simple
+User=linaro
+Group=linaro
+WorkingDirectory=/opt/preke-r58-recorder
+
+# Environment
+Environment=PYTHONUNBUFFERED=1
+
+# Main command - bridge cameras to VDO.ninja room
+# Using --single for now to test with one camera
+ExecStart=/usr/bin/python3 /opt/preke-r58-recorder/src/whep_vdo_bridge.py \
+    --signaling wss://localhost:8443 \
+    --mediamtx http://localhost:8889 \
+    --api http://localhost:8000 \
+    --room r58studio \
+    --single
+
+# Restart policy
+Restart=always
+RestartSec=10
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=r58-whep-bridge
+
+# Security
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/preke-r58-recorder
+
+[Install]
+WantedBy=multi-user.target
+

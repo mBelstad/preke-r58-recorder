@@ -2,6 +2,8 @@
 import logging
 import threading
 import signal
+import sys
+import platform
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -17,6 +19,45 @@ class GstInitTimeout(Exception):
     pass
 
 
+def _get_gstreamer_install_instructions() -> str:
+    """Get platform-specific GStreamer installation instructions."""
+    system = platform.system()
+    
+    if system == "Darwin":  # macOS
+        return """
+GStreamer is not installed or not found on macOS.
+
+To install GStreamer:
+1. Install Homebrew (if not already installed):
+   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+2. Install GStreamer:
+   brew install gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly gst-libav
+
+3. Install Python GObject bindings:
+   brew install pygobject3
+
+4. Restart your terminal and try again.
+
+For more info: https://gstreamer.freedesktop.org/documentation/installing/on-mac-osx.html
+"""
+    elif system == "Linux":
+        return """
+GStreamer is not installed or not found on Linux.
+
+To install GStreamer on Ubuntu/Debian:
+   sudo apt-get update
+   sudo apt-get install -y gstreamer1.0-tools gstreamer1.0-plugins-base \\
+       gstreamer1.0-plugins-good gstreamer1.0-plugins-bad \\
+       gstreamer1.0-plugins-ugly gstreamer1.0-libav \\
+       python3-gi python3-gi-cairo gir1.2-gstreamer-1.0
+
+For other distributions, consult: https://gstreamer.freedesktop.org/documentation/installing/on-linux.html
+"""
+    else:
+        return f"GStreamer installation instructions not available for {system}. Please visit https://gstreamer.freedesktop.org"
+
+
 def _gst_init_thread():
     """Initialize GStreamer in a separate thread."""
     global _gst_initialized, _gst_init_error
@@ -27,6 +68,11 @@ def _gst_init_thread():
         Gst.init(None)
         _gst_initialized = True
         logger.info("GStreamer initialized successfully")
+    except ImportError as e:
+        error_msg = f"GStreamer Python bindings not found: {e}"
+        _gst_init_error = error_msg
+        logger.error(error_msg)
+        logger.error(_get_gstreamer_install_instructions())
     except Exception as e:
         _gst_init_error = str(e)
         logger.error(f"GStreamer initialization failed: {e}")
@@ -50,6 +96,14 @@ def init_gstreamer(timeout: float = 10.0) -> bool:
         
         if _gst_init_error:
             logger.warning(f"GStreamer previously failed to initialize: {_gst_init_error}")
+            # On macOS, provide helpful installation instructions
+            if platform.system() == "Darwin":
+                logger.warning("=" * 70)
+                logger.warning("GStreamer is required for video capture and processing.")
+                logger.warning("On macOS, you can install it with:")
+                logger.warning("  brew install gstreamer gst-plugins-base gst-plugins-good")
+                logger.warning("  brew install pygobject3")
+                logger.warning("=" * 70)
             return False
         
         logger.info(f"Initializing GStreamer (timeout: {timeout}s)...")
@@ -65,6 +119,14 @@ def init_gstreamer(timeout: float = 10.0) -> bool:
             logger.error(f"GStreamer initialization timed out after {timeout}s")
             logger.error("This may indicate stuck gst-plugin-scanner processes - reboot may be required")
             return False
+        
+        if not _gst_initialized and _gst_init_error:
+            # Provide helpful error message based on platform
+            if platform.system() == "Darwin":
+                logger.error("=" * 70)
+                logger.error("GStreamer failed to initialize on macOS.")
+                logger.error(_get_gstreamer_install_instructions())
+                logger.error("=" * 70)
         
         return _gst_initialized
 

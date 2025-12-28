@@ -108,13 +108,15 @@ This is automated via `scripts/init_hdmi_inputs.sh` on boot.
 4. ✅ **Remote access setup** - Cloudflare Tunnel for web and SSH
 5. ✅ **SD card integration** - Recording to external storage
 6. ✅ **Service stability** - Fixed stuck service issues, cleanup scripts
+7. ✅ **Dynamic resolution adaptation** - Automatic detection and restart on resolution changes (no service restart needed)
+8. ✅ **Signal loss recovery** - Automatic detection of HDMI disconnect/reconnect with graceful pipeline management
 
 ## Known Issues / Limitations
 
 1. **HDMI cable quality matters** - Faulty cables can cause invalid resolution detection (e.g., 720x240)
 2. **Device busy errors** - Can occur if device not properly released between recording/preview
-3. **Service restart required** - After HDMI cable changes, service restart needed to detect new signal
-4. **4K sources** - Automatically downscaled to 1080p for preview (recording keeps 4K)
+3. **4K sources** - Automatically downscaled to 1080p for preview (recording keeps 4K)
+4. **Recording resolution changes** - Recording pipelines do not adapt to resolution changes (preview only)
 
 ## Common Commands
 
@@ -139,10 +141,12 @@ dmesg | grep LT6911UXE
 
 ### API Endpoints
 - `GET /status` - Camera status
-- `GET /preview/status` - Preview status
+- `GET /api/preview/status` - Detailed preview status with resolution and signal info
 - `POST /preview/start-all` - Start all previews
+- `POST /preview/stop-all` - Stop all previews
 - `POST /record/start/{cam_id}` - Start recording
 - `POST /record/stop/{cam_id}` - Stop recording
+- `GET /hls/{stream_path}` - HLS proxy for remote access
 
 ### Deployment
 ```bash
@@ -181,14 +185,32 @@ sudo systemctl restart preke-recorder
 
 ## Next Steps / Future Improvements
 
-- Automatic device re-initialization on signal change
-- Dynamic resolution adaptation
-- Better error recovery with retry logic
+- Frontend resolution and signal status display
+- Webhook notifications for signal events
+- Prometheus metrics endpoint
 - Performance optimization for CPU usage
 - Signal quality monitoring
+- Recording pipeline resolution adaptation
 
 ---
 
 **Last Updated**: 2025-12-15
 **Project Status**: Production Ready ✅
+
+## New Features (December 2025)
+
+### Dynamic Resolution Adaptation
+- Automatically detects HDMI resolution changes every 10 seconds
+- Gracefully restarts preview pipelines with new resolution
+- No manual service restart required
+- Works for both 1080p ↔ 4K and other resolution changes
+- API exposes current detected resolution via `/api/preview/status`
+
+### Signal Loss Recovery
+- Automatically detects HDMI signal loss (cable disconnect, source power off)
+- Cleanly stops pipelines when signal lost
+- Automatically restarts when signal returns
+- Tracks signal loss duration
+- New `no_signal` state for cameras without HDMI connection
+- API fields: `has_signal`, `signal_loss_duration`
 

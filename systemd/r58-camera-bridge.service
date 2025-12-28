@@ -1,0 +1,41 @@
+[Unit]
+Description=R58 Camera Bridge - Bridges HDMI cameras to VDO.ninja room
+Documentation=https://docs.vdo.ninja/
+After=network.target mediamtx.service preke-recorder.service
+Wants=mediamtx.service
+
+[Service]
+Type=simple
+User=linaro
+Group=linaro
+Environment=DISPLAY=:0
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+
+# Use chromium in headless mode to run the bridge page
+# Using --headless=new for newer Chromium and --ozone-platform for ARM
+ExecStart=/usr/bin/chromium \
+    --headless=new \
+    --no-sandbox \
+    --disable-gpu \
+    --disable-software-rasterizer \
+    --disable-dev-shm-usage \
+    --remote-debugging-port=9222 \
+    --ozone-platform=headless \
+    --window-size=1280,720 \
+    http://localhost:8000/static/camera-bridge.html
+
+Restart=on-failure
+RestartSec=10
+
+# Resource limits
+MemoryMax=512M
+CPUQuota=50%
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=r58-camera-bridge
+
+[Install]
+WantedBy=multi-user.target
+

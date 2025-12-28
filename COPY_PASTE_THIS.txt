@@ -1,0 +1,26 @@
+====================================
+COPY AND PASTE THIS INTO YOUR R58 SSH SESSION
+====================================
+
+cd /opt/preke-r58-recorder && sudo pip3 install --upgrade pycairo --break-system-packages && sudo systemctl restart preke-recorder && sleep 8 && sudo systemctl status preke-recorder
+
+====================================
+THEN TEST WITH THIS
+====================================
+
+# Test Cairo is available
+curl http://localhost:8000/api/cairo/status
+
+# Run automated tests
+./test_cairo_graphics.sh
+
+====================================
+THEN OPEN IN BROWSER
+====================================
+
+https://recorder.itagenten.no/cairo
+
+====================================
+
+
+

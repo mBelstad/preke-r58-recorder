@@ -3,6 +3,7 @@ import logging
 import time
 import threading
 import subprocess
+import os
 from typing import Dict, Optional, Any
 from pathlib import Path
 from datetime import datetime
@@ -14,8 +15,58 @@ from ..gst_utils import ensure_gst_initialized, get_gst, get_glib
 
 logger = logging.getLogger(__name__)
 
+# Enable Rockchip RGA for hardware-accelerated video conversion on RK3588
+os.environ["GST_VIDEO_CONVERT_USE_RGA"] = "1"
+
 # Timeout for state transitions (seconds)
 STATE_CHANGE_TIMEOUT = 10.0
+
+
+def _detect_hardware_decoder() -> Optional[str]:
+    """Detect available hardware H.264 decoder.
+    
+    Returns:
+        Decoder element name if available, None otherwise
+    """
+    try:
+        Gst = get_gst()
+        registry = Gst.Registry.get()
+        
+        # Check for RK3588 hardware decoder (mppvideodec)
+        mpp_decoder = registry.find_feature("mppvideodec", Gst.ElementFactory.__gtype__)
+        if mpp_decoder:
+            logger.info("Hardware decoder available: mppvideodec")
+            return "mppvideodec"
+        
+        # Check for other hardware decoders (vaapi, etc.)
+        vaapi_decoder = registry.find_feature("vaapih264dec", Gst.ElementFactory.__gtype__)
+        if vaapi_decoder:
+            logger.info("Hardware decoder available: vaapih264dec")
+            return "vaapih264dec"
+        
+        logger.info("No hardware decoder found, will use software decoding")
+        return None
+    except Exception as e:
+        logger.warning(f"Error detecting hardware decoder: {e}")
+        return None
+
+
+def _build_decoder_string(hardware_decoder: Optional[str] = None) -> str:
+    """Build decoder pipeline string with auto-fallback.
+    
+    Args:
+        hardware_decoder: Hardware decoder element name (from _detect_hardware_decoder)
+    
+    Returns:
+        GStreamer pipeline string for decoding
+    """
+    if hardware_decoder:
+        # Try hardware decoder first, with decodebin as fallback
+        # Use typefind to auto-detect codec, then try hardware decoder
+        return f"{hardware_decoder} ! videoconvert"
+    else:
+        # Use decodebin for automatic software decoding
+        return "decodebin ! videoconvert"
 
 
 class MixerCore:
@@ -25,6 +76,9 @@ class MixerCore:
         self,
         config: Any,  # AppConfig from config.py
         scene_manager: SceneManager,
+        ingest_manager: Optional[Any] = None,  # IngestManager instance
+        graphics_renderer: Optional[Any] = None,  # Optional GraphicsRenderer from graphics plugin
+        cairo_manager: Optional[Any] = None,  # Optional CairoGraphicsManager
         output_resolution: str = "1920x1080",
         output_bitrate: int = 8000,
         output_codec: str = "h264",
@@ -38,6 +92,9 @@ class MixerCore:
         Args:
             config: Application configuration
             scene_manager: Scene manager instance
+            ingest_manager: Ingest manager instance (for checking stream availability)
+            graphics_renderer: Optional graphics renderer from graphics plugin
+            cairo_manager: Optional Cairo graphics manager for overlays
             output_resolution: Output resolution (e.g., "1920x1080")
             output_bitrate: Output bitrate in kbps
             output_codec: Codec ("h264" or "h265")
@@ -48,6 +105,9 @@ class MixerCore:
         """
         self.config = config
         self.scene_manager = scene_manager
+        self.ingest_manager = ingest_manager
+        self.graphics_renderer = graphics_renderer  # Store optional graphics renderer
+        self.cairo_manager = cairo_manager  # Store optional Cairo graphics manager
         self.output_resolution = output_resolution
         self.output_bitrate = output_bitrate
         self.output_codec = output_codec
@@ -64,6 +124,15 @@ class MixerCore:
         self._lock = threading.Lock()
         self._gst_ready = False
         
+        # Pre-allocation mode: build pipeline with all available sources
+        # This eliminates pipeline rebuilds at the cost of more resources
+        self.preallocate_sources = True  # Enable by default for best latency
+        
+        # Overlay layer support (for Reveal.js and other graphics)
+        self.overlay_enabled: bool = False
+        self.overlay_source: Optional[str] = None  # e.g., "slides"
+        self.overlay_alpha: float = 1.0  # 0.0 to 1.0
+        
         # Watchdog
         self.watchdog = MixerWatchdog(
             on_unhealthy=self._handle_unhealthy
@@ -75,6 +144,7 @@ class MixerCore:
 
         # Don't initialize GStreamer here - lazy load when needed
         self._Gst = None  # Will be set by _ensure_gst
+        self._hardware_decoder = None  # Will be detected when GStreamer is ready
 
         # Get camera devices from config
         self.camera_devices = {}
@@ -99,6 +169,8 @@ class MixerCore:
         if ensure_gst_initialized():
             self._gst_ready = True
             self._Gst = get_gst()
+            # Detect hardware decoder once GStreamer is ready
+            self._hardware_decoder = _detect_hardware_decoder()
             return True
         
         logger.error("GStreamer initialization failed - mixer not available")
@@ -121,11 +193,25 @@ class MixerCore:
 
             # Apply default scene if none set
             if not self.current_scene:
-                default_scene = self.scene_manager.get_scene("quad")
-                if default_scene:
-                    self.current_scene = default_scene
-                else:
-                    logger.error("No scene set and no default scene available")
+                # Try to get any available scene as default
+                all_scenes = self.scene_manager.list_scenes()
+                if all_scenes:
+                    # Prefer cam1_full, cam2_full, or first available
+                    for preferred in ["cam1_full", "cam2_full", "cam3_full"]:
+                        default_scene = self.scene_manager.get_scene(preferred)
+                        if default_scene:
+                            self.current_scene = default_scene
+                            logger.info(f"Using default scene: {preferred}")
+                            break
+                    if not self.current_scene:
+                        # Use first available scene
+                        first_scene = self.scene_manager.get_scene(all_scenes[0].id)
+                        if first_scene:
+                            self.current_scene = first_scene
+                            logger.info(f"Using first available scene: {first_scene.id}")
+                
+                if not self.current_scene:
+                    logger.error("No scene set and no scenes available")
                     return False
 
             # Build and start pipeline
@@ -141,6 +227,15 @@ class MixerCore:
                 bus = self.pipeline.get_bus()
                 bus.add_signal_watch()
                 bus.connect("message", self._on_bus_message)
+                
+                # Connect Cairo graphics overlay if available
+                if self.cairo_manager and self.cairo_manager.enabled:
+                    overlay = self.pipeline.get_by_name("graphics_overlay")
+                    if overlay:
+                        overlay.connect("draw", self.cairo_manager.draw_callback)
+                        logger.info("Cairo graphics overlay connected")
+                    else:
+                        logger.warning("Cairo overlay element not found in pipeline")
 
                 # Start pipeline with timeout (will check bus for errors)
                 if not self._set_state_with_timeout(self.Gst.State.PLAYING):
@@ -254,17 +349,52 @@ class MixerCore:
             current_sources = {slot.source for slot in self.current_scene.slots} if self.current_scene else set()
             new_sources = {slot.source for slot in scene.slots}
             
-            if current_sources != new_sources:
-                # Different sources - need to rebuild pipeline
-                logger.info(f"Scene {scene_id} uses different sources, rebuilding pipeline")
+            # Check if new scene requires sources we don't have
+            sources_to_add = new_sources - current_sources
+            sources_to_remove = current_sources - new_sources
+            
+            if sources_to_add:
+                # Need to add new sources - rebuild with superset if preallocate_sources enabled
+                if self.preallocate_sources:
+                    # Build pipeline with union of current and new sources (superset strategy)
+                    # This allows future scene changes to be fast if they use these sources
+                    superset_sources = current_sources | new_sources
+                    logger.info(f"Scene {scene_id} requires pipeline rebuild (superset strategy)")
+                    logger.info(f"  Building pipeline with {len(superset_sources)} sources (superset)")
+                    logger.info(f"  Current: {current_sources}")
+                    logger.info(f"  New: {new_sources}")
+                    logger.info(f"  Superset: {superset_sources}")
+                else:
+                    logger.info(f"Scene {scene_id} requires pipeline rebuild")
+                    logger.info(f"  Current sources: {current_sources}")
+                    logger.info(f"  New sources: {new_sources}")
+                    logger.info(f"  Sources to add: {sources_to_add}")
+                
                 was_playing = (self.state == "PLAYING")
                 
                 # Stop current pipeline
                 self._stop_pipeline_internal()
                 time.sleep(0.5)  # Give device time to release
                 
-                # Set new scene and rebuild
-                self.current_scene = scene
+                # If using superset strategy, temporarily create a merged scene for pipeline build
+                if self.preallocate_sources and self.current_scene:
+                    # Create a temporary scene with all sources for pipeline building
+                    # We'll apply the actual scene properties after pipeline is built
+                    merged_scene = Scene(
+                        id=f"_merged_{scene_id}",
+                        label="Temporary merged scene",
+                        resolution=scene.resolution,
+                        slots=list(self.current_scene.slots) + [
+                            slot for slot in scene.slots 
+                            if slot.source not in current_sources
+                        ]
+                    )
+                    self.current_scene = merged_scene
+                    logger.debug(f"Built merged scene with {len(merged_scene.slots)} slots")
+                else:
+                    self.current_scene = scene
+                
+                # Rebuild pipeline
                 self.pipeline = self._build_pipeline()
                 
                 if not self.pipeline:
@@ -279,21 +409,88 @@ class MixerCore:
                 if self._set_state_with_timeout(self.Gst.State.PLAYING):
                     self.state = "PLAYING"
                     logger.info(f"Pipeline rebuilt and started with scene: {scene_id}")
+                    
+                    # Now apply the actual scene properties (will use fast path since sources exist)
+                    if self.preallocate_sources and self.current_scene.id != scene_id:
+                        # Keep merged scene as current so future changes can use fast path
+                        # But we need to update the pad properties to match the target scene
+                        # Don't recursively call apply_scene - just update pads directly
+                        logger.info(f"Applying target scene properties to superset pipeline")
+                        
+                        try:
+                            compositor = self.pipeline.get_by_name("compositor")
+                            if not compositor:
+                                logger.error("Compositor element not found")
+                                return False
+                            
+                            # Build mapping of source to pad index in merged scene
+                            merged_source_to_pad = {}
+                            for i, slot in enumerate(merged_scene.slots):
+                                merged_source_to_pad[slot.source] = i
+                            
+                            # Hide all pads first
+                            for i in range(len(merged_scene.slots)):
+                                pad = compositor.get_static_pad(f"sink_{i}")
+                                if pad:
+                                    pad.set_property("alpha", 0.0)
+                            
+                            # Update pads for target scene slots
+                            for slot in scene.slots:
+                                if slot.source not in merged_source_to_pad:
+                                    logger.warning(f"Source {slot.source} not in merged pipeline")
+                                    continue
+                                
+                                pad_index = merged_source_to_pad[slot.source]
+                                pad = compositor.get_static_pad(f"sink_{pad_index}")
+                                if not pad:
+                                    continue
+                                
+                                coords = scene.get_absolute_coords(slot)
+                                pad.set_property("xpos", coords["x"])
+                                pad.set_property("ypos", coords["y"])
+                                pad.set_property("width", coords["w"])
+                                pad.set_property("height", coords["h"])
+                                pad.set_property("zorder", slot.z)
+                                pad.set_property("alpha", slot.alpha)
+                            
+                            logger.info(f"Target scene properties applied to superset pipeline")
+                        except Exception as e:
+                            logger.error(f"Failed to apply target scene properties: {e}")
+                            return False
+                    
                     return True
                 else:
                     logger.error("Failed to restart pipeline after scene change")
                     return False
+            
+            # If we're here, new scene uses subset or same sources as current
+            # We can update pad properties and hide unused sources with alpha=0
+            if sources_to_remove:
+                logger.info(f"Scene {scene_id} uses subset of current sources, updating pads (fast path)")
+                logger.info(f"  Hiding unused sources: {sources_to_remove}")
 
-            # Same sources - just update pad properties
+            # Update pad properties (fast path - no pipeline rebuild)
             try:
                 compositor = self.pipeline.get_by_name("compositor")
                 if not compositor:
                     logger.error("Compositor element not found")
                     return False
 
-                # Update compositor pad properties for each slot
+                # Build mapping of source to current pad index
+                current_source_to_pad = {}
+                if self.current_scene:
+                    for i, slot in enumerate(self.current_scene.slots):
+                        current_source_to_pad[slot.source] = i
+                
+                # Update pads for new scene slots
                 for i, slot in enumerate(scene.slots):
-                    pad_name = f"sink_{i}"
+                    # Find which pad has this source
+                    if slot.source not in current_source_to_pad:
+                        logger.error(f"Source {slot.source} not in current pipeline (should not happen)")
+                        continue
+                    
+                    pad_index = current_source_to_pad[slot.source]
+                    pad_name = f"sink_{pad_index}"
                     pad = compositor.get_static_pad(pad_name)
                     if not pad:
                         logger.warning(f"Pad {pad_name} not found for source {slot.source}")
@@ -309,12 +506,22 @@ class MixerCore:
                     pad.set_property("zorder", slot.z)
                     pad.set_property("alpha", slot.alpha)
 
-                    logger.debug(f"Set pad {pad_name} ({slot.source}): "
+                    logger.debug(f"Updated pad {pad_name} ({slot.source}): "
                                f"x={coords['x']}, y={coords['y']}, "
-                               f"w={coords['w']}, h={coords['h']}, z={slot.z}")
+                               f"w={coords['w']}, h={coords['h']}, z={slot.z}, alpha={slot.alpha}")
+                
+                # Hide pads for sources not in new scene (set alpha=0)
+                for source in sources_to_remove:
+                    if source in current_source_to_pad:
+                        pad_index = current_source_to_pad[source]
+                        pad_name = f"sink_{pad_index}"
+                        pad = compositor.get_static_pad(pad_name)
+                        if pad:
+                            pad.set_property("alpha", 0.0)
+                            logger.debug(f"Hidden pad {pad_name} ({source}) with alpha=0")
 
                 self.current_scene = scene
-                logger.info(f"Scene applied: {scene_id}")
+                logger.info(f"Scene applied (fast path): {scene_id}")
                 return True
 
             except Exception as e:
@@ -322,20 +529,386 @@ class MixerCore:
                 self.last_error = str(e)
                 return False
 
+    def transition_to_scene(
+        self, 
+        scene_id: str, 
+        transition_type: str = "cut",
+        duration_ms: int = 500
+    ) -> bool:
+        """Transition to a new scene with animation.
+        
+        Args:
+            scene_id: Target scene ID
+            transition_type: "cut" (instant), "mix" (crossfade), "auto" (timed mix)
+            duration_ms: Transition duration in milliseconds (for mix/auto)
+        
+        Returns:
+            True if transition started successfully
+        """
+        if transition_type == "cut":
+            return self.apply_scene(scene_id)
+        
+        if transition_type in ("mix", "auto"):
+            return self._crossfade_transition(scene_id, duration_ms)
+        
+        logger.warning(f"Unknown transition type: {transition_type}, using cut")
+        return self.apply_scene(scene_id)
+
+    def _crossfade_transition(self, scene_id: str, duration_ms: int) -> bool:
+        """Perform crossfade transition by animating alpha values.
+        
+        Args:
+            scene_id: Target scene ID
+            duration_ms: Duration of crossfade in milliseconds
+        
+        Returns:
+            True if transition started successfully
+        """
+        GLib = get_glib()
+        Gst = get_gst()
+        
+        scene = self.scene_manager.get_scene(scene_id)
+        if not scene:
+            logger.error(f"Scene not found: {scene_id}")
+            return False
+
+        with self._lock:
+            if not self.pipeline or self.state != "PLAYING":
+                logger.error("Cannot transition: mixer not playing")
+                return False
+            
+            compositor = self.pipeline.get_by_name("compositor")
+            if not compositor:
+                logger.error("Compositor element not found")
+                return False
+            
+            # Get current scene sources
+            current_sources = set()
+            if self.current_scene:
+                current_sources = {slot.source for slot in self.current_scene.slots}
+            
+            # Get new scene sources
+            new_sources = {slot.source for slot in scene.slots}
+            
+            # Check if we need to rebuild pipeline (new sources not in current)
+            if not new_sources.issubset(current_sources):
+                # Need to rebuild pipeline first with merged sources
+                logger.info(f"Crossfade requires pipeline rebuild (new sources: {new_sources - current_sources})")
+                
+                # Build merged scene with all sources
+                merged_sources = current_sources.union(new_sources)
+                merged_scene = self._create_merged_scene(scene, merged_sources)
+                
+                # Rebuild pipeline
+                if not self._rebuild_pipeline_with_scene(merged_scene):
+                    logger.error("Failed to rebuild pipeline for crossfade")
+                    return False
+            
+            # Now perform crossfade animation
+            # Build mapping of source to pad index
+            source_to_pad = {}
+            if self.current_scene:
+                for i, slot in enumerate(self.current_scene.slots):
+                    source_to_pad[slot.source] = i
+            
+            # Animation parameters
+            fps = 30  # 30 frames per second
+            total_frames = int((duration_ms / 1000.0) * fps)
+            frame_interval_ms = int(1000 / fps)
+            current_frame = [0]  # Use list for mutable closure
+            
+            # Store target alpha values for each source
+            target_alphas = {}
+            for slot in scene.slots:
+                target_alphas[slot.source] = slot.alpha
+            
+            # Sources to fade out (in current but not in new)
+            sources_to_fade_out = current_sources - new_sources
+            
+            def animate_frame():
+                """Animate one frame of the crossfade."""
+                current_frame[0] += 1
+                progress = current_frame[0] / total_frames
+                
+                try:
+                    # Update alpha for sources in new scene (fade in)
+                    for slot in scene.slots:
+                        if slot.source in source_to_pad:
+                            pad_index = source_to_pad[slot.source]
+                            pad = compositor.get_static_pad(f"sink_{pad_index}")
+                            if pad:
+                                # Interpolate alpha from current to target
+                                new_alpha = progress * target_alphas[slot.source]
+                                pad.set_property("alpha", new_alpha)
+                                
+                                # Also update position/size
+                                coords = scene.get_absolute_coords(slot)
+                                pad.set_property("xpos", coords["x"])
+                                pad.set_property("ypos", coords["y"])
+                                pad.set_property("width", coords["w"])
+                                pad.set_property("height", coords["h"])
+                                pad.set_property("zorder", slot.z)
+                    
+                    # Fade out sources not in new scene
+                    for source in sources_to_fade_out:
+                        if source in source_to_pad:
+                            pad_index = source_to_pad[source]
+                            pad = compositor.get_static_pad(f"sink_{pad_index}")
+                            if pad:
+                                # Fade out from 1.0 to 0.0
+                                new_alpha = 1.0 - progress
+                                pad.set_property("alpha", new_alpha)
+                    
+                    # Continue animation if not finished
+                    if current_frame[0] < total_frames:
+                        return True  # Continue timeout
+                    else:
+                        # Animation complete, update current scene
+                        self.current_scene = scene
+                        logger.info(f"Crossfade transition complete: {scene_id}")
+                        return False  # Stop timeout
+                        
+                except Exception as e:
+                    logger.error(f"Error during crossfade animation: {e}")
+                    return False  # Stop on error
+            
+            # Start animation
+            GLib.timeout_add(frame_interval_ms, animate_frame)
+            logger.info(f"Started crossfade transition to {scene_id} ({duration_ms}ms, {total_frames} frames)")
+            return True
+
+    def _create_merged_scene(self, target_scene: "Scene", sources: set) -> "Scene":
+        """Create a temporary scene that includes all specified sources.
+        
+        Args:
+            target_scene: The target scene to transition to
+            sources: Set of all source IDs to include
+        
+        Returns:
+            A new Scene object with merged sources
+        """
+        from .scenes import Scene, SceneSlot
+        
+        merged_slots = []
+        for source_id in sources:
+            # Try to find existing slot in target scene
+            existing_slot = next((s for s in target_scene.slots if s.source == source_id), None)
+            if existing_slot:
+                merged_slots.append(existing_slot)
+            else:
+                # Create hidden slot for sources not in target
+                merged_slots.append(SceneSlot(
+                    source=source_id,
+                    source_type="camera",
+                    x_rel=0.0, y_rel=0.0, w_rel=0.01, h_rel=0.01,
+                    z=0, alpha=0.0  # Hidden
+                ))
+        
+        # Create merged scene
+        import time
+        merged_scene_id = f"merged_{int(time.time() * 1000)}"
+        return Scene(
+            id=merged_scene_id,
+            label=f"Merged for {target_scene.id}",
+            resolution=target_scene.resolution,
+            slots=merged_slots
+        )
+    
+    def _rebuild_pipeline_with_scene(self, scene: "Scene") -> bool:
+        """Rebuild pipeline with a specific scene.
+        
+        Args:
+            scene: Scene to build pipeline for
+        
+        Returns:
+            True if rebuild successful
+        """
+        try:
+            # Stop current pipeline
+            if self.pipeline:
+                self.pipeline.set_state(get_gst().State.NULL)
+                self.pipeline = None
+            
+            # Build new pipeline
+            self.current_scene = scene
+            self.pipeline = self._build_pipeline()
+            
+            if not self.pipeline:
+                logger.error("Failed to build new pipeline")
+                return False
+            
+            # Start pipeline
+            ret = self.pipeline.set_state(get_gst().State.PLAYING)
+            if ret == get_gst().StateChangeReturn.FAILURE:
+                logger.error("Failed to start rebuilt pipeline")
+                return False
+            
+            logger.info(f"Pipeline rebuilt successfully with scene: {scene.id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error rebuilding pipeline: {e}")
+            return False
+
     def get_status(self) -> Dict[str, Any]:
         """Get mixer status."""
         with self._lock:
             watchdog_status = self.watchdog.get_status()
             
+            # Verify pipeline is actually running
+            actual_state = self.state
+            if self.pipeline and self.state == "PLAYING":
+                try:
+                    _, gst_state, _ = self.pipeline.get_state(0)  # 0 = no timeout, immediate check
+                    if gst_state != self.Gst.State.PLAYING:
+                        logger.warning(f"State mismatch: Python says PLAYING but GStreamer is {gst_state.value_nick}")
+                        actual_state = gst_state.value_nick
+                        self.state = actual_state  # Sync Python state
+                except Exception as e:
+                    logger.error(f"Failed to get pipeline state: {e}")
+                    actual_state = "NULL"
+                    self.state = "NULL"
+            elif not self.pipeline and self.state == "PLAYING":
+                # Pipeline doesn't exist but state says PLAYING - fix it
+                logger.warning("Pipeline is None but state is PLAYING - correcting to NULL")
+                actual_state = "NULL"
+                self.state = "NULL"
+            
             return {
-                "state": self.state,
+                "state": actual_state,
                 "current_scene": self.current_scene.id if self.current_scene else None,
                 "health": watchdog_status["health"],
                 "last_error": self.last_error or watchdog_status["last_error"],
                 "last_buffer_seconds_ago": watchdog_status["last_buffer_seconds_ago"],
                 "recording_enabled": self.recording_enabled,
                 "mediamtx_enabled": self.mediamtx_enabled,
+                "overlay_enabled": self.overlay_enabled,
+                "overlay_source": self.overlay_source,
+                "overlay_alpha": self.overlay_alpha,
             }
+    
+    def enable_overlay(self, source: str = "slides", alpha: float = 1.0) -> bool:
+        """Enable overlay layer on top of the current scene.
+        
+        Args:
+            source: Source to overlay (e.g., "slides" for Reveal.js)
+            alpha: Transparency (0.0 = transparent, 1.0 = opaque)
+        
+        Returns:
+            True if overlay enabled successfully
+        """
+        with self._lock:
+            if not self.pipeline or self.state != "PLAYING":
+                logger.warning("Cannot enable overlay - mixer not running")
+                return False
+            
+            # For now, overlay requires pipeline rebuild
+            # In the future, we could add a dedicated overlay compositor pad
+            logger.warning("Overlay feature requires pipeline rebuild - not yet implemented")
+            self.overlay_enabled = True
+            self.overlay_source = source
+            self.overlay_alpha = alpha
+            
+            # TODO: Implement dynamic overlay by rebuilding pipeline with overlay slot
+            return False
+    
+    def disable_overlay(self) -> bool:
+        """Disable overlay layer.
+        
+        Returns:
+            True if overlay disabled successfully
+        """
+        with self._lock:
+            if not self.overlay_enabled:
+                return True
+            
+            self.overlay_enabled = False
+            self.overlay_source = None
+            
+            # TODO: Implement dynamic overlay removal
+            logger.info("Overlay disabled")
+            return True
+    
+    def set_overlay_alpha(self, alpha: float) -> bool:
+        """Set overlay transparency.
+        
+        Args:
+            alpha: Transparency (0.0 = transparent, 1.0 = opaque)
+        
+        Returns:
+            True if alpha set successfully
+        """
+        if alpha < 0.0 or alpha > 1.0:
+            logger.error(f"Invalid alpha value: {alpha} (must be 0.0-1.0)")
+            return False
+        
+        with self._lock:
+            if not self.overlay_enabled:
+                logger.warning("Cannot set overlay alpha - overlay not enabled")
+                return False
+            
+            if not self.pipeline or self.state != "PLAYING":
+                logger.warning("Cannot set overlay alpha - mixer not running")
+                return False
+            
+            self.overlay_alpha = alpha
+            
+            # TODO: Update compositor pad alpha dynamically
+            logger.warning("Dynamic overlay alpha not yet implemented")
+            return False
+    
+    def _check_ingest_status(self, cam_id: str) -> bool:
+        """Check if a camera's ingest stream is available.
+        
+        Args:
+            cam_id: Camera identifier
+        
+        Returns:
+            True if ingest is streaming, False otherwise
+        """
+        if not self.ingest_manager:
+            logger.warning("No ingest manager available, cannot check ingest status")
+            return False
+        
+        try:
+            # Query ingest manager directly for camera status
+            ingest_status = self.ingest_manager.get_camera_status(cam_id)
+            if not ingest_status:
+                logger.debug(f"Ingest check for {cam_id}: no status available")
+                return False
+            
+            is_streaming = ingest_status.status == "streaming"
+            logger.debug(f"Ingest check for {cam_id}: status={ingest_status.status}, streaming={is_streaming}")
+            return is_streaming
+        except Exception as e:
+            logger.warning(f"Error checking ingest status for {cam_id}: {e}")
+            return False
+    
+    def _check_mediamtx_stream(self, stream_path: str) -> bool:
+        """Check if a stream is available via MediaMTX API.
+        
+        Args:
+            stream_path: MediaMTX path (e.g., "guest1", "guest2")
+        
+        Returns:
+            True if stream is available, False otherwise
+        """
+        try:
+            import httpx
+            # MediaMTX API is on port 9997 by default
+            response = httpx.get(
+                f"http://127.0.0.1:9997/v3/paths/get/{stream_path}",
+                timeout=1.0
+            )
+            if response.status_code == 200:
+                data = response.json()
+                # Check if source is ready (someone is publishing)
+                source_ready = data.get("sourceReady", False)
+                logger.debug(f"MediaMTX stream check for {stream_path}: sourceReady={source_ready}")
+                return source_ready
+        except Exception as e:
+            logger.debug(f"Error checking MediaMTX stream {stream_path}: {e}")
+        return False
 
     def _build_pipeline(self):
         """Build the GStreamer compositor pipeline."""
@@ -434,8 +1007,55 @@ class MixerCore:
                 logger.info(f"Added image source branch: {file_path}")
                 continue
             
+            # Handle Reveal.js slides source (MUST come before generic graphics handler)
+            if slot.source == "slides" or slot.source_type == "reveal":
+                # Check if Reveal.js is enabled and streaming
+                if not self.config.reveal.enabled:
+                    logger.debug("Reveal.js source disabled in config, skipping")
+                    continue
+                
+                # Check if slides stream is available via MediaMTX API
+                if not self._check_mediamtx_stream(self.config.reveal.mediamtx_path):
+                    logger.info(f"Reveal.js stream not available at {self.config.reveal.mediamtx_path}, skipping")
+                    continue
+                
+                rtsp_port = self.config.mediamtx.rtsp_port
+                rtsp_url = f"rtsp://127.0.0.1:{rtsp_port}/{self.config.reveal.mediamtx_path}"
+                
+                logger.info(f"Using RTSP source for Reveal.js slides from MediaMTX: {rtsp_url}")
+                
+                # Source from MediaMTX RTSP stream (H.265 via RTP)
+                source_str = (
+                    f"rtspsrc location={rtsp_url} latency=50 protocols=udp buffer-mode=auto ! "
+                    f"rtph265depay ! "
+                    f"h265parse ! "
+                    f"mppvideodec ! "
+                    f"videoconvert ! "
+                    f"videoscale ! "
+                    f"video/x-raw,width={width},height={height} ! "
+                    f"queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream"
+                )
+                
+                # Apply crop if specified
+                if slot.crop_w < 1.0 or slot.crop_h < 1.0 or slot.crop_x > 0.0 or slot.crop_y > 0.0:
+                    source_width = int(width)
+                    source_height = int(height)
+                    crop_left = int(slot.crop_x * source_width)
+                    crop_top = int(slot.crop_y * source_height)
+                    crop_right = int((1.0 - slot.crop_x - slot.crop_w) * source_width)
+                    crop_bottom = int((1.0 - slot.crop_y - slot.crop_h) * source_height)
+                    source_str = source_str.replace(
+                        f"queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream",
+                        f"videocrop left={crop_left} top={crop_top} right={crop_right} bottom={crop_bottom} ! queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream"
+                    )
+                
+                source_branches.append((i, source_str, slot))
+                logger.info(f"Added Reveal.js slides source branch from RTSP")
+                continue
+            
             # Handle graphics sources (image, presentation, lower_third, graphics)
-            if slot.source_type not in ["camera", "file", "image"]:
+            # Note: "reveal" type is handled above, so this won't catch it
+            if slot.source_type not in ["camera", "file", "image", "reveal"]:
                 graphics_pipeline = self.graphics_renderer.get_source_pipeline(slot.source)
                 if graphics_pipeline:
                     # Apply crop if specified
@@ -460,6 +1080,62 @@ class MixerCore:
                     logger.warning(f"Failed to create graphics source for {slot.source}")
                 continue
             
+            # Handle guest sources (remote guests via WHIP)
+            if slot.source.startswith("guest"):
+                guest_id = slot.source
+                
+                # Check if guest is configured
+                if guest_id not in self.config.guests:
+                    logger.debug(f"Guest {guest_id} not found in config, skipping")
+                    continue
+                
+                guest_config = self.config.guests[guest_id]
+                if not guest_config.enabled:
+                    logger.debug(f"Guest {guest_id} is disabled, skipping")
+                    continue
+                
+                # Check if guest is currently streaming via MediaMTX API
+                if not self._check_mediamtx_stream(guest_id):
+                    logger.info(f"Guest {guest_id} not streaming, skipping")
+                    continue
+                
+                rtsp_port = self.config.mediamtx.rtsp_port
+                rtsp_url = f"rtsp://127.0.0.1:{rtsp_port}/{guest_id}"
+                
+                logger.info(f"Using RTSP source for guest {guest_id} from MediaMTX: {rtsp_url}")
+                
+                # Build decoder string with hardware acceleration if available
+                decoder_str = _build_decoder_string(self._hardware_decoder)
+                
+                # Source from MediaMTX RTSP stream (H.265 via RTP)
+                source_str = (
+                    f"rtspsrc location={rtsp_url} latency=50 protocols=udp buffer-mode=auto ! "
+                    f"rtph265depay ! "
+                    f"h265parse ! "
+                    f"mppvideodec ! "
+                    f"videoconvert ! "
+                    f"videoscale ! "
+                    f"video/x-raw,width={width},height={height} ! "
+                    f"queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream"
+                )
+                
+                # Apply crop if specified
+                if slot.crop_w < 1.0 or slot.crop_h < 1.0 or slot.crop_x > 0.0 or slot.crop_y > 0.0:
+                    source_width = int(width)
+                    source_height = int(height)
+                    crop_left = int(slot.crop_x * source_width)
+                    crop_top = int(slot.crop_y * source_height)
+                    crop_right = int((1.0 - slot.crop_x - slot.crop_w) * source_width)
+                    crop_bottom = int((1.0 - slot.crop_y - slot.crop_h) * source_height)
+                    source_str = source_str.replace(
+                        f"queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream",
+                        f"videocrop left={crop_left} top={crop_top} right={crop_right} bottom={crop_bottom} ! queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream"
+                    )
+                
+                source_branches.append((i, source_str, slot))
+                logger.info(f"Added guest source branch for {guest_id} from RTSP")
+                continue
+            
             # Handle camera sources
             if slot.source_type != "camera":
                 logger.warning(f"Unknown source type: {slot.source_type}, skipping")
@@ -470,61 +1146,40 @@ class MixerCore:
                 logger.debug(f"Camera {cam_id} not found in config, skipping")
                 continue
 
-            device = self.camera_devices[cam_id]
-            logger.debug(f"Processing camera {cam_id} with device {device}")
+            logger.debug(f"Processing camera {cam_id}")
             
-            # Skip if device doesn't exist (for non-connected cameras)
-            if not Path(device).exists():
-                logger.debug(f"Device {device} for {cam_id} does not exist, skipping")
+            # Mixer always sources from MediaMTX RTSP streams
+            # This avoids device conflicts with the always-on ingest pipelines
+            if not self.config.mediamtx.enabled:
+                logger.error("MediaMTX is required for mixer operation")
                 continue
             
-            # Check if device is busy (being used by another process)
-            # For video60, we still check but don't skip - we'll let the pipeline fail if it's busy
-            # This allows cleanup to work, but we still verify the device is accessible
-            try:
-                import fcntl
-                test_file = open(device, 'r')
-                fcntl.flock(test_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                fcntl.flock(test_file, fcntl.LOCK_UN)
-                test_file.close()
-            except (IOError, OSError) as e:
-                if "video60" not in device:
-                    logger.warning(f"Device {device} for {cam_id} is busy or not accessible, skipping: {e}")
-                    continue
-                else:
-                    logger.warning(f"Device {device} for {cam_id} appears busy, but continuing (will fail if actually in use): {e}")
-                    # For video60, we continue but the pipeline will fail if it's actually busy
+            # Check if ingest is streaming for this camera
+            if not self._check_ingest_status(cam_id):
+                logger.warning(f"Ingest not streaming for {cam_id}, skipping")
+                continue
             
-            # Build source pipeline (similar to existing R58 pipeline)
-            if "video60" in device or "hdmirx" in device.lower():
-                # HDMI input (NV24 format) - use EXACT same approach as working recorder pipeline
-                # Match the working pipeline exactly: format=NV24,width={width},height={height},framerate=60/1
-                # Then convert to NV12 and scale to match compositor input requirements
-                # Add explicit caps after queue to prevent compositor from negotiating upstream
-                # Note: If no HDMI signal is present, this will fail at format negotiation
-                # The error will be caught and the source will be skipped
-                source_str = (
-                    f"v4l2src device={device} io-mode=mmap ! "
-                    f"video/x-raw,format=NV24,width={width},height={height},framerate=60/1 ! "
-                    f"videoconvert ! "
-                    f"video/x-raw,format=NV12 ! "
-                    f"videoscale ! "
-                    f"video/x-raw,width={width},height={height} ! "
-                    f"queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream ! "
-                    f"video/x-raw,format=NV12,width={width},height={height}"
-                )
-            else:
-                # Other video devices - check if they exist first
-                if not Path(device).exists():
-                    logger.warning(f"Device {device} does not exist, skipping")
-                    continue
-                source_str = (
-                    f"v4l2src device={device} ! "
-                    f"videoconvert ! "
-                    f"videoscale ! "
-                    f"video/x-raw,width={width},height={height} ! "
-                    f"queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream"
-                )
+            rtsp_port = self.config.mediamtx.rtsp_port
+            rtsp_url = f"rtsp://127.0.0.1:{rtsp_port}/{cam_id}"
+            
+            logger.info(f"Using RTSP source for {cam_id} from MediaMTX: {rtsp_url}")
+            
+            # Build decoder string with hardware acceleration if available
+            decoder_str = _build_decoder_string(self._hardware_decoder)
+            
+            # Source from MediaMTX RTSP stream with optimized low latency settings
+            # UDP is faster than TCP for local connections, 50ms latency for mixer
+            # Now using H.265 via RTP with hardware decoder (mppvideodec)
+            source_str = (
+                f"rtspsrc location={rtsp_url} latency=50 protocols=udp buffer-mode=auto ! "
+                f"rtph265depay ! "
+                f"h265parse ! "
+                f"mppvideodec ! "
+                f"videoconvert ! "
+                f"videoscale ! "
+                f"video/x-raw,width={width},height={height} ! "
+                f"queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream"
+            )
             
             # Apply crop if specified (for video sources)
             if slot.crop_w < 1.0 or slot.crop_h < 1.0 or slot.crop_x > 0.0 or slot.crop_y > 0.0:
@@ -542,7 +1197,7 @@ class MixerCore:
                 )
 
             source_branches.append((i, source_str, slot))
-            logger.info(f"Added source branch for {cam_id} ({device})")
+            logger.info(f"Added source branch for {cam_id} from RTSP")
 
         if not source_branches:
             logger.warning("No valid source branches to build - all cameras are unavailable or not configured")
@@ -551,16 +1206,18 @@ class MixerCore:
         
         logger.info(f"Building mixer pipeline with {len(source_branches)} valid source(s) out of {len(scene.slots)} scene slot(s)")
 
-        # Encoder
+        # Encoder - use hardware encoders for low CPU usage
+        # NOTE: MediaMTX RTMP requires H.264 (FLV doesn't support H.265)
+        # So we always encode with H.264 for simplicity
+        encoder_str = f"x264enc tune=zerolatency bitrate={self.output_bitrate} speed-preset=superfast"
+        caps_str = "video/x-h264"
+        parse_str = "h264parse"
+        
+        # Mux format depends on output codec config (for recording)
         if self.output_codec == "h265":
-            encoder_str = f"mpph265enc bps={self.output_bitrate * 1000} bps-max={self.output_bitrate * 2000}"
-            caps_str = "video/x-h265"
-            parse_str = "h265parse"
             mux_str = "matroskamux"
-        else:  # h264
-            encoder_str = f"x264enc tune=zerolatency bitrate={self.output_bitrate} speed-preset=superfast"
-            caps_str = "video/x-h264"
-            parse_str = "h264parse"
+            logger.warning("Mixer configured for H.265 output, but using H.264 for MediaMTX compatibility")
+        else:
             mux_str = "mp4mux"
 
         # Output branches
@@ -577,12 +1234,13 @@ class MixerCore:
                 f"queue ! {parse_str} ! {mux_str} ! filesink location={output_path}"
             )
 
-        # MediaMTX branch
+        # MediaMTX branch (RTMP requires H.264)
         if self.mediamtx_enabled:
             rtmp_url = f"rtmp://127.0.0.1:1935/{self.mediamtx_path}"
             output_branches.append(
-                f"queue ! flvmux streamable=true ! rtmpsink location={rtmp_url} sync=false"
+                f"queue ! {parse_str} ! flvmux streamable=true ! rtmpsink location={rtmp_url} sync=false"
             )
+            logger.info(f"Mixer will stream to MediaMTX at {rtmp_url}")
 
         if not output_branches:
             logger.warning("No output branches configured")
@@ -615,11 +1273,13 @@ class MixerCore:
             
             compositor_pad_props.append(" ".join(pad_props))
 
-        # Build complete pipeline
+        # Build complete pipeline with Cairo overlay
+        # Cairo overlay is inserted after compositor for broadcast graphics
         pipeline_str = (
             " ".join(source_parts) + " "
             f"compositor name=compositor {' '.join(compositor_pad_props)} ! "
             f"video/x-raw,width={width},height={height} ! "
+            f"cairooverlay name=graphics_overlay ! "
             f"timeoverlay ! "
             f"{encoder_str} ! "
             f"{caps_str} ! "
@@ -711,6 +1371,10 @@ class MixerCore:
                 old_state, new_state, pending_state = message.parse_state_changed()
                 logger.info(f"Mixer state changed: {old_state.value_nick} -> {new_state.value_nick}")
                 self.state = new_state.value_nick
+            # Log RTMP sink state changes for debugging
+            elif hasattr(message.src, 'get_name') and 'rtmpsink' in message.src.get_name():
+                old_state, new_state, pending_state = message.parse_state_changed()
+                logger.info(f"RTMP sink state: {old_state.value_nick} -> {new_state.value_nick}")
 
         elif message.type == self.Gst.MessageType.EOS:
             logger.info("Mixer pipeline EOS")

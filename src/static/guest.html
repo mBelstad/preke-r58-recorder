@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Join R58 Studio</title>
+    <link rel="stylesheet" href="/static/css/design-system.css">
+    <style>
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: var(--spacing-lg);
+            background: var(--bg-secondary);
+        }
+
+        .guest-container {
+            max-width: 600px;
+            width: 100%;
+        }
+
+        .guest-card {
+            background: var(--bg-primary);
+            border-radius: var(--radius-xl);
+            padding: var(--spacing-2xl);
+            box-shadow: var(--shadow-xl);
+            text-align: center;
+        }
+
+        .logo {
+            width: 80px;
+            height: 80px;
+            background: var(--accent);
+            border-radius: var(--radius-lg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            margin: 0 auto var(--spacing-lg);
+        }
+
+        h1 {
+            font-size: var(--text-3xl);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            margin-bottom: var(--spacing-xl);
+            font-size: var(--text-base);
+        }
+
+        .preview-container {
+            background: #000;
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            margin-bottom: var(--spacing-lg);
+            position: relative;
+            aspect-ratio: 16/9;
+        }
+
+        .preview-video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .preview-placeholder {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-tertiary);
+            gap: var(--spacing-md);
+        }
+
+        .preview-placeholder.hidden {
+            display: none;
+        }
+
+        .form-group {
+            margin-bottom: var(--spacing-lg);
+            text-align: left;
+        }
+
+        .join-controls {
+            display: flex;
+            gap: var(--spacing-md);
+            margin-top: var(--spacing-xl);
+        }
+
+        .status-message {
+            padding: var(--spacing-md);
+            border-radius: var(--radius-md);
+            margin-bottom: var(--spacing-lg);
+            font-size: var(--text-sm);
+        }
+
+        .status-message.info {
+            background: var(--accent-light);
+            color: var(--accent);
+        }
+
+        .status-message.success {
+            background: var(--success-light);
+            color: var(--success);
+        }
+
+        .status-message.error {
+            background: var(--danger-light);
+            color: var(--danger);
+        }
+
+        /* Connected State */
+        .connected-view {
+            display: none;
+        }
+
+        .connected-view.active {
+            display: block;
+        }
+
+        .feed-container {
+            background: #000;
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            aspect-ratio: 16/9;
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .feed-video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .controls-bar {
+            display: flex;
+            gap: var(--spacing-sm);
+            justify-content: center;
+        }
+
+        @media (max-width: 600px) {
+            .guest-card {
+                padding: var(--spacing-xl);
+            }
+
+            h1 {
+                font-size: var(--text-2xl);
+            }
+
+            .join-controls {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="guest-container">
+        <!-- Join Form -->
+        <div class="guest-card" id="joinForm">
+            <div class="logo">🎙️</div>
+            <h1>Join R58 Studio</h1>
+            <p class="subtitle">Enter as a guest speaker</p>
+
+            <div id="statusMessage"></div>
+
+            <div class="preview-container">
+                <video id="previewVideo" class="preview-video" autoplay muted playsinline></video>
+                <div class="preview-placeholder" id="previewPlaceholder">
+                    <div style="font-size: 64px;">📹</div>
+                    <div>Camera preview will appear here</div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="label">Your Name</label>
+                <input type="text" class="input" id="guestName" placeholder="Enter your name" value="">
+            </div>
+
+            <div class="form-group">
+                <label class="label">Audio Source</label>
+                <select class="input select" id="audioSource">
+                    <option value="">Default Microphone</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="label">Video Source</label>
+                <select class="input select" id="videoSource">
+                    <option value="">Default Camera</option>
+                </select>
+            </div>
+
+            <div class="join-controls">
+                <button class="btn btn-secondary flex-1" onclick="testDevices()">
+                    🎥 Test Preview
+                </button>
+                <button class="btn btn-primary flex-1" onclick="joinStudio()" id="joinBtn">
+                    ✨ Join Studio
+                </button>
+            </div>
+        </div>
+
+        <!-- Connected View -->
+        <div class="guest-card connected-view" id="connectedView">
+            <h1>Connected to R58 Studio</h1>
+            <p class="subtitle">Your feed is now live</p>
+
+            <div class="feed-container">
+                <video id="studioFeed" class="feed-video" autoplay playsinline></video>
+            </div>
+
+            <div class="controls-bar">
+                <button class="btn btn-ghost btn-icon" onclick="toggleMute()" id="muteBtn" title="Mute">
+                    🎤
+                </button>
+                <button class="btn btn-ghost btn-icon" onclick="toggleVideo()" id="videoBtn" title="Camera">
+                    📹
+                </button>
+                <button class="btn btn-danger" onclick="leaveStudio()">
+                    ❌ Leave
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let localStream = null;
+        let peerConnection = null;
+        let isMuted = false;
+        let isVideoOff = false;
+
+        // Get URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const defaultName = urlParams.get('name') || '';
+        document.getElementById('guestName').value = defaultName;
+
+        // Test devices and show preview
+        async function testDevices() {
+            try {
+                showStatus('Requesting camera and microphone access...', 'info');
+                
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: 1280, height: 720 },
+                    audio: true
+                });
+
+                localStream = stream;
+                const previewVideo = document.getElementById('previewVideo');
+                previewVideo.srcObject = stream;
+                
+                document.getElementById('previewPlaceholder').classList.add('hidden');
+                showStatus('Preview active! Ready to join.', 'success');
+
+                // Populate device lists
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                populateDeviceList('audioSource', devices.filter(d => d.kind === 'audioinput'));
+                populateDeviceList('videoSource', devices.filter(d => d.kind === 'videoinput'));
+
+            } catch (error) {
+                console.error('Failed to access devices:', error);
+                showStatus('Could not access camera or microphone. Please grant permissions.', 'error');
+            }
+        }
+
+        function populateDeviceList(selectId, devices) {
+            const select = document.getElementById(selectId);
+            select.innerHTML = devices.map(device => 
+                `<option value="${device.deviceId}">${device.label || 'Device ' + (devices.indexOf(device) + 1)}</option>`
+            ).join('');
+        }
+
+        // Join studio
+        async function joinStudio() {
+            const name = document.getElementById('guestName').value.trim() || 'Guest';
+            
+            if (!localStream) {
+                await testDevices();
+                if (!localStream) return;
+            }
+
+            showStatus('Connecting to studio...', 'info');
+
+            try {
+                // Publish stream via WHIP to MediaMTX
+                const whipUrl = `${window.location.origin}/api/guest/publish`;
+                
+                peerConnection = new RTCPeerConnection({
+                    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+                });
+
+                localStream.getTracks().forEach(track => {
+                    peerConnection.addTrack(track, localStream);
+                });
+
+                const offer = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offer);
+
+                const response = await fetch(whipUrl, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/sdp',
+                        'X-Guest-Name': name
+                    },
+                    body: peerConnection.localDescription.sdp
+                });
+
+                if (response.ok) {
+                    const answerSDP = await response.text();
+                    await peerConnection.setRemoteDescription({ type: 'answer', sdp: answerSDP });
+                    
+                    // Switch to connected view
+                    document.getElementById('joinForm').style.display = 'none';
+                    document.getElementById('connectedView').classList.add('active');
+                    
+                    showStatus('Connected successfully!', 'success');
+                } else {
+                    showStatus('Failed to connect to studio. Please try again.', 'error');
+                }
+            } catch (error) {
+                console.error('Failed to join:', error);
+                showStatus('Connection failed. Please check your network.', 'error');
+            }
+        }
+
+        // Leave studio
+        function leaveStudio() {
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+            }
+
+            document.getElementById('joinForm').style.display = 'block';
+            document.getElementById('connectedView').classList.remove('active');
+            document.getElementById('previewPlaceholder').classList.remove('hidden');
+        }
+
+        // Toggle mute
+        function toggleMute() {
+            if (!localStream) return;
+            
+            const audioTrack = localStream.getAudioTracks()[0];
+            if (audioTrack) {
+                audioTrack.enabled = !audioTrack.enabled;
+                isMuted = !audioTrack.enabled;
+                
+                const btn = document.getElementById('muteBtn');
+                btn.textContent = isMuted ? '🔇' : '🎤';
+                btn.classList.toggle('btn-danger', isMuted);
+            }
+        }
+
+        // Toggle video
+        function toggleVideo() {
+            if (!localStream) return;
+            
+            const videoTrack = localStream.getVideoTracks()[0];
+            if (videoTrack) {
+                videoTrack.enabled = !videoTrack.enabled;
+                isVideoOff = !videoTrack.enabled;
+                
+                const btn = document.getElementById('videoBtn');
+                btn.textContent = isVideoOff ? '📷' : '📹';
+                btn.classList.toggle('btn-danger', isVideoOff);
+            }
+        }
+
+        // Show status message
+        function showStatus(message, type = 'info') {
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.innerHTML = `<div class="status-message ${type}">${message}</div>`;
+            
+            if (type === 'error') {
+                setTimeout(() => {
+                    statusEl.innerHTML = '';
+                }, 5000);
+            }
+        }
+
+        // Auto-test devices on load (mobile friendly)
+        window.addEventListener('DOMContentLoaded', () => {
+            // Auto-populate name from URL if provided
+            const savedName = localStorage.getItem('guestName');
+            if (savedName && !document.getElementById('guestName').value) {
+                document.getElementById('guestName').value = savedName;
+            }
+        });
+    </script>
+</body>
+</html>
+

@@ -407,7 +407,13 @@ def get_device_capabilities(device_path: str) -> Dict:
         
         # Determine if we have a valid signal
         # No signal typically shows as 0x0, 64x64, or very small resolution
-        if result['width'] >= 640 and result['height'] >= 480:
+        # Special case: hdmirx reports 640x480 BGR when no signal (fallback mode)
+        if result['format'] == 'BGR' and result['width'] == 640 and result['height'] == 480:
+            # This is hdmirx no-signal fallback mode
+            logger.info(f"{device_path}: hdmirx no-signal fallback detected (640x480 BGR)")
+            result['has_signal'] = False
+        elif result['width'] >= 720 and result['height'] >= 480:
+            # Valid signal: at least 720x480 (480p)
             result['has_signal'] = True
         else:
             logger.info(f"{device_path}: No signal (resolution {result['width']}x{result['height']})")

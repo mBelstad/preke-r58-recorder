@@ -1,0 +1,36 @@
+{
+  "id": "presentation_pip",
+  "label": "Presentation with Picture-in-Picture",
+  "resolution": "1920x1080",
+  "slots": [
+    {
+      "source": "slides",
+      "source_type": "reveal",
+      "x_rel": 0.0,
+      "y_rel": 0.0,
+      "w_rel": 1.0,
+      "h_rel": 1.0,
+      "z": 0,
+      "alpha": 1.0,
+      "crop_x": 0.0,
+      "crop_y": 0.0,
+      "crop_w": 1.0,
+      "crop_h": 1.0
+    },
+    {
+      "source": "cam1",
+      "source_type": "camera",
+      "x_rel": 0.75,
+      "y_rel": 0.75,
+      "w_rel": 0.2,
+      "h_rel": 0.2,
+      "z": 1,
+      "alpha": 1.0,
+      "crop_x": 0.0,
+      "crop_y": 0.0,
+      "crop_w": 1.0,
+      "crop_h": 1.0
+    }
+  ]
+}
+

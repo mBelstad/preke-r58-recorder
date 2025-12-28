@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WHEP → WHIP Bridge (MediaMTX to VDO.ninja)</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #e0e0e0;
+            padding: 20px;
+        }
+        .container { max-width: 900px; margin: 0 auto; }
+        h1 { 
+            text-align: center; 
+            margin-bottom: 10px;
+            color: #4fc3f7;
+            font-weight: 500;
+        }
+        .subtitle {
+            text-align: center;
+            color: #888;
+            margin-bottom: 30px;
+            font-size: 0.9rem;
+        }
+        .card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .card h2 {
+            font-size: 1rem;
+            color: #4fc3f7;
+            margin-bottom: 15px;
+            font-weight: 500;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 0.85rem;
+            color: #aaa;
+        }
+        input, select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 6px;
+            background: rgba(0,0,0,0.3);
+            color: #fff;
+            font-size: 0.9rem;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #4fc3f7;
+        }
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        .btn-primary {
+            background: #4fc3f7;
+            color: #1a1a2e;
+        }
+        .btn-primary:hover { background: #81d4fa; }
+        .btn-primary:disabled { 
+            background: #444; 
+            color: #888;
+            cursor: not-allowed;
+        }
+        .btn-danger {
+            background: #ef5350;
+            color: white;
+        }
+        .btn-danger:hover { background: #f44336; }
+        .btn-secondary {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+        }
+        .btn-secondary:hover { background: rgba(255,255,255,0.2); }
+        .video-container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+        .video-box {
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            aspect-ratio: 16/9;
+            position: relative;
+        }
+        .video-box video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        .video-label {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+        }
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+        }
+        .status.connecting { background: rgba(255, 193, 7, 0.2); }
+        .status.connected { background: rgba(76, 175, 80, 0.2); }
+        .status.error { background: rgba(244, 67, 54, 0.2); }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+        .status.connecting .status-dot { background: #ffc107; animation: pulse 1s infinite; }
+        .status.connected .status-dot { background: #4caf50; }
+        .status.error .status-dot { background: #f44336; }
+        @keyframes pulse { 50% { opacity: 0.5; } }
+        .log {
+            background: rgba(0,0,0,0.4);
+            border-radius: 6px;
+            padding: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 0.75rem;
+            line-height: 1.6;
+        }
+        .log-entry { margin-bottom: 2px; }
+        .log-entry.info { color: #4fc3f7; }
+        .log-entry.success { color: #4caf50; }
+        .log-entry.error { color: #f44336; }
+        .log-entry.warn { color: #ffc107; }
+        .controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .links-box {
+            background: rgba(0,0,0,0.3);
+            border-radius: 6px;
+            padding: 12px;
+            margin-top: 15px;
+        }
+        .links-box a {
+            color: #4fc3f7;
+            text-decoration: none;
+            display: block;
+            margin: 5px 0;
+            word-break: break-all;
+        }
+        .links-box a:hover { text-decoration: underline; }
+        .info-box {
+            background: rgba(79, 195, 247, 0.1);
+            border: 1px solid rgba(79, 195, 247, 0.3);
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 15px;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>WHEP → WHIP Bridge</h1>
+        <p class="subtitle">Bridges a MediaMTX WHEP stream to VDO.ninja via WHIP</p>
+        
+        <div class="info-box">
+            <strong>How it works:</strong> This page pulls a stream from MediaMTX (WHEP), then publishes it to VDO.ninja's WHIP endpoint. The stream becomes available at a WHEP URL that you can view directly or add to a mixer.
+        </div>
+        
+        <div class="card">
+            <h2>Source (WHEP - Pull from MediaMTX)</h2>
+            <div class="form-group">
+                <label>WHEP Source URL</label>
+                <input type="text" id="whepUrl" value="https://r58-mediamtx.itagenten.no/cam3/whep" placeholder="https://mediamtx-server/stream/whep">
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>Destination (WHIP - Push to VDO.ninja)</h2>
+            <div class="form-group">
+                <label>Stream ID (used in WHIP/WHEP URLs)</label>
+                <input type="text" id="streamId" value="r58-cam3" placeholder="my-camera-stream">
+            </div>
+            <div class="form-group">
+                <label>VDO.ninja WHIP Server</label>
+                <input type="text" id="whipServer" value="https://whip.vdo.ninja" placeholder="https://whip.vdo.ninja">
+            </div>
+            <div class="controls">
+                <button class="btn-primary" id="startBtn" onclick="startBridge()">Start Bridge</button>
+                <button class="btn-danger" id="stopBtn" onclick="stopBridge()" disabled>Stop Bridge</button>
+                <button class="btn-secondary" onclick="openViewer()">Open Viewer</button>
+            </div>
+            
+            <div class="links-box" id="linksBox" style="display: none;">
+                <strong>Stream URLs (after connected):</strong>
+                <a href="#" id="whepViewUrl" target="_blank">WHEP View URL</a>
+                <a href="#" id="vdoViewUrl" target="_blank">VDO.ninja Viewer URL</a>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>Status</h2>
+            <div class="status connecting" id="whepStatus">
+                <span class="status-dot"></span>
+                <span id="whepStatusText">WHEP Source: Not connected</span>
+            </div>
+            <div class="status connecting" id="whipStatus">
+                <span class="status-dot"></span>
+                <span id="whipStatusText">WHIP Publish: Not connected</span>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>Video Preview (WHEP Source)</h2>
+            <div class="video-container">
+                <div class="video-box">
+                    <span class="video-label">WHEP Input</span>
+                    <video id="whepVideo" autoplay muted playsinline></video>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>Activity Log</h2>
+            <div class="log" id="log"></div>
+        </div>
+    </div>
+    
+    <script>
+        // State
+        let whepPeerConnection = null;
+        let whipPeerConnection = null;
+        let mediaStream = null;
+        
+        function log(message, type = 'info') {
+            const logEl = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logEl.insertBefore(entry, logEl.firstChild);
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+        
+        function updateStatus(id, status, text) {
+            const el = document.getElementById(id);
+            const textEl = document.getElementById(id + 'Text');
+            el.className = `status ${status}`;
+            textEl.textContent = text;
+        }
+        
+        async function connectWhep(whepUrl) {
+            log(`Connecting to WHEP source: ${whepUrl}`);
+            updateStatus('whepStatus', 'connecting', 'WHEP Source: Connecting...');
+            
+            try {
+                whepPeerConnection = new RTCPeerConnection({
+                    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+                });
+                
+                whepPeerConnection.addTransceiver('video', { direction: 'recvonly' });
+                whepPeerConnection.addTransceiver('audio', { direction: 'recvonly' });
+                
+                const streamPromise = new Promise((resolve) => {
+                    whepPeerConnection.ontrack = (event) => {
+                        log(`Received track: ${event.track.kind}`, 'success');
+                        mediaStream = event.streams[0];
+                        document.getElementById('whepVideo').srcObject = mediaStream;
+                        updateStatus('whepStatus', 'connected', 'WHEP Source: Connected ✓');
+                        resolve(mediaStream);
+                    };
+                });
+                
+                whepPeerConnection.oniceconnectionstatechange = () => {
+                    log(`WHEP ICE state: ${whepPeerConnection.iceConnectionState}`);
+                    if (whepPeerConnection.iceConnectionState === 'failed') {
+                        updateStatus('whepStatus', 'error', 'WHEP Source: ICE Failed');
+                    }
+                };
+                
+                const offer = await whepPeerConnection.createOffer();
+                await whepPeerConnection.setLocalDescription(offer);
+                
+                await new Promise((resolve) => {
+                    if (whepPeerConnection.iceGatheringState === 'complete') resolve();
+                    else {
+                        whepPeerConnection.onicecandidate = (e) => {
+                            if (e.candidate === null) resolve();
+                        };
+                        setTimeout(resolve, 3000);
+                    }
+                });
+                
+                log('WHEP: ICE gathering complete, sending offer');
+                
+                const response = await fetch(whepUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/sdp' },
+                    body: whepPeerConnection.localDescription.sdp
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`WHEP request failed: ${response.status}`);
+                }
+                
+                const answerSdp = await response.text();
+                await whepPeerConnection.setRemoteDescription({ type: 'answer', sdp: answerSdp });
+                
+                // Wait for stream
+                return await streamPromise;
+                
+            } catch (error) {
+                log(`WHEP error: ${error.message}`, 'error');
+                updateStatus('whepStatus', 'error', `WHEP Source: ${error.message}`);
+                throw error;
+            }
+        }
+        
+        async function publishWhip(stream, whipUrl) {
+            log(`Publishing to WHIP: ${whipUrl}`);
+            updateStatus('whipStatus', 'connecting', 'WHIP Publish: Connecting...');
+            
+            try {
+                whipPeerConnection = new RTCPeerConnection({
+                    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+                });
+                
+                // Add tracks from the stream
+                stream.getTracks().forEach(track => {
+                    log(`Adding track to WHIP: ${track.kind}`);
+                    whipPeerConnection.addTrack(track, stream);
+                });
+                
+                whipPeerConnection.oniceconnectionstatechange = () => {
+                    log(`WHIP ICE state: ${whipPeerConnection.iceConnectionState}`);
+                    if (whipPeerConnection.iceConnectionState === 'connected') {
+                        updateStatus('whipStatus', 'connected', 'WHIP Publish: Connected ✓');
+                        showLinks();
+                    } else if (whipPeerConnection.iceConnectionState === 'failed') {
+                        updateStatus('whipStatus', 'error', 'WHIP Publish: ICE Failed');
+                    }
+                };
+                
+                const offer = await whipPeerConnection.createOffer();
+                await whipPeerConnection.setLocalDescription(offer);
+                
+                await new Promise((resolve) => {
+                    if (whipPeerConnection.iceGatheringState === 'complete') resolve();
+                    else {
+                        whipPeerConnection.onicecandidate = (e) => {
+                            if (e.candidate === null) resolve();
+                        };
+                        setTimeout(resolve, 3000);
+                    }
+                });
+                
+                log('WHIP: ICE gathering complete, sending offer');
+                
+                const response = await fetch(whipUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/sdp' },
+                    body: whipPeerConnection.localDescription.sdp
+                });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`WHIP request failed: ${response.status} - ${errorText}`);
+                }
+                
+                const answerSdp = await response.text();
+                await whipPeerConnection.setRemoteDescription({ type: 'answer', sdp: answerSdp });
+                
+                log('WHIP: Published successfully!', 'success');
+                
+            } catch (error) {
+                log(`WHIP error: ${error.message}`, 'error');
+                updateStatus('whipStatus', 'error', `WHIP Publish: ${error.message}`);
+                throw error;
+            }
+        }
+        
+        function showLinks() {
+            const streamId = document.getElementById('streamId').value;
+            const whipServer = document.getElementById('whipServer').value;
+            
+            // VDO.ninja uses whep.vdo.ninja for playback
+            const whepBase = whipServer.replace('whip.', 'whep.');
+            const whepViewUrl = `${whepBase}/${streamId}`;
+            const vdoViewUrl = `https://vdo.ninja/?whepplay=${encodeURIComponent(whepViewUrl)}`;
+            
+            document.getElementById('whepViewUrl').href = whepViewUrl;
+            document.getElementById('whepViewUrl').textContent = `WHEP: ${whepViewUrl}`;
+            document.getElementById('vdoViewUrl').href = vdoViewUrl;
+            document.getElementById('vdoViewUrl').textContent = `VDO.ninja: ${vdoViewUrl}`;
+            document.getElementById('linksBox').style.display = 'block';
+        }
+        
+        function openViewer() {
+            const streamId = document.getElementById('streamId').value;
+            const whipServer = document.getElementById('whipServer').value;
+            const whepBase = whipServer.replace('whip.', 'whep.');
+            const whepViewUrl = `${whepBase}/${streamId}`;
+            const vdoViewUrl = `https://vdo.ninja/?whepplay=${encodeURIComponent(whepViewUrl)}`;
+            window.open(vdoViewUrl, '_blank');
+        }
+        
+        async function startBridge() {
+            const whepUrl = document.getElementById('whepUrl').value;
+            const streamId = document.getElementById('streamId').value;
+            const whipServer = document.getElementById('whipServer').value;
+            const whipUrl = `${whipServer}/${streamId}`;
+            
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+            
+            try {
+                // Step 1: Connect to WHEP source
+                const stream = await connectWhep(whepUrl);
+                
+                // Step 2: Wait a moment for tracks to stabilize
+                await new Promise(r => setTimeout(r, 1000));
+                
+                // Step 3: Publish to WHIP destination
+                await publishWhip(stream, whipUrl);
+                
+                log('Bridge started successfully!', 'success');
+            } catch (error) {
+                log(`Bridge failed: ${error.message}`, 'error');
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+            }
+        }
+        
+        function stopBridge() {
+            log('Stopping bridge...');
+            
+            if (whepPeerConnection) {
+                whepPeerConnection.close();
+                whepPeerConnection = null;
+            }
+            
+            if (whipPeerConnection) {
+                whipPeerConnection.close();
+                whipPeerConnection = null;
+            }
+            
+            mediaStream = null;
+            
+            document.getElementById('whepVideo').srcObject = null;
+            document.getElementById('linksBox').style.display = 'none';
+            
+            updateStatus('whepStatus', 'connecting', 'WHEP Source: Not connected');
+            updateStatus('whipStatus', 'connecting', 'WHIP Publish: Not connected');
+            
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            
+            log('Bridge stopped', 'info');
+        }
+        
+        // Parse URL params for auto-start
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('whep')) document.getElementById('whepUrl').value = urlParams.get('whep');
+        if (urlParams.get('streamid')) document.getElementById('streamId').value = urlParams.get('streamid');
+        if (urlParams.get('whipserver')) document.getElementById('whipServer').value = urlParams.get('whipserver');
+        if (urlParams.get('autostart')) {
+            window.addEventListener('load', () => setTimeout(startBridge, 500));
+        }
+    </script>
+</body>
+</html>
+

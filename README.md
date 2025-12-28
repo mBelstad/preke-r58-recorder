@@ -1,182 +1,278 @@
-# Preke R58 Recorder
+# R58 Recorder/Mixer
 
-A simple, reliable recording application for the Mekotronics R58 4x4 3S (RK3588) using Python, GStreamer, FastAPI, and MediaMTX.
+> Professional multi-camera recording and live mixing solution for broadcast and AV production.
+
+[![PR Checks](https://github.com/your-org/preke-r58-recorder/actions/workflows/pr-checks.yml/badge.svg)](https://github.com/your-org/preke-r58-recorder/actions)
+[![Release](https://github.com/your-org/preke-r58-recorder/actions/workflows/release.yml/badge.svg)](https://github.com/your-org/preke-r58-recorder/releases)
 
 ## Features
 
-- Records from up to 4 HDMI-IN devices (/dev/video0-3)
-- Hardware-accelerated encoding on R58 (v4l2h264enc/v4l2h265enc or mpp encoders)
-- Optional streaming to MediaMTX (RTSP/RTMP/SRT)
-- HTTP API for control
-- Works on macOS (development) and R58 (production)
+- **Multi-Camera Recording** - Record up to 4 HDMI inputs simultaneously
+- **Live Mixing** - VDO.ninja-powered video switching and composition
+- **WebRTC Previews** - Low-latency WHEP streams for all inputs
+- **PWA Interface** - Installable web app with kiosk mode support
+- **Remote Access** - Control devices from anywhere via secure tunnels
+- **Fleet Management** - Manage multiple R58 devices from one dashboard
 
-## Project Structure
+---
+
+## Quick Start
+
+### Prerequisites
+
+- **R58 Device**: Debian-based ARM device with HDMI capture
+- **Development**: macOS/Linux with Python 3.11+ and Node.js 20+
+- **Docker**: For containerized development
+
+### 1. Clone & Setup
+
+```bash
+git clone https://github.com/your-org/preke-r58-recorder.git
+cd preke-r58-recorder
+
+# Backend setup
+cd packages/backend
+python -m venv .venv
+source .venv/bin/activate
+pip install -e .[dev]
+
+# Frontend setup
+cd ../frontend
+npm install
+```
+
+### 2. Configure Environment
+
+```bash
+# Create backend config
+cat > packages/backend/.env << 'EOF'
+R58_JWT_SECRET=change-this-in-production
+R58_DEVICE_ID=dev-001
+R58_DEBUG=true
+R58_VDONINJA_ENABLED=true
+EOF
+```
+
+### 3. Run Development Servers
+
+```bash
+# Terminal 1: Backend API
+cd packages/backend
+source .venv/bin/activate
+uvicorn r58_api.main:app --reload --host 0.0.0.0 --port 8000
+
+# Terminal 2: Frontend dev server
+cd packages/frontend
+npm run dev
+
+# Terminal 3: (Optional) MediaMTX for WHEP streams
+docker run -p 8889:8889 -p 9997:9997 bluenviron/mediamtx
+```
+
+### 4. Open the App
+
+- **Frontend**: http://localhost:5173
+- **API Docs**: http://localhost:8000/docs
+- **Health Check**: http://localhost:8000/api/v1/health
+
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         R58 Device                               │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────────┐  │
+│  │   Frontend   │    │   FastAPI    │    │ Pipeline Manager │  │
+│  │  Vue3 + PWA  │◄──►│  Control API │◄──►│    (GStreamer)   │  │
+│  └──────────────┘    └──────────────┘    └──────────────────┘  │
+│         │                   │                     │             │
+│         │                   ▼                     ▼             │
+│         │            ┌──────────────┐    ┌──────────────────┐  │
+│         │            │   SQLite DB  │    │     MediaMTX     │  │
+│         │            │ (Sessions)   │    │  (WebRTC/WHEP)   │  │
+│         │            └──────────────┘    └──────────────────┘  │
+│         │                                        │             │
+│         ▼                                        ▼             │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │                    VDO.ninja (Local)                      │  │
+│  │              Live Mixing & Scene Switching                │  │
+│  └──────────────────────────────────────────────────────────┘  │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Directory Structure
 
 ```
 preke-r58-recorder/
-├── src/
-│   ├── main.py          # FastAPI application
-│   ├── recorder.py      # Pipeline manager
-│   ├── pipelines.py     # GStreamer pipeline builders
-│   └── config.py        # Configuration management
-├── config.yml           # Configuration file
-├── requirements.txt     # Python dependencies
-├── start.sh            # Start script
-├── deploy.sh           # Deployment script
-├── preke-recorder.service  # Systemd service
-└── mediamtx.service     # MediaMTX systemd service
+├── packages/
+│   ├── backend/           # Python FastAPI + Pipeline Manager
+│   │   ├── r58_api/       # Control plane (REST + WebSocket)
+│   │   ├── pipeline_manager/  # Media plane (GStreamer control)
+│   │   └── tests/         # pytest tests
+│   └── frontend/          # Vue3 + TypeScript PWA
+│       ├── src/
+│       │   ├── views/     # Page components
+│       │   ├── components/# UI components
+│       │   ├── stores/    # Pinia state management
+│       │   └── composables/# Vue composables
+│       └── e2e/           # Playwright E2E tests
+├── services/              # systemd unit files
+├── docker/                # Dockerfiles and compose
+├── scripts/               # Utility scripts
+└── docs/                  # Documentation
 ```
 
-## Installation
+---
 
-### On macOS (Development)
+## Development Commands
 
-1. Install GStreamer:
+### Backend
+
 ```bash
-brew install gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly gst-libav
+cd packages/backend
+
+# Run tests
+pytest tests/ -v                        # All tests
+pytest tests/ -k "recording" -v         # Filter by name
+pytest tests/ --cov=r58_api             # With coverage
+
+# Lint
+ruff check .                            # Check
+ruff check . --fix                      # Auto-fix
+
+# Generate OpenAPI schema
+python -c "from r58_api.main import create_app; create_app()"
 ```
 
-2. Run setup script:
+### Frontend
+
 ```bash
-cd preke-r58-recorder
-./setup.sh
+cd packages/frontend
+
+# Development
+npm run dev                             # Dev server with HMR
+npm run build                           # Production build
+npm run preview                         # Preview production build
+
+# Testing
+npm test                                # Vitest watch mode
+npm test -- --run                       # Single run
+npm run test:e2e                        # Playwright E2E
+npm run test:e2e:ui                     # Playwright UI mode
+
+# Linting
+npm run lint                            # ESLint
 ```
 
-Or manually install Python dependencies:
+### Docker
+
 ```bash
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+# Full development environment
+docker compose -f docker/docker-compose.dev.yml up
+
+# Build images
+docker build -f docker/Dockerfile.api -t r58-api packages/backend
+docker build -f docker/Dockerfile.frontend -t r58-frontend packages/frontend
 ```
 
-3. Run the application:
+---
+
+## API Reference
+
+### Core Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/health` | Simple health check |
+| GET | `/api/v1/health/detailed` | Detailed service status |
+| GET | `/api/v1/capabilities` | Device capabilities manifest |
+| GET | `/api/v1/recorder/status` | Current recorder status |
+| POST | `/api/v1/recorder/start` | Start recording |
+| POST | `/api/v1/recorder/stop` | Stop recording |
+| WS | `/api/v1/ws` | Real-time event stream |
+
+### Example: Start Recording
+
 ```bash
-./start.sh
+curl -X POST http://localhost:8000/api/v1/recorder/start \
+  -H "Content-Type: application/json" \
+  -d '{"name": "My Session", "inputs": ["cam1", "cam2"]}'
 ```
 
-Or directly:
-```bash
-python -m src.main
+**Response:**
+```json
+{
+  "session_id": "abc123",
+  "name": "My Session",
+  "started_at": "2024-12-28T10:00:00Z",
+  "inputs": ["cam1", "cam2"],
+  "status": "recording"
+}
 ```
 
-### On R58 (Production)
-
-1. Install system dependencies:
-```bash
-sudo apt-get update
-sudo apt-get install -y python3-pip python3-venv gstreamer1.0-tools \
-    gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
-    gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly \
-    gstreamer1.0-libav python3-gi python3-gi-cairo gir1.2-gstreamer-1.0
-```
-
-2. Clone and setup:
-```bash
-sudo mkdir -p /opt/preke-r58-recorder
-sudo chown $USER:$USER /opt/preke-r58-recorder
-cd /opt/preke-r58-recorder
-git clone <your-repo> .
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-```
-
-3. Install systemd service:
-```bash
-sudo cp preke-recorder.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable preke-recorder.service
-sudo systemctl start preke-recorder.service
-```
-
-## Configuration
-
-Edit `config.yml` to configure cameras, bitrates, resolutions, and MediaMTX settings.
-
-### Example Configuration
-
-```yaml
-cameras:
-  cam0:
-    device: /dev/video0
-    resolution: 1920x1080
-    bitrate: 5000
-    codec: h264
-    output_path: /var/recordings/cam0/recording.mp4
-    mediamtx_enabled: true
-```
-
-## API Endpoints
-
-- `GET /health` - Health check
-- `POST /record/start/{cam_id}` - Start recording for a camera
-- `POST /record/stop/{cam_id}` - Stop recording for a camera
-- `GET /status` - Get status of all cameras
-- `GET /status/{cam_id}` - Get status of a specific camera
+---
 
 ## Deployment
 
-Use the `deploy.sh` script to deploy from macOS to R58:
+See [docs/OPERATIONS.md](docs/OPERATIONS.md) for full deployment instructions.
+
+### Quick Deploy to R58
 
 ```bash
-# Remote deployment via Cloudflare Tunnel (recommended)
-./deploy.sh r58.itagenten.no linaro
-
-# Or local network deployment
-export R58_PASSWORD=linaro
-./deploy.sh 192.168.1.25 linaro
+# From development machine
+./deploy-simple.sh
 ```
 
-## Remote Access
+### Manual Deploy
 
-The R58 device is accessible remotely via Cloudflare Tunnel. See [docs/remote-access.md](docs/remote-access.md) for detailed instructions.
-
-**Quick connection:**
 ```bash
-# Use the helper script
-./connect-r58.sh
-
-# Or connect directly
-sshpass -p 'linaro' ssh -o StrictHostKeyChecking=no linaro@r58.itagenten.no
+# On R58 device
+cd /opt/r58
+git pull origin main
+source venv/bin/activate
+pip install -e packages/backend
+cd packages/frontend && npm ci && npm run build
+sudo systemctl restart r58-api r58-pipeline
 ```
 
-**Web Interface:**
-- Remote: `https://recorder.itagenten.no`
-- Local: `http://192.168.1.25:8000`
+---
 
-## MediaMTX Integration
+## Documentation
 
-To enable MediaMTX streaming:
+| Document | Description |
+|----------|-------------|
+| [START-HERE.md](docs/START-HERE.md) | Repo organization and contribution guide |
+| [OPERATIONS.md](docs/OPERATIONS.md) | Deployment, services, and maintenance |
+| [TESTING.md](docs/TESTING.md) | Test strategy and execution |
+| [USER-GUIDE.md](docs/USER-GUIDE.md) | End-user workflows and troubleshooting |
+| [SUPPORT-BUNDLE.md](docs/SUPPORT-BUNDLE.md) | Diagnostics and support data |
+| [SMOKE_TEST_CHECKLIST.md](docs/SMOKE_TEST_CHECKLIST.md) | Pre-release checklist |
 
-1. Install MediaMTX on R58
-2. Enable MediaMTX in `config.yml`:
-```yaml
-mediamtx:
-  enabled: true
-  rtsp_port: 8554
-```
+---
 
-3. Enable MediaMTX for specific cameras:
-```yaml
-cameras:
-  cam0:
-    mediamtx_enabled: true
-```
+## Contributing
 
-4. Install MediaMTX service:
-```bash
-sudo cp mediamtx.service /etc/systemd/system/
-sudo systemctl enable mediamtx.service
-sudo systemctl start mediamtx.service
-```
+1. Create a feature branch: `git checkout -b feature/my-feature`
+2. Make changes and add tests
+3. Run quality checks: `npm run lint && npm test && pytest`
+4. Submit a pull request
 
-## Troubleshooting
+See [START-HERE.md](docs/START-HERE.md) for detailed contribution guidelines.
 
-- Check service logs: `sudo journalctl -u preke-recorder.service -f`
-- Verify GStreamer plugins: `gst-inspect-1.0 v4l2src`
-- Test pipeline manually: `gst-launch-1.0 v4l2src device=/dev/video0 ! autovideosink`
+---
 
 ## License
 
-MIT
+MIT License - See [LICENSE](LICENSE) for details.
 
+---
+
+## Support
+
+- **Issues**: [GitHub Issues](https://github.com/your-org/preke-r58-recorder/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/your-org/preke-r58-recorder/discussions)
+- **Email**: support@example.com

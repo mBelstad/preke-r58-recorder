@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>R58 Documentation Wiki</title>
+    <link rel="stylesheet" href="/static/css/wiki.css">
+    <!-- Mermaid.js for diagrams -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <!-- Fuse.js for search -->
+    <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0"></script>
+    <!-- Marked.js for markdown rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
+</head>
+<body>
+    <div class="wiki-container">
+        <!-- Header -->
+        <header class="wiki-header">
+            <div class="header-content">
+                <h1>📚 R58 Documentation</h1>
+                <div class="header-controls">
+                    <button id="darkModeToggle" class="btn-icon" title="Toggle Dark Mode">
+                        <span class="icon-light">☀️</span>
+                        <span class="icon-dark">🌙</span>
+                    </button>
+                    <button id="printBtn" class="btn-icon" title="Print Documentation">
+                        🖨️
+                    </button>
+                </div>
+            </div>
+            <div class="search-container">
+                <input 
+                    type="text" 
+                    id="searchInput" 
+                    placeholder="🔍 Search documentation..." 
+                    autocomplete="off"
+                />
+                <div id="searchResults" class="search-results"></div>
+            </div>
+        </header>
+
+        <div class="wiki-body">
+            <!-- Sidebar Navigation -->
+            <aside class="wiki-sidebar">
+                <nav class="wiki-nav">
+                    <div class="nav-section">
+                        <h3 class="nav-title">📖 Getting Started</h3>
+                        <ul class="nav-list">
+                            <li><a href="#welcome" data-section="welcome">Welcome</a></li>
+                            <li><a href="#product-overview" data-section="product-overview">Product Overview</a></li>
+                            <li><a href="#quick-start" data-section="quick-start">Quick Start</a></li>
+                            <li><a href="#what-is-r58" data-section="what-is-r58">What is R58?</a></li>
+                            <li><a href="#hardware-specs" data-section="hardware-specs">Hardware Specs</a></li>
+                        </ul>
+                    </div>
+
+                    <div class="nav-section">
+                        <h3 class="nav-title">🏗️ Architecture</h3>
+                        <ul class="nav-list">
+                            <li><a href="#system-overview" data-section="system-overview">System Overview</a></li>
+                            <li><a href="#data-flow" data-section="data-flow">Data Flow</a></li>
+                            <li><a href="#components" data-section="components">Components</a></li>
+                            <li><a href="#tech-stack" data-section="tech-stack">Technology Stack</a></li>
+                            <li><a href="#system-services" data-section="system-services">All System Services</a></li>
+                            <li><a href="#directory-structure" data-section="directory-structure">Directory Structure</a></li>
+                            <li><a href="#vdoninja-overview" data-section="vdoninja-overview">VDO.ninja Mixer</a></li>
+                            <li><a href="#two-mixers" data-section="two-mixers">Two Mixer Options</a></li>
+                        </ul>
+                    </div>
+
+                    <div class="nav-section">
+                        <h3 class="nav-title">🔧 Setup & Configuration</h3>
+                        <ul class="nav-list">
+                            <li><a href="#installation" data-section="installation">Installation</a></li>
+                            <li><a href="#configuration" data-section="configuration">Configuration</a></li>
+                            <li><a href="#camera-setup" data-section="camera-setup">Camera Setup</a></li>
+                        </ul>
+                    </div>
+
+                    <div class="nav-section">
+                        <h3 class="nav-title">📡 Remote Access</h3>
+                        <ul class="nav-list">
+                            <li><a href="#remote-overview" data-section="remote-overview">Overview</a></li>
+                            <li><a href="#ssh-access" data-section="ssh-access">SSH Access</a></li>
+                            <li><a href="#web-interfaces" data-section="web-interfaces">Web Interfaces</a></li>
+                            <li><a href="#deployment" data-section="deployment">Deployment</a></li>
+                        </ul>
+                    </div>
+
+                    <div class="nav-section">
+                        <h3 class="nav-title">🎛️ API Reference</h3>
+                        <ul class="nav-list">
+                            <li><a href="#api-overview" data-section="api-overview">Overview</a></li>
+                            <li><a href="#api-recording" data-section="api-recording">Recording API</a></li>
+                            <li><a href="#api-mixer" data-section="api-mixer">Mixer API</a></li>
+                            <li><a href="#api-scenes" data-section="api-scenes">Scenes API</a></li>
+                        </ul>
+                    </div>
+
+                    <div class="nav-section">
+                        <h3 class="nav-title">🛠️ Troubleshooting</h3>
+                        <ul class="nav-list">
+                            <li><a href="#common-issues" data-section="common-issues">Common Issues</a></li>
+                            <li><a href="#ssh-problems" data-section="ssh-problems">SSH Problems</a></li>
+                            <li><a href="#video-issues" data-section="video-issues">Video Issues</a></li>
+                            <li><a href="#logs" data-section="logs">Viewing Logs</a></li>
+                        </ul>
+                    </div>
+
+                    <div class="nav-section">
+                        <h3 class="nav-title">📖 History & Decisions</h3>
+                        <ul class="nav-list">
+                            <li><a href="#why-frp" data-section="why-frp">Why FRP?</a></li>
+                            <li><a href="#cloudflare-history" data-section="cloudflare-history">Cloudflare History</a></li>
+                            <li><a href="#alternatives" data-section="alternatives">Alternatives Considered</a></li>
+                            <li><a href="#raspberry-ninja" data-section="raspberry-ninja">Raspberry.ninja</a></li>
+                            <li><a href="#version-issues" data-section="version-issues">Version Issues</a></li>
+                        </ul>
+                    </div>
+                    
+                    <div class="nav-section">
+                        <h3 class="nav-title">⚙️ Advanced</h3>
+                        <ul class="nav-list">
+                            <li><a href="#fleet-management" data-section="fleet-management">Fleet Management</a></li>
+                            <li><a href="#legacy-components" data-section="legacy-components">Legacy Components</a></li>
+                        </ul>
+                    </div>
+                </nav>
+            </aside>
+
+            <!-- Main Content Area -->
+            <main class="wiki-content" id="wikiContent">
+                <div class="content-loading">
+                    <p>Loading documentation...</p>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+        <script src="/static/js/wiki-content.js"></script>
+        <script src="/static/js/wiki-content-part2.js"></script>
+        <script src="/static/js/wiki-content-part3.js"></script>
+        <script src="/static/js/wiki-content-part4.js"></script>
+        <script src="/static/js/wiki-content-part5.js"></script>
+        <script src="/static/js/wiki.js"></script>
+</body>
+</html>
+

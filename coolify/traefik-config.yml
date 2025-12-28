@@ -1,0 +1,32 @@
+# Traefik configuration for R58 services
+# This file should be placed in Coolify's Traefik dynamic configuration directory
+
+http:
+  routers:
+    r58-turn-api:
+      rule: "Host(`api.r58.itagenten.no`)"
+      service: r58-turn-api
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+    
+    r58-relay:
+      rule: "Host(`relay.r58.itagenten.no`)"
+      service: r58-relay
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+
+  services:
+    r58-turn-api:
+      loadBalancer:
+        servers:
+          - url: "http://r58-turn-api:3000"
+    
+    r58-relay:
+      loadBalancer:
+        servers:
+          - url: "http://r58-relay:8080"
+

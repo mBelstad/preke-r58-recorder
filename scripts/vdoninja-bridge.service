@@ -1,0 +1,49 @@
+[Unit]
+Description=VDO.ninja WHEP Bridge - Share HDMI cameras to VDO.ninja room
+After=network-online.target graphical.target preke-recorder.service
+Wants=network-online.target
+Requires=graphical.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=linaro
+Group=linaro
+
+# Display configuration
+Environment=DISPLAY=:0
+
+# VDO.ninja room name
+Environment=VDONINJA_ROOM=r58studio
+
+# VDO.ninja host (self-hosted instance)
+Environment=VDONINJA_HOST=r58-vdo.itagenten.no
+
+# R58 API host (for WHEP streams)
+Environment=API_HOST=r58-api.itagenten.no
+
+# Camera configuration - comma-separated list
+# Format: stream_id:push_id:label
+# - stream_id: MediaMTX stream name (cam0, cam1, cam2, cam3)
+# - push_id: VDO.ninja push ID (must be unique per camera)
+# - label: Display name shown in VDO.ninja
+#
+# Example for single camera:
+#   CAMERAS=cam2:hdmi1:HDMI-Camera
+#
+# Example for multiple cameras:
+#   CAMERAS=cam2:hdmi1:Camera-1,cam3:hdmi2:Camera-2
+#
+Environment=CAMERAS=cam2:hdmi1:HDMI-Camera
+
+# Log file location
+Environment=LOG_FILE=/var/log/vdoninja-bridge.log
+
+WorkingDirectory=/opt/preke-r58-recorder
+ExecStartPre=/bin/sleep 10
+ExecStart=/opt/preke-r58-recorder/scripts/start-vdoninja-bridge.sh
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=graphical.target

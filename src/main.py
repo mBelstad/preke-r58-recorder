@@ -1,25 +1,26 @@
 """FastAPI application for R58 recorder."""
+import asyncio
 import logging
 import os
+import json
 from pathlib import Path
 from typing import Dict, Any, List, Optional
-from fastapi import FastAPI, HTTPException, UploadFile, File, Response
-from fastapi.responses import JSONResponse, FileResponse, HTMLResponse, StreamingResponse
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, HTTPException, UploadFile, File, Response, Request, WebSocket, WebSocketDisconnect
+from fastapi.responses import JSONResponse, FileResponse, HTMLResponse, StreamingResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 import shutil
 import uuid
 import httpx
+import time
 
 from .config import AppConfig
+from .ingest import IngestManager
 from .recorder import Recorder
 from .preview import PreviewManager
-from .mixer.scenes import SceneManager
-from .mixer.core import MixerCore
-from .mixer.graphics import GraphicsRenderer
-from .mixer.graphics_templates import get_template, list_templates, GraphicsTemplate
-from .mixer.database import Database
-from .mixer.files import FileManager
-from .mixer.queue import SceneQueue
+from .database import Database
+from .files import FileManager
+from .camera_control import CameraControlManager
 
 # Configure logging
 logging.basicConfig(
@@ -36,54 +37,143 @@ except FileNotFoundError:
     logger.error(f"config.yml not found at {config_path}. Using default configuration.")
     config = AppConfig(platform="macos", cameras={})
 
-# Initialize recorder and preview manager
-recorder = Recorder(config)
-preview_manager = PreviewManager(config)
+# Initialize ingest manager (always-on capture)
+ingest_manager = IngestManager(config)
 
-# Initialize database
+# Initialize recorder (subscribes to ingest streams)
+recorder = Recorder(config, ingest_manager=ingest_manager)
+
+# Initialize preview manager (delegates to ingest)
+preview_manager = PreviewManager(config, ingest_manager)
+
+# Initialize camera control manager (for external cameras)
+camera_control_manager: Optional[CameraControlManager] = None
+if config.external_cameras:
+    try:
+        camera_control_manager = CameraControlManager(config.external_cameras)
+        logger.info(f"Camera control manager initialized with {camera_control_manager.get_camera_count()} external camera(s)")
+    except Exception as e:
+        logger.error(f"Failed to initialize camera control manager: {e}")
+
+# Initialize shared database (always available)
 database = Database(db_path="data/app.db")
-database.migrate_json_scenes(config.mixer.scenes_dir if config.mixer.enabled else "scenes")
 
-# Initialize file manager
+# Initialize shared file manager (always available)
 file_manager = FileManager(uploads_dir="uploads", database=database)
 
-# Initialize mixer (if enabled)
-mixer_core: Optional[MixerCore] = None
-scene_manager: Optional[SceneManager] = None
-graphics_renderer: Optional[GraphicsRenderer] = None
-scene_queue: Optional[SceneQueue] = None
-if config.mixer.enabled:
-    scene_manager = SceneManager(scenes_dir=config.mixer.scenes_dir)
-    
-    # Initialize queue with callback to advance scene
-    def queue_advance_callback(scene_id: str):
-        """Callback when queue advances to next scene."""
-        if mixer_core:
-            mixer_core.apply_scene(scene_id)
-    
-    scene_queue = SceneQueue(database=database, on_advance=queue_advance_callback)
-    
-    mixer_core = MixerCore(
-        config=config,
-        scene_manager=scene_manager,
-        output_resolution=config.mixer.output_resolution,
-        output_bitrate=config.mixer.output_bitrate,
-        output_codec=config.mixer.output_codec,
-        recording_enabled=config.mixer.recording_enabled,
-        recording_path=config.mixer.recording_path,
-        mediamtx_enabled=config.mixer.mediamtx_enabled,
-        mediamtx_path=config.mixer.mediamtx_path,
-    )
-    graphics_renderer = GraphicsRenderer()
-    logger.info("Mixer Core initialized")
+# Initialize Reveal.js source manager first (needed by graphics plugin)
+# Supports multiple independent outputs (e.g., slides + slides_overlay)
+reveal_source_manager = None
+if config.reveal.enabled:
+    try:
+        from .reveal_source import RevealSourceManager
+        reveal_source_manager = RevealSourceManager(
+            resolution=config.reveal.resolution,
+            framerate=config.reveal.framerate,
+            bitrate=config.reveal.bitrate,
+            mediamtx_path=config.reveal.mediamtx_path,
+            renderer=config.reveal.renderer,
+            outputs=config.reveal.outputs  # Multiple outputs support
+        )
+        logger.info(f"Reveal.js source manager initialized (renderer: {reveal_source_manager.renderer_type}, outputs: {reveal_source_manager.get_output_ids()})")
+    except Exception as e:
+        logger.error(f"Failed to initialize Reveal.js source manager: {e}")
+        reveal_source_manager = None
 else:
-    logger.info("Mixer Core disabled in configuration")
+    logger.info("Reveal.js source disabled in configuration")
 
-# Create FastAPI app
+# Initialize Cairo graphics manager (for real-time overlays)
+cairo_manager = None
+try:
+    from .cairo_graphics import CairoGraphicsManager
+    cairo_manager = CairoGraphicsManager()
+    if cairo_manager.enabled:
+        logger.info("Cairo graphics manager initialized")
+    else:
+        logger.warning("Cairo not available - graphics overlays disabled")
+        cairo_manager = None
+except Exception as e:
+    logger.error(f"Failed to initialize Cairo graphics manager: {e}")
+    cairo_manager = None
+
+# Initialize Graphics plugin (optional)
+graphics_plugin = None
+graphics_renderer = None
+if config.graphics.enabled:
+    try:
+        from .graphics import create_graphics_plugin
+        graphics_plugin = create_graphics_plugin()
+        graphics_plugin.initialize(config, reveal_source_manager)
+        graphics_renderer = graphics_plugin.renderer
+        logger.info("Graphics plugin initialized")
+    except Exception as e:
+        logger.error(f"Failed to initialize graphics plugin: {e}")
+        graphics_plugin = None  # Continue without graphics
+
+# Initialize Mixer plugin (optional, uses graphics if available)
+mixer_plugin = None
+mixer_core = None
+scene_manager = None
+scene_queue = None
+if config.mixer.enabled:
+    try:
+        from .mixer import create_mixer_plugin
+        mixer_plugin = create_mixer_plugin()
+        mixer_plugin.initialize(config, ingest_manager, database, graphics_plugin, cairo_manager)
+        mixer_core = mixer_plugin.core
+        scene_manager = mixer_plugin.scene_manager
+        scene_queue = mixer_plugin.scene_queue
+        logger.info("Mixer plugin initialized")
+    except Exception as e:
+        logger.error(f"Failed to initialize mixer plugin: {e}")
+        mixer_plugin = None  # Continue without mixer
+else:
+    logger.info("Mixer plugin disabled in configuration")
+
+# Cloudflare Calls removed - using direct WHIP to MediaMTX instead
+# Remote guests now publish directly via WHIP endpoints
+calls_manager: Optional[Any] = None
+calls_relay: Optional[Any] = None
+
+# Initialize Mode Manager (for switching between Recorder and VDO.ninja modes)
+mode_manager = None
+try:
+    from .mode_manager import ModeManager
+    mode_manager = ModeManager(ingest_manager=ingest_manager, config=config)
+    logger.info(f"Mode manager initialized")
+except Exception as e:
+    logger.error(f"Failed to initialize mode manager: {e}")
+    mode_manager = None
+
+
+# Lifespan context manager for startup and shutdown
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manage application lifecycle."""
+    # Startup
+    logger.info("Starting ingest pipelines for all cameras...")
+    results = ingest_manager.start_all()
+    for cam_id, success in results.items():
+        if success:
+            logger.info(f"✓ Ingest started for {cam_id}")
+        else:
+            logger.warning(f"✗ Failed to start ingest for {cam_id}")
+    
+    yield
+    
+    # Shutdown
+    logger.info("Application shutting down...")
+    
+    # Cleanup Cloudflare Calls relays
+    # Cloudflare Calls cleanup removed (no longer used)
+
+
+# Create FastAPI app with lifespan
 app = FastAPI(
     title="R58 Recorder API",
     description="Recording API for Mekotronics R58 4x4 3S",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 # Mount static files for frontend
@@ -109,9 +199,14 @@ videos_dir.mkdir(exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=str(uploads_dir)), name="uploads")
 
 
+
 @app.get("/", response_class=HTMLResponse)
 async def root():
-    """Serve the frontend."""
+    """Serve the new R58 Studio app."""
+    app_path = Path(__file__).parent / "static" / "app.html"
+    if app_path.exists():
+        return app_path.read_text()
+    # Fallback to old index if app.html doesn't exist
     index_path = Path(__file__).parent / "static" / "index.html"
     if index_path.exists():
         return index_path.read_text()
@@ -124,6 +219,47 @@ async def switcher():
     switcher_path = Path(__file__).parent / "static" / "switcher.html"
     if switcher_path.exists():
         return switcher_path.read_text()
+    raise HTTPException(status_code=404, detail="Switcher interface not found")
+
+
+@app.get("/static/r58_remote_mixer")
+async def remote_mixer_redirect():
+    """Redirect /static/r58_remote_mixer to /static/r58_remote_mixer.html"""
+    return RedirectResponse(url="/static/r58_remote_mixer.html")
+
+
+@app.get("/app")
+async def app_redirect():
+    """Redirect /app to /static/app.html"""
+    return RedirectResponse(url="/static/app.html")
+
+@app.get("/guest")
+async def guest_redirect():
+    """Redirect /guest to /static/guest.html"""
+    return RedirectResponse(url="/static/guest.html")
+
+@app.get("/dev")
+async def dev_redirect():
+    """Redirect /dev to /static/dev.html"""
+    return RedirectResponse(url="/static/dev.html")
+
+@app.get("/static/graphics-new")
+async def graphics_new_redirect():
+    """Redirect /static/graphics-new to /static/graphics-new.html"""
+    return RedirectResponse(url="/static/graphics-new.html")
+
+@app.get("/library")
+async def library_redirect():
+    """Redirect /library to /static/library.html"""
+    return RedirectResponse(url="/static/library.html")
+
+
+@app.get("/cairo", response_class=HTMLResponse)
+async def cairo_control():
+    """Serve the Cairo graphics control panel."""
+    cairo_path = Path(__file__).parent / "static" / "cairo_control.html"
+    if cairo_path.exists():
+        return cairo_path.read_text()
     return "<h1>Switcher Interface</h1><p>Switcher interface not found.</p>"
 
 
@@ -168,6 +304,33 @@ async def control():
     if control_path.exists():
         return control_path.read_text()
     return "<h1>Control Interface</h1><p>Control interface not found.</p>"
+
+
+@app.get("/library", response_class=HTMLResponse)
+async def library():
+    """Serve the recording library page."""
+    library_path = Path(__file__).parent / "static" / "library.html"
+    if library_path.exists():
+        return library_path.read_text()
+    return "<h1>Library</h1><p>Library page not found.</p>"
+
+
+@app.get("/guest_join", response_class=HTMLResponse)
+async def guest_join():
+    """Serve the guest join page."""
+    guest_join_path = Path(__file__).parent / "static" / "guest_join.html"
+    if guest_join_path.exists():
+        return guest_join_path.read_text()
+    return "<h1>Guest Join</h1><p>Guest join page not found.</p>"
+
+
+@app.get("/test_turn", response_class=HTMLResponse)
+async def test_turn():
+    """Serve the TURN connection test page."""
+    test_path = Path(__file__).parent.parent / "test_turn_connection.html"
+    if test_path.exists():
+        return test_path.read_text()
+    return "<h1>TURN Test</h1><p>Test page not found.</p>"
 
 
 @app.get("/health")
@@ -230,6 +393,92 @@ async def stop_all_recordings() -> Dict[str, Any]:
     return {"status": "completed", "cameras": {k: "stopped" if v else "not_recording" for k, v in results.items()}}
 
 
+@app.post("/api/trigger/start")
+async def trigger_start(session_name: Optional[str] = None) -> Dict[str, Any]:
+    """Start recording on all cameras with session management.
+    
+    This is the master trigger that starts all R58 recordings and can optionally
+    trigger external cameras (Blackmagic, Obsbot) if configured.
+    """
+    logger.info(f"Master trigger START called (session_name: {session_name})")
+    
+    # Start all R58 recordings
+    results = recorder.start_all_recordings()
+    
+    # Get session info
+    session_status = recorder.get_session_status()
+    session_id = session_status.get("session_id")
+    
+    # Trigger external cameras if configured
+    external_results = {}
+    if camera_control_manager:
+        try:
+            external_results = await camera_control_manager.start_all_recordings(session_id=session_id)
+            logger.info(f"External camera trigger results: {external_results}")
+        except Exception as e:
+            logger.error(f"Failed to trigger external cameras: {e}")
+    
+    return {
+        "status": "started",
+        "session_id": session_id,
+        "cameras": {k: "recording" if v else "failed" for k, v in results.items()},
+        "external_cameras": {k: "recording" if v else "failed" for k, v in external_results.items()}
+    }
+
+
+@app.post("/api/trigger/stop")
+async def trigger_stop() -> Dict[str, Any]:
+    """Stop all recordings and finalize session metadata."""
+    logger.info("Master trigger STOP called")
+    
+    # Get session info before stopping
+    session_status = recorder.get_session_status()
+    session_id = session_status.get("session_id")
+    
+    # Stop all R58 recordings
+    results = recorder.stop_all_recordings()
+    
+    # Stop external cameras if configured
+    external_results = {}
+    if camera_control_manager:
+        try:
+            external_results = await camera_control_manager.stop_all_recordings()
+            logger.info(f"External camera stop results: {external_results}")
+        except Exception as e:
+            logger.error(f"Failed to stop external cameras: {e}")
+    
+    return {
+        "status": "stopped",
+        "session_id": session_id,
+        "cameras": {k: "stopped" if v else "not_recording" for k, v in results.items()},
+        "external_cameras": {k: "stopped" if v else "failed" for k, v in external_results.items()}
+    }
+
+
+@app.get("/api/trigger/status")
+async def trigger_status() -> Dict[str, Any]:
+    """Get current recording state, duration, and session info."""
+    session_status = recorder.get_session_status()
+    
+    # Add disk space info
+    try:
+        disk = shutil.disk_usage("/mnt/sdcard")
+        disk_info = {
+            "free_gb": round(disk.free / (1024**3), 2),
+            "total_gb": round(disk.total / (1024**3), 2),
+            "used_gb": round(disk.used / (1024**3), 2),
+            "percent_used": round((disk.used / disk.total) * 100, 1)
+        }
+    except Exception as e:
+        logger.error(f"Failed to get disk space: {e}")
+        disk_info = {"error": str(e)}
+    
+    return {
+        **session_status,
+        "disk": disk_info
+    }
+
+
 @app.post("/preview/start-all")
 async def start_all_previews() -> Dict[str, Any]:
     """Start preview streams for all cameras (multiview)."""
@@ -256,16 +505,116 @@ async def get_preview_status() -> Dict[str, Dict[str, Any]]:
     }
 
 
+@app.get("/api/ingest/status")
+async def get_ingest_status_api() -> Dict[str, Any]:
+    """Get ingest status for all cameras (always-on streams)."""
+    ingest_statuses = ingest_manager.get_status()
+    camera_details = {}
+    
+    for cam_id, ingest_status in ingest_statuses.items():
+        cam_config = config.cameras.get(cam_id)
+        
+        resolution_info = None
+        if ingest_status.resolution:
+            resolution_info = {
+                "width": ingest_status.resolution[0],
+                "height": ingest_status.resolution[1],
+                "formatted": f"{ingest_status.resolution[0]}x{ingest_status.resolution[1]}"
+            }
+        
+        camera_details[cam_id] = {
+            "status": ingest_status.status,
+            "config": cam_id in config.cameras,
+            "device": cam_config.device if cam_config else None,
+            "resolution": resolution_info,
+            "has_signal": ingest_status.has_signal,
+            "stream_url": ingest_status.stream_url
+        }
+    
+    return {
+        "cameras": camera_details,
+        "summary": {
+            "total": len(ingest_statuses),
+            "streaming": sum(1 for s in ingest_statuses.values() if s.status == "streaming"),
+            "no_signal": sum(1 for s in ingest_statuses.values() if s.status == "no_signal"),
+            "error": sum(1 for s in ingest_statuses.values() if s.status == "error"),
+            "idle": sum(1 for s in ingest_statuses.values() if s.status == "idle")
+        }
+    }
+
+
+# ============================================================================
+# Mode Management API Endpoints
+# ============================================================================
+
+@app.get("/api/mode")
+async def get_mode() -> Dict[str, Any]:
+    """Get current mode and available modes."""
+    if not mode_manager:
+        return {
+            "error": "Mode manager not available",
+            "current_mode": "recorder",
+            "available_modes": ["recorder", "vdoninja"]
+        }
+    
+    current_mode = await mode_manager.get_current_mode()
+    return {
+        "current_mode": current_mode,
+        "available_modes": mode_manager.MODES
+    }
+
+
+@app.get("/api/mode/status")
+async def get_mode_status() -> Dict[str, Any]:
+    """Get detailed status of both modes."""
+    if not mode_manager:
+        return {
+            "error": "Mode manager not available"
+        }
+    
+    from dataclasses import asdict
+    status = await mode_manager.get_status()
+    return asdict(status)
+
+
+@app.post("/api/mode/recorder")
+async def switch_to_recorder() -> Dict[str, Any]:
+    """Switch to Recorder Mode."""
+    if not mode_manager:
+        raise HTTPException(status_code=503, detail="Mode manager not available")
+    
+    result = await mode_manager.switch_to_recorder()
+    
+    if not result["success"]:
+        raise HTTPException(status_code=500, detail=result["message"])
+    
+    return result
+
+
+@app.post("/api/mode/vdoninja")
+async def switch_to_vdoninja() -> Dict[str, Any]:
+    """Switch to VDO.ninja Mode."""
+    if not mode_manager:
+        raise HTTPException(status_code=503, detail="Mode manager not available")
+    
+    result = await mode_manager.switch_to_vdoninja()
+    
+    if not result["success"]:
+        raise HTTPException(status_code=500, detail=result["message"])
+    
+    return result
+
+
 @app.get("/api/preview/status")
 async def get_preview_status_api() -> Dict[str, Any]:
-    """Get detailed preview status for all cameras (API version)."""
+    """Get detailed preview status for all cameras (delegates to ingest)."""
     statuses = preview_manager.get_preview_status()
     camera_details = {}
     
     for cam_id, status in statuses.items():
         cam_config = config.cameras.get(cam_id)
         
-        # Get current resolution from preview manager (actual detected resolution)
+        # Get current resolution from ingest manager
         current_res = preview_manager.current_resolutions.get(cam_id)
         resolution_info = None
         if current_res:
@@ -275,9 +624,9 @@ async def get_preview_status_api() -> Dict[str, Any]:
                 "formatted": f"{current_res[0]}x{current_res[1]}"
             }
         
-        # Get signal status
-        has_signal = preview_manager.signal_states.get(cam_id, True)
-        signal_loss_time = preview_manager.signal_loss_times.get(cam_id)
+        # Get signal status from ingest manager
+        has_signal = preview_manager.current_signal_status.get(cam_id, True)
+        signal_loss_time = preview_manager.signal_loss_start_time.get(cam_id)
         signal_loss_duration = None
         if signal_loss_time:
             import time
@@ -288,10 +637,10 @@ async def get_preview_status_api() -> Dict[str, Any]:
             "config": cam_id in config.cameras,
             "device": cam_config.device if cam_config else None,
             "configured_resolution": cam_config.resolution if cam_config else None,
-            "current_resolution": resolution_info,  # Actual detected resolution
-            "has_signal": has_signal,  # HDMI signal present
-            "signal_loss_duration": signal_loss_duration,  # Seconds since signal lost (None if has signal)
-            "hls_url": f"/hls/{cam_id}_preview/index.m3u8" if status == "preview" else None
+            "current_resolution": resolution_info,
+            "has_signal": has_signal,
+            "signal_loss_duration": signal_loss_duration,
+            "hls_url": f"/hls/{cam_id}/index.m3u8" if status == "preview" else None
         }
     
     return {
@@ -306,7 +655,7 @@ async def get_preview_status_api() -> Dict[str, Any]:
     }
 
 
-# HLS Proxy endpoints - allows remote access through Cloudflare Tunnel
+# HLS Proxy endpoints - allows remote access through FRP tunnel
 MEDIAMTX_HLS_BASE = "http://localhost:8888"
 
 
@@ -314,7 +663,7 @@ MEDIAMTX_HLS_BASE = "http://localhost:8888"
 async def proxy_hls(stream_path: str):
     """Proxy HLS streams from MediaMTX for remote access.
     
-    This enables video streaming through Cloudflare Tunnel by proxying
+    This enables video streaming through FRP tunnel by proxying
     the MediaMTX HLS streams through the FastAPI server.
     
     Example: /hls/cam0_preview/index.m3u8
@@ -358,6 +707,317 @@ async def proxy_hls(stream_path: str):
     except Exception as e:
         logger.error(f"HLS proxy error for {stream_path}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/whep/{stream_path}")
+@app.options("/whep/{stream_path}")
+async def proxy_whep(stream_path: str, request: Request):
+    """Proxy WHEP requests to MediaMTX for WebRTC viewing.
+    
+    This enables WebRTC viewing through the same origin, avoiding CORS issues.
+    """
+    # Handle OPTIONS preflight
+    if request.method == "OPTIONS":
+        return Response(
+            status_code=200,
+            headers={
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "POST, PATCH, OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type, Accept",
+                "Access-Control-Max-Age": "86400",
+            }
+        )
+    
+    try:
+        # Get request body
+        body = await request.body()
+        
+        # Forward to MediaMTX WHEP endpoint (HTTP - MediaMTX serves HTTP on 8889)
+        async with httpx.AsyncClient() as client:
+            mediamtx_url = f"http://localhost:8889/{stream_path}/whep"
+            
+            response = await client.post(
+                mediamtx_url,
+                content=body,
+                headers={
+                    "Content-Type": request.headers.get("Content-Type", "application/sdp"),
+                    "Accept": request.headers.get("Accept", "application/sdp"),
+                },
+                timeout=10.0
+            )
+            
+            # Get Location header if present
+            location = response.headers.get("Location")
+            response_headers = {
+                "Access-Control-Allow-Origin": "*",  # CORS for VDO.ninja
+                "Content-Type": response.headers.get("Content-Type", "application/sdp"),
+            }
+            if location:
+                # Rewrite Location header to point to our proxy
+                if location.startswith("http://localhost:8889/"):
+                    location = location.replace("http://localhost:8889/", "/whep-resource/")
+                response_headers["Location"] = location
+            
+            # Log the response for debugging
+            if response.status_code != 200:
+                logger.error(f"WHEP error for {stream_path}: {response.status_code} - {response.text}")
+            
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                headers=response_headers
+            )
+    except Exception as e:
+        logger.error(f"WHEP proxy error for {stream_path}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.patch("/whep-resource/{stream_path:path}")
+@app.options("/whep-resource/{stream_path:path}")
+async def proxy_whep_resource(stream_path: str, request: Request):
+    """Proxy WHEP resource requests (ICE candidates) to MediaMTX."""
+    # Handle OPTIONS preflight
+    if request.method == "OPTIONS":
+        return Response(
+            status_code=200,
+            headers={
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "PATCH, OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type",
+                "Access-Control-Max-Age": "86400",
+            }
+        )
+    
+    try:
+        body = await request.body()
+        
+        async with httpx.AsyncClient() as client:
+            mediamtx_url = f"http://localhost:8889/{stream_path}"
+            
+            response = await client.patch(
+                mediamtx_url,
+                content=body,
+                headers={
+                    "Content-Type": request.headers.get("Content-Type", "application/trickle-ice-sdpfrag"),
+                },
+                timeout=10.0
+            )
+            
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                headers={
+                    "Access-Control-Allow-Origin": "*",
+                }
+            )
+    except Exception as e:
+        logger.error(f"WHEP resource proxy error for {stream_path}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/whip/{stream_path}")
+async def proxy_whip(stream_path: str, request: Request):
+    """Proxy WHIP requests to MediaMTX for remote guest publishing.
+    
+    WHIP (WebRTC-HTTP Ingestion Protocol) allows guests to publish
+    WebRTC streams through HTTP POST requests.
+    
+    Example: /whip/guest1
+    """
+    try:
+        # Read the SDP offer from request body
+        sdp_offer = await request.body()
+        
+        # Forward to MediaMTX WHIP endpoint
+        mediamtx_whip_url = f"http://localhost:8889/{stream_path}/whip"
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                mediamtx_whip_url,
+                content=sdp_offer,
+                headers={
+                    "Content-Type": "application/sdp"
+                },
+                timeout=10.0
+            )
+            
+            if response.status_code == 404:
+                raise HTTPException(status_code=404, detail=f"Stream path not found: {stream_path}")
+            
+            if not response.is_success:
+                logger.error(f"WHIP proxy error for {stream_path}: {response.status_code} - {response.text}")
+                raise HTTPException(
+                    status_code=response.status_code,
+                    detail=f"MediaMTX WHIP error: {response.text}"
+                )
+            
+            # Return the SDP answer
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                media_type="application/sdp",
+                headers={
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "POST, OPTIONS",
+                    "Access-Control-Allow-Headers": "Content-Type",
+                }
+            )
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=504, detail="WHIP timeout - MediaMTX may not be responding")
+    except httpx.ConnectError:
+        raise HTTPException(status_code=503, detail="Cannot connect to MediaMTX - service may be down")
+    except Exception as e:
+        logger.error(f"WHIP proxy error for {stream_path}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.options("/whip/{stream_path}")
+async def whip_options(stream_path: str):
+    """Handle CORS preflight for WHIP requests."""
+    return Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type",
+        }
+    )
+
+
+# =============================================================================
+# MediaMTX-compatible routes for VDO.ninja's &mediamtx= parameter
+# VDO.ninja expects: /{stream}/whip and /{stream}/whep (stream name comes first)
+# =============================================================================
+
+@app.post("/{stream_name}/whip")
+@app.options("/{stream_name}/whip")
+async def mediamtx_whip_compat(stream_name: str, request: Request):
+    """MediaMTX-compatible WHIP route for VDO.ninja &mediamtx= parameter.
+    
+    VDO.ninja's MediaMTX mode expects paths like /{stream}/whip
+    This redirects to our standard /whip/{stream} endpoint.
+    """
+    # Skip for paths that look like API routes or static files
+    if stream_name in ["api", "static", "whip", "whep", "docs", "openapi.json"]:
+        raise HTTPException(status_code=404, detail="Not found")
+    
+    # Handle OPTIONS preflight
+    if request.method == "OPTIONS":
+        return Response(
+            status_code=200,
+            headers={
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "POST, OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type",
+                "Access-Control-Max-Age": "86400",
+            }
+        )
+    
+    try:
+        sdp_offer = await request.body()
+        mediamtx_url = f"http://localhost:8889/{stream_name}/whip"
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                mediamtx_url,
+                content=sdp_offer,
+                headers={"Content-Type": "application/sdp"},
+                timeout=10.0
+            )
+            
+            location = response.headers.get("Location")
+            response_headers = {
+                "Access-Control-Allow-Origin": "*",
+                "Content-Type": response.headers.get("Content-Type", "application/sdp"),
+            }
+            if location:
+                response_headers["Location"] = location
+            
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                headers=response_headers
+            )
+    except Exception as e:
+        logger.error(f"MediaMTX WHIP compat error for {stream_name}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/{stream_name}/whep")
+@app.options("/{stream_name}/whep")
+async def mediamtx_whep_compat(stream_name: str, request: Request):
+    """MediaMTX-compatible WHEP route for VDO.ninja &mediamtx= parameter.
+    
+    VDO.ninja's MediaMTX mode expects paths like /{stream}/whep
+    This redirects to our standard /whep/{stream} endpoint.
+    """
+    # Skip for paths that look like API routes or static files
+    if stream_name in ["api", "static", "whip", "whep", "docs", "openapi.json"]:
+        raise HTTPException(status_code=404, detail="Not found")
+    
+    # Handle OPTIONS preflight
+    if request.method == "OPTIONS":
+        return Response(
+            status_code=200,
+            headers={
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "POST, OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type, Accept",
+                "Access-Control-Max-Age": "86400",
+            }
+        )
+    
+    try:
+        body = await request.body()
+        mediamtx_url = f"http://localhost:8889/{stream_name}/whep"
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                mediamtx_url,
+                content=body,
+                headers={
+                    "Content-Type": request.headers.get("Content-Type", "application/sdp"),
+                    "Accept": request.headers.get("Accept", "application/sdp"),
+                },
+                timeout=10.0
+            )
+            
+            location = response.headers.get("Location")
+            response_headers = {
+                "Access-Control-Allow-Origin": "*",
+                "Content-Type": response.headers.get("Content-Type", "application/sdp"),
+            }
+            if location:
+                response_headers["Location"] = location
+            
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                headers=response_headers
+            )
+    except Exception as e:
+        logger.error(f"MediaMTX WHEP compat error for {stream_name}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/turn-credentials")
+async def get_turn_credentials() -> Dict[str, Any]:
+    """Get TURN credentials from Coolify TURN API.
+    
+    This endpoint fetches ICE servers with temporary credentials from the centralized
+    Coolify TURN API. This enables remote guests to connect via WebRTC using TURN relay.
+    
+    The Coolify TURN API handles credential generation and caching, providing a
+    centralized point for TURN configuration across all R58 devices.
+    
+    Note: TURN removed - remote guests now use direct WHIP to MediaMTX.
+    This endpoint only returns STUN for local network WebRTC.
+    """
+    return {
+        "iceServers": [
+            {"urls": ["stun:stun.l.google.com:19302"]}
+        ]
+    }
 
 
 @app.get("/api/streams")
@@ -615,6 +1275,263 @@ async def get_recording(cam_id: str, filename: str) -> FileResponse:
     )
 
 
+@app.get("/api/sessions")
+async def list_sessions() -> Dict[str, Any]:
+    """List all recording sessions."""
+    sessions_dir = Path("data/sessions")
+    sessions = []
+    
+    if sessions_dir.exists():
+        for session_file in sorted(sessions_dir.glob("*.json"), reverse=True):
+            try:
+                with open(session_file, 'r') as f:
+                    session_data = json.load(f)
+                    sessions.append(session_data)
+            except Exception as e:
+                logger.error(f"Failed to read session file {session_file}: {e}")
+    
+    return {"sessions": sessions}
+
+
+@app.get("/api/sessions/{session_id}")
+async def get_session(session_id: str) -> Dict[str, Any]:
+    """Get metadata for a specific session."""
+    sessions_dir = Path("data/sessions")
+    session_file = sessions_dir / f"{session_id}.json"
+    
+    if not session_file.exists():
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    try:
+        with open(session_file, 'r') as f:
+            return json.load(f)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to read session: {e}")
+
+
+@app.get("/api/recordings")
+async def list_all_recordings() -> Dict[str, Any]:
+    """List all recordings across all cameras, grouped by date and session."""
+    from datetime import datetime
+    from collections import defaultdict
+    
+    # Dictionary to group recordings by date
+    recordings_by_date = defaultdict(list)
+    total_count = 0
+    total_size = 0
+    
+    # Scan all camera directories
+    for cam_id, cam_config in config.cameras.items():
+        recordings_dir = Path(cam_config.output_path).parent
+        
+        if not recordings_dir.exists():
+            continue
+        
+        # Find all MP4 files
+        for file_path in recordings_dir.glob("*.mp4"):
+            try:
+                stat = file_path.stat()
+                
+                # Extract date from filename (format: recording_YYYYMMDD_HHMMSS.mp4)
+                filename = file_path.name
+                if filename.startswith("recording_") and len(filename) >= 24:
+                    date_str = filename[10:18]  # YYYYMMDD
+                    time_str = filename[19:25]  # HHMMSS
+                    
+                    # Format date as YYYY-MM-DD
+                    formatted_date = f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}"
+                    formatted_time = f"{time_str[:2]}:{time_str[2:4]}:{time_str[4:6]}"
+                else:
+                    # Fallback to modification time
+                    dt = datetime.fromtimestamp(stat.st_mtime)
+                    formatted_date = dt.strftime("%Y-%m-%d")
+                    formatted_time = dt.strftime("%H:%M:%S")
+                
+                recording_info = {
+                    "cam_id": cam_id,
+                    "filename": filename,
+                    "size": stat.st_size,
+                    "modified": int(stat.st_mtime),
+                    "time": formatted_time,
+                    "path": str(file_path),
+                    "url": f"/recordings/{cam_id}/{filename}"
+                }
+                
+                recordings_by_date[formatted_date].append(recording_info)
+                total_count += 1
+                total_size += stat.st_size
+            except Exception as e:
+                logger.error(f"Error processing recording {file_path}: {e}")
+                continue
+    
+    # Group recordings into sessions by time gap (10 minutes)
+    def group_into_sessions(recordings, time_gap_minutes=10):
+        """Group recordings into sessions based on time proximity."""
+        if not recordings:
+            return []
+        
+        # Sort by timestamp
+        sorted_recordings = sorted(recordings, key=lambda x: x["modified"])
+        sessions = []
+        current_session = [sorted_recordings[0]]
+        
+        for recording in sorted_recordings[1:]:
+            last_time = current_session[-1]["modified"]
+            current_time = recording["modified"]
+            gap_minutes = (current_time - last_time) / 60
+            
+            if gap_minutes <= time_gap_minutes:
+                current_session.append(recording)
+            else:
+                sessions.append(current_session)
+                current_session = [recording]
+        
+        if current_session:
+            sessions.append(current_session)
+        
+        return sessions
+    
+    # Convert to list of date groups with sessions
+    date_groups = []
+    for date in sorted(recordings_by_date.keys(), reverse=True):
+        recordings = recordings_by_date[date]
+        sessions = group_into_sessions(recordings)
+        
+        # Create session objects
+        date_sessions = []
+        for idx, session_recordings in enumerate(sessions):
+            # Sort recordings within session by time (newest first for display)
+            session_recordings_sorted = sorted(session_recordings, key=lambda x: x["modified"], reverse=True)
+            
+            # Get session time range
+            start_time = min(r["modified"] for r in session_recordings)
+            end_time = max(r["modified"] for r in session_recordings)
+            
+            # Create session ID from first recording's timestamp
+            first_recording = min(session_recordings, key=lambda x: x["modified"])
+            session_id = f"session_{date.replace('-', '')}_{first_recording['time'].replace(':', '')}"
+            
+            date_sessions.append({
+                "session_id": session_id,
+                "name": None,  # Will be populated from session names storage
+                "start_time": datetime.fromtimestamp(start_time).strftime("%H:%M:%S"),
+                "end_time": datetime.fromtimestamp(end_time).strftime("%H:%M:%S"),
+                "recordings": session_recordings_sorted,
+                "count": len(session_recordings),
+                "total_size": sum(r["size"] for r in session_recordings)
+            })
+        
+        date_groups.append({
+            "date": date,
+            "date_sessions": date_sessions,
+            "count": len(recordings),
+            "total_size": sum(r["size"] for r in recordings)
+        })
+    
+    # Load session names and populate
+    session_names = _load_session_names()
+    for date_group in date_groups:
+        for session in date_group["date_sessions"]:
+            session_id = session["session_id"]
+            if session_id in session_names:
+                session["name"] = session_names[session_id]["name"]
+    
+    return {
+        "sessions": date_groups,
+        "total_count": total_count,
+        "total_size": total_size
+    }
+
+
+# Session naming helper functions
+def _get_sessions_file_path() -> Path:
+    """Get path to sessions.json file."""
+    data_dir = Path(__file__).parent.parent / "data"
+    data_dir.mkdir(exist_ok=True)
+    return data_dir / "sessions.json"
+
+
+def _load_session_names() -> Dict[str, Any]:
+    """Load session names from JSON file."""
+    sessions_file = _get_sessions_file_path()
+    if sessions_file.exists():
+        try:
+            with open(sessions_file, 'r') as f:
+                return json.load(f)
+        except Exception as e:
+            logger.error(f"Error loading session names: {e}")
+            return {}
+    return {}
+
+
+def _save_session_names(sessions: Dict[str, Any]) -> bool:
+    """Save session names to JSON file."""
+    sessions_file = _get_sessions_file_path()
+    try:
+        with open(sessions_file, 'w') as f:
+            json.dump(sessions, f, indent=2)
+        return True
+    except Exception as e:
+        logger.error(f"Error saving session names: {e}")
+        return False
+
+
+@app.get("/api/sessions")
+async def get_all_sessions() -> Dict[str, Any]:
+    """Get all session names."""
+    session_names = _load_session_names()
+    return {"sessions": session_names}
+
+
+@app.get("/api/sessions/{session_id}")
+async def get_session(session_id: str) -> Dict[str, Any]:
+    """Get a specific session's name."""
+    session_names = _load_session_names()
+    if session_id in session_names:
+        return {
+            "session_id": session_id,
+            "name": session_names[session_id]["name"],
+            "created_at": session_names[session_id].get("created_at")
+        }
+    return {
+        "session_id": session_id,
+        "name": None,
+        "created_at": None
+    }
+
+
+@app.put("/api/sessions/{session_id}")
+async def update_session_name(session_id: str, request: Dict[str, Any]) -> Dict[str, str]:
+    """Update a session's name."""
+    name = request.get("name")
+    if name is None:
+        raise HTTPException(status_code=400, detail="Name is required")
+    
+    session_names = _load_session_names()
+    session_names[session_id] = {
+        "name": name,
+        "created_at": session_names.get(session_id, {}).get("created_at", int(time.time()))
+    }
+    
+    if _save_session_names(session_names):
+        return {"status": "updated", "session_id": session_id, "name": name}
+    else:
+        raise HTTPException(status_code=500, detail="Failed to save session name")
+
+
+@app.delete("/api/sessions/{session_id}")
+async def delete_session_name(session_id: str) -> Dict[str, str]:
+    """Delete a session's name."""
+    session_names = _load_session_names()
+    if session_id in session_names:
+        del session_names[session_id]
+        if _save_session_names(session_names):
+            return {"status": "deleted", "session_id": session_id}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to save session names")
+    raise HTTPException(status_code=404, detail="Session not found")
+
+
 # Mixer API endpoints
 @app.get("/api/scenes")
 async def list_scenes() -> Dict[str, Any]:
@@ -707,6 +1624,41 @@ async def set_scene(request: Dict[str, str]) -> Dict[str, str]:
     return {"status": "applied", "scene_id": scene_id}
 
 
+@app.post("/api/mixer/transition")
+async def transition_scene(request: Dict[str, Any]) -> Dict[str, Any]:
+    """Transition to a scene with animation.
+    
+    Body:
+        scene_id: Scene ID to transition to
+        transition: Transition type ("cut", "mix", "auto")
+        duration: Duration in milliseconds (default: 500 for mix, 1000 for auto)
+    """
+    if not mixer_core:
+        raise HTTPException(status_code=503, detail="Mixer not enabled")
+    
+    scene_id = request.get("scene_id")
+    transition = request.get("transition", "cut")
+    duration = request.get("duration")
+    
+    if not scene_id:
+        raise HTTPException(status_code=400, detail="Scene ID required")
+    
+    # Set default durations based on transition type
+    if duration is None:
+        if transition == "auto":
+            duration = 1000  # 1 second for auto
+        elif transition == "mix":
+            duration = 500  # 0.5 seconds for mix
+        else:
+            duration = 0  # Instant for cut
+    
+    success = mixer_core.transition_to_scene(scene_id, transition, duration)
+    if not success:
+        raise HTTPException(status_code=500, detail=f"Transition failed")
+    
+    return {"status": "transitioning", "scene_id": scene_id, "transition": transition, "duration_ms": duration}
+
+
 @app.post("/api/mixer/start")
 async def start_mixer() -> Dict[str, str]:
     """Start the mixer pipeline."""
@@ -740,6 +1692,967 @@ async def get_mixer_status() -> Dict[str, Any]:
         raise HTTPException(status_code=503, detail="Mixer not enabled")
     
     return mixer_core.get_status()
+
+
+# Mixer overlay API endpoints
+@app.post("/api/mixer/overlay/{source}")
+async def enable_mixer_overlay(source: str, alpha: float = 1.0) -> Dict[str, Any]:
+    """Enable overlay layer on mixer output.
+    
+    Args:
+        source: Overlay source (e.g., "slides")
+        alpha: Transparency (0.0-1.0)
+    """
+    if not mixer_core:
+        raise HTTPException(status_code=503, detail="Mixer not enabled")
+    
+    success = mixer_core.enable_overlay(source, alpha)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to enable overlay")
+    
+    return {"status": "overlay_enabled", "source": source, "alpha": alpha}
+
+
+@app.delete("/api/mixer/overlay/{source}")
+async def disable_mixer_overlay(source: str) -> Dict[str, str]:
+    """Disable overlay layer on mixer output."""
+    if not mixer_core:
+        raise HTTPException(status_code=503, detail="Mixer not enabled")
+    
+    success = mixer_core.disable_overlay()
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to disable overlay")
+    
+    return {"status": "overlay_disabled"}
+
+
+@app.put("/api/mixer/overlay/{source}/alpha")
+async def set_mixer_overlay_alpha(source: str, alpha: float) -> Dict[str, Any]:
+    """Set overlay transparency.
+    
+    Args:
+        source: Overlay source
+        alpha: Transparency (0.0-1.0)
+    """
+    if not mixer_core:
+        raise HTTPException(status_code=503, detail="Mixer not enabled")
+    
+    success = mixer_core.set_overlay_alpha(alpha)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to set overlay alpha")
+    
+    return {"status": "alpha_updated", "alpha": alpha}
+
+
+# Reveal.js API endpoints - supports multiple independent outputs
+@app.get("/api/reveal/outputs")
+async def get_reveal_outputs() -> Dict[str, Any]:
+    """Get available Reveal.js output IDs."""
+    if not reveal_source_manager:
+        raise HTTPException(status_code=503, detail="Reveal.js not enabled")
+    
+    return {
+        "outputs": reveal_source_manager.get_output_ids(),
+        "renderer": reveal_source_manager.renderer_type
+    }
+
+
+@app.post("/api/reveal/{output_id}/start")
+async def start_reveal_output(output_id: str, presentation_id: str, url: Optional[str] = None) -> Dict[str, Any]:
+    """Start a specific Reveal.js video output.
+    
+    Args:
+        output_id: Output identifier (e.g., "slides" or "slides_overlay")
+        presentation_id: Presentation identifier
+        url: Optional URL to render (defaults to /graphics?presentation={presentation_id})
+    """
+    if not reveal_source_manager:
+        raise HTTPException(status_code=503, detail="Reveal.js not enabled")
+    
+    # Validate output_id
+    if output_id not in reveal_source_manager.get_output_ids():
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Unknown output_id: {output_id}. Available: {reveal_source_manager.get_output_ids()}"
+        )
+    
+    # Default URL if not provided
+    if not url:
+        url = f"http://localhost:8000/graphics?presentation={presentation_id}"
+    
+    success = reveal_source_manager.start(output_id, presentation_id, url)
+    if not success:
+        raise HTTPException(status_code=500, detail=f"Failed to start Reveal.js output '{output_id}'")
+    
+    output_status = reveal_source_manager.get_output_status(output_id)
+    return {
+        "status": "started",
+        "output_id": output_id,
+        "presentation_id": presentation_id,
+        "url": url,
+        "stream_url": output_status["stream_url"] if output_status else None
+    }
+
+
+@app.post("/api/reveal/{output_id}/stop")
+async def stop_reveal_output(output_id: str) -> Dict[str, str]:
+    """Stop a specific Reveal.js video output."""
+    if not reveal_source_manager:
+        raise HTTPException(status_code=503, detail="Reveal.js not enabled")
+    
+    # Validate output_id
+    if output_id not in reveal_source_manager.get_output_ids():
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Unknown output_id: {output_id}. Available: {reveal_source_manager.get_output_ids()}"
+        )
+    
+    success = reveal_source_manager.stop(output_id)
+    if not success:
+        raise HTTPException(status_code=500, detail=f"Failed to stop Reveal.js output '{output_id}'")
+    
+    return {"status": "stopped", "output_id": output_id}
+
+
+@app.post("/api/reveal/stop")
+async def stop_all_reveal() -> Dict[str, str]:
+    """Stop all Reveal.js video outputs."""
+    if not reveal_source_manager:
+        raise HTTPException(status_code=503, detail="Reveal.js not enabled")
+    
+    success = reveal_source_manager.stop_all()
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to stop all Reveal.js outputs")
+    
+    return {"status": "stopped", "message": "All outputs stopped"}
+
+
+@app.post("/api/reveal/{output_id}/navigate/{direction}")
+async def navigate_reveal_output(output_id: str, direction: str) -> Dict[str, str]:
+    """Navigate slides in a specific Reveal.js output.
+    
+    Args:
+        output_id: Output identifier
+        direction: Navigation direction (next, prev, first, last)
+    """
+    if not reveal_source_manager:
+        raise HTTPException(status_code=503, detail="Reveal.js not enabled")
+    
+    if output_id not in reveal_source_manager.get_output_ids():
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Unknown output_id: {output_id}"
+        )
+    
+    if direction not in ["next", "prev", "first", "last"]:
+        raise HTTPException(status_code=400, detail="Invalid direction")
+    
+    success = reveal_source_manager.navigate(output_id, direction)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to navigate slides")
+    
+    return {"status": "navigated", "output_id": output_id, "direction": direction}
+
+
+@app.post("/api/reveal/{output_id}/goto/{slide}")
+async def goto_reveal_output_slide(output_id: str, slide: int) -> Dict[str, Any]:
+    """Go to specific slide in a Reveal.js output.
+    
+    Args:
+        output_id: Output identifier
+        slide: Slide index
+    """
+    if not reveal_source_manager:
+        raise HTTPException(status_code=503, detail="Reveal.js not enabled")
+    
+    if output_id not in reveal_source_manager.get_output_ids():
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Unknown output_id: {output_id}"
+        )
+    
+    success = reveal_source_manager.goto_slide(output_id, slide)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to go to slide")
+    
+    return {"status": "navigated", "output_id": output_id, "slide": slide}
+
+
+@app.get("/api/reveal/{output_id}/status")
+async def get_reveal_output_status(output_id: str) -> Dict[str, Any]:
+    """Get status of a specific Reveal.js output."""
+    if not reveal_source_manager:
+        raise HTTPException(status_code=503, detail="Reveal.js not enabled")
+    
+    if output_id not in reveal_source_manager.get_output_ids():
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Unknown output_id: {output_id}"
+        )
+    
+    status = reveal_source_manager.get_output_status(output_id)
+    if not status:
+        raise HTTPException(status_code=404, detail=f"Output '{output_id}' not found")
+    
+    return status
+
+
+@app.get("/api/reveal/status")
+async def get_reveal_status() -> Dict[str, Any]:
+    """Get status of all Reveal.js outputs."""
+    if not reveal_source_manager:
+        raise HTTPException(status_code=503, detail="Reveal.js not enabled")
+    
+    return reveal_source_manager.get_status()
+
+
+# Cairo Graphics API endpoints - real-time broadcast graphics
+@app.get("/api/cairo/status")
+async def get_cairo_status() -> Dict[str, Any]:
+    """Get Cairo graphics manager status."""
+    if not cairo_manager:
+        raise HTTPException(status_code=503, detail="Cairo graphics not available")
+    
+    return cairo_manager.get_status()
+
+
+@app.get("/api/cairo/elements")
+async def list_cairo_elements() -> Dict[str, Any]:
+    """List all Cairo graphics elements."""
+    if not cairo_manager:
+        raise HTTPException(status_code=503, detail="Cairo graphics not available")
+    
+    return {"elements": cairo_manager.list_elements()}
+
+
+@app.post("/api/cairo/lower_third")
+async def create_cairo_lower_third(request: Dict[str, Any]) -> Dict[str, Any]:
+    """Create or update a Cairo lower third.
+    
+    Request body:
+        - element_id: Unique identifier (required)
+        - name: Name text (required)
+        - title: Title text (optional)
+        - x: X position (default: 50)
+        - y: Y position (default: 900)
+        - width: Width (default: 600)
+        - height: Height (default: 120)
+        - bg_color: Background color hex (default: "#000000")
+        - bg_alpha: Background alpha (default: 0.8)
+        - text_color: Text color hex (default: "#FFFFFF")
+        - name_font_size: Name font size (default: 48)
+        - title_font_size: Title font size (default: 28)
+        - logo_path: Optional logo image path
+    """
+    if not cairo_manager:
+        raise HTTPException(status_code=503, detail="Cairo graphics not available")
+    
+    element_id = request.get("element_id")
+    name = request.get("name")
+    
+    if not element_id:
+        raise HTTPException(status_code=400, detail="element_id required")
+    if not name:
+        raise HTTPException(status_code=400, detail="name required")
+    
+    try:
+        from .cairo_graphics import LowerThird
+        
+        lower_third = LowerThird(
+            element_id=element_id,
+            name=name,
+            title=request.get("title", ""),
+            x=request.get("x", 50),
+            y=request.get("y", 900),
+            width=request.get("width", 600),
+            height=request.get("height", 120),
+            bg_color=request.get("bg_color", "#000000"),
+            bg_alpha=request.get("bg_alpha", 0.8),
+            text_color=request.get("text_color", "#FFFFFF"),
+            name_font_size=request.get("name_font_size", 48),
+            title_font_size=request.get("title_font_size", 28),
+            logo_path=request.get("logo_path")
+        )
+        
+        cairo_manager.add_element(element_id, lower_third)
+        
+        return {
+            "status": "created",
+            "element_id": element_id,
+            "type": "lower_third",
+            "name": name,
+            "title": request.get("title", "")
+        }
+    except Exception as e:
+        logger.error(f"Failed to create lower third: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create lower third: {e}")
+
+
+@app.post("/api/cairo/lower_third/{element_id}/show")
+async def show_cairo_lower_third(element_id: str) -> Dict[str, str]:
+    """Show a Cairo lower third with animation."""
+    if not cairo_manager:
+        raise HTTPException(status_code=503, detail="Cairo graphics not available")
+    
+    # Use current time as timestamp (will be synced on first draw)
+    timestamp = int(time.time() * 1_000_000_000)
+    
+    success = cairo_manager.show_element(element_id, timestamp)
+    if not success:
+        raise HTTPException(status_code=404, detail=f"Element {element_id} not found")
+    
+    return {"status": "shown", "element_id": element_id}
+
+
+@app.post("/api/cairo/lower_third/{element_id}/hide")
+async def hide_cairo_lower_third(element_id: str) -> Dict[str, str]:
+    """Hide a Cairo lower third with animation."""
+    if not cairo_manager:
+        raise HTTPException(status_code=503, detail="Cairo graphics not available")
+    
+    timestamp = int(time.time() * 1_000_000_000)
+    
+    success = cairo_manager.hide_element(element_id, timestamp)
+    if not success:
+        raise HTTPException(status_code=404, detail=f"Element {element_id} not found")
+    
+    return {"status": "hidden", "element_id": element_id}
+
+
+@app.post("/api/cairo/lower_third/{element_id}/update")
+async def update_cairo_lower_third(element_id: str, request: Dict[str, Any]) -> Dict[str, Any]:
+    """Update Cairo lower third text."""
+    if not cairo_manager:
+        raise HTTPException(status_code=503, detail="Cairo graphics not available")
+    
+    element = cairo_manager.get_element(element_id)
+    if not element:
+        raise HTTPException(status_code=404, detail=f"Element {element_id} not found")
+    
+    from .cairo_graphics import LowerThird
+    if not isinstance(element, LowerThird):
+        raise HTTPException(status_code=400, detail=f"Element {element_id} is not a lower third")
+    
+    element.update(
+        name=request.get("name"),
+        title=request.get("title")
+    )
+    
+    return {
+        "status": "updated",
+        "element_id": element_id,
+        "name": element.name,
+        "title": element.title
+    }
+
+
+@app.post("/api/cairo/scoreboard")
+async def create_cairo_scoreboard(request: Dict[str, Any]) -> Dict[str, Any]:
+    """Create or update a Cairo scoreboard.
+    
+    Request body:
+        - element_id: Unique identifier (required)
+        - team1_name: Team 1 name (default: "Team 1")
+        - team2_name: Team 2 name (default: "Team 2")
+        - team1_score: Team 1 score (default: 0)
+        - team2_score: Team 2 score (default: 0)
+        - x: X position (default: 1600)
+        - y: Y position (default: 50)
+        - width: Width (default: 250)
+        - height: Height (default: 150)
+    """
+    if not cairo_manager:
+        raise HTTPException(status_code=503, detail="Cairo graphics not available")
+    
+    element_id = request.get("element_id")
+    if not element_id:
+        raise HTTPException(status_code=400, detail="element_id required")
+    
+    try:
+        from .cairo_graphics import Scoreboard
+        
+        scoreboard = Scoreboard(
+            element_id=element_id,
+            team1_name=request.get("team1_name", "Team 1"),
+            team2_name=request.get("team2_name", "Team 2"),
+            team1_score=request.get("team1_score", 0),
+            team2_score=request.get("team2_score", 0),
+            x=request.get("x", 1600),
+            y=request.get("y", 50),
+            width=request.get("width", 250),
+            height=request.get("height", 150)
+        )
+        
+        cairo_manager.add_element(element_id, scoreboard)
+        
+        return {
+            "status": "created",
+            "element_id": element_id,
+            "type": "scoreboard"
+        }
+    except Exception as e:
+        logger.error(f"Failed to create scoreboard: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create scoreboard: {e}")
+
+
+@app.post("/api/cairo/scoreboard/{element_id}/score")
+async def update_cairo_scoreboard(element_id: str, request: Dict[str, Any]) -> Dict[str, Any]:
+    """Update scoreboard scores.
+    
+    Request body:
+        - team1_score: Team 1 score (optional)
+        - team2_score: Team 2 score (optional)
+    """
+    if not cairo_manager:
+        raise HTTPException(status_code=503, detail="Cairo graphics not available")
+    
+    element = cairo_manager.get_element(element_id)
+    if not element:
+        raise HTTPException(status_code=404, detail=f"Element {element_id} not found")
+    
+    from .cairo_graphics import Scoreboard
+    if not isinstance(element, Scoreboard):
+        raise HTTPException(status_code=400, detail=f"Element {element_id} is not a scoreboard")
+    
+    element.update_score(
+        team1_score=request.get("team1_score"),
+        team2_score=request.get("team2_score")
+    )
+    
+    return {
+        "status": "updated",
+        "element_id": element_id,
+        "team1_score": element.team1_score,
+        "team2_score": element.team2_score
+    }
+
+
+@app.post("/api/cairo/ticker")
+async def create_cairo_ticker(request: Dict[str, Any]) -> Dict[str, Any]:
+    """Create or update a Cairo ticker.
+    
+    Request body:
+        - element_id: Unique identifier (required)
+        - text: Ticker text (required)
+        - x: X position (default: 0)
+        - y: Y position (default: 0)
+        - width: Width (default: 1920)
+        - height: Height (default: 60)
+        - scroll_speed: Scroll speed in pixels/second (default: 100)
+    """
+    if not cairo_manager:
+        raise HTTPException(status_code=503, detail="Cairo graphics not available")
+    
+    element_id = request.get("element_id")
+    text = request.get("text")
+    
+    if not element_id:
+        raise HTTPException(status_code=400, detail="element_id required")
+    if not text:
+        raise HTTPException(status_code=400, detail="text required")
+    
+    try:
+        from .cairo_graphics import Ticker
+        
+        ticker = Ticker(
+            element_id=element_id,
+            text=text,
+            x=request.get("x", 0),
+            y=request.get("y", 0),
+            width=request.get("width", 1920),
+            height=request.get("height", 60),
+            scroll_speed=request.get("scroll_speed", 100.0)
+        )
+        
+        cairo_manager.add_element(element_id, ticker)
+        
+        return {
+            "status": "created",
+            "element_id": element_id,
+            "type": "ticker",
+            "text": text
+        }
+    except Exception as e:
+        logger.error(f"Failed to create ticker: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create ticker: {e}")
+
+
+@app.post("/api/cairo/ticker/{element_id}/text")
+async def update_cairo_ticker(element_id: str, request: Dict[str, Any]) -> Dict[str, Any]:
+    """Update ticker text.
+    
+    Request body:
+        - text: New ticker text (required)
+    """
+    if not cairo_manager:
+        raise HTTPException(status_code=503, detail="Cairo graphics not available")
+    
+    text = request.get("text")
+    if not text:
+        raise HTTPException(status_code=400, detail="text required")
+    
+    element = cairo_manager.get_element(element_id)
+    if not element:
+        raise HTTPException(status_code=404, detail=f"Element {element_id} not found")
+    
+    from .cairo_graphics import Ticker
+    if not isinstance(element, Ticker):
+        raise HTTPException(status_code=400, detail=f"Element {element_id} is not a ticker")
+    
+    element.update_text(text)
+    
+    return {
+        "status": "updated",
+        "element_id": element_id,
+        "text": text
+    }
+
+
+@app.post("/api/cairo/timer")
+async def create_cairo_timer(request: Dict[str, Any]) -> Dict[str, Any]:
+    """Create or update a Cairo timer.
+    
+    Request body:
+        - element_id: Unique identifier (required)
+        - duration: Duration in seconds (required)
+        - mode: "countdown" or "countup" (default: "countdown")
+        - x: X position (default: 1700)
+        - y: Y position (default: 50)
+    """
+    if not cairo_manager:
+        raise HTTPException(status_code=503, detail="Cairo graphics not available")
+    
+    element_id = request.get("element_id")
+    duration = request.get("duration")
+    
+    if not element_id:
+        raise HTTPException(status_code=400, detail="element_id required")
+    if duration is None:
+        raise HTTPException(status_code=400, detail="duration required")
+    
+    try:
+        from .cairo_graphics import Timer
+        
+        timer = Timer(
+            element_id=element_id,
+            duration=float(duration),
+            mode=request.get("mode", "countdown"),
+            x=request.get("x", 1700),
+            y=request.get("y", 50)
+        )
+        
+        cairo_manager.add_element(element_id, timer)
+        
+        return {
+            "status": "created",
+            "element_id": element_id,
+            "type": "timer",
+            "duration": duration,
+            "mode": request.get("mode", "countdown")
+        }
+    except Exception as e:
+        logger.error(f"Failed to create timer: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create timer: {e}")
+
+
+@app.post("/api/cairo/timer/{element_id}/start")
+async def start_cairo_timer(element_id: str) -> Dict[str, str]:
+    """Start a Cairo timer."""
+    if not cairo_manager:
+        raise HTTPException(status_code=503, detail="Cairo graphics not available")
+    
+    element = cairo_manager.get_element(element_id)
+    if not element:
+        raise HTTPException(status_code=404, detail=f"Element {element_id} not found")
+    
+    from .cairo_graphics import Timer
+    if not isinstance(element, Timer):
+        raise HTTPException(status_code=400, detail=f"Element {element_id} is not a timer")
+    
+    timestamp = int(time.time() * 1_000_000_000)
+    element.start(timestamp)
+    
+    return {"status": "started", "element_id": element_id}
+
+
+@app.post("/api/cairo/timer/{element_id}/pause")
+async def pause_cairo_timer(element_id: str) -> Dict[str, str]:
+    """Pause a Cairo timer."""
+    if not cairo_manager:
+        raise HTTPException(status_code=503, detail="Cairo graphics not available")
+    
+    element = cairo_manager.get_element(element_id)
+    if not element:
+        raise HTTPException(status_code=404, detail=f"Element {element_id} not found")
+    
+    from .cairo_graphics import Timer
+    if not isinstance(element, Timer):
+        raise HTTPException(status_code=400, detail=f"Element {element_id} is not a timer")
+    
+    timestamp = int(time.time() * 1_000_000_000)
+    element.pause(timestamp)
+    
+    return {"status": "paused", "element_id": element_id}
+
+
+@app.post("/api/cairo/timer/{element_id}/resume")
+async def resume_cairo_timer(element_id: str) -> Dict[str, str]:
+    """Resume a Cairo timer."""
+    if not cairo_manager:
+        raise HTTPException(status_code=503, detail="Cairo graphics not available")
+    
+    element = cairo_manager.get_element(element_id)
+    if not element:
+        raise HTTPException(status_code=404, detail=f"Element {element_id} not found")
+    
+    from .cairo_graphics import Timer
+    if not isinstance(element, Timer):
+        raise HTTPException(status_code=400, detail=f"Element {element_id} is not a timer")
+    
+    timestamp = int(time.time() * 1_000_000_000)
+    element.resume(timestamp)
+    
+    return {"status": "resumed", "element_id": element_id}
+
+
+@app.post("/api/cairo/timer/{element_id}/reset")
+async def reset_cairo_timer(element_id: str) -> Dict[str, str]:
+    """Reset a Cairo timer."""
+    if not cairo_manager:
+        raise HTTPException(status_code=503, detail="Cairo graphics not available")
+    
+    element = cairo_manager.get_element(element_id)
+    if not element:
+        raise HTTPException(status_code=404, detail=f"Element {element_id} not found")
+    
+    from .cairo_graphics import Timer
+    if not isinstance(element, Timer):
+        raise HTTPException(status_code=400, detail=f"Element {element_id} is not a timer")
+    
+    element.reset()
+    
+    return {"status": "reset", "element_id": element_id}
+
+
+@app.post("/api/cairo/logo")
+async def create_cairo_logo(request: Dict[str, Any]) -> Dict[str, Any]:
+    """Create or update a Cairo logo overlay.
+    
+    Request body:
+        - element_id: Unique identifier (required)
+        - logo_path: Path to logo image (required)
+        - x: X position (default: 1700)
+        - y: Y position (default: 50)
+        - scale: Scale factor (default: 1.0)
+        - pulse: Enable pulse animation (default: false)
+    """
+    if not cairo_manager:
+        raise HTTPException(status_code=503, detail="Cairo graphics not available")
+    
+    element_id = request.get("element_id")
+    logo_path = request.get("logo_path")
+    
+    if not element_id:
+        raise HTTPException(status_code=400, detail="element_id required")
+    if not logo_path:
+        raise HTTPException(status_code=400, detail="logo_path required")
+    
+    try:
+        from .cairo_graphics import LogoOverlay
+        
+        logo = LogoOverlay(
+            element_id=element_id,
+            logo_path=logo_path,
+            x=request.get("x", 1700),
+            y=request.get("y", 50),
+            scale=request.get("scale", 1.0),
+            pulse=request.get("pulse", False)
+        )
+        
+        cairo_manager.add_element(element_id, logo)
+        
+        return {
+            "status": "created",
+            "element_id": element_id,
+            "type": "logo",
+            "logo_path": logo_path
+        }
+    except Exception as e:
+        logger.error(f"Failed to create logo: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create logo: {e}")
+
+
+@app.delete("/api/cairo/element/{element_id}")
+async def delete_cairo_element(element_id: str) -> Dict[str, str]:
+    """Delete a Cairo graphics element."""
+    if not cairo_manager:
+        raise HTTPException(status_code=503, detail="Cairo graphics not available")
+    
+    success = cairo_manager.remove_element(element_id)
+    if not success:
+        raise HTTPException(status_code=404, detail=f"Element {element_id} not found")
+    
+    return {"status": "deleted", "element_id": element_id}
+
+
+@app.post("/api/cairo/clear")
+async def clear_all_cairo_elements() -> Dict[str, str]:
+    """Clear all Cairo graphics elements."""
+    if not cairo_manager:
+        raise HTTPException(status_code=503, detail="Cairo graphics not available")
+    
+    cairo_manager.clear_all()
+    
+    return {"status": "cleared"}
+
+
+@app.websocket("/ws/cairo")
+async def cairo_websocket(websocket: WebSocket):
+    """WebSocket endpoint for real-time Cairo graphics control.
+    
+    Message format:
+        {
+            "type": "lower_third_show" | "lower_third_hide" | "lower_third_update" |
+                    "scoreboard_update" | "ticker_update" | "timer_start" | "get_status",
+            "element_id": "element_id",
+            ... (element-specific fields)
+        }
+    
+    Response format:
+        {
+            "status": "success" | "error",
+            "message": "...",
+            "data": {...}
+        }
+    """
+    if not cairo_manager:
+        await websocket.close(code=1008, reason="Cairo graphics not available")
+        return
+    
+    await websocket.accept()
+    logger.info("Cairo WebSocket client connected")
+    
+    try:
+        while True:
+            # Receive command
+            data = await websocket.receive_json()
+            msg_type = data.get("type")
+            element_id = data.get("element_id")
+            timestamp = int(time.time() * 1_000_000_000)
+            
+            try:
+                # Lower third commands
+                if msg_type == "lower_third_show":
+                    if not element_id:
+                        await websocket.send_json({"status": "error", "message": "element_id required"})
+                        continue
+                    
+                    success = cairo_manager.show_element(element_id, timestamp)
+                    if success:
+                        await websocket.send_json({"status": "success", "element_id": element_id})
+                    else:
+                        await websocket.send_json({"status": "error", "message": f"Element {element_id} not found"})
+                
+                elif msg_type == "lower_third_hide":
+                    if not element_id:
+                        await websocket.send_json({"status": "error", "message": "element_id required"})
+                        continue
+                    
+                    success = cairo_manager.hide_element(element_id, timestamp)
+                    if success:
+                        await websocket.send_json({"status": "success", "element_id": element_id})
+                    else:
+                        await websocket.send_json({"status": "error", "message": f"Element {element_id} not found"})
+                
+                elif msg_type == "lower_third_update":
+                    if not element_id:
+                        await websocket.send_json({"status": "error", "message": "element_id required"})
+                        continue
+                    
+                    element = cairo_manager.get_element(element_id)
+                    if not element:
+                        await websocket.send_json({"status": "error", "message": f"Element {element_id} not found"})
+                        continue
+                    
+                    from .cairo_graphics import LowerThird
+                    if isinstance(element, LowerThird):
+                        element.update(name=data.get("name"), title=data.get("title"))
+                        await websocket.send_json({
+                            "status": "success",
+                            "element_id": element_id,
+                            "name": element.name,
+                            "title": element.title
+                        })
+                    else:
+                        await websocket.send_json({"status": "error", "message": "Element is not a lower third"})
+                
+                # Scoreboard commands
+                elif msg_type == "scoreboard_update":
+                    if not element_id:
+                        await websocket.send_json({"status": "error", "message": "element_id required"})
+                        continue
+                    
+                    element = cairo_manager.get_element(element_id)
+                    if not element:
+                        await websocket.send_json({"status": "error", "message": f"Element {element_id} not found"})
+                        continue
+                    
+                    from .cairo_graphics import Scoreboard
+                    if isinstance(element, Scoreboard):
+                        element.update_score(
+                            team1_score=data.get("team1_score"),
+                            team2_score=data.get("team2_score")
+                        )
+                        await websocket.send_json({
+                            "status": "success",
+                            "element_id": element_id,
+                            "team1_score": element.team1_score,
+                            "team2_score": element.team2_score
+                        })
+                    else:
+                        await websocket.send_json({"status": "error", "message": "Element is not a scoreboard"})
+                
+                # Ticker commands
+                elif msg_type == "ticker_update":
+                    if not element_id:
+                        await websocket.send_json({"status": "error", "message": "element_id required"})
+                        continue
+                    
+                    text = data.get("text")
+                    if not text:
+                        await websocket.send_json({"status": "error", "message": "text required"})
+                        continue
+                    
+                    element = cairo_manager.get_element(element_id)
+                    if not element:
+                        await websocket.send_json({"status": "error", "message": f"Element {element_id} not found"})
+                        continue
+                    
+                    from .cairo_graphics import Ticker
+                    if isinstance(element, Ticker):
+                        element.update_text(text)
+                        await websocket.send_json({"status": "success", "element_id": element_id, "text": text})
+                    else:
+                        await websocket.send_json({"status": "error", "message": "Element is not a ticker"})
+                
+                # Timer commands
+                elif msg_type == "timer_start":
+                    if not element_id:
+                        await websocket.send_json({"status": "error", "message": "element_id required"})
+                        continue
+                    
+                    element = cairo_manager.get_element(element_id)
+                    if not element:
+                        await websocket.send_json({"status": "error", "message": f"Element {element_id} not found"})
+                        continue
+                    
+                    from .cairo_graphics import Timer
+                    if isinstance(element, Timer):
+                        element.start(timestamp)
+                        await websocket.send_json({"status": "success", "element_id": element_id})
+                    else:
+                        await websocket.send_json({"status": "error", "message": "Element is not a timer"})
+                
+                elif msg_type == "timer_pause":
+                    if not element_id:
+                        await websocket.send_json({"status": "error", "message": "element_id required"})
+                        continue
+                    
+                    element = cairo_manager.get_element(element_id)
+                    if not element:
+                        await websocket.send_json({"status": "error", "message": f"Element {element_id} not found"})
+                        continue
+                    
+                    from .cairo_graphics import Timer
+                    if isinstance(element, Timer):
+                        element.pause(timestamp)
+                        await websocket.send_json({"status": "success", "element_id": element_id})
+                    else:
+                        await websocket.send_json({"status": "error", "message": "Element is not a timer"})
+                
+                elif msg_type == "timer_resume":
+                    if not element_id:
+                        await websocket.send_json({"status": "error", "message": "element_id required"})
+                        continue
+                    
+                    element = cairo_manager.get_element(element_id)
+                    if not element:
+                        await websocket.send_json({"status": "error", "message": f"Element {element_id} not found"})
+                        continue
+                    
+                    from .cairo_graphics import Timer
+                    if isinstance(element, Timer):
+                        element.resume(timestamp)
+                        await websocket.send_json({"status": "success", "element_id": element_id})
+                    else:
+                        await websocket.send_json({"status": "error", "message": "Element is not a timer"})
+                
+                # Status query
+                elif msg_type == "get_status":
+                    status = cairo_manager.get_status()
+                    await websocket.send_json({"status": "success", "data": status})
+                
+                else:
+                    await websocket.send_json({"status": "error", "message": f"Unknown message type: {msg_type}"})
+            
+            except Exception as e:
+                logger.error(f"Error processing WebSocket message: {e}")
+                await websocket.send_json({"status": "error", "message": str(e)})
+    
+    except WebSocketDisconnect:
+        logger.info("Cairo WebSocket client disconnected")
+    except Exception as e:
+        logger.error(f"Cairo WebSocket error: {e}")
+
+
+@app.get("/api/guests/status")
+async def get_guests_status() -> Dict[str, Any]:
+    """Get status of all remote guests (check if they're streaming via MediaMTX)."""
+    guests_status = {}
+    
+    for guest_id, guest_config in config.guests.items():
+        if not guest_config.enabled:
+            guests_status[guest_id] = {
+                "name": guest_config.name,
+                "enabled": False,
+                "streaming": False
+            }
+            continue
+        
+        # Check MediaMTX API for stream status
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"http://127.0.0.1:9997/v3/paths/get/{guest_id}",
+                    timeout=1.0
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    source_ready = data.get("sourceReady", False)
+                    guests_status[guest_id] = {
+                        "name": guest_config.name,
+                        "enabled": True,
+                        "streaming": source_ready
+                    }
+                else:
+                    guests_status[guest_id] = {
+                        "name": guest_config.name,
+                        "enabled": True,
+                        "streaming": False
+                    }
+        except Exception as e:
+            logger.debug(f"Error checking guest {guest_id} status: {e}")
+            guests_status[guest_id] = {
+                "name": guest_config.name,
+                "enabled": True,
+                "streaming": False
+            }
+    
+    return {"guests": guests_status}
+
+
+# Cloudflare Calls endpoints removed - guests now use direct WHIP to MediaMTX
+# See /guest_join page for remote speaker WHIP publishing
 
 
 # Graphics/Presentation API endpoints
@@ -987,7 +2900,10 @@ async def list_graphics_templates(template_type: Optional[str] = None) -> Dict[s
     Query parameters:
         - template_type: Filter by type (e.g., "lower_third")
     """
-    templates = list_templates(template_type)
+    if not graphics_plugin:
+        raise HTTPException(status_code=503, detail="Graphics not enabled")
+    
+    templates = graphics_plugin.list_templates(template_type)
     return {
         "templates": [
             {
@@ -1005,7 +2921,10 @@ async def list_graphics_templates(template_type: Optional[str] = None) -> Dict[s
 @app.get("/api/graphics/templates/{template_id}")
 async def get_graphics_template(template_id: str) -> Dict[str, Any]:
     """Get a specific graphics template."""
-    template = get_template(template_id)
+    if not graphics_plugin:
+        raise HTTPException(status_code=503, detail="Graphics not enabled")
+    
+    template = graphics_plugin.get_template(template_id)
     if not template:
         raise HTTPException(status_code=404, detail=f"Template {template_id} not found")
     
@@ -1029,7 +2948,10 @@ async def apply_template(template_id: str, request: Dict[str, Any]) -> Dict[str,
     if not graphics_renderer:
         raise HTTPException(status_code=503, detail="Graphics renderer not available")
     
-    template = get_template(template_id)
+    if not graphics_plugin:
+        raise HTTPException(status_code=503, detail="Graphics not enabled")
+    
+    template = graphics_plugin.get_template(template_id)
     if not template:
         raise HTTPException(status_code=404, detail=f"Template {template_id} not found")
     
@@ -1436,6 +3358,811 @@ async def clear_queue() -> Dict[str, str]:
         raise HTTPException(status_code=500, detail="Failed to clear queue")
     
     return {"status": "cleared"}
+
+
+# ============================================================================
+# VDO.ninja Integration API Endpoints
+# ============================================================================
+
+# VDO.ninja URL configuration
+# Use local instance via FRP tunnel for remote access
+VDONINJA_LOCAL_HOST = "localhost:8443"
+VDONINJA_REMOTE_HOST = "r58-vdo.itagenten.no"
+MEDIAMTX_REMOTE_HOST = "r58-mediamtx.itagenten.no"
+
+
+async def _check_mediamtx_stream_ready(stream_id: str) -> bool:
+    """Check if a stream is actually available in MediaMTX."""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"http://127.0.0.1:9997/v3/paths/get/{stream_id}",
+                timeout=1.0
+            )
+            if response.status_code == 200:
+                data = response.json()
+                # MediaMTX v3 API uses "ready" field, not "sourceReady"
+                return data.get("ready", False)
+    except Exception:
+        pass
+    return False
+
+
+@app.get("/api/vdoninja/sources")
+async def get_vdoninja_sources(request: Request) -> Dict[str, Any]:
+    """Get all available sources (cameras + speakers) for VDO.ninja mixer.
+    
+    Returns a list of all sources with their status and WHEP URLs.
+    Checks both ingest manager state AND MediaMTX stream availability.
+    """
+    sources = []
+    
+    # Determine if request is local or remote
+    host = request.headers.get("host", "")
+    is_remote = "itagenten.no" in host or not any(x in host for x in ["localhost", "127.0.0.1", "192.168"])
+    mediamtx_base = f"https://{MEDIAMTX_REMOTE_HOST}" if is_remote else "http://localhost:8889"
+    
+    # Get camera sources - check both ingest manager AND MediaMTX
+    ingest_statuses = ingest_manager.get_status()
+    for i, (cam_id, status) in enumerate(sorted(ingest_statuses.items())):
+        cam_number = i + 1
+        
+        # Check if ingest is streaming
+        ingest_streaming = status.status == "streaming"
+        
+        # Also check MediaMTX directly for stream availability
+        mediamtx_ready = await _check_mediamtx_stream_ready(cam_id)
+        
+        # Stream is active if MediaMTX has the stream ready
+        is_active = mediamtx_ready
+        
+        resolution_str = None
+        if status.resolution:
+            resolution_str = f"{status.resolution[0]}x{status.resolution[1]}"
+        
+        sources.append({
+            "name": f"CAM{cam_number}",
+            "stream": cam_id,
+            "type": "camera",
+            "whep_url": f"{mediamtx_base}/{cam_id}/whep",
+            "active": is_active,
+            "ingest_status": status.status,
+            "has_signal": status.has_signal,
+            "resolution": resolution_str
+        })
+    
+    # Get speaker sources from MediaMTX API
+    speaker_streams = ["speaker0", "speaker1", "speaker2"]
+    for i, speaker_id in enumerate(speaker_streams):
+        speaker_active = await _check_mediamtx_stream_ready(speaker_id)
+        
+        sources.append({
+            "name": f"Speaker {i + 1}",
+            "stream": speaker_id,
+            "type": "speaker",
+            "whep_url": f"{mediamtx_base}/{speaker_id}/whep",
+            "active": speaker_active,
+            "resolution": None
+        })
+    
+    return {
+        "sources": sources,
+        "summary": {
+            "total": len(sources),
+            "active": sum(1 for s in sources if s["active"]),
+            "cameras": sum(1 for s in sources if s["type"] == "camera"),
+            "speakers": sum(1 for s in sources if s["type"] == "speaker"),
+            "active_cameras": sum(1 for s in sources if s["type"] == "camera" and s["active"]),
+            "active_speakers": sum(1 for s in sources if s["type"] == "speaker" and s["active"])
+        }
+    }
+
+
+@app.get("/api/vdoninja/mixer-url")
+async def get_vdoninja_mixer_url(request: Request, include_inactive: bool = False) -> Dict[str, Any]:
+    """Get VDO.ninja mixer URL using MediaMTX backend.
+    
+    Args:
+        include_inactive: If True, include sources without signal in response (default False)
+    
+    Returns the VDO.ninja mixer.html URL configured to use MediaMTX for WHEP streams.
+    This works both locally and remotely through FRP tunnels (unlike P2P room mode).
+    """
+    # Determine if request is local or remote
+    host = request.headers.get("host", "")
+    is_remote = "itagenten.no" in host or not any(x in host for x in ["localhost", "127.0.0.1", "192.168"])
+    
+    vdoninja_base = f"https://{VDONINJA_REMOTE_HOST}" if is_remote else f"https://{VDONINJA_LOCAL_HOST}"
+    mediamtx_host = MEDIAMTX_REMOTE_HOST if is_remote else "localhost:8889"
+    
+    # Build mixer URL using MediaMTX backend (NOT room-based P2P which doesn't work through tunnels)
+    # The &mediamtx= parameter makes VDO.ninja use WHEP to pull streams from MediaMTX
+    mixer_url = f"{vdoninja_base}/mixer.html?mediamtx={mediamtx_host}"
+    
+    # Get sources for info
+    sources_response = await get_vdoninja_sources(request)
+    sources = sources_response["sources"]
+    
+    # Collect active sources info
+    active_sources = []
+    for source in sources:
+        if source["active"] or include_inactive:
+            active_sources.append(source["name"])
+    
+    return {
+        "url": mixer_url,
+        "vdoninja_host": VDONINJA_REMOTE_HOST if is_remote else VDONINJA_LOCAL_HOST,
+        "mediamtx_host": mediamtx_host,
+        "active_sources": active_sources,
+        "source_count": len(active_sources),
+        "is_remote": is_remote
+    }
+
+
+@app.get("/api/vdoninja/director-url")
+async def get_vdoninja_director_url(request: Request) -> Dict[str, Any]:
+    """Get VDO.ninja director URL using MediaMTX backend.
+    
+    Returns the director URL configured to use MediaMTX for WHEP streams.
+    This works both locally and remotely through FRP tunnels (unlike P2P room mode).
+    """
+    # Determine if request is local or remote
+    host = request.headers.get("host", "")
+    is_remote = "itagenten.no" in host or not any(x in host for x in ["localhost", "127.0.0.1", "192.168"])
+    
+    vdoninja_base = f"https://{VDONINJA_REMOTE_HOST}" if is_remote else f"https://{VDONINJA_LOCAL_HOST}"
+    mediamtx_host = MEDIAMTX_REMOTE_HOST if is_remote else "localhost:8889"
+    
+    # Use MediaMTX backend instead of room-based P2P (which doesn't work through tunnels)
+    return {
+        "url": f"{vdoninja_base}/?director=r58studio&mediamtx={mediamtx_host}",
+        "room": "r58studio",
+        "vdoninja_host": VDONINJA_REMOTE_HOST if is_remote else VDONINJA_LOCAL_HOST,
+        "mediamtx_host": mediamtx_host,
+        "is_remote": is_remote
+    }
+
+
+@app.get("/api/vdoninja/scene-url")
+async def get_vdoninja_scene_url(request: Request) -> Dict[str, Any]:
+    """Get VDO.ninja scene view URL (program output).
+    
+    This is the URL that OBS or other capture tools would use to display 
+    the mixed output from the VDO.ninja mixer.
+    Uses MediaMTX backend for reliable remote access through FRP tunnels.
+    """
+    # Determine if request is local or remote
+    host = request.headers.get("host", "")
+    is_remote = "itagenten.no" in host or not any(x in host for x in ["localhost", "127.0.0.1", "192.168"])
+    
+    vdoninja_base = f"https://{VDONINJA_REMOTE_HOST}" if is_remote else f"https://{VDONINJA_LOCAL_HOST}"
+    mediamtx_host = MEDIAMTX_REMOTE_HOST if is_remote else "localhost:8889"
+    
+    # Scene view URL using MediaMTX backend (NOT room-based P2P which doesn't work through tunnels)
+    scene_url = f"{vdoninja_base}/?scene&mediamtx={mediamtx_host}&clean&transparent"
+    
+    return {
+        "url": scene_url,
+        "vdoninja_host": VDONINJA_REMOTE_HOST if is_remote else VDONINJA_LOCAL_HOST,
+        "mediamtx_host": mediamtx_host,
+        "is_remote": is_remote,
+        "description": "Use this URL in OBS Browser Source to capture the mixer output"
+    }
+
+
+@app.get("/api/vdoninja/bridge-url")
+async def get_vdoninja_bridge_url(request: Request) -> Dict[str, Any]:
+    """Get the camera bridge page URL.
+    
+    The camera bridge page runs on R58 (locally or headlessly) and bridges
+    HDMI cameras from MediaMTX WHEP endpoints into the VDO.ninja room.
+    
+    This is needed because cameras are already in MediaMTX (via GStreamer RTSP)
+    and need to be "bridged" into the VDO.ninja room as guest sources.
+    """
+    # Determine if request is local or remote
+    host = request.headers.get("host", "")
+    is_remote = "itagenten.no" in host or not any(x in host for x in ["localhost", "127.0.0.1", "192.168"])
+    
+    # Bridge page is always accessed via local API
+    bridge_url = f"{request.base_url}static/camera-bridge.html"
+    
+    return {
+        "url": bridge_url,
+        "vdoninja_host": VDONINJA_REMOTE_HOST,
+        "mediamtx_host": MEDIAMTX_REMOTE_HOST,
+        "room": "r58studio",
+        "is_remote": is_remote,
+        "description": "Open this page to bridge HDMI cameras into VDO.ninja room",
+        "service_name": "vdoninja-bridge.service",
+        "service_status_command": "systemctl status vdoninja-bridge"
+    }
+
+
+# =====================================================================
+# VDO.ninja Bridge Control API
+# =====================================================================
+
+@app.get("/api/vdoninja/bridge/status")
+async def get_vdoninja_bridge_status() -> Dict[str, Any]:
+    """Get the status of the VDO.ninja bridge service.
+    
+    Returns:
+        Status of the bridge service including whether Chromium is running
+        and which tabs are open.
+    """
+    import subprocess
+    
+    status = {
+        "service_active": False,
+        "chromium_running": False,
+        "tabs": [],
+        "tabs_open": 0,
+        "error": None
+    }
+    
+    # Check if service is active
+    try:
+        result = subprocess.run(
+            ["systemctl", "is-active", "vdoninja-bridge"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        status["service_active"] = result.returncode == 0
+    except Exception as e:
+        status["error"] = f"Could not check service status: {e}"
+    
+    # Check if Chromium debugger is responding
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get("http://127.0.0.1:9222/json", timeout=2.0)
+            if response.status_code == 200:
+                status["chromium_running"] = True
+                tabs = response.json()
+                status["tabs"] = [
+                    {"title": t.get("title", ""), "url": t.get("url", "")}
+                    for t in tabs
+                ]
+                status["tabs_open"] = len(tabs)
+    except Exception:
+        pass  # Chromium not running
+    
+    return status
+
+
+@app.post("/api/vdoninja/bridge/start")
+async def start_vdoninja_bridge(
+    room: str = "r58studio",
+    cameras: Optional[str] = None
+) -> Dict[str, Any]:
+    """Start the VDO.ninja bridge service.
+    
+    Args:
+        room: VDO.ninja room name (default: r58studio)
+        cameras: Comma-separated camera config (format: stream_id:push_id:label)
+                 Example: cam2:hdmi1:Camera-1,cam3:hdmi2:Camera-2
+    
+    Returns:
+        Result of starting the bridge service.
+    """
+    import subprocess
+    
+    # Build environment for the service
+    env_vars = {"VDONINJA_ROOM": room}
+    
+    if cameras:
+        env_vars["CAMERAS"] = cameras
+    else:
+        # Use default cameras from config
+        camera_list = []
+        for i, (cam_id, cam_config) in enumerate(config.cameras.items()):
+            if cam_config.enabled:
+                label = getattr(cam_config, 'label', None) or f"HDMI-{cam_id.upper()}"
+                push_id = f"hdmi{i+1}"
+                camera_list.append(f"{cam_id}:{push_id}:{label}")
+        if camera_list:
+            env_vars["CAMERAS"] = ",".join(camera_list)
+    
+    try:
+        # First stop any existing instance
+        subprocess.run(
+            ["sudo", "systemctl", "stop", "vdoninja-bridge"],
+            capture_output=True,
+            timeout=10
+        )
+        
+        # Update environment in service file
+        for key, value in env_vars.items():
+            subprocess.run(
+                ["sudo", "systemctl", "set-environment", f"{key}={value}"],
+                capture_output=True,
+                timeout=5
+            )
+        
+        # Start the service
+        result = subprocess.run(
+            ["sudo", "systemctl", "start", "vdoninja-bridge"],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        
+        if result.returncode == 0:
+            return {
+                "success": True,
+                "message": f"VDO.ninja bridge started for room '{room}'",
+                "room": room,
+                "cameras": env_vars.get("CAMERAS", "default")
+            }
+        else:
+            return {
+                "success": False,
+                "error": result.stderr or "Failed to start service",
+                "room": room
+            }
+    except subprocess.TimeoutExpired:
+        return {"success": False, "error": "Command timed out"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@app.post("/api/vdoninja/bridge/stop")
+async def stop_vdoninja_bridge() -> Dict[str, Any]:
+    """Stop the VDO.ninja bridge service."""
+    import subprocess
+    
+    try:
+        result = subprocess.run(
+            ["sudo", "systemctl", "stop", "vdoninja-bridge"],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        
+        # Also kill any Chromium processes
+        subprocess.run(["pkill", "-f", "chromium"], capture_output=True, timeout=5)
+        
+        return {
+            "success": result.returncode == 0,
+            "message": "VDO.ninja bridge stopped" if result.returncode == 0 else result.stderr
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@app.get("/api/vdoninja/whep-view-url/{stream_id}")
+async def get_vdoninja_whep_view_url(request: Request, stream_id: str) -> Dict[str, Any]:
+    """Get a VDO.ninja URL to view a single WHEP stream from MediaMTX.
+    
+    This is useful for testing and debugging individual camera streams.
+    The &whepplay= parameter allows VDO.ninja to pull any WHEP stream directly.
+    
+    Args:
+        stream_id: The MediaMTX stream path (e.g., 'cam0', 'cam2', 'speaker0')
+    """
+    # Determine if request is local or remote
+    host = request.headers.get("host", "")
+    is_remote = "itagenten.no" in host or not any(x in host for x in ["localhost", "127.0.0.1", "192.168"])
+    
+    vdoninja_base = f"https://{VDONINJA_REMOTE_HOST}" if is_remote else f"https://{VDONINJA_LOCAL_HOST}"
+    mediamtx_host = MEDIAMTX_REMOTE_HOST if is_remote else "localhost:8889"
+    
+    whep_endpoint = f"https://{mediamtx_host}/{stream_id}/whep"
+    
+    # Build VDO.ninja URL with whepplay parameter
+    view_url = f"{vdoninja_base}/?whepplay={whep_endpoint}&stereo=2&whepwait=2000"
+    
+    return {
+        "url": view_url,
+        "stream_id": stream_id,
+        "whep_endpoint": whep_endpoint,
+        "vdoninja_host": VDONINJA_REMOTE_HOST if is_remote else VDONINJA_LOCAL_HOST,
+        "mediamtx_host": mediamtx_host,
+        "is_remote": is_remote,
+        "description": f"View {stream_id} stream via VDO.ninja WHEP playback"
+    }
+
+
+@app.get("/api/vdoninja/whepshare-url/{stream_id}")
+async def get_vdoninja_whepshare_url(
+    request: Request, 
+    stream_id: str,
+    room: str = "r58studio",
+    push_id: Optional[str] = None,
+    label: Optional[str] = None
+) -> Dict[str, Any]:
+    """Get a VDO.ninja URL to share a WHEP stream as a guest in a room.
+    
+    This uses the &whepshare parameter which tells VDO.ninja to share
+    the WHEP stream to other viewers in the room without republishing.
+    
+    Args:
+        stream_id: The MediaMTX stream path (e.g., 'cam0', 'cam2')
+        room: The VDO.ninja room name (default: r58studio)
+        push_id: Custom push ID (default: stream_id)
+        label: Display name in VDO.ninja (default: HDMI-{stream_id})
+    
+    Example:
+        GET /api/vdoninja/whepshare-url/cam2?room=myroom&label=Camera-1
+    """
+    import urllib.parse
+    
+    # Determine if request is local or remote
+    host = request.headers.get("host", "")
+    is_remote = "itagenten.no" in host or not any(x in host for x in ["localhost", "127.0.0.1", "192.168"])
+    
+    vdoninja_base = f"https://{VDONINJA_REMOTE_HOST}" if is_remote else f"https://{VDONINJA_LOCAL_HOST}"
+    mediamtx_host = MEDIAMTX_REMOTE_HOST if is_remote else "localhost:8889"
+    
+    # Build WHEP endpoint URL
+    whep_endpoint = f"https://{mediamtx_host}/whep/{stream_id}"
+    encoded_whep = urllib.parse.quote(whep_endpoint, safe='')
+    
+    # Use defaults if not provided
+    actual_push_id = push_id or stream_id
+    actual_label = label or f"HDMI-{stream_id.upper()}"
+    
+    # Build VDO.ninja URL with whepshare parameter
+    # &videodevice=0&audiodevice=0 disables local devices (no permission prompts)
+    room_url = f"{vdoninja_base}/?push={actual_push_id}&room={room}&whepshare={encoded_whep}&label={actual_label}&videodevice=0&audiodevice=0&autostart"
+    
+    return {
+        "url": room_url,
+        "stream_id": stream_id,
+        "room": room,
+        "push_id": actual_push_id,
+        "label": actual_label,
+        "whep_endpoint": whep_endpoint,
+        "is_remote": is_remote,
+        "description": f"Share {stream_id} as a guest in VDO.ninja room '{room}'",
+        "instructions": "Open this URL in a browser to join the room. Click 'Join Room with Camera' then 'START' to share the WHEP stream."
+    }
+
+
+@app.get("/api/vdoninja/room-urls")
+async def get_vdoninja_room_urls(
+    request: Request,
+    room: str = "r58studio"
+) -> Dict[str, Any]:
+    """Get all VDO.ninja URLs for a room including cameras and management links.
+    
+    This provides a complete set of URLs needed to set up a VDO.ninja session:
+    - Director URL for room management
+    - Scene URL for OBS capture
+    - Camera URLs using &whepshare for each active camera
+    - Guest invite link
+    
+    Args:
+        room: The VDO.ninja room name (default: r58studio)
+    """
+    import urllib.parse
+    
+    # Determine if request is local or remote
+    host = request.headers.get("host", "")
+    is_remote = "itagenten.no" in host or not any(x in host for x in ["localhost", "127.0.0.1", "192.168"])
+    
+    vdoninja_base = f"https://{VDONINJA_REMOTE_HOST}" if is_remote else f"https://{VDONINJA_LOCAL_HOST}"
+    mediamtx_host = MEDIAMTX_REMOTE_HOST if is_remote else "localhost:8889"
+    
+    # Build management URLs
+    urls = {
+        "director": f"{vdoninja_base}/?director={room}",
+        "scene": f"{vdoninja_base}/?scene&room={room}",
+        "guest_invite": f"{vdoninja_base}/?room={room}",
+    }
+    
+    # Build camera URLs for each configured camera
+    cameras = []
+    for cam_id, cam_config in config.cameras.items():
+        if not cam_config.enabled:
+            continue
+        
+        # Build WHEP share URL
+        whep_endpoint = f"https://{mediamtx_host}/whep/{cam_id}"
+        encoded_whep = urllib.parse.quote(whep_endpoint, safe='')
+        
+        # Create meaningful label from camera config or ID
+        label = cam_config.label if hasattr(cam_config, 'label') and cam_config.label else f"HDMI-{cam_id.upper()}"
+        push_id = f"hdmi{cam_id[-1]}" if cam_id.startswith("cam") else cam_id
+        
+        # &videodevice=0&audiodevice=0 disables local devices (no permission prompts)
+        cam_url = f"{vdoninja_base}/?push={push_id}&room={room}&whepshare={encoded_whep}&label={label}&videodevice=0&audiodevice=0&autostart"
+        
+        cameras.append({
+            "cam_id": cam_id,
+            "label": label,
+            "push_id": push_id,
+            "whep_endpoint": whep_endpoint,
+            "room_url": cam_url,
+            "view_url": f"{vdoninja_base}/?view={push_id}&room={room}"
+        })
+    
+    return {
+        "room": room,
+        "is_remote": is_remote,
+        "urls": urls,
+        "cameras": cameras,
+        "all_camera_urls": [c["room_url"] for c in cameras],
+        "instructions": {
+            "step1": "Open the camera URLs in browsers (on R58 or any device) and click 'Join Room with Camera' then 'START'",
+            "step2": "Open the Director URL to manage the room and see all participants",
+            "step3": "Use the Scene URL in OBS as a browser source to capture the mix"
+        }
+    }
+
+
+# =====================================================================
+# Camera-to-Slot Mapping API
+# =====================================================================
+
+def _get_mapping_file_path() -> Path:
+    """Get path to camera-slot mapping config file."""
+    data_dir = Path(__file__).parent.parent / "data"
+    data_dir.mkdir(exist_ok=True)
+    return data_dir / "camera_mapping.json"
+
+
+def _load_camera_mapping() -> Dict[str, Any]:
+    """Load camera mapping from file or return defaults."""
+    mapping_file = _get_mapping_file_path()
+    
+    if mapping_file.exists():
+        try:
+            import json
+            with open(mapping_file, 'r') as f:
+                return json.load(f)
+        except Exception:
+            pass
+    
+    # Default mapping: CAM1->Slot 0, CAM2->Slot 1, etc.
+    return {
+        "mappings": {
+            "cam0": 0,  # CAM 1 -> Slot 0
+            "cam1": 1,  # CAM 2 -> Slot 1
+            "cam2": 2,  # CAM 3 -> Slot 2
+            "cam3": 3,  # CAM 4 -> Slot 3
+            "guest1": 4,
+            "guest2": 5,
+            "guest3": 6,
+            "guest4": 7
+        },
+        "version": 1
+    }
+
+
+def _save_camera_mapping(mapping: Dict[str, Any]) -> bool:
+    """Save camera mapping to file."""
+    mapping_file = _get_mapping_file_path()
+    try:
+        import json
+        with open(mapping_file, 'w') as f:
+            json.dump(mapping, f, indent=2)
+        return True
+    except Exception:
+        return False
+
+
+@app.get("/api/vdoninja/mapping")
+async def get_camera_mapping(request: Request) -> Dict[str, Any]:
+    """Get current camera-to-slot mappings.
+    
+    Returns the mapping of camera stream IDs to VDO.ninja mixer slots.
+    Also includes WHEP URLs for each mapped source.
+    """
+    # Determine if request is local or remote
+    host = request.headers.get("host", "")
+    is_remote = "itagenten.no" in host or not any(x in host for x in ["localhost", "127.0.0.1", "192.168"])
+    mediamtx_base = f"https://{MEDIAMTX_REMOTE_HOST}" if is_remote else "http://localhost:8889"
+    
+    mapping_data = _load_camera_mapping()
+    
+    # Enhance with WHEP URLs
+    mappings_with_urls = {}
+    for stream_id, slot in mapping_data.get("mappings", {}).items():
+        whep_url = f"{mediamtx_base}/{stream_id}/whep"
+        mappings_with_urls[stream_id] = {
+            "slot": slot,
+            "whep_url": whep_url
+        }
+    
+    return {
+        "mappings": mappings_with_urls,
+        "raw_mappings": mapping_data.get("mappings", {}),
+        "version": mapping_data.get("version", 1)
+    }
+
+
+@app.post("/api/vdoninja/mapping")
+async def save_camera_mapping(request: Request) -> Dict[str, Any]:
+    """Save camera-to-slot mappings.
+    
+    Expects JSON body with format:
+    {
+        "mappings": {
+            "cam0": 0,
+            "cam1": 1,
+            ...
+        }
+    }
+    """
+    try:
+        body = await request.json()
+        mappings = body.get("mappings", {})
+        
+        if not mappings:
+            raise HTTPException(status_code=400, detail="No mappings provided")
+        
+        # Validate: slot numbers should be 0-9
+        for stream_id, slot in mappings.items():
+            if not isinstance(slot, int) or slot < 0 or slot > 9:
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Invalid slot {slot} for {stream_id}. Must be 0-9."
+                )
+        
+        # Load existing and update
+        existing = _load_camera_mapping()
+        existing["mappings"] = mappings
+        existing["version"] = existing.get("version", 0) + 1
+        
+        if _save_camera_mapping(existing):
+            return {
+                "success": True,
+                "mappings": mappings,
+                "version": existing["version"]
+            }
+        else:
+            raise HTTPException(status_code=500, detail="Failed to save mapping")
+            
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/vdoninja/mapping/reset")
+async def reset_camera_mapping() -> Dict[str, Any]:
+    """Reset camera mappings to defaults.
+    
+    Restores the default auto-mapping:
+    CAM1->Slot 0, CAM2->Slot 1, etc.
+    """
+    mapping_file = _get_mapping_file_path()
+    
+    # Remove existing file to use defaults
+    if mapping_file.exists():
+        mapping_file.unlink()
+    
+    # Return the default mapping
+    default = _load_camera_mapping()
+    
+    return {
+        "success": True,
+        "message": "Mapping reset to defaults",
+        "mappings": default.get("mappings", {})
+    }
+
+
+# =====================================================================
+# Ingest Control API Endpoints
+# =====================================================================
+
+@app.post("/api/ingest/start")
+async def start_ingest_all() -> Dict[str, Any]:
+    """Start ingest pipelines for all cameras with signal.
+    
+    This will start streaming cameras to MediaMTX so they become
+    available via WHEP for VDO.ninja mixer.
+    """
+    if not ingest_manager:
+        raise HTTPException(status_code=503, detail="Ingest manager not available")
+    
+    results = ingest_manager.start_all()
+    
+    # Get updated status
+    statuses = ingest_manager.get_status()
+    status_info = {
+        cam_id: {
+            "started": results.get(cam_id, False),
+            "status": status.status,
+            "has_signal": status.has_signal,
+            "resolution": f"{status.resolution[0]}x{status.resolution[1]}" if status.resolution else None
+        }
+        for cam_id, status in statuses.items()
+    }
+    
+    return {
+        "status": "completed",
+        "cameras": status_info,
+        "streaming_count": sum(1 for s in statuses.values() if s.status == "streaming")
+    }
+
+
+@app.post("/api/ingest/start/{cam_id}")
+async def start_ingest_camera(cam_id: str) -> Dict[str, Any]:
+    """Start ingest pipeline for a specific camera.
+    
+    Args:
+        cam_id: Camera ID (cam0, cam1, cam2, cam3)
+    """
+    if not ingest_manager:
+        raise HTTPException(status_code=503, detail="Ingest manager not available")
+    
+    if cam_id not in ingest_manager.config.cameras:
+        raise HTTPException(status_code=404, detail=f"Camera {cam_id} not found")
+    
+    success = ingest_manager.start_ingest(cam_id)
+    
+    # Get updated status
+    status = ingest_manager.get_camera_status(cam_id)
+    
+    return {
+        "camera": cam_id,
+        "started": success,
+        "status": status.status if status else "unknown",
+        "has_signal": status.has_signal if status else False,
+        "resolution": f"{status.resolution[0]}x{status.resolution[1]}" if status and status.resolution else None
+    }
+
+
+@app.post("/api/ingest/stop")
+async def stop_ingest_all() -> Dict[str, Any]:
+    """Stop all ingest pipelines."""
+    if not ingest_manager:
+        raise HTTPException(status_code=503, detail="Ingest manager not available")
+    
+    results = ingest_manager.stop_all()
+    
+    return {
+        "status": "completed",
+        "cameras": results
+    }
+
+
+@app.post("/api/ingest/stop/{cam_id}")
+async def stop_ingest_camera(cam_id: str) -> Dict[str, Any]:
+    """Stop ingest pipeline for a specific camera."""
+    if not ingest_manager:
+        raise HTTPException(status_code=503, detail="Ingest manager not available")
+    
+    if cam_id not in ingest_manager.config.cameras:
+        raise HTTPException(status_code=404, detail=f"Camera {cam_id} not found")
+    
+    success = ingest_manager.stop_ingest(cam_id)
+    
+    return {
+        "camera": cam_id,
+        "stopped": success
+    }
+
+
+@app.get("/api/ingest/status")
+async def get_ingest_status() -> Dict[str, Any]:
+    """Get status of all ingest pipelines."""
+    if not ingest_manager:
+        raise HTTPException(status_code=503, detail="Ingest manager not available")
+    
+    statuses = ingest_manager.get_status()
+    
+    status_info = {}
+    for cam_id, status in statuses.items():
+        # Also check MediaMTX for actual stream availability
+        mediamtx_ready = await _check_mediamtx_stream_ready(cam_id)
+        
+        status_info[cam_id] = {
+            "status": status.status,
+            "has_signal": status.has_signal,
+            "resolution": f"{status.resolution[0]}x{status.resolution[1]}" if status.resolution else None,
+            "stream_url": status.stream_url,
+            "mediamtx_ready": mediamtx_ready
+        }
+    
+    return {
+        "cameras": status_info,
+        "streaming_count": sum(1 for s in statuses.values() if s.status == "streaming"),
+        "signal_count": sum(1 for s in statuses.values() if s.has_signal)
+    }
 
 
 if __name__ == "__main__":

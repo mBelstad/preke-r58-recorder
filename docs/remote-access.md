@@ -38,7 +38,7 @@ cloudflared access ssh-config --hostname r58.itagenten.no
 
 **Method 1: Direct SSH (with password)**
 ```bash
-sshpass -p 'linaro' ssh -o StrictHostKeyChecking=no linaro@r58.itagenten.no
+ssh linaro@r58.itagenten.no
 ```
 
 **Method 2: SSH with key-based auth (if keys are set up)**

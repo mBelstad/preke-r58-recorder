@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>R58 Professional Switcher</title>
     <style>
         :root {
@@ -40,6 +40,13 @@
             /* Transitions */
             --transition-fast: 0.15s ease;
             --transition-panel: 0.3s ease-out;
+            
+            /* Responsive & Touch */
+            --touch-target-min: 48px;
+            --mobile-spacing: 12px;
+            --bottom-bar-height: 64px;
+            --sidebar-width: 180px;
+            --header-height: 56px;
         }
 
         html {
@@ -62,6 +69,10 @@
             height: 100vh;
             overflow: hidden;
             touch-action: manipulation;
+            /* iOS safe area support */
+            padding-top: env(safe-area-inset-top);
+            padding-left: env(safe-area-inset-left);
+            padding-right: env(safe-area-inset-right);
         }
 
         .switcher-container {
@@ -152,6 +163,53 @@
             box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
         }
 
+        .remote-indicator {
+            margin-top: var(--spacing-xs);
+        }
+
+        .remote-badge {
+            background: rgba(245, 158, 11, 0.2);
+            border: 1px solid var(--accent-warning);
+            color: var(--accent-warning);
+            padding: 2px 6px;
+            border-radius: var(--radius-sm);
+            font-size: 9px;
+            font-weight: 600;
+        }
+
+        /* Signal indicator for compact inputs */
+        .compact-signal-indicator {
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #6b7280;
+            z-index: 10;
+            transition: all 0.3s ease;
+        }
+
+        .compact-signal-indicator.signal-live {
+            background: var(--accent-success);
+            box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+        }
+
+        .compact-signal-indicator.signal-none {
+            background: var(--accent-danger);
+            box-shadow: 0 0 6px rgba(239, 68, 68, 0.6);
+            animation: pulse-signal 2s infinite;
+        }
+
+        .compact-signal-indicator.signal-disabled {
+            background: #4b5563;
+        }
+
+        @keyframes pulse-signal {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
         .compact-input-grid {
             flex: 1;
             display: flex;
@@ -172,12 +230,23 @@
             transition: all var(--transition-fast);
         }
 
+        /* Hide border when video is active (not placeholder) */
+        .compact-input.has-video {
+            border: none;
+        }
+
         .compact-input:hover {
             border-color: var(--border-focus);
         }
 
         .compact-input.tally-pgm {
             border-color: var(--accent-danger);
+            box-shadow: 0 0 0 2px var(--accent-danger);
+        }
+
+        /* Tally light overrides border hiding */
+        .compact-input.has-video.tally-pgm {
+            border: 2px solid var(--accent-danger);
             box-shadow: 0 0 0 2px var(--accent-danger);
         }
 
@@ -198,6 +267,58 @@
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+        }
+
+        /* Hide label when video is active */
+        .compact-input.has-video .compact-input-label {
+            display: none;
+        }
+        
+        .compact-input-status {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 14px;
+            font-weight: 700;
+            padding: 4px 8px;
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 5;
+            pointer-events: none;
+        }
+        
+        .compact-input-status.status-connecting {
+            color: var(--text-muted);
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        
+        .compact-input-status.status-reconnecting {
+            background: rgba(245, 158, 11, 0.3);
+            color: var(--accent-warning);
+            animation: pulse 1s ease-in-out infinite;
+        }
+        
+        .compact-input-status.status-error {
+            background: rgba(239, 68, 68, 0.3);
+            color: var(--accent-danger);
+        }
+        
+        .compact-input-status.status-failed {
+            background: rgba(239, 68, 68, 0.5);
+            color: #fff;
+        }
+        
+        .compact-input-status.status-unsupported {
+            background: rgba(107, 114, 128, 0.5);
+            color: var(--text-secondary);
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
         }
 
         /* Center Area */
@@ -269,6 +390,30 @@
             display: block;
         }
 
+        /* Preview composite container for CSS-based preview */
+        .preview-composite {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            z-index: 2; /* Above placeholder */
+        }
+
+        .preview-slot {
+            position: absolute;
+            overflow: hidden;
+        }
+
+        .preview-slot video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain; /* Changed from cover to contain to match mixer behavior */
+            display: block;
+            background: #000;
+        }
+
         .output-placeholder {
             position: absolute;
             top: 0;
@@ -280,22 +425,29 @@
             align-items: center;
             justify-content: center;
             background: rgba(0, 0, 0, 0.5);
-            z-index: 5;
+            z-index: 1; /* Below video and composite */
         }
 
-        .output-placeholder::before {
-            content: '📹';
+        .output-placeholder .placeholder-icon {
             font-size: 48px;
             opacity: 0.3;
             margin-bottom: 16px;
         }
 
-        .output-placeholder::after {
-            content: 'NO SIGNAL';
+        .output-placeholder .placeholder-text {
             font-size: 14px;
             font-weight: 700;
             color: var(--text-muted);
             letter-spacing: 2px;
+            text-align: center;
+        }
+        
+        .output-placeholder .placeholder-subtext {
+            font-size: 11px;
+            color: var(--text-muted);
+            opacity: 0.7;
+            margin-top: 8px;
+            text-align: center;
         }
 
         .box-overlays {
@@ -320,7 +472,6 @@
             font-weight: 700;
             font-size: 24px;
             background: rgba(0, 0, 0, 0.3);
-            backdrop-filter: blur(2px);
             box-sizing: border-box;
         }
 
@@ -1038,19 +1189,338 @@
             border-color: var(--accent-primary);
         }
 
-        /* Responsive */
-        @media (max-width: 1366px) {
-            .switcher-container {
-                grid-template-columns: 160px 1fr 160px;
-            }
-        }
-
         /* Collapsible Sidebars */
         .sidebar-collapsed {
             width: 0;
             overflow: hidden;
             border: none;
             padding: 0;
+        }
+        
+        /* Mobile Header */
+        .mobile-header {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: var(--header-height);
+            background: var(--bg-panel);
+            border-bottom: 1px solid var(--border-light);
+            z-index: 100;
+            align-items: center;
+            padding: 0 var(--mobile-spacing);
+            padding-top: env(safe-area-inset-top);
+            padding-left: max(var(--mobile-spacing), env(safe-area-inset-left));
+            padding-right: max(var(--mobile-spacing), env(safe-area-inset-right));
+            gap: var(--mobile-spacing);
+        }
+        
+        .mobile-header-title {
+            flex: 1;
+            font-size: 16px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .hamburger-btn {
+            width: var(--touch-target-min);
+            height: var(--touch-target-min);
+            background: none;
+            border: none;
+            color: var(--text-primary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            padding: 0;
+        }
+        
+        /* Bottom Navigation Bar */
+        .bottom-nav {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: calc(var(--bottom-bar-height) + env(safe-area-inset-bottom));
+            background: var(--bg-panel);
+            border-top: 1px solid var(--border-light);
+            z-index: 100;
+            padding: var(--spacing-sm) var(--mobile-spacing);
+            padding-bottom: calc(var(--spacing-sm) + env(safe-area-inset-bottom));
+            padding-left: max(var(--mobile-spacing), env(safe-area-inset-left));
+            padding-right: max(var(--mobile-spacing), env(safe-area-inset-right));
+        }
+        
+        .bottom-nav-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: var(--spacing-xs);
+            height: 100%;
+        }
+        
+        .bottom-nav-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+            background: var(--bg-element);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-sm);
+            color: var(--text-secondary);
+            font-size: 20px;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            min-height: var(--touch-target-min);
+        }
+        
+        .bottom-nav-btn-label {
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+        
+        .bottom-nav-btn:active {
+            background: var(--bg-hover);
+            transform: scale(0.95);
+        }
+        
+        .bottom-nav-btn.active {
+            background: rgba(59, 130, 246, 0.15);
+            border-color: var(--accent-primary);
+            color: var(--accent-primary);
+        }
+        
+        .bottom-nav-btn.take {
+            background: var(--accent-danger);
+            color: #fff;
+            border-color: var(--accent-danger);
+            font-weight: 700;
+        }
+        
+        /* Responsive Breakpoints */
+        
+        /* Desktop - slight adjustment */
+        @media (max-width: 1366px) {
+            .switcher-container {
+                grid-template-columns: 160px 1fr 160px;
+            }
+        }
+        
+        /* Tablet Landscape (1024px and below) */
+        @media (max-width: 1024px) {
+            :root {
+                --sidebar-width: 280px;
+            }
+            
+            .switcher-container {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 1fr auto;
+            }
+            
+            .left-sidebar,
+            .right-sidebar {
+                position: fixed;
+                top: 0;
+                bottom: 0;
+                width: var(--sidebar-width);
+                z-index: 200;
+                transform: translateX(-100%);
+                transition: transform var(--transition-panel);
+            }
+            
+            .left-sidebar {
+                left: 0;
+            }
+            
+            .right-sidebar {
+                right: 0;
+                left: auto;
+                transform: translateX(100%);
+            }
+            
+            .left-sidebar.open {
+                transform: translateX(0);
+            }
+            
+            .right-sidebar.open {
+                transform: translateX(0);
+            }
+            
+            .center-area {
+                grid-column: 1;
+            }
+            
+            .preview-program-section {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto;
+                gap: var(--spacing-md);
+                padding: var(--spacing-lg);
+            }
+            
+            .take-button {
+                position: fixed;
+                bottom: calc(var(--bottom-bar-height) + env(safe-area-inset-bottom) + 80px);
+                right: max(20px, env(safe-area-inset-right));
+                width: 72px;
+                height: 72px;
+                border-radius: 50%;
+                z-index: 50;
+                box-shadow: 0 4px 16px rgba(239, 68, 68, 0.5);
+                font-size: 14px;
+            }
+            
+            .scene-buttons-section {
+                max-height: none;
+                padding: var(--spacing-md);
+            }
+            
+            .scene-grid {
+                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+                gap: var(--spacing-sm);
+            }
+            
+            .scene-button-large {
+                min-height: 80px;
+                font-size: 12px;
+                padding: var(--spacing-md);
+            }
+        }
+        
+        /* Mobile Landscape & Tablet Portrait (768px and below) */
+        @media (max-width: 768px) {
+            :root {
+                --sidebar-width: 280px;
+            }
+            
+            body {
+                padding-top: calc(var(--header-height) + env(safe-area-inset-top));
+                padding-bottom: calc(var(--bottom-bar-height) + env(safe-area-inset-bottom));
+            }
+            
+            .mobile-header {
+                display: flex;
+            }
+            
+            .bottom-nav {
+                display: block;
+            }
+            
+            .switcher-container {
+                height: calc(100vh - var(--header-height) - var(--bottom-bar-height) - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+            }
+            
+            .left-sidebar .quick-access-toolbar,
+            .right-sidebar .transition-controls {
+                display: none;
+            }
+            
+            .preview-program-section {
+                grid-template-columns: 1fr;
+                grid-template-rows: 1fr;
+                padding: var(--mobile-spacing);
+            }
+            
+            .preview-output {
+                display: none;
+            }
+            
+            .take-button {
+                display: none;
+            }
+            
+            .scene-grid {
+                grid-template-columns: repeat(3, 1fr);
+                gap: var(--spacing-sm);
+            }
+            
+            .scene-button-large {
+                min-height: 70px;
+                font-size: 11px;
+                padding: var(--spacing-sm);
+            }
+            
+            .compact-input-grid {
+                padding: var(--spacing-sm);
+                gap: var(--spacing-xs);
+            }
+        }
+        
+        /* Mobile Portrait (480px and below) */
+        @media (max-width: 480px) {
+            .scene-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .scene-button-large {
+                min-height: 64px;
+                font-size: 10px;
+            }
+            
+            .program-output {
+                aspect-ratio: 16/9;
+            }
+            
+            .output-label {
+                font-size: 10px;
+                padding: 3px 6px;
+            }
+            
+            .bottom-nav-btn {
+                font-size: 18px;
+            }
+            
+            .bottom-nav-btn-label {
+                font-size: 8px;
+            }
+        }
+        
+        /* Touch device optimizations */
+        @media (hover: none) and (pointer: coarse) {
+            .toolbar-btn,
+            .scene-button-large,
+            .btn-transition,
+            .btn-system {
+                min-height: var(--touch-target-min);
+                min-width: var(--touch-target-min);
+            }
+            
+            .toolbar-btn:hover,
+            .scene-button-large:hover,
+            .btn-transition:hover {
+                transform: none;
+            }
+            
+            .toolbar-btn:active,
+            .scene-button-large:active,
+            .btn-transition:active {
+                transform: scale(0.95);
+            }
+        }
+        
+        /* Landscape orientation adjustments */
+        @media (max-width: 768px) and (orientation: landscape) {
+            .preview-program-section {
+                padding: var(--spacing-sm);
+            }
+            
+            .scene-buttons-section {
+                padding: var(--spacing-sm);
+            }
+            
+            .scene-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+            
+            .scene-button-large {
+                min-height: 56px;
+                font-size: 10px;
+            }
         }
 
         .sidebar-toggle {
@@ -1083,9 +1553,104 @@
             right: 0;
             border-radius: var(--radius-sm) 0 0 var(--radius-sm);
         }
+        
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-sm);
+            pointer-events: none;
+        }
+        
+        .toast {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-md) var(--spacing-lg);
+            box-shadow: var(--shadow-md);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            animation: toastSlideIn 0.3s ease-out;
+            pointer-events: auto;
+            max-width: 400px;
+        }
+        
+        .toast.toast-error {
+            border-color: var(--accent-danger);
+            background: rgba(239, 68, 68, 0.1);
+        }
+        
+        .toast.toast-success {
+            border-color: var(--accent-success);
+            background: rgba(16, 185, 129, 0.1);
+        }
+        
+        .toast.toast-warning {
+            border-color: var(--accent-warning);
+            background: rgba(245, 158, 11, 0.1);
+        }
+        
+        .toast-icon {
+            font-size: 18px;
+        }
+        
+        .toast-message {
+            font-size: 13px;
+            flex: 1;
+        }
+        
+        .toast-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 4px;
+            font-size: 16px;
+        }
+        
+        .toast.toast-exit {
+            animation: toastSlideOut 0.2s ease-in forwards;
+        }
+        
+        @keyframes toastSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes toastSlideOut {
+            from {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+        }
     </style>
 </head>
 <body>
+    <!-- Mobile Header -->
+    <div class="mobile-header" id="mobileHeader">
+        <button class="hamburger-btn" id="hamburgerBtn">☰</button>
+        <div class="mobile-header-title">R58 Switcher</div>
+        <div class="status-compact">
+            <div class="status-dot" id="statusDotMobile"></div>
+        </div>
+    </div>
+    
     <div class="switcher-container">
         <!-- Left Sidebar -->
         <div class="left-sidebar" id="leftSidebar">
@@ -1101,11 +1666,15 @@
                 <button class="toolbar-btn" id="graphicsBtn" title="Graphics (G)">🎨</button>
                 <button class="toolbar-btn" id="audioBtn" title="Audio Mixer (A)">🔊</button>
                 <button class="toolbar-btn" id="settingsBtn" title="Settings">⚙️</button>
-                    </div>
+                <button class="toolbar-btn" id="refreshBtn" title="Refresh Streams (R)">🔄</button>
+            </div>
             <div class="system-status">
                 <div class="status-compact">
                     <div class="status-dot" id="healthDot"></div>
                     <span id="healthText">HEALTHY</span>
+                </div>
+                <div class="status-compact remote-indicator" id="remoteIndicator" style="display: none;">
+                    <span class="remote-badge">🌐 REMOTE</span>
                 </div>
             </div>
             <div class="compact-input-grid" id="compactInputGrid">
@@ -1119,14 +1688,22 @@
                 <div class="preview-output" id="previewOutput">
                     <div class="output-label">PVW</div>
                     <video id="previewVideo" class="output-video" autoplay muted playsinline></video>
-                    <div class="output-placeholder" id="previewPlaceholder"></div>
+                    <div class="output-placeholder" id="previewPlaceholder">
+                        <div class="placeholder-icon">📹</div>
+                        <div class="placeholder-text">PREVIEW</div>
+                        <div class="placeholder-subtext">Select a scene to preview</div>
+                    </div>
                     <div class="box-overlays" id="previewBoxOverlays"></div>
                 </div>
                 <button class="take-button" id="takeButton">TAKE</button>
                 <div class="program-output" id="programOutput">
                     <div class="output-label">PGM</div>
                     <video id="programVideo" class="output-video" autoplay muted playsinline></video>
-                    <div class="output-placeholder" id="programPlaceholder"></div>
+                    <div class="output-placeholder" id="programPlaceholder">
+                        <div class="placeholder-icon">📺</div>
+                        <div class="placeholder-text">NO OUTPUT</div>
+                        <div class="placeholder-subtext">Start mixer to begin</div>
+                    </div>
                     <div class="box-overlays" id="programBoxOverlays"></div>
                 </div>
             </div>
@@ -1162,6 +1739,34 @@
 
     <!-- Backdrop -->
     <div class="backdrop" id="backdrop"></div>
+    
+    <!-- Bottom Navigation Bar (Mobile) -->
+    <div class="bottom-nav" id="bottomNav">
+        <div class="bottom-nav-grid">
+            <button class="bottom-nav-btn" id="bottomQueueBtn">
+                <span>📋</span>
+                <span class="bottom-nav-btn-label">Queue</span>
+            </button>
+            <button class="bottom-nav-btn" id="bottomMediaBtn">
+                <span>🎬</span>
+                <span class="bottom-nav-btn-label">Media</span>
+            </button>
+            <button class="bottom-nav-btn take" id="bottomTakeBtn">
+                <span>TAKE</span>
+            </button>
+            <button class="bottom-nav-btn" id="bottomGraphicsBtn">
+                <span>🎨</span>
+                <span class="bottom-nav-btn-label">Graphics</span>
+            </button>
+            <button class="bottom-nav-btn" id="bottomSettingsBtn">
+                <span>⚙️</span>
+                <span class="bottom-nav-btn-label">Settings</span>
+            </button>
+        </div>
+    </div>
+    
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
 
     <!-- Off-Canvas Panels -->
     <!-- Queue Panel -->
@@ -1222,6 +1827,8 @@
                     <button class="input-selector-btn" data-input="cam1" onclick="assignInput('cam1')">Input 2</button>
                     <button class="input-selector-btn" data-input="cam2" onclick="assignInput('cam2')">Input 3</button>
                     <button class="input-selector-btn" data-input="cam3" onclick="assignInput('cam3')">Input 4</button>
+                    <button class="input-selector-btn" data-input="guest1" onclick="assignInput('guest1')">Guest 1</button>
+                    <button class="input-selector-btn" data-input="guest2" onclick="assignInput('guest2')">Guest 2</button>
                             </div>
                         </div>
                     </div>
@@ -1300,8 +1907,9 @@
                     <div>M: Media library</div>
                     <div>G: Graphics panel</div>
                     <div>A: Audio mixer</div>
+                    <div>R: Refresh streams</div>
                     <div>Esc: Close panels</div>
-            </div>
+                </div>
             </div>
             <div style="margin-bottom: var(--spacing-md); padding-top: var(--spacing-md); border-top: 1px solid var(--border-light);">
                 <div style="font-size: 11px; font-weight: 600; margin-bottom: var(--spacing-sm); text-transform: uppercase;">Display Preferences</div>
@@ -1334,27 +1942,222 @@
             }
         }
         
-        let currentScene = null;
+        // WebRTC configuration
+        // Note: WebRTC only works for local network access (not through Cloudflare tunnel)
+        const webrtcConfig = {
+            enabled: !IS_REMOTE,  // Disable WebRTC for remote access
+            fallbackToHLS: true,
+            iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+        };
+        
+        // Log WebRTC availability and update UI
+        if (IS_REMOTE) {
+            console.log('Remote access detected - WebRTC disabled, using HLS');
+            // Show remote indicator
+            const remoteIndicator = document.getElementById('remoteIndicator');
+            if (remoteIndicator) {
+                remoteIndicator.style.display = 'block';
+            }
+        } else {
+            console.log('Local access detected - WebRTC enabled for ultra-low latency');
+        }
+        
+        // WebRTC client instances
+        let webrtcClients = {};
+        
+        // State management - REFACTORED for proper A/B bus workflow
         let mixerState = 'NULL';
         let scenes = [];
+        
+        // Preview state (what's queued/selected but not live)
+        let previewSceneId = null;        // Scene ID currently in preview
+        let previewSceneData = null;      // Full scene definition for preview rendering
+        let previewVideoInstances = {};   // HLS/WebRTC instances for preview composite
+        
+        // Program state (what's actually live from mixer)
+        let programSceneId = null;        // Scene ID currently live in program (from mixer)
+        
+        // Legacy compatibility (deprecated, use previewSceneId/programSceneId instead)
+        let currentScene = null;
         let currentProgramScene = null;
         let currentPreviewScene = null;
+        
         let hlsInstances = {};
         let currentSceneDetails = null;
         let boxMappings = { 1: null, 2: null, 3: null, 4: null };
         let selectedBox = 1;
         let activePanel = null;
         let editingScene = null;
+        let isMobileMenuOpen = false;
+
+        // Mobile menu management
+        function toggleMobileMenu() {
+            const leftSidebar = document.getElementById('leftSidebar');
+            const backdrop = document.getElementById('backdrop');
+            
+            isMobileMenuOpen = !isMobileMenuOpen;
+            
+            if (isMobileMenuOpen) {
+                leftSidebar.classList.add('open');
+                backdrop.classList.add('active');
+            } else {
+                leftSidebar.classList.remove('open');
+                backdrop.classList.remove('active');
+            }
+        }
+        
+        function closeMobileMenu() {
+            const leftSidebar = document.getElementById('leftSidebar');
+            const backdrop = document.getElementById('backdrop');
+            
+            isMobileMenuOpen = false;
+            leftSidebar.classList.remove('open');
+            backdrop.classList.remove('active');
+        }
+        
+        // Detect if we're on a mobile device
+        function isMobileDevice() {
+            return window.innerWidth <= 768 || 
+                   ('ontouchstart' in window) || 
+                   (navigator.maxTouchPoints > 0);
+        }
+        
+        // Touch gesture detection
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let touchEndX = 0;
+        let touchEndY = 0;
+        const minSwipeDistance = 50;
+        
+        function initTouchGestures() {
+            const programOutput = document.getElementById('programOutput');
+            if (!programOutput) return;
+            
+            programOutput.addEventListener('touchstart', (e) => {
+                touchStartX = e.changedTouches[0].screenX;
+                touchStartY = e.changedTouches[0].screenY;
+            }, { passive: true });
+            
+            programOutput.addEventListener('touchend', (e) => {
+                touchEndX = e.changedTouches[0].screenX;
+                touchEndY = e.changedTouches[0].screenY;
+                handleSwipe();
+            }, { passive: true });
+        }
+        
+        function handleSwipe() {
+            const deltaX = touchEndX - touchStartX;
+            const deltaY = touchEndY - touchStartY;
+            
+            // Check if horizontal swipe is dominant
+            if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > minSwipeDistance) {
+                if (deltaX > 0) {
+                    // Swipe right - go to previous scene
+                    navigateScene(-1);
+                } else {
+                    // Swipe left - go to next scene
+                    navigateScene(1);
+                }
+            }
+        }
+        
+        function navigateScene(direction) {
+            if (!scenes || scenes.length === 0) return;
+            
+            // Find current scene index
+            let currentIndex = scenes.findIndex(s => s.id === currentPreviewScene || s.id === currentProgramScene);
+            if (currentIndex === -1) currentIndex = 0;
+            
+            // Calculate new index with wrapping
+            let newIndex = (currentIndex + direction + scenes.length) % scenes.length;
+            
+            // Apply the new scene
+            const newScene = scenes[newIndex];
+            if (newScene) {
+                applyToPreview(newScene.id);
+                showToast(`Scene: ${newScene.label}`, 'info', 2000);
+            }
+        }
+
+        // Preload HLS manifests for faster stream startup
+        async function preloadHLSManifests() {
+            // Fetch camera status to only preload enabled cameras
+            let enabledStreams = [];
+            try {
+                const response = await fetch('/api/ingest/status');
+                const data = await response.json();
+                enabledStreams = Object.entries(data.cameras)
+                    .filter(([camId, status]) => status.status !== 'idle' && status.has_signal)
+                    .map(([camId]) => camId);
+                console.log('Preloading HLS manifests for enabled cameras:', enabledStreams);
+            } catch (e) {
+                console.error('Failed to fetch camera status for preload:', e);
+                enabledStreams = ['cam1', 'cam2']; // Fallback to known enabled cameras
+            }
+
+            enabledStreams.forEach(stream => {
+                const url = getHLSUrl(stream);
+                // Fetch manifest to prime browser cache
+                fetch(url, { mode: 'cors' })
+                    .then(response => {
+                        if (response.ok) {
+                            console.log(`✓ Preloaded manifest for ${stream}`);
+                        }
+                    })
+                    .catch(e => console.debug(`Preload failed for ${stream}:`, e.message));
+            });
+        }
+        
+        // Update signal indicators periodically
+        async function updateSignalIndicators() {
+            try {
+                const response = await fetch('/api/ingest/status');
+                const data = await response.json();
+                
+                for (const [camId, camData] of Object.entries(data.cameras)) {
+                    const indicator = document.getElementById(`signal-indicator-${camId}`);
+                    if (!indicator) continue;
+                    
+                    indicator.classList.remove('signal-live', 'signal-none', 'signal-disabled');
+                    
+                    const isEnabled = camData.status !== 'idle';  // idle = disabled
+                    const hasSignal = camData.has_signal === true;
+                    
+                    if (!isEnabled) {
+                        indicator.classList.add('signal-disabled');
+                        indicator.title = 'Camera disabled in config';
+                    } else if (hasSignal && camData.status === 'streaming') {
+                        indicator.classList.add('signal-live');
+                        indicator.title = `Signal: ${camData.resolution?.formatted || 'OK'}`;
+                    } else if (camData.status === 'no_signal' || !hasSignal) {
+                        indicator.classList.add('signal-none');
+                        indicator.title = 'No HDMI signal';
+                    } else {
+                        indicator.title = 'Idle';
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to update signal indicators:', error);
+            }
+        }
 
         // Initialize
         async function init() {
+            // Start preloading manifests immediately (in background)
+            await preloadHLSManifests();
+
             await loadScenes();
             await checkMixerStatus();
-            initCompactInputs();
+            await initCompactInputs();  // Now async
             initAudioChannels();
             initEventListeners();
             initKeyboardShortcuts();
             initDragAndDrop();
+            
+            // Start signal indicator polling
+            setInterval(updateSignalIndicators, 3000);
+            updateSignalIndicators(); // Initial call
+            initTouchGestures();
             startStatusPolling();
             loadQueue();
             loadFiles();
@@ -1439,6 +2242,12 @@
                     openPanel('audioPanel');
                 }
                 
+                // R to refresh streams
+                if (e.key === 'r' || e.key === 'R') {
+                    e.preventDefault();
+                    resetAllStreams();
+                }
+                
                 // Escape to close panels
                 if (e.key === 'Escape') {
                     closePanel();
@@ -1448,12 +2257,38 @@
 
         // Event Listeners
         function initEventListeners() {
-            // Panel buttons
+            // Hamburger menu
+            document.getElementById('hamburgerBtn')?.addEventListener('click', toggleMobileMenu);
+            
+            // Bottom navigation buttons
+            document.getElementById('bottomQueueBtn')?.addEventListener('click', () => {
+                closeMobileMenu();
+                openPanel('queuePanel');
+            });
+            document.getElementById('bottomMediaBtn')?.addEventListener('click', () => {
+                closeMobileMenu();
+                openPanel('mediaPanel');
+            });
+            document.getElementById('bottomGraphicsBtn')?.addEventListener('click', () => {
+                closeMobileMenu();
+                openPanel('graphicsPanel');
+            });
+            document.getElementById('bottomSettingsBtn')?.addEventListener('click', () => {
+                closeMobileMenu();
+                openPanel('settingsPanel');
+            });
+            document.getElementById('bottomTakeBtn')?.addEventListener('click', () => {
+                closeMobileMenu();
+                takePreview();
+            });
+            
+            // Panel buttons (desktop)
             document.getElementById('queueBtn')?.addEventListener('click', () => openPanel('queuePanel'));
             document.getElementById('mediaBtn')?.addEventListener('click', () => openPanel('mediaPanel'));
             document.getElementById('graphicsBtn')?.addEventListener('click', () => openPanel('graphicsPanel'));
             document.getElementById('audioBtn')?.addEventListener('click', () => openPanel('audioPanel'));
             document.getElementById('settingsBtn')?.addEventListener('click', () => openPanel('settingsPanel'));
+            document.getElementById('refreshBtn')?.addEventListener('click', resetAllStreams);
             
             // Scene editor buttons
             document.getElementById('newSceneBtn')?.addEventListener('click', () => {
@@ -1468,13 +2303,21 @@
                 document.getElementById('cancelSceneBtn').style.display = 'none';
             });
             
-            // Backdrop closes panel
-            document.getElementById('backdrop')?.addEventListener('click', closePanel);
+            // Backdrop closes panel or mobile menu
+            document.getElementById('backdrop')?.addEventListener('click', () => {
+                if (isMobileMenuOpen) {
+                    closeMobileMenu();
+                } else {
+                    closePanel();
+                }
+            });
             
             // System controls
             document.getElementById('startBtn')?.addEventListener('click', startMixer);
             document.getElementById('stopBtn')?.addEventListener('click', stopMixer);
-            document.getElementById('takeButton')?.addEventListener('click', takePreview);
+            document.getElementById('takeButton')?.addEventListener('click', () => {
+                performTransition(currentTransitionType);
+            });
             
             // Transition buttons
             document.getElementById('cutBtn')?.addEventListener('click', () => performTransition('cut'));
@@ -1550,7 +2393,7 @@
                 btn.dataset.dragType = 'scene';
                 btn.dataset.dragData = JSON.stringify({ type: 'scene', sceneId: scene.id, label: scene.label || scene.id });
                 btn.textContent = scene.label || scene.id;
-                btn.addEventListener('click', () => applyToPreview(scene.id));
+                btn.addEventListener('click', () => selectSceneForPreview(scene.id));
                 btn.addEventListener('dblclick', () => applyToProgram(scene.id));
                 btn.addEventListener('dragstart', handleDragStart);
                 btn.addEventListener('dragend', handleDragEnd);
@@ -1559,92 +2402,474 @@
             updateSceneButtons();
         }
 
-        // Update scene button states
+        // Update scene button states (REFACTORED for proper A/B bus)
         function updateSceneButtons() {
             document.querySelectorAll('.scene-button-large').forEach(btn => {
                 btn.classList.remove('active', 'preview');
-                if (btn.dataset.sceneId === currentProgramScene) {
+                
+                const sceneId = btn.dataset.sceneId;
+                const isInProgram = sceneId === programSceneId;
+                const isInPreview = sceneId === previewSceneId;
+                
+                // Red border if in program (live)
+                if (isInProgram) {
                     btn.classList.add('active');
-                } else if (btn.dataset.sceneId === currentPreviewScene) {
+                }
+                
+                // Green border if in preview (queued)
+                if (isInPreview) {
                     btn.classList.add('preview');
                 }
+                
+                // If same scene is in both preview and program, show both styles
+                // (CSS will handle this with both classes applied)
             });
         }
 
-        // Apply scene to preview
-        async function applyToPreview(sceneId) {
+        // Select scene for preview (NEW - does NOT apply to mixer)
+        // Debounce/lock for scene selection to prevent race conditions
+        let sceneSelectionLock = false;
+        let pendingSceneId = null;
+        
+        async function selectSceneForPreview(sceneId) {
+            // If same scene, ignore
+            if (sceneId === previewSceneId) {
+                return;
+            }
+            
+            // If currently loading, queue this scene and return
+            if (sceneSelectionLock) {
+                pendingSceneId = sceneId;
+                console.log(`Scene ${sceneId} queued (previous still loading)`);
+                return;
+            }
+            
+            sceneSelectionLock = true;
+            
             try {
+                // Cleanup previous preview before loading new one
+                cleanupPreviewComposite();
+                
+                // Fetch full scene definition
+                const response = await fetch(`${API_BASE}/api/scenes/${sceneId}`);
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch scene: ${response.status}`);
+                }
+                
+                const sceneData = await response.json();
+                
+                // Update preview state
+                previewSceneId = sceneId;
+                previewSceneData = sceneData;
+                
+                // Update legacy state for compatibility
+                currentPreviewScene = sceneId;
+                
+                // Render the scene in preview using CSS composite
+                await renderPreviewComposite(sceneData);
+                
+                // Update UI
+                updateSceneButtons();
+                updateTakeButtonState();
+                
+                console.log(`Scene ${sceneId} loaded in preview (not applied to mixer yet)`);
+            } catch (error) {
+                console.error('Failed to select scene for preview:', error);
+                showError('Failed to load scene: ' + error.message);
+            } finally {
+                sceneSelectionLock = false;
+                
+                // Process queued scene if any
+                if (pendingSceneId && pendingSceneId !== sceneId) {
+                    const nextScene = pendingSceneId;
+                    pendingSceneId = null;
+                    selectSceneForPreview(nextScene);
+                }
+            }
+        }
+
+        // DEPRECATED: Legacy function - do not use
+        // This function previously applied scenes directly to mixer
+        // Use selectSceneForPreview() instead for preview-only selection
+        async function applyToPreview(sceneId) {
+            console.warn('applyToPreview is deprecated, use selectSceneForPreview instead');
+            await selectSceneForPreview(sceneId);
+        }
+
+        // Render preview composite using CSS-positioned camera feeds
+        async function renderPreviewComposite(scene) {
+            const container = document.getElementById('previewOutput');
+            if (!container) return;
+            
+            // Remove existing preview video and composite
+            const oldVideo = container.querySelector('#previewVideo');
+            const oldComposite = container.querySelector('.preview-composite');
+            if (oldVideo) oldVideo.style.display = 'none';
+            if (oldComposite) oldComposite.remove();
+            
+            // Hide placeholder
+            const placeholder = document.getElementById('previewPlaceholder');
+            if (placeholder) placeholder.style.display = 'none';
+            
+            // Create composite container
+            const composite = document.createElement('div');
+            composite.className = 'preview-composite';
+            
+            // Sort slots by z-order
+            const sortedSlots = [...scene.slots].sort((a, b) => a.z - b.z);
+            
+            // Create video element for each slot (synchronously first, then load streams)
+            const loadPromises = [];
+            for (const slot of sortedSlots) {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'preview-slot';
+                wrapper.style.cssText = `
+                    left: ${slot.x_rel * 100}%;
+                    top: ${slot.y_rel * 100}%;
+                    width: ${slot.w_rel * 100}%;
+                    height: ${slot.h_rel * 100}%;
+                    z-index: ${slot.z};
+                    opacity: ${slot.alpha};
+                `;
+                
+                // Create video element for this slot
+                const video = document.createElement('video');
+                video.className = 'preview-slot-video';
+                video.autoplay = true;
+                video.muted = true;
+                video.playsInline = true;
+                
+                // Try to reuse existing stream from compact inputs (INSTANT scene changes!)
+                const existingInput = document.querySelector(`[data-camera-id="${slot.source}"] video, [data-guest-id="${slot.source}"] video`);
+                
+                // Check if video is actually playing (works for both WebRTC and HLS)
+                const isPlaying = existingInput && !existingInput.paused && existingInput.readyState >= 2;
+                
+                if (isPlaying) {
+                    try {
+                        // Use captureStream() to clone the video output
+                        // This works for BOTH WebRTC (srcObject) and HLS (no srcObject)
+                        if (existingInput.srcObject) {
+                            // WebRTC: reuse MediaStream directly
+                            video.srcObject = existingInput.srcObject;
+                        } else if (existingInput.captureStream) {
+                            // HLS: capture the video output as a new MediaStream
+                            video.srcObject = existingInput.captureStream();
+                        } else if (existingInput.mozCaptureStream) {
+                            // Firefox fallback
+                            video.srcObject = existingInput.mozCaptureStream();
+                        }
+                        video.play().catch(e => console.debug('Autoplay blocked:', e));
+                        console.log(`✓ Reused stream for ${slot.source} (instant)`);
+                    } catch (e) {
+                        console.warn(`Failed to capture stream for ${slot.source}:`, e);
+                        // Fallback to loading new stream
+                        const instanceId = `preview-${slot.source}`;
+                        loadPromises.push(loadStreamForPreviewSlot(video, slot.source, instanceId));
+                    }
+                } else {
+                    // Only load new stream if we don't have it already
+                    console.log(`Loading new stream for ${slot.source} (no existing source)`);
+                    const instanceId = `preview-${slot.source}`;
+                    loadPromises.push(loadStreamForPreviewSlot(video, slot.source, instanceId));
+                }
+                
+                wrapper.appendChild(video);
+                composite.appendChild(wrapper);
+            }
+            
+            // Add composite to container immediately (don't wait for streams)
+            container.appendChild(composite);
+            
+            // Load any missing streams in parallel
+            if (loadPromises.length > 0) {
+                Promise.all(loadPromises).catch(e => console.warn('Some preview streams failed to load:', e));
+            }
+            
+            console.log(`Preview composite rendered with ${scene.slots.length} slots (${sortedSlots.length - loadPromises.length} reused, ${loadPromises.length} new)`);
+        }
+
+        // Load stream for a preview slot
+        async function loadStreamForPreviewSlot(video, source, instanceId) {
+            // Use the same loading logic as compact inputs
+            const streamPath = source; // e.g., "cam0", "cam1", etc.
+            
+            // Store instance for cleanup
+            previewVideoInstances[instanceId] = { video, source };
+            
+            try {
+                // Load via WebRTC or HLS depending on mode
+                await loadStreamWithWebRTC(video, streamPath, instanceId);
+            } catch (error) {
+                console.warn(`Failed to load preview stream for ${source}:`, error);
+                // Show placeholder for missing stream
+                video.style.background = '#1a1a1a';
+            }
+        }
+
+        // Clean up preview composite
+        function cleanupPreviewComposite() {
+            // Cleanup all preview video instances
+            Object.keys(previewVideoInstances).forEach(id => {
+                if (webrtcClients[id]) {
+                    cleanupWebRTCClient(id);
+                }
+                if (hlsInstances[id]) {
+                    if (hlsInstances[id].destroy) {
+                        hlsInstances[id].destroy();
+                    }
+                    delete hlsInstances[id];
+                }
+            });
+            previewVideoInstances = {};
+            
+            // Remove composite from DOM
+            const composite = document.querySelector('.preview-composite');
+            if (composite) composite.remove();
+            
+            // Show preview video element again
+            const previewVideo = document.getElementById('previewVideo');
+            if (previewVideo) previewVideo.style.display = 'block';
+            
+            // Show placeholder when no scene is loaded
+            const placeholder = document.getElementById('previewPlaceholder');
+            if (placeholder) placeholder.style.display = 'flex';
+        }
+
+        // Apply scene directly to program (direct cut, bypasses preview)
+        async function applyToProgram(sceneId) {
+            try {
+                // Show loading indicator
+                showToast('Cutting to scene...', 'info', 0); // 0 = persistent until dismissed
+                
+                // Apply directly to mixer without going through preview
                 const response = await fetch(`${API_BASE}/api/mixer/set_scene`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ id: sceneId })
                 });
+                
                 if (response.ok) {
-                    currentPreviewScene = sceneId;
-                    updateSceneButtons();
-                    await fetchSceneDetails(sceneId);
-                    await checkMixerStatus();
-                }
-            } catch (error) {
-                console.error('Failed to apply scene to preview:', error);
-            }
-        }
-
-        // Apply scene directly to program (cut)
-        async function applyToProgram(sceneId) {
-            try {
-                await applyToPreview(sceneId);
-                await takePreview();
-            } catch (error) {
-                console.error('Failed to apply scene to program:', error);
-            }
-        }
-
-        // Take preview to program
-        async function takePreview() {
-            if (!currentPreviewScene) return;
-            try {
-                // Apply preview scene to program
-                const response = await fetch(`${API_BASE}/api/mixer/set_scene`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id: currentPreviewScene })
-                });
-                if (response.ok) {
-                    currentProgramScene = currentPreviewScene;
+                    // Update program state
+                    programSceneId = sceneId;
+                    currentProgramScene = sceneId; // Legacy compatibility
+                    
+                    // Update UI
                     updateSceneButtons();
                     updateTallyLights();
                     await checkMixerStatus();
+                    
+                    console.log(`Direct CUT: Scene ${sceneId} applied to program`);
+                    showToast(`Scene ${sceneId} applied (direct cut)`, 'success', 2000);
+                } else {
+                    const data = await response.json().catch(() => ({}));
+                    showError(data.detail || 'Failed to apply scene');
                 }
             } catch (error) {
-                console.error('Failed to take preview:', error);
+                console.error('Failed to apply scene to program:', error);
+                showError('Failed to apply scene: ' + error.message);
             }
         }
 
+        // Take preview to program (REFACTORED - proper A/B bus transition)
+        async function takePreview() {
+            if (!previewSceneId) {
+                showToast('No scene in preview', 'warning', 2000);
+                return;
+            }
+            
+            // Check mixer is running
+            if (mixerState !== 'PLAYING') {
+                showToast('Start mixer first', 'warning', 2000);
+                return;
+            }
+            
+            try {
+                // Show loading indicator
+                showToast('Transitioning to program...', 'info', 0); // 0 = persistent until dismissed
+                
+                // Apply preview scene to the mixer (this makes it live)
+                const response = await fetch(`${API_BASE}/api/mixer/set_scene`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: previewSceneId })
+                });
+                
+                if (response.ok) {
+                    // Update program state
+                    programSceneId = previewSceneId;
+                    currentProgramScene = previewSceneId; // Legacy compatibility
+                    
+                    // CRITICAL FIX: Clear preview state
+                    previewSceneId = null;
+                    previewSceneData = null;
+                    cleanupPreviewComposite();
+                    
+                    // Wait for scene change to complete before reloading program video
+                    // Scene changes may rebuild pipeline, so add buffer time
+                    setTimeout(() => {
+                        forceLoadProgramVideo();
+                        showToast(`Scene is now live`, 'success', 2000);
+                    }, 1500); // 1.5s buffer for pipeline rebuild
+                    
+                    // Update UI
+                    updateSceneButtons();
+                    updateTallyLights();
+                    updateTakeButtonState();
+                    
+                    console.log(`TAKE: Scene ${programSceneId} is now live in program`);
+                } else {
+                    const data = await response.json().catch(() => ({}));
+                    showError(data.detail || 'Failed to apply scene to program');
+                }
+            } catch (error) {
+                console.error('Failed to take preview:', error);
+                showError('Failed to take: ' + error.message);
+            }
+        }
+        
+        function forceLoadProgramVideo() {
+            const video = document.getElementById('programVideo');
+            const placeholder = document.getElementById('programPlaceholder');
+            
+            if (!video || !placeholder) return;
+            
+            // Cleanup existing connection
+            if (hlsInstances['program']) {
+                hlsInstances['program'].destroy();
+                delete hlsInstances['program'];
+            }
+            if (webrtcClients['program']) {
+                cleanupWebRTCClient('program');
+            }
+            
+            // Force reload
+            placeholder.style.display = 'none';
+            loadStreamWithWebRTC(video, 'mixer_program', 'program');
+        }
+
         // Initialize compact inputs
-        function initCompactInputs() {
+        async function initCompactInputs() {
             const grid = document.getElementById('compactInputGrid');
             if (!grid) return;
             grid.innerHTML = '';
 
+            // Fetch camera status FIRST to determine which cameras to connect
+            let cameraStatus = {};
+            try {
+                const response = await fetch('/api/ingest/status');
+                const data = await response.json();
+                cameraStatus = data.cameras || {};
+                console.log('Camera status fetched:', cameraStatus);
+            } catch (e) {
+                console.error('Failed to fetch camera status:', e);
+            }
+
+            // Camera inputs (cam0-cam3)
             for (let i = 0; i < 4; i++) {
+                const camId = `cam${i}`;
+                const status = cameraStatus[camId];
+                const isEnabled = status && status.status !== 'idle';  // idle = disabled in config
+                const hasSignal = status?.has_signal === true;
+                
                 const input = document.createElement('div');
                 input.className = 'compact-input';
-                input.dataset.cameraId = `cam${i}`;
+                input.dataset.cameraId = camId;
                 input.innerHTML = `
+                    <span class="compact-signal-indicator" id="signal-indicator-${camId}"></span>
                     <video id="compact-input-${i}-video" muted playsinline></video>
                     <div class="compact-input-label">Input ${i + 1}</div>
+                    <div class="compact-input-status" id="compact-input-${i}-status"></div>
                 `;
                 input.addEventListener('click', () => selectInput(i));
                 grid.appendChild(input);
-                
-                // Load preview stream
-                const video = input.querySelector('video');
-                if (video) {
-                    const hlsUrl = getHLSUrl(`cam${i}`);
-                    loadHLS(video, hlsUrl, `compact-input-${i}`);
+
+                // Update signal indicator
+                const indicator = document.getElementById(`signal-indicator-${camId}`);
+                if (indicator) {
+                    if (!isEnabled) {
+                        indicator.classList.add('signal-disabled');
+                        indicator.title = 'Camera disabled in config';
+                    } else if (hasSignal) {
+                        indicator.classList.add('signal-live');
+                        indicator.title = `Signal: ${status.resolution?.formatted || 'OK'}`;
+                    } else {
+                        indicator.classList.add('signal-none');
+                        indicator.title = 'No HDMI signal';
+                    }
                 }
+
+                // Only connect stream if camera is enabled AND has signal
+                const video = input.querySelector('video');
+                if (isEnabled && hasSignal && video) {
+                    console.log(`Connecting ${camId}: enabled and has signal`);
+                    loadStreamWithWebRTC(video, camId, `compact-input-${i}`);
+                } else if (!isEnabled) {
+                    console.log(`Skipping ${camId}: disabled in config`);
+                    updateStreamStatus(`compact-input-${i}`, 'unsupported');
+                    const statusEl = document.getElementById(`compact-input-${i}-status`);
+                    if (statusEl) statusEl.textContent = 'Disabled';
+                } else {
+                    console.log(`Skipping ${camId}: no signal`);
+                    updateStreamStatus(`compact-input-${i}`, 'disconnected');
+                    const statusEl = document.getElementById(`compact-input-${i}-status`);
+                    if (statusEl) statusEl.textContent = 'No Signal';
+                }
+                
+                // Add click-to-retry for failed/disconnected streams
+                input.addEventListener('click', (e) => {
+                    const statusEl = document.getElementById(`compact-input-${i}-status`);
+                    if (statusEl && (statusEl.classList.contains('status-failed') || statusEl.classList.contains('status-error'))) {
+                        console.log(`Manual retry for ${camId}`);
+                        // Reset retry state
+                        if (hlsRetryState[`compact-input-${i}`]) {
+                            hlsRetryState[`compact-input-${i}`].retries = 0;
+                        }
+                        if (video) {
+                            loadStreamWithWebRTC(video, camId, `compact-input-${i}`);
+                        }
+                    }
+                });
             }
+            
+            // Guest inputs (guest1, guest2)
+            const guests = ['guest1', 'guest2'];
+            guests.forEach((guestId, idx) => {
+                const inputNum = 4 + idx + 1; // Input 5, 6
+                const input = document.createElement('div');
+                input.className = 'compact-input guest-input';
+                input.dataset.guestId = guestId;
+                input.dataset.source = guestId; // For stream reuse
+                input.innerHTML = `
+                    <video id="${guestId}-video" muted playsinline></video>
+                    <div class="compact-input-label">${guestId.replace('guest', 'Guest ')}</div>
+                    <div class="compact-input-status" id="${guestId}-status">Click to connect</div>
+                `;
+                
+                // Load guest stream on click (lazy loading to save resources)
+                input.addEventListener('click', () => {
+                    const video = input.querySelector('video');
+                    const statusEl = document.getElementById(`${guestId}-status`);
+                    
+                    // Only load if not already loaded
+                    if (!video.srcObject && !hlsInstances[guestId]) {
+                        statusEl.textContent = 'Connecting...';
+                        loadStreamWithWebRTC(video, guestId, guestId);
+                    }
+                    
+                    selectGuestInput(guestId);
+                });
+                
+                grid.appendChild(input);
+                
+                // Don't auto-load guest streams - they're loaded on-demand when clicked
+            });
+        }
+        
+        // Select guest input
+        function selectGuestInput(guestId) {
+            console.log('Selected guest input:', guestId);
+            // Could be used for assignment to scene slots
         }
 
         // Load preview stream
@@ -1666,15 +2891,16 @@
             
             previewOverlays.innerHTML = '';
             currentSceneDetails.slots.forEach((slot, index) => {
+                const coords = getSlotCoords(slot);
                 const box = document.createElement('div');
                 box.className = `box-overlay box-${index + 1}`;
                 if (slot.source) {
                     box.classList.add('has-input');
                 }
-                box.style.left = `${slot.x * 100}%`;
-                box.style.top = `${slot.y * 100}%`;
-                box.style.width = `${slot.w * 100}%`;
-                box.style.height = `${slot.h * 100}%`;
+                box.style.left = `${coords.x * 100}%`;
+                box.style.top = `${coords.y * 100}%`;
+                box.style.width = `${coords.w * 100}%`;
+                box.style.height = `${coords.h * 100}%`;
                 
                 const number = document.createElement('div');
                 number.className = 'box-number';
@@ -1693,16 +2919,26 @@
         }
 
         // Update tally lights
+        // Update tally lights (REFACTORED for proper A/B bus)
         function updateTallyLights() {
             document.querySelectorAll('.compact-input').forEach(input => {
                 input.classList.remove('tally-pgm', 'tally-pvw');
                 const camId = input.dataset.cameraId;
-                // Check if this camera is in the current program scene
+                
+                // Check if camera is in preview scene
+                if (previewSceneData && previewSceneData.slots) {
+                    const isInPreview = previewSceneData.slots.some(slot => slot.source === camId);
+                    if (isInPreview) {
+                        input.classList.add('tally-pvw'); // Green tally
+                    }
+                }
+                
+                // Check if camera is in program scene (overrides preview if both)
                 if (currentSceneDetails && currentSceneDetails.slots) {
                     const isInProgram = currentSceneDetails.slots.some(slot => slot.source === camId);
-                    if (isInProgram && currentProgramScene) {
-                        input.classList.add('tally-pgm');
-            }
+                    if (isInProgram && programSceneId) {
+                        input.classList.add('tally-pgm'); // Red tally (higher priority)
+                    }
                 }
             });
         }
@@ -1774,59 +3010,109 @@
             }
         }
 
-        // Update status
+        // Update status (REFACTORED to track program scene)
         function updateStatus(data) {
             mixerState = data.state || 'NULL';
             currentScene = data.current_scene || null;
-
-            const dots = document.querySelectorAll('.status-dot');
-            const texts = document.querySelectorAll('#statusText, #statusTextRight');
             
-            dots.forEach(dot => {
-            dot.className = 'status-dot';
-            if (data.state === 'PLAYING' && data.health === 'healthy') {
-                dot.classList.add('active');
-                } else if (data.state === 'DISABLED' || data.health === 'unhealthy') {
+            // Update program scene from mixer (what's actually live)
+            if (data.current_scene) {
+                programSceneId = data.current_scene;
+                currentProgramScene = data.current_scene; // Legacy compatibility
+                
+                // Fetch scene details for tally lights
+                fetchSceneDetails(data.current_scene);
+            }
+
+            // Update all status dots
+            const statusDot = document.getElementById('statusDot');
+            const statusDotRight = document.getElementById('statusDotRight');
+            const statusDotMobile = document.getElementById('statusDotMobile');
+            const healthDot = document.getElementById('healthDot');
+            
+            [statusDot, statusDotRight, statusDotMobile].forEach(dot => {
+                if (!dot) return;
+                dot.className = 'status-dot';
+                if (data.state === 'PLAYING') {
+                    dot.classList.add('active');
+                } else if (data.state === 'DISABLED' || data.last_error) {
                     dot.classList.add('error');
                 }
             });
             
-            texts.forEach(text => {
-                if (data.state === 'PLAYING' && data.health === 'healthy') {
-                text.textContent = 'PLAYING';
-            } else if (data.state === 'NULL') {
-                text.textContent = 'STOPPED';
-            } else if (data.state === 'DISABLED') {
-                text.textContent = 'DISABLED';
-            } else {
-                text.textContent = 'ERROR';
+            // Update health dot separately
+            if (healthDot) {
+                healthDot.className = 'status-dot';
+                if (data.health === 'healthy') {
+                    healthDot.classList.add('active');
+                } else if (data.health === 'unhealthy') {
+                    healthDot.classList.add('error');
+                }
+            }
+            
+            // Update text labels
+            const statusText = document.getElementById('statusText');
+            const statusTextRight = document.getElementById('statusTextRight');
+            const healthText = document.getElementById('healthText');
+            
+            [statusText, statusTextRight].forEach(text => {
+                if (!text) return;
+                if (data.state === 'PLAYING') {
+                    text.textContent = 'PLAYING';
+                } else if (data.state === 'NULL') {
+                    text.textContent = 'STOPPED';
+                } else if (data.state === 'DISABLED') {
+                    text.textContent = 'DISABLED';
+                } else {
+                    text.textContent = data.state || 'UNKNOWN';
                 }
             });
+            
+            if (healthText) {
+                healthText.textContent = data.health === 'healthy' ? 'HEALTHY' : 'UNHEALTHY';
+            }
 
+            // Update program output
             if (data.state === 'PLAYING' && data.mediamtx_enabled) {
                 updateProgramOutput(data);
+                document.getElementById('programPlaceholder')?.style.setProperty('display', 'none');
             } else {
                 clearOutputs();
             }
 
             updateSceneButtons();
+            updateTakeButtonState();
             
+            // Update current scene if changed
             if (currentScene && currentScene !== currentProgramScene) {
                 fetchSceneDetails(currentScene);
                 currentProgramScene = currentScene;
-                }
+            }
+            
+            // Update button states based on mixer state
+            const startBtn = document.getElementById('startBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            if (startBtn && stopBtn) {
+                startBtn.disabled = data.state === 'PLAYING';
+                stopBtn.disabled = data.state !== 'PLAYING';
+                startBtn.style.opacity = data.state === 'PLAYING' ? '0.5' : '1';
+                stopBtn.style.opacity = data.state !== 'PLAYING' ? '0.5' : '1';
+            }
         }
 
         // Update program output
         function updateProgramOutput(data) {
             if (data.state === 'PLAYING' && data.mediamtx_enabled) {
-                const hlsUrl = getHLSUrl('mixer_program');
                 const video = document.getElementById('programVideo');
                 const placeholder = document.getElementById('programPlaceholder');
                 
                 if (video && placeholder) {
-                    placeholder.style.display = 'none';
-                    loadHLS(video, hlsUrl, 'program');
+                    // Only load if not already loaded (check both WebRTC and HLS)
+                    const isLoaded = webrtcClients['program'] || hlsInstances['program'];
+                    if (!isLoaded) {
+                        placeholder.style.display = 'none';
+                        loadStreamWithWebRTC(video, 'mixer_program', 'program');
+                    }
                 }
                 
                 // Also update preview if we have a preview scene
@@ -1835,6 +3121,36 @@
                 }
             }
         }
+        
+        // Reset stream connections (useful for manual refresh)
+        function resetAllStreams() {
+            showToast('Refreshing streams...', 'info', 2000);
+            
+            // Cleanup WebRTC clients
+            cleanupAllWebRTCClients();
+            
+            // Clear all HLS instances
+            Object.keys(hlsInstances).forEach(id => {
+                if (hlsInstances[id] && hlsInstances[id].destroy) {
+                    hlsInstances[id].destroy();
+                }
+                delete hlsInstances[id];
+            });
+            
+            // Clear retry state
+            Object.keys(hlsRetryState).forEach(id => {
+                if (hlsRetryState[id].timeout) {
+                    clearTimeout(hlsRetryState[id].timeout);
+                }
+                delete hlsRetryState[id];
+            });
+            
+            // Reinitialize inputs
+            initCompactInputs();
+            
+            // Reload program output if mixer is playing
+            checkMixerStatus();
+        }
 
         // Clear outputs
         function clearOutputs() {
@@ -1842,19 +3158,373 @@
             placeholders.forEach(p => p.style.display = 'flex');
         }
 
-        // Load HLS stream
+        // HLS reconnection state
+        const hlsRetryState = {};
+        const HLS_MAX_RETRIES = 3; // Reduced from 5 to avoid hammering server
+        const HLS_RETRY_DELAY_BASE = 5000; // Increased from 2s to 5s base delay
+        const HLS_MAX_RETRY_DELAY = 60000; // Cap at 60 seconds
+        
+        // Load HLS stream with robust error handling and reconnection
         function loadHLS(video, url, id) {
+            // Initialize retry state
+            if (!hlsRetryState[id]) {
+                hlsRetryState[id] = { retries: 0, timeout: null };
+            }
+            
+            // Update status indicator
+            updateStreamStatus(id, 'connecting');
+            
             if (Hls.isSupported()) {
                 if (hlsInstances[id]) {
                     hlsInstances[id].destroy();
                 }
-                const hls = new Hls();
+                
+                // Configure HLS.js for remote/high-latency connections
+                const hlsConfig = IS_REMOTE ? {
+                    // Remote access - FAST STARTUP optimized
+                    manifestLoadingTimeOut: 15000,      // Reduced from 30s
+                    manifestLoadingMaxRetry: 3,         // Fewer retries for faster failure
+                    levelLoadingTimeOut: 15000,         // Reduced from 30s
+                    levelLoadingMaxRetry: 3,
+                    fragLoadingTimeOut: 20000,          // Reduced from 60s
+                    fragLoadingMaxRetry: 3,
+                    enableWorker: true,
+                    lowLatencyMode: true,               // Enable LL-HLS for faster startup!
+                    backBufferLength: 10,               // Reduced from 60s - less buffering needed
+                    maxBufferLength: 15,                // Reduced from 60s - start playing sooner
+                    maxMaxBufferLength: 30,             // Reduced from 120s
+                    liveSyncDurationCount: 2,           // Reduced from 4 - start 2 segments behind live
+                    liveMaxLatencyDurationCount: 6,     // Reduced from 10
+                    startLevel: -1,                     // Auto quality selection
+                    debug: false,
+                } : {
+                    // Local access - ultra low latency
+                    manifestLoadingTimeOut: 5000,
+                    manifestLoadingMaxRetry: 2,
+                    levelLoadingTimeOut: 5000,
+                    fragLoadingTimeOut: 10000,
+                    enableWorker: true,
+                    lowLatencyMode: true,
+                    backBufferLength: 5,
+                    maxBufferLength: 10,
+                    liveSyncDurationCount: 1,           // Start 1 segment behind live
+                    debug: false,
+                };
+                
+                const hls = new Hls(hlsConfig);
+                
                 hls.loadSource(url);
-                        hls.attachMedia(video);
+                hls.attachMedia(video);
                 hlsInstances[id] = hls;
-                    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                
+                // Handle successful load
+                hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                    hlsRetryState[id].retries = 0;
+                    updateStreamStatus(id, 'connected');
+                    video.play().catch(e => console.debug('Autoplay blocked:', e));
+                });
+                
+                // Handle media attached
+                hls.on(Hls.Events.MEDIA_ATTACHED, () => {
+                    console.debug(`HLS media attached: ${id}`);
+                });
+                
+                // Handle fragment loaded
+                hls.on(Hls.Events.FRAG_LOADED, () => {
+                    hlsRetryState[id].retries = 0;
+                    updateStreamStatus(id, 'connected');
+                });
+                
+                // Handle errors with reconnection logic
+                hls.on(Hls.Events.ERROR, (event, data) => {
+                    console.warn(`HLS error on ${id}:`, data.type, data.details);
+                    
+                    if (data.fatal) {
+                        updateStreamStatus(id, 'error');
+                        
+                        switch (data.type) {
+                            case Hls.ErrorTypes.NETWORK_ERROR:
+                                console.warn(`HLS network error on ${id}, attempting recovery...`);
+                                scheduleHLSRetry(video, url, id);
+                                break;
+                            case Hls.ErrorTypes.MEDIA_ERROR:
+                                console.warn(`HLS media error on ${id}, attempting recovery...`);
+                                hls.recoverMediaError();
+                                break;
+                            default:
+                                console.error(`HLS fatal error on ${id}, scheduling retry...`);
+                                scheduleHLSRetry(video, url, id);
+                                break;
+                        }
+                    }
+                });
+                
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                // Native HLS support (Safari)
                 video.src = url;
+                video.addEventListener('loadeddata', () => {
+                    updateStreamStatus(id, 'connected');
+                });
+                video.addEventListener('error', () => {
+                    updateStreamStatus(id, 'error');
+                    scheduleHLSRetry(video, url, id);
+                });
+            } else {
+                console.error('HLS not supported on this browser');
+                updateStreamStatus(id, 'unsupported');
             }
+        }
+        
+        // Schedule HLS retry with exponential backoff
+        function scheduleHLSRetry(video, url, id) {
+            const state = hlsRetryState[id];
+            
+            // Clear existing timeout
+            if (state.timeout) {
+                clearTimeout(state.timeout);
+            }
+            
+            // Check max retries
+            if (state.retries >= HLS_MAX_RETRIES) {
+                console.error(`HLS max retries reached for ${id}`);
+                updateStreamStatus(id, 'failed');
+                return;
+            }
+            
+            // Calculate delay with exponential backoff (capped at max)
+            const delay = Math.min(
+                HLS_RETRY_DELAY_BASE * Math.pow(2, state.retries),
+                HLS_MAX_RETRY_DELAY
+            );
+            state.retries++;
+            
+            console.log(`Scheduling HLS retry for ${id} in ${delay}ms (attempt ${state.retries}/${HLS_MAX_RETRIES})`);
+            updateStreamStatus(id, 'reconnecting', state.retries);
+            
+            state.timeout = setTimeout(() => {
+                loadHLS(video, url, id);
+            }, delay);
+        }
+        
+        // Update stream status indicator
+        function updateStreamStatus(id, status, retryCount) {
+            const statusEl = document.getElementById(`${id}-status`);
+            if (!statusEl) return;
+            
+            statusEl.className = 'compact-input-status';
+            
+            switch (status) {
+                case 'connecting':
+                    statusEl.classList.add('status-connecting');
+                    statusEl.textContent = '...';
+                    break;
+                case 'connected':
+                    statusEl.classList.add('status-connected');
+                    statusEl.textContent = '';
+                    statusEl.style.display = 'none';
+                    break;
+                case 'reconnecting':
+                    statusEl.style.display = 'flex';
+                    statusEl.classList.add('status-reconnecting');
+                    statusEl.textContent = `↻ ${retryCount || ''}`;
+                    break;
+                case 'error':
+                    statusEl.style.display = 'flex';
+                    statusEl.classList.add('status-error');
+                    statusEl.textContent = '⚠';
+                    break;
+                case 'failed':
+                    statusEl.style.display = 'flex';
+                    statusEl.classList.add('status-failed');
+                    statusEl.textContent = '✕ Click to retry';
+                    statusEl.style.cursor = 'pointer';
+                    break;
+                case 'disconnected':
+                    statusEl.style.display = 'flex';
+                    statusEl.classList.add('status-disconnected');
+                    statusEl.textContent = 'Not connected';
+                    statusEl.style.opacity = '0.5';
+                    break;
+                case 'unsupported':
+                    statusEl.style.display = 'flex';
+                    statusEl.classList.add('status-unsupported');
+                    statusEl.textContent = '?';
+                    break;
+            }
+        }
+        
+        // ========== WebRTC Stream Management ==========
+        
+        // Get WHEP URL for WebRTC playback
+        function getWHEPUrl(streamPath) {
+            // WebRTC only works for direct access to MediaMTX (not through Cloudflare proxy)
+            // Always use direct connection to port 8889
+            return `http://${HOSTNAME}:8889/${streamPath}/whep`;
+        }
+        
+        // Native WHEP client implementation
+        async function connectWHEP(whepUrl, iceServers) {
+            const pc = new RTCPeerConnection({
+                iceServers: iceServers || [{ urls: 'stun:stun.l.google.com:19302' }]
+            });
+            
+            // Add transceivers for receiving video and audio
+            pc.addTransceiver('video', { direction: 'recvonly' });
+            pc.addTransceiver('audio', { direction: 'recvonly' });
+            
+            // Create offer
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            
+            // Send offer to WHEP endpoint
+            const response = await fetch(whepUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/sdp'
+                },
+                body: offer.sdp
+            });
+            
+            if (!response.ok) {
+                throw new Error(`WHEP endpoint returned ${response.status}: ${response.statusText}`);
+            }
+            
+            // Get answer from server
+            const answerSdp = await response.text();
+            await pc.setRemoteDescription({
+                type: 'answer',
+                sdp: answerSdp
+            });
+            
+            // Create media stream from received tracks
+            const stream = new MediaStream();
+            pc.getReceivers().forEach(receiver => {
+                if (receiver.track) {
+                    stream.addTrack(receiver.track);
+                }
+            });
+            
+            return { pc, stream };
+        }
+        
+        // Load stream with WebRTC (primary) and HLS (fallback)
+        async function loadStreamWithWebRTC(videoElement, streamPath, instanceId) {
+            if (!videoElement) {
+                console.error(`Video element not found for ${instanceId}`);
+                return;
+            }
+
+            updateStreamStatus(instanceId, 'connecting');
+
+            // Add event listener to mark video as active when playing
+            videoElement.addEventListener('playing', () => {
+                const parentInput = videoElement.closest('.compact-input');
+                if (parentInput) {
+                    parentInput.classList.add('has-video');
+                }
+            });
+
+            // Remove has-video class if video stops or errors
+            videoElement.addEventListener('emptied', () => {
+                const parentInput = videoElement.closest('.compact-input');
+                if (parentInput) {
+                    parentInput.classList.remove('has-video');
+                }
+            });
+
+            // Try WebRTC first (only if enabled - disabled for remote access)
+            if (webrtcConfig.enabled) {
+                try {
+                    console.log(`Attempting WebRTC connection for ${streamPath}...`);
+                    const whepUrl = getWHEPUrl(streamPath);
+
+                    // Connect using native WHEP implementation
+                    const { pc, stream } = await connectWHEP(whepUrl, webrtcConfig.iceServers);
+
+                    // Attach stream to video element
+                    videoElement.srcObject = stream;
+
+                    // Store peer connection for cleanup
+                    webrtcClients[instanceId] = {
+                        pc: pc,
+                        stream: stream,
+                        type: 'webrtc',
+                        streamPath: streamPath
+                    };
+
+                    // Wait for video to start playing
+                    await videoElement.play().catch(e => console.debug('Autoplay blocked:', e));
+
+                    updateStreamStatus(instanceId, 'connected');
+                    console.log(`✓ WebRTC connected for ${streamPath} (${instanceId})`);
+                    return true;
+                    
+                } catch (error) {
+                    console.warn(`WebRTC failed for ${streamPath}:`, error.message);
+                    
+                    // Cleanup failed WebRTC attempt
+                    if (webrtcClients[instanceId]) {
+                        try {
+                            webrtcClients[instanceId].client?.disconnect();
+                        } catch (e) {}
+                        delete webrtcClients[instanceId];
+                    }
+                    
+                    // Clear srcObject
+                    if (videoElement.srcObject) {
+                        videoElement.srcObject = null;
+                    }
+                }
+            }
+            
+            // Fallback to HLS (always enabled, especially for remote access)
+            if (webrtcConfig.fallbackToHLS || IS_REMOTE) {
+                console.log(`${IS_REMOTE ? 'Using' : 'Falling back to'} HLS for ${streamPath}...`);
+                const hlsUrl = getHLSUrl(streamPath);
+                
+                // Check if HLS.js is available
+                if (typeof Hls === 'undefined') {
+                    console.error('HLS.js not loaded! Cannot play HLS streams.');
+                    updateStreamStatus(instanceId, 'failed');
+                    return;
+                }
+                
+                loadHLS(videoElement, hlsUrl, instanceId);
+            } else {
+                updateStreamStatus(instanceId, 'failed');
+            }
+        }
+        
+        // Cleanup WebRTC client
+        function cleanupWebRTCClient(instanceId) {
+            if (webrtcClients[instanceId]) {
+                try {
+                    console.log(`Cleaning up WebRTC client: ${instanceId}`);
+                    const { pc, stream, type } = webrtcClients[instanceId];
+                    
+                    if (type === 'webrtc') {
+                        // Stop all tracks
+                        if (stream) {
+                            stream.getTracks().forEach(track => track.stop());
+                        }
+                        // Close peer connection
+                        if (pc) {
+                            pc.close();
+                        }
+                    }
+                } catch (e) {
+                    console.warn(`Error disconnecting WebRTC client ${instanceId}:`, e);
+                }
+                delete webrtcClients[instanceId];
+            }
+        }
+        
+        // Cleanup all WebRTC clients
+        function cleanupAllWebRTCClients() {
+            console.log('Cleaning up all WebRTC clients...');
+            Object.keys(webrtcClients).forEach(id => {
+                cleanupWebRTCClient(id);
+            });
         }
 
         // Fetch scene details
@@ -1871,6 +3541,16 @@
             }
         }
 
+        // Helper to get slot coordinates (handles both x_rel/y_rel and x/y formats)
+        function getSlotCoords(slot) {
+            return {
+                x: slot.x_rel !== undefined ? slot.x_rel : (slot.x || 0),
+                y: slot.y_rel !== undefined ? slot.y_rel : (slot.y || 0),
+                w: slot.w_rel !== undefined ? slot.w_rel : (slot.w || 1),
+                h: slot.h_rel !== undefined ? slot.h_rel : (slot.h || 1)
+            };
+        }
+        
         // Render box overlays
         function renderBoxOverlays() {
             if (!currentSceneDetails || !currentSceneDetails.slots) return;
@@ -1883,15 +3563,16 @@
                 container.innerHTML = '';
                 
                 currentSceneDetails.slots.forEach((slot, index) => {
+                    const coords = getSlotCoords(slot);
                     const box = document.createElement('div');
                     box.className = `box-overlay box-${index + 1}`;
                     if (slot.source) {
                         box.classList.add('has-input');
                     }
-                    box.style.left = `${slot.x * 100}%`;
-                    box.style.top = `${slot.y * 100}%`;
-                    box.style.width = `${slot.w * 100}%`;
-                    box.style.height = `${slot.h * 100}%`;
+                    box.style.left = `${coords.x * 100}%`;
+                    box.style.top = `${coords.y * 100}%`;
+                    box.style.width = `${coords.w * 100}%`;
+                    box.style.height = `${coords.h * 100}%`;
                     
                     const number = document.createElement('div');
                     number.className = 'box-number';
@@ -1899,7 +3580,7 @@
                     box.appendChild(number);
                     
                     if (slot.source) {
-                const label = document.createElement('div');
+                        const label = document.createElement('div');
                         label.className = 'box-input-label';
                         label.textContent = slot.source.toUpperCase();
                         box.appendChild(label);
@@ -1908,17 +3589,22 @@
                     container.appendChild(box);
                 });
             });
-                }
+        }
 
         // Start mixer
         async function startMixer() {
             try {
                 const response = await fetch(`${API_BASE}/api/mixer/start`, { method: 'POST' });
                 if (response.ok) {
+                    showSuccess('Mixer started');
                     await checkMixerStatus();
+                } else {
+                    const data = await response.json().catch(() => ({}));
+                    showError(data.detail || 'Failed to start mixer');
                 }
             } catch (error) {
                 console.error('Failed to start mixer:', error);
+                showError('Failed to start mixer: ' + error.message);
             }
         }
 
@@ -1927,18 +3613,102 @@
             try {
                 const response = await fetch(`${API_BASE}/api/mixer/stop`, { method: 'POST' });
                 if (response.ok) {
+                    showSuccess('Mixer stopped');
                     await checkMixerStatus();
+                } else {
+                    const data = await response.json().catch(() => ({}));
+                    showError(data.detail || 'Failed to stop mixer');
                 }
             } catch (error) {
                 console.error('Failed to stop mixer:', error);
+                showError('Failed to stop mixer: ' + error.message);
             }
         }
 
         // Perform transition
-        function performTransition(type) {
-            // Transition logic here
-            document.querySelectorAll('.btn-transition').forEach(btn => btn.classList.remove('active'));
+        // Track current transition type
+        let currentTransitionType = 'cut';  // Default to cut
+        
+        function updateTakeButtonState() {
+            const takeBtn = document.getElementById('takeButton');
+            if (takeBtn) {
+                const isDisabled = mixerState !== 'PLAYING' || !previewSceneId;
+                takeBtn.disabled = isDisabled;
+                takeBtn.style.opacity = isDisabled ? '0.5' : '1';
+                
+                if (mixerState !== 'PLAYING') {
+                    takeBtn.title = 'Start mixer first';
+                } else if (!previewSceneId) {
+                    takeBtn.title = 'Select a scene first';
+                } else {
+                    takeBtn.title = `Take to program (${currentTransitionType.toUpperCase()})`;
+                }
+            }
+        }
+        
+        function selectTransition(type) {
+            currentTransitionType = type;
+            document.querySelectorAll('.btn-transition').forEach(btn => {
+                btn.classList.remove('active');
+            });
             document.getElementById(`${type}Btn`)?.classList.add('active');
+        }
+        
+        async function performTransition(type) {
+            selectTransition(type);
+            
+            if (!previewSceneId) {
+                showToast('Select a scene first', 'warning', 2000);
+                return;
+            }
+            
+            if (mixerState !== 'PLAYING') {
+                showToast('Start mixer first', 'warning', 2000);
+                return;
+            }
+            
+            try {
+                const duration = type === 'auto' ? 1000 : (type === 'mix' ? 500 : 0);
+                
+                showToast(`Transitioning (${type.toUpperCase()})...`, 'info', 0);
+                
+                const response = await fetch(`${API_BASE}/api/mixer/transition`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        scene_id: previewSceneId,
+                        transition: type,
+                        duration: duration
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    programSceneId = previewSceneId;
+                    previewSceneId = null;
+                    previewSceneData = null;
+                    cleanupPreviewComposite();
+                    
+                    // Wait for transition to complete before reloading program video
+                    // Add extra buffer time for pipeline rebuild if needed
+                    const waitTime = (data.duration_ms || duration) + 1000; // transition + 1s buffer
+                    
+                    setTimeout(() => {
+                        forceLoadProgramVideo();
+                        showToast(`Scene is now live`, 'success', 2000);
+                    }, waitTime);
+                    
+                    updateSceneButtons();
+                    updateTallyLights();
+                    updateTakeButtonState();
+                } else {
+                    const data = await response.json().catch(() => ({}));
+                    showError(data.detail || 'Transition failed');
+                }
+            } catch (error) {
+                console.error('Transition failed:', error);
+                showError('Transition failed: ' + error.message);
+            }
         }
 
         // Select input
@@ -2251,9 +4021,52 @@
             }
         }
 
+        // Toast notification system
+        function showToast(message, type = 'info', duration = 5000) {
+            const container = document.getElementById('toastContainer');
+            if (!container) return;
+            
+            const icons = {
+                error: '⚠️',
+                success: '✓',
+                warning: '⚡',
+                info: 'ℹ️'
+            };
+            
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.innerHTML = `
+                <span class="toast-icon">${icons[type] || icons.info}</span>
+                <span class="toast-message">${message}</span>
+                <button class="toast-close" onclick="this.parentElement.remove()">×</button>
+            `;
+            
+            container.appendChild(toast);
+            
+            // Auto-remove after duration
+            if (duration > 0) {
+                setTimeout(() => {
+                    toast.classList.add('toast-exit');
+                    setTimeout(() => toast.remove(), 200);
+                }, duration);
+            }
+            
+            return toast;
+        }
+        
         function showError(message) {
             console.error(message);
-            // Could show a toast notification here
+            showToast(message, 'error');
+        }
+        
+        function showSuccess(message) {
+            console.log(message);
+            showToast(message, 'success', 3000);
+        }
+        
+        function showWarning(message) {
+            console.warn(message);
+            showToast(message, 'warning', 4000);
         }
 
         // Scene Editor Functions

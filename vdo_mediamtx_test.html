@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VDO.ninja + MediaMTX Test - R58</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0 0 10px 0;
+            font-size: 2.5em;
+        }
+        .header p {
+            margin: 0;
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        .status {
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #4CAF50;
+        }
+        .status h3 {
+            margin-top: 0;
+            color: #4CAF50;
+        }
+        .camera-section {
+            margin: 30px 0;
+            padding: 20px;
+            background: #2a2a2a;
+            border-radius: 8px;
+        }
+        .camera-section h2 {
+            margin-top: 0;
+            color: #667eea;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+        .link-button {
+            display: inline-block;
+            margin: 10px 10px 10px 0;
+            padding: 15px 25px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        .link-button:hover {
+            background: #764ba2;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        .link-button.primary {
+            background: #4CAF50;
+            font-size: 1.1em;
+        }
+        .link-button.primary:hover {
+            background: #45a049;
+        }
+        .info-box {
+            background: #333;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+            border-left: 3px solid #FF9800;
+        }
+        .info-box strong {
+            color: #FF9800;
+        }
+        .camera-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .camera-card {
+            background: #333;
+            padding: 15px;
+            border-radius: 5px;
+            border: 2px solid #667eea;
+        }
+        .camera-card h4 {
+            margin: 0 0 10px 0;
+            color: #667eea;
+        }
+        code {
+            background: #000;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            color: #4CAF50;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎥 VDO.ninja + MediaMTX Integration</h1>
+        <p>Native WHEP streaming from R58 cameras</p>
+    </div>
+
+    <div class="status">
+        <h3>✅ System Status</h3>
+        <p><strong>MediaMTX:</strong> Running on port 8889 (WebRTC/WHEP)</p>
+        <p><strong>Active Cameras:</strong> cam0 (4K), cam2 (1080p), cam3 (4K)</p>
+        <p><strong>R58 IP:</strong> 192.168.1.24</p>
+        <p><strong>Your PC:</strong> 192.168.1.40</p>
+    </div>
+
+    <div class="info-box">
+        <strong>ℹ️ How This Works:</strong><br>
+        VDO.ninja uses the <code>&mediamtx=192.168.1.24:8889</code> parameter to pull streams 
+        directly from MediaMTX via WHEP (WebRTC-HTTP Egress Protocol). No custom signaling needed!
+    </div>
+
+    <div class="camera-section">
+        <h2>🎬 Director View (Recommended)</h2>
+        <p>See all cameras at once and control the mix:</p>
+        <a href="https://192.168.1.24:8443/?director=r58studio&mediamtx=192.168.1.24:8889" 
+           class="link-button primary" target="_blank">
+            🎛️ Open Director with MediaMTX
+        </a>
+    </div>
+
+    <div class="camera-section">
+        <h2>🎨 Mixer View</h2>
+        <p>Mix cameras with transitions and effects:</p>
+        <a href="https://192.168.1.24:8443/mixer?room=r58studio&mediamtx=192.168.1.24:8889" 
+           class="link-button primary" target="_blank">
+            🎚️ Open Mixer with MediaMTX
+        </a>
+    </div>
+
+    <div class="camera-section">
+        <h2>📹 Individual Camera Views</h2>
+        <div class="camera-grid">
+            <div class="camera-card">
+                <h4>Camera 0 - 4K</h4>
+                <p>Device: /dev/video0</p>
+                <a href="https://192.168.1.24:8443/?view=cam0&mediamtx=192.168.1.24:8889" 
+                   class="link-button" target="_blank">
+                    View cam0
+                </a>
+            </div>
+            <div class="camera-card">
+                <h4>Camera 2 - 1080p</h4>
+                <p>Device: /dev/video11</p>
+                <a href="https://192.168.1.24:8443/?view=cam2&mediamtx=192.168.1.24:8889" 
+                   class="link-button" target="_blank">
+                    View cam2
+                </a>
+            </div>
+            <div class="camera-card">
+                <h4>Camera 3 - 4K</h4>
+                <p>Device: /dev/video22</p>
+                <a href="https://192.168.1.24:8443/?view=cam3&mediamtx=192.168.1.24:8889" 
+                   class="link-button" target="_blank">
+                    View cam3
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="camera-section">
+        <h2>🔧 Troubleshooting</h2>
+        <div class="info-box">
+            <strong>If cameras don't appear:</strong><br>
+            1. Make sure you accepted the self-signed certificate at <code>https://192.168.1.24:8443</code><br>
+            2. Check browser console (F12) for errors<br>
+            3. Wait 10-15 seconds for WebRTC to connect<br>
+            4. Try refreshing the page<br>
+            5. Verify MediaMTX is streaming: <a href="http://192.168.1.24:9997/v3/paths/list" target="_blank" style="color: #4CAF50;">Check MediaMTX API</a>
+        </div>
+    </div>
+
+    <div class="camera-section">
+        <h2>📊 Technical Details</h2>
+        <p><strong>Architecture:</strong></p>
+        <pre style="background: #000; padding: 15px; border-radius: 5px; overflow-x: auto;">
+HDMI Cameras → preke-recorder → MediaMTX (RTSP/RTMP)
+                                      ↓
+                                 WHEP (port 8889)
+                                      ↓
+                              VDO.ninja in Browser
+        </pre>
+        <p><strong>Stream URLs (internal):</strong></p>
+        <ul>
+            <li>RTSP: <code>rtsp://127.0.0.1:8554/cam0</code></li>
+            <li>HLS: <code>http://192.168.1.24:8888/cam0</code></li>
+            <li>WHEP: <code>http://192.168.1.24:8889/cam0/whep</code></li>
+        </ul>
+    </div>
+
+    <div class="info-box" style="border-left-color: #4CAF50;">
+        <strong>✅ Advantages of This Approach:</strong><br>
+        • No custom signaling server needed<br>
+        • Direct WHEP pull from MediaMTX<br>
+        • Proven stable architecture<br>
+        • Works with existing preke-recorder<br>
+        • Low latency WebRTC streaming
+    </div>
+</body>
+</html>
+

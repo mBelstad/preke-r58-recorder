@@ -8,6 +8,9 @@ User=root
 WorkingDirectory=/opt/preke-r58-recorder
 Environment="PATH=/opt/preke-r58-recorder/venv/bin:/usr/local/bin:/usr/bin:/bin"
 Environment="PYTHONPATH=/opt/preke-r58-recorder"
+# Cloudflare TURN credentials for remote WebRTC guests
+Environment="CLOUDFLARE_TURN_TOKEN_ID=79d61c83455a63d11a18c17bedb53d3f"
+Environment="CLOUDFLARE_TURN_API_TOKEN=9054653545421be55e42219295b74b1036d261e1c0259c2cf410fb9d8a372984"
 # Disable GStreamer plugin scanning at startup (use cached registry)
 Environment="GST_REGISTRY_UPDATE=no"
 # Clean up stuck GStreamer processes before starting (use - prefix to ignore failures)

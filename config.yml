@@ -9,6 +9,19 @@ platform: auto
 # Logging level: DEBUG, INFO, WARNING, ERROR
 log_level: INFO
 
+# Mode configuration (Recorder vs VDO.ninja)
+# Recorder Mode: preke-recorder captures to MediaMTX for recording/WHEP viewing
+# VDO.ninja Mode: raspberry.ninja publishers stream to VDO.ninja signaling
+mode:
+  default: recorder  # Default mode on startup: recorder or vdoninja
+  persist_state: true  # Remember last active mode across restarts
+
+# Preview configuration
+preview:
+  health_check_interval: 10  # seconds between health checks
+  stale_threshold: 15  # seconds before restarting stale pipeline
+  restream_when_recording: true  # Use restream mode when recording active (avoids device conflicts)
+
 # MediaMTX configuration (optional)
 mediamtx:
   enabled: true
@@ -16,14 +29,34 @@ mediamtx:
   rtmp_port: 1935
   srt_port: 8890
 
+# Graphics plugin configuration
+graphics:
+  enabled: true
+  templates_dir: graphics_templates
+  output_dir: /tmp/graphics_output
+
+# Reveal.js video source configuration
+# Supports multiple independent outputs that can run simultaneously
+reveal:
+  enabled: true
+  resolution: 1920x1080
+  framerate: 30
+  bitrate: 4000  # kbps
+  mediamtx_path: slides  # Default path (backward compat)
+  renderer: auto  # auto, wpe, chromium
+  # Two independent outputs - each can render a different presentation
+  outputs:
+    - slides          # Primary presentation (e.g., full slides for recording/main output)
+    - slides_overlay  # Secondary output (e.g., slides for PiP overlay, different view)
+
 # Mixer configuration (optional)
 mixer:
   enabled: true  # Set to true to enable mixer
   output_resolution: 1920x1080
   output_bitrate: 8000  # kbps
-  output_codec: h264  # h264 or h265
+  output_codec: h265  # h265 for hardware encoding (mpph265enc)
   recording_enabled: false  # Enable program output recording
-  recording_path: /var/recordings/mixer/program_%Y%m%d_%H%M%S.mp4
+  recording_path: /var/recordings/mixer/program_%Y%m%d_%H%M%S.mkv
   mediamtx_enabled: true  # Stream mixer output to MediaMTX
   mediamtx_path: mixer_program  # MediaMTX path for mixer output
   scenes_dir: scenes  # Directory for scene JSON files
@@ -38,36 +71,98 @@ cameras:
   cam0:
     device: /dev/video0  # HDMI N0 (rkcif via LT6911 bridge)
     resolution: 1920x1080
-    bitrate: 5000
-    codec: h264
-    output_path: /mnt/sdcard/recordings/cam0/recording_%Y%m%d_%H%M%S.mp4
+    bitrate: 4000  # 4 Mbps for stable remote viewing over Cloudflare
+    codec: h264  # Hardware encoding via mpph264enc (VPU)
+    output_path: /mnt/sdcard/recordings/cam0/recording_%Y%m%d_%H%M%S.mkv
     mediamtx_enabled: true
     mediamtx_path: null  # Auto-generated if null: rtsp://localhost:8554/cam0
+    enabled: false  # Disabled - no camera connected
 
   cam1:
     device: /dev/video60  # HDMI N60 (hdmirx direct)
     resolution: 1920x1080
-    bitrate: 5000
-    codec: h264
-    output_path: /mnt/sdcard/recordings/cam1/recording_%Y%m%d_%H%M%S.mp4
+    bitrate: 4000  # 4 Mbps for stable remote viewing over Cloudflare
+    codec: h264  # Hardware encoding via mpph264enc (VPU)
+    output_path: /mnt/sdcard/recordings/cam1/recording_%Y%m%d_%H%M%S.mkv
     mediamtx_enabled: true
     mediamtx_path: null
+    enabled: true  # Primary camera
 
   cam2:
     device: /dev/video11  # HDMI N11 (rkcif via LT6911 bridge)
     resolution: 1920x1080
-    bitrate: 5000
-    codec: h264
-    output_path: /mnt/sdcard/recordings/cam2/recording_%Y%m%d_%H%M%S.mp4
+    bitrate: 4000  # 4 Mbps for stable remote viewing over Cloudflare
+    codec: h264  # Hardware encoding via mpph264enc (VPU)
+    output_path: /mnt/sdcard/recordings/cam2/recording_%Y%m%d_%H%M%S.mkv
     mediamtx_enabled: true
     mediamtx_path: null
+    enabled: true  # Secondary camera
 
   cam3:
     device: /dev/video22  # HDMI N21 (rkcif-mipi-lvds2 via LT6911 2-002b bridge)
     resolution: 1920x1080
-    bitrate: 5000
-    codec: h265
-    output_path: /mnt/sdcard/recordings/cam3/recording_%Y%m%d_%H%M%S.mp4
+    bitrate: 4000  # 4 Mbps for stable remote viewing over Cloudflare
+    codec: h264  # Hardware encoding via mpph264enc (VPU)
+    output_path: /mnt/sdcard/recordings/cam3/recording_%Y%m%d_%H%M%S.mkv
     mediamtx_enabled: true
     mediamtx_path: null
+    enabled: false  # Will be enabled after testing
+
+# Recording configuration
+recording:
+  enabled: true
+  gop: 30  # Keyframe interval (frames) - 1 second at 30fps
+  fragmented: true  # Enable fragmented MP4 for growing file editing
+  fragment_duration: 1000  # Fragment size (ms)
+  filename_pattern: "{cam_id}_{timestamp}.mp4"
+  min_disk_space_gb: 10  # Minimum disk space to start recording
+  warning_disk_space_gb: 5  # Warning threshold during recording
+
+# Cloudflare Calls configuration for remote guests
+# Enables remote guests to connect via Cloudflare's infrastructure
+# 
+# ⚠️ SECURITY: Set credentials via environment variables, not in this file!
+# Required environment variables:
+#   - CLOUDFLARE_ACCOUNT_ID
+#   - CLOUDFLARE_CALLS_APP_ID  
+#   - CLOUDFLARE_CALLS_API_TOKEN
+#   - CLOUDFLARE_TURN_TOKEN_ID
+#   - CLOUDFLARE_TURN_API_TOKEN
+#
+cloudflare:
+  account_id: ""  # Set CLOUDFLARE_ACCOUNT_ID environment variable
+  calls_app_id: ""  # Set CLOUDFLARE_CALLS_APP_ID environment variable
+  calls_api_token: ""  # Set CLOUDFLARE_CALLS_API_TOKEN environment variable
+  calls_app_name: "r58-1"
+
+# Remote guests configuration
+# Guests connect via WHIP and appear as mixer inputs
+guests:
+  guest1:
+    name: "Guest 1"
+    enabled: true
+  guest2:
+    name: "Guest 2"
+    enabled: true
+
+# External cameras configuration
+# These cameras will be triggered to start/stop recording along with R58 cameras
+external_cameras:
+  - name: "BMD Cam 1"
+    type: blackmagic  # blackmagic or obsbot_tail2
+    ip: 192.168.1.101
+    port: 80  # Optional, defaults to 80 for Blackmagic
+    enabled: false  # Set to true when camera is available
+  
+  - name: "BMD Cam 2"
+    type: blackmagic
+    ip: 192.168.1.102
+    port: 80
+    enabled: false
+  
+  - name: "Obsbot PTZ"
+    type: obsbot_tail2
+    ip: 192.168.1.110
+    port: 52381  # Optional, defaults to 52381 for Obsbot
+    enabled: false
 

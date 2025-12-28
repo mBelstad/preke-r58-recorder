@@ -22,7 +22,7 @@ Host r58.itagenten.no
 
 To connect via SSH, use:
 ```bash
-sshpass -p 'linaro' ssh -o StrictHostKeyChecking=no linaro@r58.itagenten.no
+ssh linaro@r58.itagenten.no
 ```
 
 Or use the helper script:
@@ -40,7 +40,7 @@ If Cloudflare Tunnel is unavailable:
 
 Test connection:
 ```bash
-sshpass -p 'linaro' ssh -o StrictHostKeyChecking=no linaro@r58.itagenten.no "hostname && whoami"
+ssh linaro@r58.itagenten.no "hostname && whoami"
 ```
 
 Expected output:

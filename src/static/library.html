@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>R58 Recorder - Library</title>
+    <link rel="stylesheet" href="/static/css/design-system.css">
+    <style>
+        html {
+            background: var(--bg-secondary);
+            height: 100%;
+        }
+
+        body {
+            background: var(--bg-secondary);
+            min-height: 100vh;
+            padding: 0;
+            overflow-x: hidden;
+            margin: 0;
+        }
+
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+            padding: var(--spacing-lg);
+        }
+
+        .header {
+            background: var(--bg-primary);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-lg) var(--spacing-xl);
+            margin-bottom: var(--spacing-lg);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border);
+        }
+
+        .header h1 {
+            font-size: var(--text-3xl);
+            color: var(--text-primary);
+            font-weight: var(--weight-semibold);
+        }
+
+        .stats-bar {
+            background: var(--bg-primary);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-md) var(--spacing-lg);
+            margin-bottom: var(--spacing-lg);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border);
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: var(--text-xs);
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: var(--weight-medium);
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .stat-value {
+            font-size: var(--text-xl);
+            color: var(--text-primary);
+            font-weight: var(--weight-semibold);
+            font-family: var(--font-mono);
+        }
+
+        .session {
+            background: var(--bg-primary);
+            border-radius: var(--radius-md);
+            margin-bottom: var(--spacing-md);
+            overflow: hidden;
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow-sm);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .session-header {
+            padding: 16px 24px;
+            background: rgba(0,0,0,0.3);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .session-header:hover {
+            background: rgba(0,0,0,0.5);
+        }
+
+        .session-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #60a5fa;
+        }
+
+        .session-info {
+            display: flex;
+            gap: 20px;
+            font-size: 0.85rem;
+            color: #9ca3af;
+        }
+
+        .session-content {
+            padding: 16px 24px;
+            display: none;
+        }
+
+        .session.expanded .session-content {
+            display: block;
+        }
+
+        .recording-list {
+            display: grid;
+            gap: 12px;
+        }
+
+        .recording-item {
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            padding: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid rgba(255,255,255,0.05);
+            transition: all 0.2s;
+        }
+
+        .recording-item:hover {
+            background: rgba(0,0,0,0.5);
+            border-color: rgba(59, 130, 246, 0.3);
+            transform: translateX(4px);
+        }
+
+        .recording-info {
+            flex: 1;
+        }
+
+        .recording-name {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #e0e0e0;
+            margin-bottom: 4px;
+        }
+
+        .recording-meta {
+            font-size: 0.85rem;
+            color: #9ca3af;
+            display: flex;
+            gap: 16px;
+        }
+
+        .recording-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-small {
+            padding: 8px 16px;
+            font-size: 0.85rem;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-play {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-play:hover {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        .btn-download {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-download:hover {
+            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+        }
+
+        .video-player {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0,0,0,0.95);
+            z-index: 1000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(10px);
+        }
+
+        .video-player.active {
+            display: flex;
+        }
+
+        .video-container {
+            max-width: 90vw;
+            max-height: 90vh;
+            position: relative;
+        }
+
+        .video-container video {
+            max-width: 100%;
+            max-height: 90vh;
+            border-radius: 8px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+        }
+
+        .video-close {
+            position: absolute;
+            top: -40px;
+            right: 0;
+            background: rgba(220, 38, 38, 0.9);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .video-close:hover {
+            background: rgba(185, 28, 28, 1);
+            transform: scale(1.05);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #9ca3af;
+        }
+
+        .loading::after {
+            content: '...';
+            animation: dots 1.5s infinite;
+        }
+
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60%, 100% { content: '...'; }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #9ca3af;
+        }
+
+        .empty-state-icon {
+            font-size: 4rem;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .empty-state-text {
+            font-size: 1.2rem;
+            margin-bottom: 8px;
+        }
+
+        .empty-state-hint {
+            font-size: 0.9rem;
+            color: #6b7280;
+        }
+
+        .cam-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .cam-badge.cam0 { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+        .cam-badge.cam1 { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
+        .cam-badge.cam2 { background: rgba(16, 185, 129, 0.2); color: #10b981; }
+        .cam-badge.cam3 { background: rgba(251, 191, 36, 0.2); color: #fbbf24; }
+
+        /* Session card styles */
+        .session-card {
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 16px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .session-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .session-name {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .session-name-input {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px;
+            padding: 6px 12px;
+            color: #fff;
+            font-size: 1rem;
+            font-weight: 600;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        .session-name-input:focus {
+            background: rgba(255,255,255,0.1);
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        }
+
+        .btn-edit {
+            background: rgba(59, 130, 246, 0.2);
+            color: #3b82f6;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-edit:hover {
+            background: rgba(59, 130, 246, 0.3);
+            border-color: rgba(59, 130, 246, 0.5);
+        }
+
+        .session-meta {
+            font-size: 0.85rem;
+            color: #9ca3af;
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .session-id-badge {
+            display: inline-block;
+            background: rgba(96, 165, 250, 0.2);
+            color: #60a5fa;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-family: 'Courier New', monospace;
+            border: 1px solid rgba(96, 165, 250, 0.3);
+            margin-left: 12px;
+        }
+
+        .session-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        /* Recording grid with thumbnails */
+        .recordings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 16px;
+        }
+
+        @media (max-width: 768px) {
+            .recordings-grid {
+                grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            }
+        }
+
+        .recording-card {
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.05);
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .recording-card:hover {
+            border-color: rgba(59, 130, 246, 0.5);
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+        }
+
+        .thumbnail-container {
+            position: relative;
+            width: 100%;
+            padding-top: 56.25%; /* 16:9 aspect ratio */
+            background: #000;
+            overflow: hidden;
+        }
+
+        .thumbnail-video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .thumbnail-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .recording-card:hover .thumbnail-overlay {
+            opacity: 1;
+        }
+
+        .play-icon {
+            width: 48px;
+            height: 48px;
+            background: rgba(59, 130, 246, 0.9);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 20px;
+            transition: all 0.3s;
+        }
+
+        .recording-card:hover .play-icon {
+            transform: scale(1.1);
+            background: rgba(59, 130, 246, 1);
+        }
+
+        .thumbnail-loading {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0,0,0,0.8);
+            color: #9ca3af;
+            font-size: 0.85rem;
+        }
+
+        .recording-card-info {
+            padding: 12px;
+        }
+
+        .recording-card-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #e0e0e0;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .recording-card-meta {
+            font-size: 0.75rem;
+            color: #9ca3af;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .recording-card-actions {
+            display: flex;
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .btn-icon {
+            padding: 6px 10px;
+            font-size: 0.75rem;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            flex: 1;
+            justify-content: center;
+        }
+
+        .btn-icon.btn-play {
+            background: rgba(59, 130, 246, 0.2);
+            color: #3b82f6;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-icon.btn-play:hover {
+            background: rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-icon.btn-download {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-icon.btn-download:hover {
+            background: rgba(16, 185, 129, 0.3);
+        }
+
+        .duration-badge {
+            background: rgba(0,0,0,0.8);
+            color: #fff;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            position: absolute;
+            bottom: 8px;
+            right: 8px;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📚 Recording Library</h1>
+            <a href="/" class="btn btn-back">← Back to Multiview</a>
+        </div>
+
+        <div class="stats-bar" id="statsBar" style="display: none;">
+            <div class="stat">
+                <div class="stat-label">Total Recordings</div>
+                <div class="stat-value" id="totalCount">0</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Total Size</div>
+                <div class="stat-value" id="totalSize">0 GB</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Sessions</div>
+                <div class="stat-value" id="sessionCount">0</div>
+            </div>
+        </div>
+
+        <div id="loadingState" class="loading">
+            Loading recordings
+        </div>
+
+        <div id="emptyState" class="empty-state" style="display: none;">
+            <div class="empty-state-icon">📹</div>
+            <div class="empty-state-text">No recordings found</div>
+            <div class="empty-state-hint">Start recording to see your videos here</div>
+        </div>
+
+        <div id="sessionsList"></div>
+    </div>
+
+    <div class="video-player" id="videoPlayer">
+        <div class="video-container">
+            <button class="video-close" onclick="closePlayer()">✕ Close</button>
+            <video id="videoElement" controls></video>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+
+        async function loadRecordings() {
+            try {
+                const response = await fetch(`${API_BASE}/api/recordings`);
+                const data = await response.json();
+                
+                document.getElementById('loadingState').style.display = 'none';
+                
+                if (data.sessions.length === 0) {
+                    document.getElementById('emptyState').style.display = 'block';
+                    return;
+                }
+                
+                // Count total sessions across all dates
+                const totalSessions = data.sessions.reduce((sum, dateGroup) => sum + dateGroup.date_sessions.length, 0);
+                
+                // Update stats
+                document.getElementById('statsBar').style.display = 'flex';
+                document.getElementById('totalCount').textContent = data.total_count;
+                document.getElementById('totalSize').textContent = formatBytes(data.total_size);
+                document.getElementById('sessionCount').textContent = totalSessions;
+                
+                // Render date groups
+                const sessionsList = document.getElementById('sessionsList');
+                sessionsList.innerHTML = '';
+                
+                data.sessions.forEach((dateGroup, index) => {
+                    const dateEl = createDateGroupElement(dateGroup, index === 0);
+                    sessionsList.appendChild(dateEl);
+                });
+            } catch (error) {
+                console.error('Failed to load recordings:', error);
+                document.getElementById('loadingState').innerHTML = '❌ Failed to load recordings';
+            }
+        }
+
+        function createDateGroupElement(dateGroup, expanded = false) {
+            const dateDiv = document.createElement('div');
+            dateDiv.className = `session ${expanded ? 'expanded' : ''}`;
+            
+            const dateSize = formatBytes(dateGroup.total_size);
+            const recordingText = dateGroup.count === 1 ? 'recording' : 'recordings';
+            
+            dateDiv.innerHTML = `
+                <div class="session-header" onclick="toggleSession(this)">
+                    <div class="session-title">${formatDate(dateGroup.date)}</div>
+                    <div class="session-info">
+                        <span>${dateGroup.date_sessions.length} sessions</span>
+                        <span>${dateGroup.count} ${recordingText}</span>
+                        <span>${dateSize}</span>
+                    </div>
+                </div>
+                <div class="session-content">
+                    ${dateGroup.date_sessions.map(session => createSessionCardHTML(session)).join('')}
+                </div>
+            `;
+            
+            return dateDiv;
+        }
+
+        function createSessionCardHTML(session) {
+            const sessionName = session.name || `Session at ${formatTime12Hour(session.start_time)}`;
+            const sessionSize = formatBytes(session.total_size);
+            const recordingText = session.count === 1 ? 'recording' : 'recordings';
+            const sessionIdBadge = session.session_id ? `<span class="session-id-badge" title="Session ID">${session.session_id}</span>` : '';
+            
+            return `
+                <div class="session-card">
+                    <div class="session-card-header">
+                        <div class="session-name">
+                            <span id="name-${session.session_id}">${sessionName}</span>
+                            <button class="btn-edit" onclick="editSessionName('${session.session_id}', '${sessionName.replace(/'/g, "\\'")}')">✏️ Edit</button>
+                            ${sessionIdBadge}
+                        </div>
+                        <div class="session-meta">
+                            <span>${session.start_time} - ${session.end_time}</span>
+                            <span>${session.count} ${recordingText}</span>
+                            <span>${sessionSize}</span>
+                        </div>
+                        <div class="session-actions">
+                            <button class="btn-icon" onclick="copySessionId('${session.session_id}')" title="Copy Session ID">
+                                📋 Copy ID
+                            </button>
+                            <button class="btn-icon btn-download" onclick="downloadSessionMetadata('${session.session_id}')" title="Download Metadata">
+                                ⬇ Metadata
+                            </button>
+                        </div>
+                    </div>
+                    <div class="recordings-grid">
+                        ${session.recordings.map(rec => createRecordingCardHTML(rec)).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function createRecordingCardHTML(recording) {
+            const camNumber = parseInt(recording.cam_id.replace('cam', '')) + 1;
+            const size = formatBytes(recording.size);
+            const thumbnailId = `thumb-${recording.cam_id}-${recording.modified}`;
+            
+            return `
+                <div class="recording-card" onclick="playRecording('${recording.url}', '${recording.filename}')">
+                    <div class="thumbnail-container">
+                        <div class="thumbnail-loading" id="loading-${thumbnailId}">Loading...</div>
+                        <video class="thumbnail-video" id="${thumbnailId}" 
+                               preload="metadata" 
+                               muted 
+                               playsinline
+                               data-url="${recording.url}">
+                        </video>
+                        <div class="thumbnail-overlay">
+                            <div class="play-icon">▶</div>
+                        </div>
+                        <div class="duration-badge" id="duration-${thumbnailId}" style="display: none;">0:00</div>
+                    </div>
+                    <div class="recording-card-info">
+                        <div class="recording-card-title">
+                            <span class="cam-badge ${recording.cam_id}">CAM ${camNumber}</span>
+                        </div>
+                        <div class="recording-card-meta">
+                            <span>🕐 ${formatTime12Hour(recording.time)}</span>
+                            <span>💾 ${size}</span>
+                        </div>
+                        <div class="recording-card-actions">
+                            <button class="btn-icon btn-play" onclick="event.stopPropagation(); playRecording('${recording.url}', '${recording.filename}')">
+                                ▶ Play
+                            </button>
+                            <a href="${recording.url}" download class="btn-icon btn-download" onclick="event.stopPropagation()">
+                                ⬇
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function editSessionName(sessionId, currentName) {
+            const nameSpan = document.getElementById(`name-${sessionId}`);
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'session-name-input';
+            input.value = currentName.startsWith('Session at') ? '' : currentName;
+            input.placeholder = 'Enter session name';
+            
+            input.onblur = () => saveSessionName(sessionId, input.value, nameSpan);
+            input.onkeypress = (e) => {
+                if (e.key === 'Enter') {
+                    input.blur();
+                }
+            };
+            
+            nameSpan.replaceWith(input);
+            input.focus();
+        }
+
+        async function saveSessionName(sessionId, name, originalElement) {
+            try {
+                const response = await fetch(`${API_BASE}/api/sessions/${sessionId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: name || `Session at ${new Date().toLocaleTimeString()}` })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const nameSpan = document.createElement('span');
+                    nameSpan.id = `name-${sessionId}`;
+                    nameSpan.textContent = data.name;
+                    document.querySelector(`input.session-name-input`).replaceWith(nameSpan);
+                }
+            } catch (error) {
+                console.error('Failed to save session name:', error);
+            }
+        }
+
+        function toggleSession(header) {
+            const session = header.parentElement;
+            session.classList.toggle('expanded');
+            
+            // Load thumbnails when session is expanded
+            if (session.classList.contains('expanded')) {
+                loadThumbnails(session);
+            }
+        }
+
+        function loadThumbnails(container) {
+            const thumbnails = container.querySelectorAll('.thumbnail-video[data-url]');
+            thumbnails.forEach(video => {
+                if (!video.src) {
+                    const url = video.getAttribute('data-url');
+                    const thumbnailId = video.id;
+                    const loadingEl = document.getElementById(`loading-${thumbnailId}`);
+                    const durationEl = document.getElementById(`duration-${thumbnailId}`);
+                    
+                    let loadTimeout = null;
+                    
+                    video.addEventListener('loadedmetadata', () => {
+                        // Clear timeout since video loaded successfully
+                        if (loadTimeout) clearTimeout(loadTimeout);
+                        
+                        // Seek to 1 second (or middle if shorter) for better thumbnail
+                        const seekTime = Math.min(1, video.duration / 2);
+                        video.currentTime = seekTime;
+                        
+                        // Format and display duration
+                        if (durationEl) {
+                            durationEl.textContent = formatDuration(video.duration);
+                            durationEl.style.display = 'block';
+                        }
+                    });
+                    
+                    video.addEventListener('seeked', () => {
+                        // Hide loading indicator once frame is loaded
+                        if (loadingEl) {
+                            loadingEl.style.display = 'none';
+                        }
+                        // Show the video element
+                        video.style.opacity = '1';
+                    });
+                    
+                    video.addEventListener('error', (e) => {
+                        console.error(`Thumbnail load error for ${thumbnailId}:`, e);
+                        if (loadingEl) {
+                            loadingEl.textContent = 'Preview unavailable';
+                            loadingEl.style.fontSize = '0.75rem';
+                            loadingEl.style.color = '#ef4444';
+                        }
+                    });
+                    
+                    // Set timeout to show error if video doesn't load within 10 seconds
+                    loadTimeout = setTimeout(() => {
+                        if (video.readyState < 2) { // HAVE_CURRENT_DATA
+                            console.warn(`Thumbnail load timeout for ${thumbnailId}`);
+                            if (loadingEl) {
+                                loadingEl.textContent = 'Loading slow...';
+                                loadingEl.style.fontSize = '0.75rem';
+                                loadingEl.style.color = '#f59e0b';
+                            }
+                        }
+                    }, 10000);
+                    
+                    // Start loading video with fragment to load only beginning
+                    video.src = url + '#t=0.5';
+                    video.load();
+                }
+            });
+        }
+
+        function formatDuration(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = Math.floor(seconds % 60);
+            
+            if (hours > 0) {
+                return `${hours}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+            } else {
+                return `${minutes}:${String(secs).padStart(2, '0')}`;
+            }
+        }
+
+        function formatTime12Hour(time24) {
+            const [hours, minutes, seconds] = time24.split(':');
+            const hour = parseInt(hours);
+            const ampm = hour >= 12 ? 'PM' : 'AM';
+            const hour12 = hour % 12 || 12;
+            return `${hour12}:${minutes} ${ampm}`;
+        }
+
+        function playRecording(url, filename) {
+            const player = document.getElementById('videoPlayer');
+            const video = document.getElementById('videoElement');
+            
+            video.src = url;
+            player.classList.add('active');
+            video.play();
+            
+            // Update page title
+            document.title = `Playing: ${filename}`;
+        }
+
+        function closePlayer() {
+            const player = document.getElementById('videoPlayer');
+            const video = document.getElementById('videoElement');
+            
+            video.pause();
+            video.src = '';
+            player.classList.remove('active');
+            
+            // Restore page title
+            document.title = 'R58 Recorder - Library';
+        }
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function formatDate(dateStr) {
+            const date = new Date(dateStr);
+            const today = new Date();
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
+            
+            const dateOnly = dateStr.split('T')[0];
+            const todayStr = today.toISOString().split('T')[0];
+            const yesterdayStr = yesterday.toISOString().split('T')[0];
+            
+            if (dateOnly === todayStr) {
+                return 'Today - ' + date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            } else if (dateOnly === yesterdayStr) {
+                return 'Yesterday - ' + date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            } else {
+                return date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            }
+        }
+
+        async function copySessionId(sessionId) {
+            try {
+                await navigator.clipboard.writeText(sessionId);
+                // Show temporary success message
+                const btn = event.target;
+                const originalText = btn.textContent;
+                btn.textContent = '✓ Copied!';
+                btn.style.background = 'rgba(34, 197, 94, 0.2)';
+                btn.style.color = '#22c55e';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = '';
+                    btn.style.color = '';
+                }, 2000);
+            } catch (error) {
+                console.error('Failed to copy session ID:', error);
+                alert('Failed to copy session ID');
+            }
+        }
+
+        async function downloadSessionMetadata(sessionId) {
+            try {
+                const response = await fetch(`${API_BASE}/api/sessions/${sessionId}`);
+                if (!response.ok) {
+                    throw new Error('Failed to fetch session metadata');
+                }
+                
+                const metadata = await response.json();
+                
+                // Create a blob and download
+                const blob = new Blob([JSON.stringify(metadata, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${sessionId}_metadata.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                // Show success feedback
+                const btn = event.target;
+                const originalText = btn.textContent;
+                btn.textContent = '✓ Downloaded!';
+                btn.style.background = 'rgba(34, 197, 94, 0.2)';
+                btn.style.color = '#22c55e';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = '';
+                    btn.style.color = '';
+                }, 2000);
+            } catch (error) {
+                console.error('Failed to download metadata:', error);
+                alert('Failed to download session metadata');
+            }
+        }
+
+        // Close player on Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closePlayer();
+            }
+        });
+
+        // Close player when clicking outside video
+        document.getElementById('videoPlayer').addEventListener('click', (e) => {
+            if (e.target.id === 'videoPlayer') {
+                closePlayer();
+            }
+        });
+
+        // Load recordings on page load
+        document.addEventListener('DOMContentLoaded', loadRecordings);
+    </script>
+</body>
+</html>
