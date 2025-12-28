@@ -149,8 +149,25 @@ class IPCServer:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             input_paths = {}
             started_pipelines = []
+            stopped_previews = []
             
             enabled_cameras = get_enabled_cameras(self.config)
+            
+            # First, stop preview pipelines for cameras we want to record
+            # V4L2 doesn't allow multiple processes to open the same device
+            loop = asyncio.get_event_loop()
+            for input_id in inputs:
+                preview_pipeline_id = f"preview_{input_id}"
+                if self.gst_runner.is_running(preview_pipeline_id):
+                    logger.info(f"Stopping preview pipeline for {input_id} before recording")
+                    try:
+                        await loop.run_in_executor(
+                            _executor,
+                            lambda pid=preview_pipeline_id: self.gst_runner.stop_pipeline(pid)
+                        )
+                        stopped_previews.append(input_id)
+                    except Exception as e:
+                        logger.warning(f"Failed to stop preview {input_id}: {e}")
             
             for input_id in inputs:
                 # Get camera config if available
@@ -253,11 +270,42 @@ class IPCServer:
             
             logger.info(f"Recording stopped: session={final_state.session_id if final_state else 'none'}")
             
+            # Restart preview pipelines for recorded inputs
+            restarted_previews = []
+            if final_state:
+                enabled_cameras = get_enabled_cameras(self.config)
+                for input_id in final_state.inputs.keys():
+                    cam_config = enabled_cameras.get(input_id)
+                    if cam_config and cam_config.mediamtx_enabled:
+                        try:
+                            pipeline_str = build_preview_pipeline_string(
+                                cam_id=input_id,
+                                device=cam_config.device,
+                                bitrate=cam_config.bitrate,
+                                resolution=cam_config.resolution,
+                            )
+                            preview_pipeline_id = f"preview_{input_id}"
+                            success = await loop.run_in_executor(
+                                _executor,
+                                lambda pid=preview_pipeline_id, pstr=pipeline_str, dev=cam_config.device: self.gst_runner.start_pipeline(
+                                    pipeline_id=pid,
+                                    pipeline_string=pstr,
+                                    pipeline_type="preview",
+                                    device=dev,
+                                )
+                            )
+                            if success:
+                                restarted_previews.append(input_id)
+                                logger.info(f"Restarted preview pipeline for {input_id}")
+                        except Exception as e:
+                            logger.warning(f"Failed to restart preview for {input_id}: {e}")
+            
             return {
                 "session_id": final_state.session_id if final_state else None,
                 "duration_ms": int((datetime.now() - final_state.started_at).total_seconds() * 1000) if final_state else 0,
                 "files": final_state.inputs if final_state else {},
                 "stopped_pipelines": stopped_pipelines,
+                "restarted_previews": restarted_previews,
                 "status": "stopped",
             }
         
