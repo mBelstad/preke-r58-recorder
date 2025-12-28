@@ -1,8 +1,11 @@
 """Health check endpoints for observability"""
+import asyncio
+import logging
 import shutil
 from datetime import datetime
 from typing import Optional
 
+import httpx
 from fastapi import APIRouter, Depends, Response
 from pydantic import BaseModel
 
@@ -10,6 +13,7 @@ from ..config import Settings, get_settings
 from ..media.pipeline_client import get_pipeline_client
 
 router = APIRouter(prefix="/api/v1", tags=["Health"])
+logger = logging.getLogger(__name__)
 
 
 class ServiceStatus(BaseModel):
@@ -41,50 +45,167 @@ _startup_time = datetime.now()
 
 async def check_service_health(name: str) -> ServiceStatus:
     """Check health of a specific service"""
-    if name == "pipeline_manager":
-        client = get_pipeline_client()
-        
-        # Quick health check - try to get status with short timeout
-        try:
-            result = await client._send_command(
-                {"cmd": "status"},
-                timeout=2.0,
-                retries=0,  # No retries for health check
-            )
-            
-            if result.get("error"):
-                return ServiceStatus(
-                    name=name,
-                    status="unhealthy",
-                    message=str(result.get("error")),
-                )
-            
-            # Check if pipeline is healthy based on IPC consecutive failures
-            if not client.is_healthy:
-                return ServiceStatus(
-                    name=name,
-                    status="degraded",
-                    message=f"Intermittent failures ({client._consecutive_failures})",
-                )
-            
-            return ServiceStatus(
-                name=name,
-                status="healthy",
-                message=None,
-            )
-        except Exception as e:
-            return ServiceStatus(
-                name=name,
-                status="unhealthy",
-                message=str(e),
-            )
+    settings = get_settings()
     
-    # Default healthy status for other services (implement as needed)
+    if name == "pipeline_manager":
+        return await _check_pipeline_manager()
+    
+    elif name == "mediamtx":
+        return await _check_mediamtx(settings)
+    
+    elif name == "vdoninja":
+        return await _check_vdoninja(settings)
+    
+    # Default healthy status for unknown services
     return ServiceStatus(
         name=name,
         status="healthy",
         message=None,
     )
+
+
+async def _check_pipeline_manager() -> ServiceStatus:
+    """Check pipeline manager health via IPC"""
+    client = get_pipeline_client()
+    
+    try:
+        result = await client._send_command(
+            {"cmd": "status"},
+            timeout=2.0,
+            retries=0,  # No retries for health check
+        )
+        
+        if result.get("error"):
+            return ServiceStatus(
+                name="pipeline_manager",
+                status="unhealthy",
+                message=str(result.get("error")),
+            )
+        
+        # Check if pipeline is healthy based on IPC consecutive failures
+        if not client.is_healthy:
+            return ServiceStatus(
+                name="pipeline_manager",
+                status="degraded",
+                message=f"Intermittent failures ({client._consecutive_failures})",
+            )
+        
+        return ServiceStatus(
+            name="pipeline_manager",
+            status="healthy",
+            message=None,
+        )
+    except Exception as e:
+        return ServiceStatus(
+            name="pipeline_manager",
+            status="unhealthy",
+            message=str(e),
+        )
+
+
+async def _check_mediamtx(settings: Settings) -> ServiceStatus:
+    """
+    Check MediaMTX health by calling its API.
+    
+    MediaMTX API endpoints:
+    - GET /v3/paths/list - List all paths
+    - GET /v3/config/global/get - Get global config
+    """
+    try:
+        async with httpx.AsyncClient(timeout=3.0) as client:
+            # Try to list paths - this confirms MediaMTX is running
+            url = f"{settings.mediamtx_api_url}/v3/paths/list"
+            resp = await client.get(url)
+            
+            if resp.status_code == 200:
+                data = resp.json()
+                items = data.get("items", [])
+                active_paths = len([p for p in items if p.get("ready")])
+                
+                return ServiceStatus(
+                    name="mediamtx",
+                    status="healthy",
+                    message=f"{active_paths} active paths",
+                )
+            else:
+                return ServiceStatus(
+                    name="mediamtx",
+                    status="degraded",
+                    message=f"API returned HTTP {resp.status_code}",
+                )
+    
+    except httpx.ConnectError:
+        return ServiceStatus(
+            name="mediamtx",
+            status="unhealthy",
+            message="Connection refused - MediaMTX not running",
+        )
+    except httpx.TimeoutException:
+        return ServiceStatus(
+            name="mediamtx",
+            status="degraded",
+            message="API timeout",
+        )
+    except Exception as e:
+        logger.warning(f"MediaMTX health check failed: {e}")
+        return ServiceStatus(
+            name="mediamtx",
+            status="unhealthy",
+            message=str(e),
+        )
+
+
+async def _check_vdoninja(settings: Settings) -> ServiceStatus:
+    """
+    Check VDO.ninja local server health.
+    
+    VDO.ninja runs on HTTPS port 8443 on the R58.
+    """
+    if not settings.vdoninja_enabled:
+        return ServiceStatus(
+            name="vdoninja",
+            status="healthy",
+            message="Disabled in config",
+        )
+    
+    try:
+        # VDO.ninja is served over HTTPS, might have self-signed cert
+        async with httpx.AsyncClient(timeout=3.0, verify=False) as client:
+            url = f"https://localhost:{settings.vdoninja_port}/"
+            resp = await client.get(url)
+            
+            if resp.status_code == 200:
+                return ServiceStatus(
+                    name="vdoninja",
+                    status="healthy",
+                    message=f"Running on port {settings.vdoninja_port}",
+                )
+            else:
+                return ServiceStatus(
+                    name="vdoninja",
+                    status="degraded",
+                    message=f"HTTP {resp.status_code}",
+                )
+    
+    except httpx.ConnectError:
+        return ServiceStatus(
+            name="vdoninja",
+            status="unhealthy",
+            message="Connection refused - VDO.ninja not running",
+        )
+    except httpx.TimeoutException:
+        return ServiceStatus(
+            name="vdoninja",
+            status="degraded",
+            message="Timeout",
+        )
+    except Exception as e:
+        logger.warning(f"VDO.ninja health check failed: {e}")
+        return ServiceStatus(
+            name="vdoninja",
+            status="unhealthy",
+            message=str(e),
+        )
 
 
 def get_storage_status() -> StorageStatus:
