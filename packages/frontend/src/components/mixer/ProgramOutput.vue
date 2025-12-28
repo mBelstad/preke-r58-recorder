@@ -4,12 +4,19 @@
  * 
  * Pushes the VDO.ninja mixed program output to MediaMTX via WHIP.
  * This allows the program feed to be recorded or streamed externally.
+ * 
+ * Also provides access to streaming settings for platform distribution.
  */
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useMixerStore } from '@/stores/mixer'
+import { useStreamingStore } from '@/stores/streaming'
 import { buildProgramOutputUrl } from '@/lib/vdoninja'
+import StreamingSettings from './StreamingSettings.vue'
 
 const mixerStore = useMixerStore()
+const streamingStore = useStreamingStore()
+
+const streamingSettingsRef = ref<InstanceType<typeof StreamingSettings> | null>(null)
 
 const isActive = ref(false)
 const status = ref<'idle' | 'connecting' | 'live' | 'error'>('idle')
@@ -27,6 +34,7 @@ function startProgramOutput() {
   status.value = 'connecting'
   iframeSrc.value = buildProgramOutputUrl(getWhipUrl())
   isActive.value = true
+  streamingStore.startStreaming()
   
   console.log('[ProgramOutput] Starting WHIP push to MediaMTX')
 }
@@ -37,6 +45,7 @@ function stopProgramOutput() {
   isActive.value = false
   iframeSrc.value = ''
   status.value = 'idle'
+  streamingStore.stopStreaming()
   
   console.log('[ProgramOutput] Stopped WHIP push')
 }
@@ -80,10 +89,23 @@ function getStatusText(): string {
     default: return 'Program output off'
   }
 }
+
+function openStreamingSettings() {
+  streamingSettingsRef.value?.open()
+}
+
+// Get enabled streaming destinations count
+const enabledDestinationsCount = computed(() => streamingStore.enabledDestinations.length)
+
+// Quick copy SRT URL
+function copySrtUrl() {
+  const srtUrl = streamingStore.programOutputUrls.srt
+  navigator.clipboard.writeText(srtUrl)
+}
 </script>
 
 <template>
-  <div class="program-output">
+  <div class="program-output space-y-3">
     <!-- Status indicator -->
     <div class="flex items-center gap-2 px-3 py-2 bg-r58-bg-tertiary rounded-lg">
       <span :class="['w-2 h-2 rounded-full', getStatusColor()]"></span>
@@ -108,6 +130,24 @@ function getStatusText(): string {
         Retry
       </button>
     </div>
+
+    <!-- Quick Output URLs -->
+    <div v-if="status === 'live'" class="text-xs space-y-1 px-3">
+      <div class="flex items-center gap-2 text-r58-text-secondary">
+        <span>🔴 SRT:</span>
+        <code class="flex-1 truncate">{{ streamingStore.programOutputUrls.srt }}</code>
+        <button @click="copySrtUrl" class="text-r58-accent-primary hover:underline">Copy</button>
+      </div>
+    </div>
+
+    <!-- Streaming destinations status -->
+    <div v-if="enabledDestinationsCount > 0" class="flex items-center gap-2 px-3 py-2 bg-r58-bg-tertiary/50 rounded-lg">
+      <span class="w-2 h-2 rounded-full bg-r58-accent-success"></span>
+      <span class="text-xs">{{ enabledDestinationsCount }} streaming destination{{ enabledDestinationsCount > 1 ? 's' : '' }} enabled</span>
+    </div>
+
+    <!-- Streaming Settings Button -->
+    <StreamingSettings ref="streamingSettingsRef" />
     
     <!-- Hidden iframe for WHIP output -->
     <div class="hidden">
@@ -122,4 +162,3 @@ function getStatusText(): string {
     </div>
   </div>
 </template>
-
