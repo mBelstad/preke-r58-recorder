@@ -70,11 +70,33 @@ function formatBytes(bytes: number): string {
     <div class="card">
       <h3 class="text-sm font-semibold text-r58-text-secondary uppercase tracking-wide mb-3">Quick Actions</h3>
       <div class="space-y-2">
-        <button class="btn w-full justify-center" :disabled="isRecording">
+        <button 
+          class="btn w-full justify-center disabled:opacity-50 disabled:cursor-not-allowed group relative" 
+          :disabled="isRecording"
+          :title="isRecording ? 'Cannot configure while recording' : 'Open input configuration'"
+        >
           Configure Inputs
+          <!-- Disabled reason tooltip -->
+          <span 
+            v-if="isRecording"
+            class="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-r58-bg-tertiary text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none"
+          >
+            Stop recording first
+          </span>
         </button>
-        <button class="btn w-full justify-center" :disabled="isRecording">
+        <button 
+          class="btn w-full justify-center disabled:opacity-50 disabled:cursor-not-allowed group relative" 
+          :disabled="isRecording"
+          :title="isRecording ? 'Cannot change settings while recording' : 'Open recording settings'"
+        >
           Recording Settings
+          <!-- Disabled reason tooltip -->
+          <span 
+            v-if="isRecording"
+            class="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-r58-bg-tertiary text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none"
+          >
+            Stop recording first
+          </span>
         </button>
       </div>
     </div>

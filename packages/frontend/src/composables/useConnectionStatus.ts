@@ -13,7 +13,9 @@ const state = ref<ConnectionState>('connecting')
 const latencyMs = ref<number | null>(null)
 const lastCheck = ref<Date | null>(null)
 const consecutiveFailures = ref(0)
+const reconnectAttempts = ref(0)
 const isChecking = ref(false)
+const lastError = ref<string | null>(null)
 
 const PING_INTERVAL = 5000 // 5 seconds
 const DEGRADED_THRESHOLD = 500 // 500ms
@@ -72,18 +74,26 @@ export function useConnectionStatus() {
       latencyMs.value = roundTrip
       lastCheck.value = new Date()
       consecutiveFailures.value = 0
+      lastError.value = null
+      
+      // Reset reconnect attempts on successful connection
+      if (reconnectAttempts.value > 0) {
+        reconnectAttempts.value = 0
+      }
 
       if (roundTrip > DEGRADED_THRESHOLD) {
         state.value = 'degraded'
       } else {
         state.value = 'connected'
       }
-    } catch (error) {
+    } catch (error: any) {
       consecutiveFailures.value++
+      lastError.value = error.message || 'Connection failed'
       
       if (consecutiveFailures.value >= MAX_FAILURES_BEFORE_DISCONNECT) {
         state.value = 'disconnected'
         latencyMs.value = null
+        reconnectAttempts.value++
       } else {
         state.value = 'connecting'
       }
@@ -122,6 +132,8 @@ export function useConnectionStatus() {
     state,
     latencyMs,
     lastCheck,
+    reconnectAttempts,
+    lastError,
     statusLabel,
     statusColor,
     isConnected,

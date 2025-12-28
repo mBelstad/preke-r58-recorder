@@ -1,10 +1,90 @@
 <script setup lang="ts">
+/**
+ * Input Grid Component
+ * 
+ * Displays video inputs in a 2x2 grid with signal quality indicators.
+ * Visual feedback includes:
+ * - Border colors based on signal status
+ * - Recording indicator with bytes written
+ * - Signal quality tooltip
+ */
 import { computed } from 'vue'
-import { useRecorderStore } from '@/stores/recorder'
+import { useRecorderStore, type InputStatus } from '@/stores/recorder'
 import InputPreview from '@/components/shared/InputPreview.vue'
 
 const recorderStore = useRecorderStore()
 const inputs = computed(() => recorderStore.inputs)
+
+/**
+ * Get border color class based on input state
+ */
+function getBorderClass(input: InputStatus): string {
+  if (input.isRecording) {
+    return 'border-r58-accent-danger ring-2 ring-r58-accent-danger/20'
+  }
+  if (!input.hasSignal) {
+    return 'border-r58-bg-tertiary/50 opacity-60'
+  }
+  // Signal present but not recording
+  return 'border-emerald-500/50 hover:border-emerald-500'
+}
+
+/**
+ * Get signal quality indicator
+ */
+function getSignalQuality(input: InputStatus): 'excellent' | 'good' | 'unstable' | 'none' {
+  if (!input.hasSignal) return 'none'
+  // In a real implementation, this would check framerate variance
+  if (input.framerate >= 29) return 'excellent'
+  if (input.framerate >= 24) return 'good'
+  return 'unstable'
+}
+
+/**
+ * Get signal quality color
+ */
+function getSignalQualityColor(input: InputStatus): string {
+  const quality = getSignalQuality(input)
+  switch (quality) {
+    case 'excellent': return 'text-emerald-400'
+    case 'good': return 'text-emerald-400'
+    case 'unstable': return 'text-amber-400'
+    case 'none': return 'text-r58-text-secondary'
+  }
+}
+
+/**
+ * Format bytes to human-readable size
+ */
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
+}
+
+/**
+ * Generate tooltip for input
+ */
+function getInputTooltip(input: InputStatus): string {
+  if (!input.hasSignal) {
+    return `${input.label}: No signal detected`
+  }
+  
+  const lines = [
+    `${input.label}`,
+    `Resolution: ${input.resolution}`,
+    `Framerate: ${input.framerate} fps`,
+    `Quality: ${getSignalQuality(input)}`,
+  ]
+  
+  if (input.isRecording) {
+    lines.push(`Written: ${formatBytes(input.bytesWritten)}`)
+  }
+  
+  return lines.join('\n')
+}
 </script>
 
 <template>
@@ -12,14 +92,9 @@ const inputs = computed(() => recorderStore.inputs)
     <div
       v-for="input in inputs"
       :key="input.id"
-      class="relative rounded-lg overflow-hidden border-2 transition-all"
-      :class="[
-        input.isRecording 
-          ? 'border-r58-accent-danger' 
-          : input.hasSignal 
-            ? 'border-r58-bg-tertiary' 
-            : 'border-r58-bg-tertiary/50'
-      ]"
+      class="relative rounded-lg overflow-hidden border-2 transition-all cursor-pointer"
+      :class="getBorderClass(input)"
+      :title="getInputTooltip(input)"
     >
       <!-- Video preview -->
       <InputPreview
@@ -45,23 +120,33 @@ const inputs = computed(() => recorderStore.inputs)
       <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-4">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
+            <!-- Signal quality indicator -->
             <span
-              class="w-2 h-2 rounded-full"
-              :class="input.hasSignal ? 'bg-r58-accent-success' : 'bg-r58-text-secondary'"
+              class="w-2 h-2 rounded-full transition-colors"
+              :class="{
+                'bg-emerald-500': getSignalQuality(input) === 'excellent' || getSignalQuality(input) === 'good',
+                'bg-amber-500 animate-pulse': getSignalQuality(input) === 'unstable',
+                'bg-r58-text-secondary': getSignalQuality(input) === 'none',
+              }"
             ></span>
             <span class="font-medium">{{ input.label }}</span>
           </div>
           
-          <div v-if="input.hasSignal" class="flex items-center gap-2 text-sm text-r58-text-secondary">
-            <span>{{ input.resolution }}</span>
-            <span>{{ input.framerate }}fps</span>
+          <div v-if="input.hasSignal" class="flex items-center gap-2 text-sm">
+            <span class="text-r58-text-secondary">{{ input.resolution }}</span>
+            <span :class="getSignalQualityColor(input)">{{ input.framerate }}fps</span>
           </div>
         </div>
         
         <!-- Recording indicator -->
-        <div v-if="input.isRecording" class="mt-2 flex items-center gap-2 text-r58-accent-danger">
-          <span class="w-2 h-2 rounded-full bg-r58-accent-danger animate-recording"></span>
-          <span class="text-sm font-medium">REC</span>
+        <div v-if="input.isRecording" class="mt-2 flex items-center justify-between">
+          <div class="flex items-center gap-2 text-r58-accent-danger">
+            <span class="w-2 h-2 rounded-full bg-r58-accent-danger animate-recording"></span>
+            <span class="text-sm font-medium">REC</span>
+          </div>
+          <span class="text-sm font-mono text-r58-text-secondary">
+            {{ formatBytes(input.bytesWritten) }}
+          </span>
         </div>
       </div>
     </div>

@@ -1,13 +1,112 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useMixerStore } from '@/stores/mixer'
+import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
+import { toast } from '@/composables/useToast'
 import VdoNinjaEmbed from '@/components/mixer/VdoNinjaEmbed.vue'
 import SourcePanel from '@/components/mixer/SourcePanel.vue'
 
 const mixerStore = useMixerStore()
+const { register } = useKeyboardShortcuts()
 const vdoEmbedRef = ref<InstanceType<typeof VdoNinjaEmbed> | null>(null)
 
 const isLive = computed(() => mixerStore.isLive)
+
+// Track registered shortcuts for cleanup
+const unregisterFns: (() => void)[] = []
+
+onMounted(() => {
+  // Register scene shortcuts (1-9)
+  for (let i = 1; i <= 9; i++) {
+    const unregister = register({
+      key: String(i),
+      description: `Switch to scene ${i}`,
+      action: () => switchToScene(i),
+      context: 'mixer',
+    })
+    unregisterFns.push(unregister)
+  }
+  
+  // T for transition/cut
+  unregisterFns.push(register({
+    key: 't',
+    description: 'Cut to preview (transition)',
+    action: () => performTransition(),
+    context: 'mixer',
+  }))
+  
+  // A for auto-transition
+  unregisterFns.push(register({
+    key: 'a',
+    description: 'Auto-transition with fade',
+    action: () => performAutoTransition(),
+    context: 'mixer',
+  }))
+  
+  // Tab to cycle sources
+  unregisterFns.push(register({
+    key: 'Tab',
+    description: 'Cycle through sources',
+    action: () => cyclePreviewSource(),
+    context: 'mixer',
+  }))
+  
+  // G for Go Live toggle
+  unregisterFns.push(register({
+    key: 'g',
+    description: 'Toggle Go Live',
+    action: () => {
+      mixerStore.toggleLive()
+      toast.info(mixerStore.isLive ? 'Session started' : 'Session ended')
+    },
+    context: 'mixer',
+  }))
+})
+
+onUnmounted(() => {
+  unregisterFns.forEach(fn => fn())
+})
+
+function switchToScene(sceneNumber: number) {
+  const sceneId = `scene-${sceneNumber}`
+  mixerStore.setScene(sceneId)
+  
+  // Send command to VDO.ninja if embedded
+  if (vdoEmbedRef.value) {
+    vdoEmbedRef.value.sendCommand('changeScene', { scene: sceneNumber })
+  }
+  
+  toast.info(`Scene ${sceneNumber}`)
+}
+
+function performTransition() {
+  // Instant cut to preview
+  if (mixerStore.previewSource) {
+    mixerStore.setProgram(mixerStore.previewSource)
+    toast.info('Cut')
+  }
+}
+
+function performAutoTransition() {
+  // Auto-transition with fade
+  if (mixerStore.previewSource) {
+    // Send transition command to VDO.ninja
+    if (vdoEmbedRef.value) {
+      vdoEmbedRef.value.sendCommand('transition', { type: 'fade', duration: 500 })
+    }
+    mixerStore.setProgram(mixerStore.previewSource)
+    toast.info('Fade')
+  }
+}
+
+function cyclePreviewSource() {
+  const sources = mixerStore.activeSources
+  if (sources.length === 0) return
+  
+  const currentIndex = sources.findIndex(s => s.id === mixerStore.previewSource)
+  const nextIndex = (currentIndex + 1) % sources.length
+  mixerStore.setPreview(sources[nextIndex].id)
+}
 </script>
 
 <template>

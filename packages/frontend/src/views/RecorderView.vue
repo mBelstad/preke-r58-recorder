@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { useRecorderStore } from '@/stores/recorder'
 import { useRecordingGuard } from '@/composables/useRecordingGuard'
 import RecorderControls from '@/components/recorder/RecorderControls.vue'
+import RecordingHealth from '@/components/recorder/RecordingHealth.vue'
 import InputGrid from '@/components/recorder/InputGrid.vue'
 import SessionInfo from '@/components/recorder/SessionInfo.vue'
 import ConfirmDialog from '@/components/shared/ConfirmDialog.vue'
@@ -40,6 +41,9 @@ watch(showLeaveConfirmation, (show) => {
           <span class="text-xl font-semibold">Recorder</span>
         </div>
         <span v-if="isRecording" class="badge badge-danger">RECORDING</span>
+        
+        <!-- Recording health indicator -->
+        <RecordingHealth />
       </div>
       
       <RecorderControls />

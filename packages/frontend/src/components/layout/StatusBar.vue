@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useConnectionStatus } from '@/composables/useConnectionStatus'
 
-const { state, latencyMs, statusLabel, statusColor } = useConnectionStatus()
+const { state, latencyMs, reconnectAttempts, statusLabel, statusColor } = useConnectionStatus()
 
 const currentTime = ref(new Date())
 
@@ -63,9 +63,20 @@ const connectionTooltip = computed(() => {
     return 'Attempting to connect to API...'
   }
   if (state.value === 'disconnected') {
-    return 'Connection lost. Reconnecting...'
+    const attempts = reconnectAttempts.value
+    return attempts > 0 
+      ? `Connection lost. Reconnect attempt ${attempts}...`
+      : 'Connection lost. Reconnecting...'
   }
   return 'API status'
+})
+
+// Show reconnect attempts in status label when disconnected
+const displayStatusLabel = computed(() => {
+  if (state.value === 'disconnected' && reconnectAttempts.value > 0) {
+    return `Offline (retry ${reconnectAttempts.value})`
+  }
+  return statusLabel.value
 })
 </script>
 
@@ -90,7 +101,7 @@ const connectionTooltip = computed(() => {
             state === 'disconnected' ? 'text-red-400 bg-red-500/10' : '',
           ]"
         >
-          {{ statusLabel }}
+          {{ displayStatusLabel }}
         </span>
       </div>
     </div>
