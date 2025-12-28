@@ -17,8 +17,17 @@ function getPreviewUrl(): string {
   return `${origin}/api/v1/whep/${props.inputId}/whep`
 }
 
+// Track peer connection for cleanup
+let peerConnection: RTCPeerConnection | null = null
+
 async function initWhepPlayback() {
   if (!videoRef.value) return
+  
+  // Clean up existing connection
+  if (peerConnection) {
+    peerConnection.close()
+    peerConnection = null
+  }
   
   loading.value = true
   error.value = null
@@ -27,9 +36,14 @@ async function initWhepPlayback() {
     const url = getPreviewUrl()
     
     // Create peer connection for WHEP
+    // Use Google STUN server for remote access NAT traversal
     const pc = new RTCPeerConnection({
-      iceServers: [] // Local network, no STUN/TURN needed
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+      ]
     })
+    peerConnection = pc
     
     pc.ontrack = (event) => {
       if (videoRef.value && event.streams[0]) {
