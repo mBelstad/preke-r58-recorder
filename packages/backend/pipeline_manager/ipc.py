@@ -5,9 +5,10 @@ import functools
 import json
 import logging
 import uuid
+from collections import deque
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Deque, Dict, List, Optional
 
 from .config import get_config, get_enabled_cameras
 from .gstreamer.pipelines import (
@@ -28,6 +29,9 @@ RECORDINGS_DIR = Path("/mnt/sdcard/recordings")
 # Thread pool for GStreamer operations (blocking)
 _executor = concurrent.futures.ThreadPoolExecutor(max_workers=4, thread_name_prefix="gst_")
 
+# Maximum number of events to buffer for API polling
+EVENT_BUFFER_SIZE = 100
+
 
 class IPCServer:
     """Unix socket IPC server for pipeline commands"""
@@ -40,9 +44,25 @@ class IPCServer:
         self.config = get_config()
         self.gst_runner = get_runner(on_state_change=self._on_pipeline_state_change)
 
+        # Event queue for async events that need to be sent to the API
+        self._event_queue: Deque[Dict[str, Any]] = deque(maxlen=EVENT_BUFFER_SIZE)
+        self._event_seq = 0
+
         # Set up watchdog callbacks
         self.watchdog.on_stall = self._handle_stall
         self.watchdog.on_disk_low = self._handle_disk_low
+
+    def _queue_event(self, event_type: str, payload: Dict[str, Any]) -> None:
+        """Add an event to the queue for API polling"""
+        self._event_seq += 1
+        event = {
+            "seq": self._event_seq,
+            "type": event_type,
+            "ts": datetime.now().isoformat(),
+            "payload": payload,
+        }
+        self._event_queue.append(event)
+        logger.debug(f"Queued event: {event_type} (seq={self._event_seq})")
 
     def _on_pipeline_state_change(self, pipeline_id: str, new_state: GstPipelineState, error: Optional[str] = None):
         """Handle GStreamer pipeline state changes."""
@@ -52,7 +72,33 @@ class IPCServer:
             logger.error(f"Pipeline {pipeline_id} error: {error}")
             self.state.set_error(f"Pipeline {pipeline_id}: {error}")
 
-        # TODO: Emit WebSocket event to notify UI
+        # Queue event for API to broadcast to WebSocket clients
+        # Extract input_id from pipeline_id (e.g., "preview_cam1" -> "cam1")
+        input_id = None
+        if "_" in pipeline_id:
+            parts = pipeline_id.split("_", 1)
+            if len(parts) > 1:
+                input_id = parts[1]
+
+        if error:
+            self._queue_event("pipeline.error", {
+                "pipeline_id": pipeline_id,
+                "input_id": input_id,
+                "error": error,
+            })
+        
+        # Queue preview started/stopped events
+        if pipeline_id.startswith("preview_"):
+            if new_state == GstPipelineState.PLAYING:
+                self._queue_event("preview.started", {
+                    "input_id": input_id,
+                    "pipeline_id": pipeline_id,
+                })
+            elif new_state == GstPipelineState.NULL:
+                self._queue_event("preview.stopped", {
+                    "input_id": input_id,
+                    "pipeline_id": pipeline_id,
+                })
 
     async def _handle_stall(self, session_id: str, input_id: str) -> None:
         """Handle a stalled recording input"""
@@ -61,24 +107,109 @@ class IPCServer:
         # Record error in state
         self.state.set_error(f"Recording stall: {input_id} stopped writing")
 
-        # TODO: Emit WebSocket event to notify UI
-        # TODO: Consider auto-recovery (restart pipeline) or auto-stop
+        # Queue event for API to broadcast to WebSocket clients
+        self._queue_event("recording.stall", {
+            "session_id": session_id,
+            "input_id": input_id,
+            "message": f"Recording stall: {input_id} stopped writing",
+        })
+        
+        # Auto-recovery: attempt to restart the stalled pipeline
+        logger.info(f"Attempting auto-recovery for stalled input: {input_id}")
+        pipeline_id = f"recording_{input_id}"
+        
+        try:
+            # Try to stop and restart the pipeline
+            loop = asyncio.get_event_loop()
+            
+            # Stop the stalled pipeline
+            await loop.run_in_executor(
+                _executor,
+                lambda pid=pipeline_id: self.gst_runner.stop_pipeline(pid)
+            )
+            
+            # Get camera config for restart
+            enabled_cameras = get_enabled_cameras(self.config)
+            cam_config = enabled_cameras.get(input_id)
+            
+            if cam_config and self.state.active_recording:
+                file_path = self.state.active_recording.inputs.get(input_id)
+                if file_path:
+                    # Restart the recording pipeline
+                    pipeline_str = build_recording_pipeline_string(
+                        cam_id=input_id,
+                        device=cam_config.device,
+                        output_path=file_path,
+                        bitrate=cam_config.bitrate,
+                        resolution=cam_config.resolution,
+                        with_preview=cam_config.mediamtx_enabled,
+                    )
+                    
+                    success = await loop.run_in_executor(
+                        _executor,
+                        lambda pid=pipeline_id, pstr=pipeline_str, fp=file_path, dev=cam_config.device: self.gst_runner.start_pipeline(
+                            pipeline_id=pid,
+                            pipeline_string=pstr,
+                            pipeline_type="recording",
+                            output_path=fp,
+                            device=dev,
+                        )
+                    )
+                    
+                    if success:
+                        logger.info(f"Successfully restarted stalled pipeline for {input_id}")
+                        self._queue_event("recording.recovered", {
+                            "session_id": session_id,
+                            "input_id": input_id,
+                            "message": f"Pipeline {input_id} recovered from stall",
+                        })
+                    else:
+                        logger.error(f"Failed to restart stalled pipeline for {input_id}")
+        except Exception as e:
+            logger.error(f"Auto-recovery failed for {input_id}: {e}")
 
     async def _handle_disk_low(self, available_gb: float) -> None:
         """Handle low disk space condition"""
         logger.error(f"Low disk space: {available_gb:.2f}GB remaining")
+
+        # Queue storage warning event
+        self._queue_event("storage.warning", {
+            "available_gb": available_gb,
+            "warning": f"Low disk space: {available_gb:.2f}GB remaining",
+            "critical": available_gb < 0.5,
+        })
 
         # If critically low and recording, stop to prevent data loss
         if available_gb < 0.5 and self.state.current_mode == "recording":
             logger.critical("Emergency stop: disk space critical")
             self.state.set_error(f"Emergency stop: disk space critical ({available_gb:.2f}GB)")
 
+            # Queue emergency stop event
+            session_id = self.state.active_recording.session_id if self.state.active_recording else None
+            self._queue_event("recording.emergency_stop", {
+                "session_id": session_id,
+                "reason": "disk_space_critical",
+                "available_gb": available_gb,
+            })
+
             # Stop recording to save what we have
             self.watchdog.stop_watching()
+            
+            # Stop all recording GStreamer pipelines
+            if self.state.active_recording:
+                loop = asyncio.get_event_loop()
+                for input_id in self.state.active_recording.inputs.keys():
+                    pipeline_id = f"recording_{input_id}"
+                    try:
+                        await loop.run_in_executor(
+                            _executor,
+                            lambda pid=pipeline_id: self.gst_runner.stop_pipeline(pid)
+                        )
+                        logger.info(f"Emergency stopped recording pipeline for {input_id}")
+                    except Exception as e:
+                        logger.error(f"Error stopping pipeline for {input_id}: {e}")
+            
             self.state.stop_recording()
-
-            # TODO: Emit WebSocket event to notify UI
-            # TODO: Stop GStreamer pipelines
 
     async def _auto_start_previews(self) -> None:
         """Start preview pipelines for all enabled cameras on startup.
@@ -532,6 +663,22 @@ class IPCServer:
                 return {"device": device, "capabilities": caps}
             except Exception as e:
                 return {"device": device, "error": str(e)}
+
+        elif cmd == "events.poll":
+            # Return pending events for the API to broadcast
+            last_seq = command.get("last_seq", 0)
+            
+            # Get events since last_seq
+            events: List[Dict[str, Any]] = []
+            for event in self._event_queue:
+                if event.get("seq", 0) > last_seq:
+                    events.append(event)
+            
+            return {
+                "events": events,
+                "latest_seq": self._event_seq,
+                "count": len(events),
+            }
 
         else:
             return {"error": f"Unknown command: {cmd}"}

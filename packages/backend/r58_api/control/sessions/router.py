@@ -14,6 +14,8 @@ from pydantic import BaseModel
 
 from ...config import Settings, get_settings
 from ...media.pipeline_client import get_pipeline_client
+from ...realtime.manager import get_connection_manager
+from ...realtime.events import BaseEvent, EventType
 
 router = APIRouter(prefix="/api/v1/recorder", tags=["Recorder"])
 logger = logging.getLogger(__name__)
@@ -269,6 +271,20 @@ async def _start_recording_impl(
         raise HTTPException(status_code=400, detail=result["error"])
 
     logger.info(f"Recording started: session_id={result['session_id']}")
+    
+    # Broadcast WebSocket event to notify all clients
+    manager = get_connection_manager()
+    started_event = BaseEvent(
+        type=EventType.RECORDING_STARTED,
+        payload={
+            "session_id": result["session_id"],
+            "name": request.name,
+            "inputs": list(result.get("inputs", {}).keys()),
+            "started_at": datetime.now().isoformat(),
+        }
+    )
+    asyncio.create_task(manager.broadcast(started_event))
+    
     return StartRecordingResponse(
         session_id=result["session_id"],
         name=request.name,
@@ -335,6 +351,20 @@ async def _stop_recording_impl(session_id: Optional[str]) -> StopRecordingRespon
         raise HTTPException(status_code=400, detail=result["error"])
 
     logger.info(f"Recording stopped: session_id={result.get('session_id')}")
+    
+    # Broadcast WebSocket event to notify all clients
+    manager = get_connection_manager()
+    stopped_event = BaseEvent(
+        type=EventType.RECORDING_STOPPED,
+        payload={
+            "session_id": result.get("session_id", ""),
+            "duration_ms": result.get("duration_ms", 0),
+            "files": result.get("files", {}),
+            "stopped_at": datetime.now().isoformat(),
+        }
+    )
+    asyncio.create_task(manager.broadcast(stopped_event))
+    
     return StopRecordingResponse(
         session_id=result.get("session_id", ""),
         duration_ms=result.get("duration_ms", 0),

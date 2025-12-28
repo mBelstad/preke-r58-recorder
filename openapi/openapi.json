@@ -124,14 +124,14 @@
         }
       }
     },
-    "/api/v1/devices": {
+    "/api/v1/lan-devices": {
       "get": {
         "tags": [
-          "Fleet"
+          "LAN Discovery"
         ],
         "summary": "List Devices",
         "description": "List all discovered R58 devices.\n\nReturns cached device list from previous discovery scans.",
-        "operationId": "list_devices_api_v1_devices_get",
+        "operationId": "list_devices_api_v1_lan_devices_get",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -142,7 +142,7 @@
                     "$ref": "#/components/schemas/DeviceInfo"
                   },
                   "type": "array",
-                  "title": "Response List Devices Api V1 Devices Get"
+                  "title": "Response List Devices Api V1 Lan Devices Get"
                 }
               }
             }
@@ -150,14 +150,14 @@
         }
       }
     },
-    "/api/v1/devices/scan": {
+    "/api/v1/lan-devices/scan": {
       "post": {
         "tags": [
-          "Fleet"
+          "LAN Discovery"
         ],
         "summary": "Scan For Devices",
         "description": "Scan the local network for R58 devices.\n\nScans the local subnet (e.g., 192.168.1.1-254) for devices\nwith an R58 API running on port 8000.",
-        "operationId": "scan_for_devices_api_v1_devices_scan_post",
+        "operationId": "scan_for_devices_api_v1_lan_devices_scan_post",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -168,7 +168,7 @@
                     "$ref": "#/components/schemas/DeviceInfo"
                   },
                   "type": "array",
-                  "title": "Response Scan For Devices Api V1 Devices Scan Post"
+                  "title": "Response Scan For Devices Api V1 Lan Devices Scan Post"
                 }
               }
             }
@@ -176,14 +176,14 @@
         }
       }
     },
-    "/api/v1/devices/{device_id}": {
+    "/api/v1/lan-devices/{device_id}": {
       "get": {
         "tags": [
-          "Fleet"
+          "LAN Discovery"
         ],
         "summary": "Get Device",
         "description": "Get details for a specific device",
-        "operationId": "get_device_api_v1_devices__device_id__get",
+        "operationId": "get_device_api_v1_lan_devices__device_id__get",
         "parameters": [
           {
             "name": "device_id",
@@ -219,14 +219,14 @@
         }
       }
     },
-    "/api/v1/devices/{device_id}/connect": {
+    "/api/v1/lan-devices/{device_id}/connect": {
       "post": {
         "tags": [
-          "Fleet"
+          "LAN Discovery"
         ],
         "summary": "Connect To Device",
         "description": "Establish connection to a remote device.\n\nReturns device information if connection is successful.",
-        "operationId": "connect_to_device_api_v1_devices__device_id__connect_post",
+        "operationId": "connect_to_device_api_v1_lan_devices__device_id__connect_post",
         "parameters": [
           {
             "name": "device_id",
@@ -368,6 +368,32 @@
             "content": {
               "application/json": {
                 "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recorder/inputs": {
+      "get": {
+        "tags": [
+          "Recorder"
+        ],
+        "summary": "Get Inputs Status",
+        "description": "Get real-time input status with signal detection.\n\nReturns status for all configured inputs including:\n- has_signal: Whether HDMI signal is detected\n- resolution: Detected resolution if signal present\n- framerate: Detected framerate if signal present\n- is_recording: Whether this input is currently recording",
+        "operationId": "get_inputs_status_api_v1_recorder_inputs_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/InputStatus"
+                  },
+                  "type": "array",
+                  "title": "Response Get Inputs Status Api V1 Recorder Inputs Get"
+                }
               }
             }
           }
@@ -528,7 +554,7 @@
           "Recorder"
         ],
         "summary": "List Sessions",
-        "description": "List recording sessions",
+        "description": "List recording sessions from the recordings directory.",
         "operationId": "list_sessions_api_v1_recorder_sessions_get",
         "parameters": [
           {
@@ -560,7 +586,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/RecordingSession"
+                    "$ref": "#/components/schemas/SessionWithFiles"
                   },
                   "title": "Response List Sessions Api V1 Recorder Sessions Get"
                 }
@@ -586,7 +612,7 @@
           "Recorder"
         ],
         "summary": "Get Session",
-        "description": "Get details of a specific session",
+        "description": "Get details of a specific session.",
         "operationId": "get_session_api_v1_recorder_sessions__session_id__get",
         "parameters": [
           {
@@ -605,8 +631,154 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RecordingSession"
+                  "$ref": "#/components/schemas/SessionWithFiles"
                 }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Recorder"
+        ],
+        "summary": "Rename Session",
+        "description": "Rename a recording session.",
+        "operationId": "rename_session_api_v1_recorder_sessions__session_id__patch",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenameSessionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Rename Session Api V1 Recorder Sessions  Session Id  Patch"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Recorder"
+        ],
+        "summary": "Delete Session",
+        "description": "Delete a recording session and all its files.",
+        "operationId": "delete_session_api_v1_recorder_sessions__session_id__delete",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Delete Session Api V1 Recorder Sessions  Session Id  Delete"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recorder/sessions/{session_id}/files/{filename}": {
+      "get": {
+        "tags": [
+          "Recorder"
+        ],
+        "summary": "Download File",
+        "description": "Download a specific recording file.",
+        "operationId": "download_file_api_v1_recorder_sessions__session_id__files__filename__get",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          },
+          {
+            "name": "filename",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Filename"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
               }
             }
           },
@@ -946,6 +1118,400 @@
             "content": {
               "application/json": {
                 "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/whep/{stream_id}/whep": {
+      "delete": {
+        "tags": [
+          "WebRTC Proxy"
+        ],
+        "summary": "Whep Proxy",
+        "description": "Proxy WHEP requests to local MediaMTX (for viewing streams).\n\nSupports all WHEP operations:\n- POST: Create WHEP session (send SDP offer, receive answer)\n- PATCH: ICE trickle candidates\n- DELETE: Close session\n- GET: Check stream availability",
+        "operationId": "whep_proxy_api_v1_whep__stream_id__whep_delete",
+        "parameters": [
+          {
+            "name": "stream_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Stream Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "WebRTC Proxy"
+        ],
+        "summary": "Whep Proxy",
+        "description": "Proxy WHEP requests to local MediaMTX (for viewing streams).\n\nSupports all WHEP operations:\n- POST: Create WHEP session (send SDP offer, receive answer)\n- PATCH: ICE trickle candidates\n- DELETE: Close session\n- GET: Check stream availability",
+        "operationId": "whep_proxy_api_v1_whep__stream_id__whep_delete",
+        "parameters": [
+          {
+            "name": "stream_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Stream Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "WebRTC Proxy"
+        ],
+        "summary": "Whep Proxy",
+        "description": "Proxy WHEP requests to local MediaMTX (for viewing streams).\n\nSupports all WHEP operations:\n- POST: Create WHEP session (send SDP offer, receive answer)\n- PATCH: ICE trickle candidates\n- DELETE: Close session\n- GET: Check stream availability",
+        "operationId": "whep_proxy_api_v1_whep__stream_id__whep_delete",
+        "parameters": [
+          {
+            "name": "stream_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Stream Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "WebRTC Proxy"
+        ],
+        "summary": "Whep Proxy",
+        "description": "Proxy WHEP requests to local MediaMTX (for viewing streams).\n\nSupports all WHEP operations:\n- POST: Create WHEP session (send SDP offer, receive answer)\n- PATCH: ICE trickle candidates\n- DELETE: Close session\n- GET: Check stream availability",
+        "operationId": "whep_proxy_api_v1_whep__stream_id__whep_delete",
+        "parameters": [
+          {
+            "name": "stream_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Stream Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "WebRTC Proxy"
+        ],
+        "summary": "Whep Proxy",
+        "description": "Proxy WHEP requests to local MediaMTX (for viewing streams).\n\nSupports all WHEP operations:\n- POST: Create WHEP session (send SDP offer, receive answer)\n- PATCH: ICE trickle candidates\n- DELETE: Close session\n- GET: Check stream availability",
+        "operationId": "whep_proxy_api_v1_whep__stream_id__whep_delete",
+        "parameters": [
+          {
+            "name": "stream_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Stream Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/whip/{stream_id}/whip": {
+      "delete": {
+        "tags": [
+          "WebRTC Proxy"
+        ],
+        "summary": "Whip Proxy",
+        "description": "Proxy WHIP requests to local MediaMTX (for publishing streams).\n\nUsed by VDO.ninja to push the program output to MediaMTX.\n\nSupports all WHIP operations:\n- POST: Create WHIP session (send SDP offer, receive answer)\n- PATCH: ICE trickle candidates\n- DELETE: Close session",
+        "operationId": "whip_proxy_api_v1_whip__stream_id__whip_delete",
+        "parameters": [
+          {
+            "name": "stream_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Stream Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "WebRTC Proxy"
+        ],
+        "summary": "Whip Proxy",
+        "description": "Proxy WHIP requests to local MediaMTX (for publishing streams).\n\nUsed by VDO.ninja to push the program output to MediaMTX.\n\nSupports all WHIP operations:\n- POST: Create WHIP session (send SDP offer, receive answer)\n- PATCH: ICE trickle candidates\n- DELETE: Close session",
+        "operationId": "whip_proxy_api_v1_whip__stream_id__whip_delete",
+        "parameters": [
+          {
+            "name": "stream_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Stream Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "WebRTC Proxy"
+        ],
+        "summary": "Whip Proxy",
+        "description": "Proxy WHIP requests to local MediaMTX (for publishing streams).\n\nUsed by VDO.ninja to push the program output to MediaMTX.\n\nSupports all WHIP operations:\n- POST: Create WHIP session (send SDP offer, receive answer)\n- PATCH: ICE trickle candidates\n- DELETE: Close session",
+        "operationId": "whip_proxy_api_v1_whip__stream_id__whip_delete",
+        "parameters": [
+          {
+            "name": "stream_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Stream Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "WebRTC Proxy"
+        ],
+        "summary": "Whip Proxy",
+        "description": "Proxy WHIP requests to local MediaMTX (for publishing streams).\n\nUsed by VDO.ninja to push the program output to MediaMTX.\n\nSupports all WHIP operations:\n- POST: Create WHIP session (send SDP offer, receive answer)\n- PATCH: ICE trickle candidates\n- DELETE: Close session",
+        "operationId": "whip_proxy_api_v1_whip__stream_id__whip_delete",
+        "parameters": [
+          {
+            "name": "stream_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Stream Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "WebRTC Proxy"
+        ],
+        "summary": "Whip Proxy",
+        "description": "Proxy WHIP requests to local MediaMTX (for publishing streams).\n\nUsed by VDO.ninja to push the program output to MediaMTX.\n\nSupports all WHIP operations:\n- POST: Create WHIP session (send SDP offer, receive answer)\n- PATCH: ICE trickle candidates\n- DELETE: Close session",
+        "operationId": "whip_proxy_api_v1_whip__stream_id__whip_delete",
+        "parameters": [
+          {
+            "name": "stream_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Stream Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
               }
             }
           }
@@ -1513,6 +2079,68 @@
         "title": "InputCapability",
         "description": "Hardware input capability"
       },
+      "InputStatus": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "has_signal": {
+            "type": "boolean",
+            "title": "Has Signal"
+          },
+          "is_recording": {
+            "type": "boolean",
+            "title": "Is Recording"
+          },
+          "resolution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution"
+          },
+          "framerate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Framerate"
+          },
+          "device_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Path"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "has_signal",
+          "is_recording"
+        ],
+        "title": "InputStatus",
+        "description": "Input status with signal detection"
+      },
       "MemoryMetrics": {
         "properties": {
           "total_gb": {
@@ -1710,69 +2338,54 @@
         "title": "RecorderStatus",
         "description": "Current recorder status"
       },
-      "RecordingSession": {
+      "RecordingFile": {
         "properties": {
-          "id": {
+          "filename": {
             "type": "string",
-            "title": "Id"
+            "title": "Filename"
           },
-          "name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Name"
+          "path": {
+            "type": "string",
+            "title": "Path"
           },
-          "started_at": {
+          "size_bytes": {
+            "type": "integer",
+            "title": "Size Bytes"
+          },
+          "camera_id": {
+            "type": "string",
+            "title": "Camera Id"
+          },
+          "created_at": {
             "type": "string",
             "format": "date-time",
-            "title": "Started At"
-          },
-          "ended_at": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Ended At"
-          },
-          "status": {
-            "type": "string",
-            "title": "Status"
-          },
-          "total_bytes": {
-            "type": "integer",
-            "title": "Total Bytes"
-          },
-          "files": {
-            "items": {
-              "additionalProperties": true,
-              "type": "object"
-            },
-            "type": "array",
-            "title": "Files"
+            "title": "Created At"
           }
         },
         "type": "object",
         "required": [
-          "id",
-          "name",
-          "started_at",
-          "ended_at",
-          "status",
-          "total_bytes",
-          "files"
+          "filename",
+          "path",
+          "size_bytes",
+          "camera_id",
+          "created_at"
         ],
-        "title": "RecordingSession",
-        "description": "Recording session details"
+        "title": "RecordingFile",
+        "description": "Single recording file"
+      },
+      "RenameSessionRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "RenameSessionRequest",
+        "description": "Request to rename a session"
       },
       "RoomStatus": {
         "properties": {
@@ -1830,6 +2443,60 @@
         ],
         "title": "ServiceStatus",
         "description": "Individual service status"
+      },
+      "SessionWithFiles": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "date": {
+            "type": "string",
+            "title": "Date"
+          },
+          "duration": {
+            "type": "string",
+            "title": "Duration"
+          },
+          "file_count": {
+            "type": "integer",
+            "title": "File Count"
+          },
+          "total_size": {
+            "type": "string",
+            "title": "Total Size"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/RecordingFile"
+            },
+            "type": "array",
+            "title": "Files"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "date",
+          "duration",
+          "file_count",
+          "total_size",
+          "files"
+        ],
+        "title": "SessionWithFiles",
+        "description": "Session with all its files for library view"
       },
       "StartRecordingRequest": {
         "properties": {

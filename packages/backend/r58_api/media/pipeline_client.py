@@ -239,6 +239,21 @@ class PipelineClient:
             cmd["device"] = device
         return await self._send_command(cmd)
 
+    async def poll_events(self, last_seq: int = 0) -> Dict[str, Any]:
+        """
+        Poll for pending events from the pipeline manager.
+
+        Args:
+            last_seq: The last event sequence number received
+
+        Returns:
+            Dict with events list and latest_seq
+        """
+        return await self._send_command({
+            "cmd": "events.poll",
+            "last_seq": last_seq,
+        })
+
 
 # Singleton instance
 _client: Optional[PipelineClient] = None

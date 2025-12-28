@@ -32,8 +32,11 @@ from .realtime.handlers import router as websocket_router
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan management"""
+    import asyncio
     import logging
     from .media.pipeline_client import get_pipeline_client
+    from .realtime.manager import get_connection_manager
+    from .realtime.events import BaseEvent, EventType
     
     logger = logging.getLogger(__name__)
     settings = get_settings()
@@ -74,9 +77,80 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Could not auto-start previews: {e}")
 
+    # Background task to poll for pipeline events and broadcast them
+    _event_poll_task = None
+    _last_event_seq = 0
+    
+    async def poll_pipeline_events():
+        """Poll pipeline manager for events and broadcast to WebSocket clients"""
+        nonlocal _last_event_seq
+        client = get_pipeline_client()
+        manager = get_connection_manager()
+        
+        while True:
+            try:
+                await asyncio.sleep(1.0)  # Poll every second
+                
+                # Skip if no active WebSocket connections
+                if not manager.active_connections:
+                    continue
+                
+                # Poll for events from pipeline manager
+                result = await client.poll_events(last_seq=_last_event_seq)
+                
+                if result.get("error"):
+                    continue
+                
+                events = result.get("events", [])
+                if events:
+                    _last_event_seq = result.get("latest_seq", _last_event_seq)
+                    
+                    # Broadcast each event to WebSocket clients
+                    for event_data in events:
+                        event_type = event_data.get("type", "")
+                        payload = event_data.get("payload", {})
+                        
+                        # Map pipeline event types to WebSocket event types
+                        ws_event_type = None
+                        if event_type == "pipeline.error":
+                            ws_event_type = EventType.PIPELINE_ERROR
+                        elif event_type == "preview.started":
+                            ws_event_type = EventType.PREVIEW_STARTED
+                        elif event_type == "preview.stopped":
+                            ws_event_type = EventType.PREVIEW_STOPPED
+                        elif event_type == "storage.warning":
+                            ws_event_type = EventType.STORAGE_WARNING
+                        elif event_type in ("recording.stall", "recording.emergency_stop"):
+                            ws_event_type = EventType.ERROR
+                            payload["error_type"] = event_type
+                        elif event_type == "recording.recovered":
+                            ws_event_type = EventType.HEALTH_CHANGED
+                        
+                        if ws_event_type:
+                            event = BaseEvent(
+                                type=ws_event_type,
+                                payload=payload,
+                            )
+                            await manager.broadcast(event)
+                            logger.debug(f"Broadcasted pipeline event: {event_type}")
+                
+            except Exception as e:
+                logger.debug(f"Event polling error (retrying): {e}")
+                await asyncio.sleep(5.0)  # Back off on error
+    
+    # Start the event polling background task
+    _event_poll_task = asyncio.create_task(poll_pipeline_events())
+    logger.info("Started pipeline event polling background task")
+
     yield
     
     # Cleanup on shutdown
+    if _event_poll_task:
+        _event_poll_task.cancel()
+        try:
+            await _event_poll_task
+        except asyncio.CancelledError:
+            pass
 
 
 def create_app() -> FastAPI:

@@ -28,6 +28,22 @@ function mockStopRecordingSuccess(sessionId = 'test-session-123', durationMs = 1
   })
 }
 
+// Default test inputs to populate the store
+const DEFAULT_TEST_INPUTS = [
+  { id: 'cam1', label: 'HDMI 1', hasSignal: true, isRecording: false, bytesWritten: 0, resolution: '1920x1080', framerate: 30 },
+  { id: 'cam2', label: 'HDMI 2', hasSignal: true, isRecording: false, bytesWritten: 0, resolution: '1920x1080', framerate: 30 },
+  { id: 'cam3', label: 'HDMI 3', hasSignal: false, isRecording: false, bytesWritten: 0, resolution: '', framerate: 0 },
+  { id: 'cam4', label: 'HDMI 4', hasSignal: false, isRecording: false, bytesWritten: 0, resolution: '', framerate: 0 },
+]
+
+// Helper to set up the store with default inputs
+function setupStoreWithInputs() {
+  const store = useRecorderStore()
+  // Populate inputs directly (simulating fetchInputs() result)
+  store.inputs.push(...DEFAULT_TEST_INPUTS.map(i => ({ ...i })))
+  return store
+}
+
 describe('RecorderStore', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
@@ -41,12 +57,14 @@ describe('RecorderStore', () => {
       expect(store.status).toBe('idle')
       expect(store.currentSession).toBeNull()
       expect(store.duration).toBe(0)
-      expect(store.inputs).toHaveLength(4)
+      // Store starts empty - inputs are fetched from API
+      expect(store.inputs).toHaveLength(0)
     })
 
-    it('has default inputs configured', () => {
-      const store = useRecorderStore()
+    it('has inputs after setup', () => {
+      const store = setupStoreWithInputs()
       
+      expect(store.inputs).toHaveLength(4)
       const inputIds = store.inputs.map(i => i.id)
       expect(inputIds).toContain('cam1')
       expect(inputIds).toContain('cam2')
@@ -98,7 +116,7 @@ describe('RecorderStore', () => {
     })
 
     it('marks inputs with signal as recording', async () => {
-      const store = useRecorderStore()
+      const store = setupStoreWithInputs()
       mockStartRecordingSuccess()
       
       // cam1 and cam2 have signal by default
@@ -188,7 +206,7 @@ describe('RecorderStore', () => {
     })
 
     it('marks all inputs as not recording', async () => {
-      const store = useRecorderStore()
+      const store = setupStoreWithInputs()
       
       mockStartRecordingSuccess()
       await store.startRecording()
@@ -217,7 +235,7 @@ describe('RecorderStore', () => {
     })
 
     it('updates input statuses from event', async () => {
-      const store = useRecorderStore()
+      const store = setupStoreWithInputs()
       
       mockStartRecordingSuccess()
       await store.startRecording()
@@ -265,7 +283,7 @@ describe('RecorderStore', () => {
 
   describe('updateInputSignal', () => {
     it('updates signal status for an input', () => {
-      const store = useRecorderStore()
+      const store = setupStoreWithInputs()
       
       // cam3 starts with no signal
       let cam3 = store.inputs.find(i => i.id === 'cam3')
@@ -280,7 +298,7 @@ describe('RecorderStore', () => {
     })
 
     it('handles signal loss', () => {
-      const store = useRecorderStore()
+      const store = setupStoreWithInputs()
       
       // cam1 starts with signal
       let cam1 = store.inputs.find(i => i.id === 'cam1')
@@ -293,7 +311,7 @@ describe('RecorderStore', () => {
     })
 
     it('ignores unknown input ids', () => {
-      const store = useRecorderStore()
+      const store = setupStoreWithInputs()
       
       // Should not throw
       store.updateInputSignal('unknown-cam', true)
@@ -303,7 +321,7 @@ describe('RecorderStore', () => {
     })
 
     it('updates only provided optional fields', () => {
-      const store = useRecorderStore()
+      const store = setupStoreWithInputs()
       
       const cam1 = store.inputs.find(i => i.id === 'cam1')
       const originalResolution = cam1?.resolution
@@ -318,7 +336,7 @@ describe('RecorderStore', () => {
 
   describe('Computed Properties', () => {
     it('activeInputs returns only inputs with signal', () => {
-      const store = useRecorderStore()
+      const store = setupStoreWithInputs()
       
       // Default: cam1 and cam2 have signal
       expect(store.activeInputs).toHaveLength(2)
@@ -327,7 +345,7 @@ describe('RecorderStore', () => {
     })
 
     it('activeInputs updates when signal changes', () => {
-      const store = useRecorderStore()
+      const store = setupStoreWithInputs()
       
       expect(store.activeInputs).toHaveLength(2)
       

@@ -239,6 +239,13 @@ describe('useR58WebSocket', () => {
       const wrapper = mount(TestComponent)
       const recorderStore = useRecorderStore()
       
+      // Initialize inputs (simulating fetchInputs)
+      recorderStore.inputs.push(
+        { id: 'cam1', label: 'HDMI 1', hasSignal: true, isRecording: false, bytesWritten: 0, resolution: '1920x1080', framerate: 30 },
+        { id: 'cam2', label: 'HDMI 2', hasSignal: true, isRecording: false, bytesWritten: 0, resolution: '1920x1080', framerate: 30 },
+        { id: 'cam3', label: 'HDMI 3', hasSignal: false, isRecording: false, bytesWritten: 0, resolution: '', framerate: 0 }
+      )
+      
       await vi.runAllTimersAsync()
       
       const ws = MockWebSocket.getLastInstance()!
