@@ -57,7 +57,7 @@ const router = createRouter({
 // Update document title
 router.beforeEach((to, _from, next) => {
   const title = to.meta.title as string
-  document.title = title ? `${title} - R58 Studio` : 'R58 Studio'
+  document.title = title ? `${title} - Preke Studio` : 'Preke Studio'
   next()
 })
 

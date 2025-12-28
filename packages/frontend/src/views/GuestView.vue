@@ -23,7 +23,7 @@ async function joinAsGuest() {
   <div class="min-h-screen bg-r58-bg-primary flex items-center justify-center p-8">
     <div class="card max-w-md w-full">
       <div class="text-center mb-8">
-        <h1 class="text-2xl font-bold mb-2">Join R58 Studio</h1>
+        <h1 class="text-2xl font-bold mb-2">Join Preke Studio</h1>
         <p class="text-r58-text-secondary">Enter your name to join as a remote guest</p>
       </div>
       

@@ -31,7 +31,7 @@ function isActive(path: string): boolean {
   <aside class="w-20 bg-r58-bg-secondary border-r border-r58-bg-tertiary flex flex-col">
     <!-- Logo -->
     <div class="h-16 flex items-center justify-center border-b border-r58-bg-tertiary">
-      <span class="text-xl font-bold text-r58-accent-primary">R58</span>
+      <img src="/favicon.svg" alt="Preke" class="w-10 h-10" />
     </div>
     
     <!-- Navigation -->

@@ -13,7 +13,7 @@ function selectMode(mode: 'recorder' | 'mixer') {
 
 <template>
   <div class="h-full flex flex-col items-center justify-center p-8">
-    <h1 class="text-4xl font-bold mb-2">R58 Studio</h1>
+    <h1 class="text-4xl font-bold mb-2">Preke Studio</h1>
     <p class="text-r58-text-secondary mb-12">Select a mode to begin</p>
     
     <div class="flex gap-6">
