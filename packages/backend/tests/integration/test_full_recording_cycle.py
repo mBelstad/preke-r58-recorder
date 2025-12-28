@@ -183,6 +183,14 @@ class TestRecordingErrorHandling:
     
     def test_handles_stop_while_finalizing(self, client, mock_pipeline_client):
         """Test stopping while file is being finalized"""
+        # Set up as recording to allow stop attempt
+        mock_pipeline_client.return_value.get_recording_status = AsyncMock(
+            return_value={
+                "recording": True,
+                "session_id": "finalizing-session",
+                "bytes_written": {"cam1": 1000}
+            }
+        )
         mock_pipeline_client.return_value.stop_recording = AsyncMock(
             return_value={"error": "Finalization in progress, please wait"}
         )

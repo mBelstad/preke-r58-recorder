@@ -13,6 +13,7 @@ from .watchdog import get_watchdog, RecordingWatchdog
 logger = logging.getLogger(__name__)
 
 SOCKET_PATH = Path("/run/r58/pipeline.sock")
+RECORDINGS_DIR = Path("/opt/r58/recordings")
 
 
 class IPCServer:
@@ -121,13 +122,12 @@ class IPCServer:
                 return {"error": "Already recording"}
             
             # Create file paths for each input
-            recordings_dir = Path("/opt/r58/recordings")
-            recordings_dir.mkdir(parents=True, exist_ok=True)
+            RECORDINGS_DIR.mkdir(parents=True, exist_ok=True)
             
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             input_paths = {}
             for input_id in inputs:
-                file_path = recordings_dir / f"{session_id}_{input_id}_{timestamp}.mp4"
+                file_path = RECORDINGS_DIR / f"{session_id}_{input_id}_{timestamp}.mp4"
                 input_paths[input_id] = str(file_path)
             
             # Start recording

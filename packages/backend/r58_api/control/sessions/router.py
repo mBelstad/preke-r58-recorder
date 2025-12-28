@@ -114,16 +114,17 @@ async def start_recording(
     """
     # Acquire lock to prevent race conditions
     try:
-        async with asyncio.wait_for(_recording_lock.acquire(), timeout=5.0):
-            try:
-                return await _start_recording_impl(request, settings, x_idempotency_key)
-            finally:
-                _recording_lock.release()
+        await asyncio.wait_for(_recording_lock.acquire(), timeout=5.0)
     except asyncio.TimeoutError:
         raise HTTPException(
             status_code=503,
             detail="Recording operation in progress, please retry"
         )
+    
+    try:
+        return await _start_recording_impl(request, settings, x_idempotency_key)
+    finally:
+        _recording_lock.release()
 
 
 async def _start_recording_impl(
@@ -206,16 +207,17 @@ async def stop_recording(
     """
     # Acquire lock to prevent race conditions
     try:
-        async with asyncio.wait_for(_recording_lock.acquire(), timeout=5.0):
-            try:
-                return await _stop_recording_impl(session_id)
-            finally:
-                _recording_lock.release()
+        await asyncio.wait_for(_recording_lock.acquire(), timeout=5.0)
     except asyncio.TimeoutError:
         raise HTTPException(
             status_code=503,
             detail="Recording operation in progress, please retry"
         )
+    
+    try:
+        return await _stop_recording_impl(session_id)
+    finally:
+        _recording_lock.release()
 
 
 async def _stop_recording_impl(session_id: Optional[str]) -> StopRecordingResponse:

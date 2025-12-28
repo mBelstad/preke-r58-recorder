@@ -7,6 +7,27 @@ import { setActivePinia, createPinia } from 'pinia'
 import { useRecorderStore } from '../recorder'
 import { mockFetch, mockFetchResponse, mockFetchError, flushPromises } from '../../test/setup'
 
+// Helper to mock a successful start recording response
+function mockStartRecordingSuccess(sessionId = 'test-session-123') {
+  mockFetchResponse({
+    session_id: sessionId,
+    name: 'Test Session',
+    started_at: new Date().toISOString(),
+    inputs: ['cam1', 'cam2'],
+    status: 'recording',
+  })
+}
+
+// Helper to mock a successful stop recording response  
+function mockStopRecordingSuccess(sessionId = 'test-session-123', durationMs = 10000) {
+  mockFetchResponse({
+    session_id: sessionId,
+    duration_ms: durationMs,
+    files: { cam1: '/recordings/cam1.mp4', cam2: '/recordings/cam2.mp4' },
+    status: 'stopped',
+  })
+}
+
 describe('RecorderStore', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
@@ -49,6 +70,7 @@ describe('RecorderStore', () => {
   describe('startRecording', () => {
     it('transitions from idle to starting to recording', async () => {
       const store = useRecorderStore()
+      mockStartRecordingSuccess()
       
       expect(store.status).toBe('idle')
       
@@ -65,6 +87,7 @@ describe('RecorderStore', () => {
 
     it('creates a session on successful start', async () => {
       const store = useRecorderStore()
+      mockStartRecordingSuccess()
       
       await store.startRecording('My Recording')
       
@@ -76,6 +99,7 @@ describe('RecorderStore', () => {
 
     it('marks inputs with signal as recording', async () => {
       const store = useRecorderStore()
+      mockStartRecordingSuccess()
       
       // cam1 and cam2 have signal by default
       await store.startRecording()
@@ -92,28 +116,23 @@ describe('RecorderStore', () => {
     it('handles start failure gracefully', async () => {
       const store = useRecorderStore()
       
-      // Mock a failed fetch
-      mockFetchError('Network error')
-      
-      // The current implementation doesn't actually call fetch,
-      // so we test the error handling in the try/catch
-      const originalFetch = global.fetch
-      global.fetch = vi.fn().mockRejectedValue(new Error('Network error'))
+      // Mock network error - fetch will fail after 4 retries
+      mockFetch.mockRejectedValue(new TypeError('Network error'))
       
       try {
         await store.startRecording()
       } catch (e) {
-        // Error is caught internally
+        // Expected to throw
       }
       
       // Status should return to idle on failure
-      // Note: Current implementation may stay as 'recording' - this tests expected behavior
-      
-      global.fetch = originalFetch
+      expect(store.status).toBe('idle')
+      expect(store.lastError).toBeTruthy()
     })
 
     it('can start without a session name', async () => {
       const store = useRecorderStore()
+      mockStartRecordingSuccess()
       
       await store.startRecording()
       
@@ -126,9 +145,11 @@ describe('RecorderStore', () => {
     it('transitions from recording to stopping to idle', async () => {
       const store = useRecorderStore()
       
+      mockStartRecordingSuccess()
       await store.startRecording()
       expect(store.status).toBe('recording')
       
+      mockStopRecordingSuccess()
       const stopPromise = store.stopRecording()
       
       // Should immediately be stopping
@@ -143,9 +164,11 @@ describe('RecorderStore', () => {
     it('clears session on stop', async () => {
       const store = useRecorderStore()
       
+      mockStartRecordingSuccess()
       await store.startRecording('To Be Stopped')
       expect(store.currentSession).not.toBeNull()
       
+      mockStopRecordingSuccess()
       await store.stopRecording()
       
       expect(store.currentSession).toBeNull()
@@ -154,9 +177,11 @@ describe('RecorderStore', () => {
     it('resets duration on stop', async () => {
       const store = useRecorderStore()
       
+      mockStartRecordingSuccess()
       await store.startRecording()
       store.duration = 5000 // Simulate some duration
       
+      mockStopRecordingSuccess()
       await store.stopRecording()
       
       expect(store.duration).toBe(0)
@@ -165,11 +190,13 @@ describe('RecorderStore', () => {
     it('marks all inputs as not recording', async () => {
       const store = useRecorderStore()
       
+      mockStartRecordingSuccess()
       await store.startRecording()
       
       // Verify some are recording
       expect(store.inputs.some(i => i.isRecording)).toBe(true)
       
+      mockStopRecordingSuccess()
       await store.stopRecording()
       
       // All should be stopped
@@ -181,6 +208,7 @@ describe('RecorderStore', () => {
     it('updates duration from WebSocket event', async () => {
       const store = useRecorderStore()
       
+      mockStartRecordingSuccess()
       await store.startRecording()
       
       store.updateFromEvent({ duration_ms: 10000 })
@@ -191,6 +219,7 @@ describe('RecorderStore', () => {
     it('updates input statuses from event', async () => {
       const store = useRecorderStore()
       
+      mockStartRecordingSuccess()
       await store.startRecording()
       
       store.updateFromEvent({
@@ -207,6 +236,7 @@ describe('RecorderStore', () => {
     it('handles event with missing inputs gracefully', async () => {
       const store = useRecorderStore()
       
+      mockStartRecordingSuccess()
       await store.startRecording()
       
       // Should not throw
@@ -218,6 +248,7 @@ describe('RecorderStore', () => {
     it('ignores updates for unknown inputs', async () => {
       const store = useRecorderStore()
       
+      mockStartRecordingSuccess()
       await store.startRecording()
       
       // Should not throw
@@ -309,6 +340,7 @@ describe('RecorderStore', () => {
     it('formattedDuration formats correctly', async () => {
       const store = useRecorderStore()
       
+      mockStartRecordingSuccess()
       await store.startRecording()
       
       // Test various durations

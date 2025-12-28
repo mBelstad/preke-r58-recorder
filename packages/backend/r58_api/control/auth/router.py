@@ -57,20 +57,33 @@ class UserResponse(BaseModel):
 
 
 # Fake users database - in production, use real database
-FAKE_USERS_DB = {
-    "admin": {
-        "username": "admin",
-        "hashed_password": pwd_context.hash("admin"),  # Change in production!
-        "role": "admin",
-        "disabled": False,
-    },
-    "operator": {
-        "username": "operator",
-        "hashed_password": pwd_context.hash("operator"),  # Change in production!
-        "role": "operator",
-        "disabled": False,
-    },
-}
+# Passwords are hashed lazily to avoid import-time issues with bcrypt
+_fake_users_db_cache = None
+
+
+def get_fake_users_db() -> dict:
+    """Lazy-load fake users database to avoid bcrypt import issues"""
+    global _fake_users_db_cache
+    if _fake_users_db_cache is None:
+        try:
+            _fake_users_db_cache = {
+                "admin": {
+                    "username": "admin",
+                    "hashed_password": pwd_context.hash("admin"),  # Change in production!
+                    "role": "admin",
+                    "disabled": False,
+                },
+                "operator": {
+                    "username": "operator",
+                    "hashed_password": pwd_context.hash("operator"),  # Change in production!
+                    "role": "operator",
+                    "disabled": False,
+                },
+            }
+        except Exception:
+            # Fallback for environments without bcrypt
+            _fake_users_db_cache = {}
+    return _fake_users_db_cache
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -80,8 +93,9 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def get_user(username: str) -> Optional[UserInDB]:
     """Get user from database"""
-    if username in FAKE_USERS_DB:
-        user_dict = FAKE_USERS_DB[username]
+    users_db = get_fake_users_db()
+    if username in users_db:
+        user_dict = users_db[username]
         return UserInDB(**user_dict)
     return None
 

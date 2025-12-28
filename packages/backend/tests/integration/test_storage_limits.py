@@ -19,20 +19,26 @@ class TestStorageLimitsStartRecording:
         # Set disk to 99% full (1GB free on 100GB disk)
         mock_disk_usage(total_gb=100, free_gb=1)
         
-        mock_pipeline_client.return_value.start_recording = AsyncMock(
-            return_value={"error": "Insufficient disk space"}
+        # Make sure not already recording
+        mock_pipeline_client.return_value.get_recording_status = AsyncMock(
+            return_value={"recording": False}
         )
         
         response = client.post("/api/v1/recorder/start", json={})
         
-        assert response.status_code == 400
-        assert "disk" in response.json()["detail"].lower() or "space" in response.json()["detail"].lower() or "Insufficient" in response.json()["detail"]
+        # Now returns 507 Insufficient Storage
+        assert response.status_code == 507
+        assert "Insufficient" in response.json()["detail"] or "disk" in response.json()["detail"].lower()
     
     def test_start_recording_succeeds_with_adequate_space(self, client, mock_pipeline_client, mock_disk_usage):
         """Test that recording starts when disk has adequate space"""
         # Set disk to 50% full
         mock_disk_usage(total_gb=100, free_gb=50)
         
+        # Make sure not already recording
+        mock_pipeline_client.return_value.get_recording_status = AsyncMock(
+            return_value={"recording": False}
+        )
         mock_pipeline_client.return_value.start_recording = AsyncMock(
             return_value={
                 "session_id": "space-ok",
@@ -50,7 +56,7 @@ class TestStorageLimitsStartRecording:
 class TestStorageWarnings:
     """Tests for storage warning thresholds"""
     
-    def test_health_shows_low_storage_warning(self, client, mock_disk_usage):
+    def test_health_shows_low_storage_warning(self, client, mock_pipeline_client, mock_disk_usage):
         """Test that health endpoint shows storage warning when low"""
         # Set disk to 95% full
         mock_disk_usage(total_gb=100, free_gb=5)
@@ -79,7 +85,7 @@ class TestStorageWarnings:
 class TestStorageEdgeCases:
     """Edge case tests for storage handling"""
     
-    def test_handles_disk_read_error(self, client, monkeypatch):
+    def test_handles_disk_read_error(self, client, mock_pipeline_client, monkeypatch):
         """Test graceful handling when disk_usage fails"""
         def mock_disk_usage(path):
             raise OSError("Disk not accessible")
@@ -93,7 +99,7 @@ class TestStorageEdgeCases:
         data = response.json()
         assert data["storage"]["total_gb"] == 0.0
     
-    def test_handles_very_large_disk(self, client, mock_disk_usage):
+    def test_handles_very_large_disk(self, client, mock_pipeline_client, mock_disk_usage):
         """Test handling of very large disk sizes (>1TB)"""
         mock_disk_usage(total_gb=4000, free_gb=2000)  # 4TB disk
         
@@ -105,7 +111,7 @@ class TestStorageEdgeCases:
         assert data["storage"]["available_gb"] == 2000.0
         assert data["storage"]["used_percent"] == 50.0
     
-    def test_handles_nearly_empty_disk(self, client, mock_disk_usage):
+    def test_handles_nearly_empty_disk(self, client, mock_pipeline_client, mock_disk_usage):
         """Test handling of nearly empty disk"""
         mock_disk_usage(total_gb=100, free_gb=99)
         
@@ -142,6 +148,14 @@ class TestRecordingBytesTracking:
     
     def test_final_bytes_in_stop_response(self, client, mock_pipeline_client):
         """Test that stop response includes final file sizes"""
+        # Set up as recording to allow stop
+        mock_pipeline_client.return_value.get_recording_status = AsyncMock(
+            return_value={
+                "recording": True,
+                "session_id": "final-bytes",
+                "bytes_written": {"cam1": 1000, "cam2": 2000}
+            }
+        )
         mock_pipeline_client.return_value.stop_recording = AsyncMock(
             return_value={
                 "session_id": "final-bytes",
@@ -172,7 +186,7 @@ class TestStorageThresholds:
         (5, "healthy"),     # 5% free - critical warning
         (1, "healthy"),     # 1% free - severe warning
     ])
-    def test_storage_thresholds(self, client, mock_disk_usage, free_gb, expected_status):
+    def test_storage_thresholds(self, client, mock_pipeline_client, mock_disk_usage, free_gb, expected_status):
         """Test different storage threshold levels"""
         mock_disk_usage(total_gb=100, free_gb=free_gb)
         
@@ -182,7 +196,7 @@ class TestStorageThresholds:
         assert response.status_code == 200
         assert response.json()["status"] == expected_status
     
-    def test_storage_percentage_precision(self, client, mock_disk_usage):
+    def test_storage_percentage_precision(self, client, mock_pipeline_client, mock_disk_usage):
         """Test storage percentage is calculated with correct precision"""
         # 73GB used of 100GB = 73% used
         mock_disk_usage(total_gb=100, free_gb=27)

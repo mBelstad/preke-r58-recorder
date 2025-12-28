@@ -76,12 +76,27 @@ def mock_pipeline_client(monkeypatch):
         "files": {"cam1": "/tmp/test_cam1.mp4", "cam2": "/tmp/test_cam2.mp4"},
         "status": "stopped",
     })
+    mock_client._send_command = AsyncMock(return_value={"mode": "idle"})
+    mock_client.is_healthy = True
+    mock_client._consecutive_failures = 0
     
+    # Create a mock function that returns the client
+    mock_get_client = Mock(return_value=mock_client)
+    
+    # Patch at multiple locations to ensure it works regardless of import order
     monkeypatch.setattr(
         "r58_api.media.pipeline_client.get_pipeline_client",
-        lambda: mock_client
+        mock_get_client
     )
-    return mock_client
+    monkeypatch.setattr(
+        "r58_api.observability.health.get_pipeline_client",
+        mock_get_client
+    )
+    monkeypatch.setattr(
+        "r58_api.control.sessions.router.get_pipeline_client",
+        mock_get_client
+    )
+    return mock_get_client
 
 
 @pytest.fixture
@@ -89,6 +104,29 @@ def temp_state_dir(tmp_path):
     """Temporary directory for pipeline state tests"""
     state_file = tmp_path / "pipeline_state.json"
     return tmp_path, state_file
+
+
+@pytest.fixture
+def temp_socket_path(tmp_path):
+    """Temporary socket path for IPC tests (avoids macOS path length limits)"""
+    # macOS has a 104-char limit for Unix socket paths
+    # Use a short path in /tmp to avoid issues
+    import os
+    short_tmp = Path("/tmp/r58test")
+    short_tmp.mkdir(exist_ok=True)
+    socket_path = short_tmp / f"test_{os.getpid()}.sock"
+    yield socket_path
+    # Cleanup
+    if socket_path.exists():
+        socket_path.unlink()
+
+
+@pytest.fixture
+def temp_recordings_dir(tmp_path):
+    """Temporary recordings directory for tests"""
+    recordings = tmp_path / "recordings"
+    recordings.mkdir(exist_ok=True)
+    return recordings
 
 
 @pytest.fixture

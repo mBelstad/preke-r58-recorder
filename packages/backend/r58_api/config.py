@@ -1,11 +1,16 @@
 """Configuration management using Pydantic Settings"""
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List, Optional
 from pathlib import Path
 
 
 class Settings(BaseSettings):
     """R58 API Configuration"""
+    
+    model_config = SettingsConfigDict(
+        env_file="/etc/r58/r58.env",
+        env_prefix="R58_",
+    )
     
     # API
     api_host: str = "0.0.0.0"
@@ -40,10 +45,6 @@ class Settings(BaseSettings):
     
     # Pipeline Manager IPC
     pipeline_socket_path: str = "/run/r58/pipeline.sock"
-    
-    class Config:
-        env_file = "/etc/r58/r58.env"
-        env_prefix = "R58_"
 
 
 # Singleton settings instance

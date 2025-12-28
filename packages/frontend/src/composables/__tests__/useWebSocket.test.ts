@@ -47,7 +47,7 @@ describe('useR58WebSocket', () => {
       await vi.runAllTimersAsync()
       await nextTick()
       
-      expect(wrapper.vm.ws.isConnected).toBe(true)
+      expect(wrapper.vm.ws.isConnected.value).toBe(true)
     })
 
     it('disconnects on unmount', async () => {
@@ -71,16 +71,21 @@ describe('useR58WebSocket', () => {
       await vi.runAllTimersAsync()
       
       const ws = MockWebSocket.getLastInstance()!
+      expect(MockWebSocket.instances).toHaveLength(1)
       
       // Simulate disconnect
       ws.simulateClose()
       
-      await vi.advanceTimersByTimeAsync(1000) // 1st reconnect: 1s
+      // 1st reconnect: delay = 1000ms
+      await vi.advanceTimersByTimeAsync(1000)
+      await vi.runAllTimersAsync() // Let the new WS connect
       expect(MockWebSocket.instances).toHaveLength(2)
       
       MockWebSocket.getLastInstance()!.simulateClose()
       
-      await vi.advanceTimersByTimeAsync(2000) // 2nd reconnect: 2s
+      // 2nd reconnect: delay = 2000ms
+      await vi.advanceTimersByTimeAsync(2000)
+      await vi.runAllTimersAsync() // Let the new WS connect
       expect(MockWebSocket.instances).toHaveLength(3)
       
       wrapper.unmount()
@@ -125,12 +130,12 @@ describe('useR58WebSocket', () => {
       const wrapper = mount(TestComponent)
       
       await vi.runAllTimersAsync()
-      expect(wrapper.vm.ws.isConnected).toBe(true)
+      expect(wrapper.vm.ws.isConnected.value).toBe(true)
       
       MockWebSocket.getLastInstance()!.simulateClose()
       await nextTick()
       
-      expect(wrapper.vm.ws.isConnected).toBe(false)
+      expect(wrapper.vm.ws.isConnected.value).toBe(false)
       
       wrapper.unmount()
     })
@@ -261,7 +266,7 @@ describe('useR58WebSocket', () => {
       ws.onmessage?.(new MessageEvent('message', { data: 'not json' }))
       
       // Should not crash
-      expect(wrapper.vm.ws.isConnected).toBe(true)
+      expect(wrapper.vm.ws.isConnected.value).toBe(true)
       
       wrapper.unmount()
     })
@@ -277,7 +282,7 @@ describe('useR58WebSocket', () => {
       ws.simulateMessage(createMockEvent('unknown.event.type', { data: 'test' }))
       
       // Should not crash
-      expect(wrapper.vm.ws.isConnected).toBe(true)
+      expect(wrapper.vm.ws.isConnected.value).toBe(true)
       
       wrapper.unmount()
     })

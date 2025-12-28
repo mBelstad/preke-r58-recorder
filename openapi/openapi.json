@@ -1,0 +1,2162 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "R58 API",
+    "description": "R58 Recorder/Mixer Control API",
+    "version": "2.0.0"
+  },
+  "paths": {
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Login",
+        "description": "Login and get access token",
+        "operationId": "login_api_v1_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_login_api_v1_auth_login_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Token"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Refresh Token",
+        "description": "Refresh access token",
+        "operationId": "refresh_token_api_v1_auth_refresh_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Token"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Get Current User Info",
+        "description": "Get current user information",
+        "operationId": "get_current_user_info_api_v1_auth_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/capabilities": {
+      "get": {
+        "tags": [
+          "Capabilities"
+        ],
+        "summary": "Get Capabilities",
+        "description": "Get device capabilities manifest.\n\nThe UI uses this to adapt its features based on what the device supports.",
+        "operationId": "get_capabilities_api_v1_capabilities_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceCapabilities"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/devices": {
+      "get": {
+        "tags": [
+          "Fleet"
+        ],
+        "summary": "List Devices",
+        "description": "List all discovered R58 devices.\n\nReturns cached device list from previous discovery scans.",
+        "operationId": "list_devices_api_v1_devices_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DeviceInfo"
+                  },
+                  "type": "array",
+                  "title": "Response List Devices Api V1 Devices Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/devices/scan": {
+      "post": {
+        "tags": [
+          "Fleet"
+        ],
+        "summary": "Scan For Devices",
+        "description": "Scan the local network for R58 devices.\n\nScans the local subnet (e.g., 192.168.1.1-254) for devices\nwith an R58 API running on port 8000.",
+        "operationId": "scan_for_devices_api_v1_devices_scan_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DeviceInfo"
+                  },
+                  "type": "array",
+                  "title": "Response Scan For Devices Api V1 Devices Scan Post"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/devices/{device_id}": {
+      "get": {
+        "tags": [
+          "Fleet"
+        ],
+        "summary": "Get Device",
+        "description": "Get details for a specific device",
+        "operationId": "get_device_api_v1_devices__device_id__get",
+        "parameters": [
+          {
+            "name": "device_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Device Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceInfo"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/devices/{device_id}/connect": {
+      "post": {
+        "tags": [
+          "Fleet"
+        ],
+        "summary": "Connect To Device",
+        "description": "Establish connection to a remote device.\n\nReturns device information if connection is successful.",
+        "operationId": "connect_to_device_api_v1_devices__device_id__connect_post",
+        "parameters": [
+          {
+            "name": "device_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Device Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceConnectionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/vdoninja/url": {
+      "post": {
+        "tags": [
+          "VDO.ninja"
+        ],
+        "summary": "Generate Vdo Url",
+        "description": "Generate a VDO.ninja URL for the specified profile.\n\nVDO.ninja runs LOCALLY on R58 - all URLs are local.",
+        "operationId": "generate_vdo_url_api_v1_vdoninja_url_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VdoUrlRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VdoUrlResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/vdoninja/room-status": {
+      "get": {
+        "tags": [
+          "VDO.ninja"
+        ],
+        "summary": "Get Room Status",
+        "description": "Get current room status from local VDO.ninja signaling.\n\nNote: Requires integration with the custom signaling server on R58.",
+        "operationId": "get_room_status_api_v1_vdoninja_room_status_get",
+        "parameters": [
+          {
+            "name": "room",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Room"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoomStatus"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/vdoninja/css": {
+      "get": {
+        "tags": [
+          "VDO.ninja"
+        ],
+        "summary": "Get Vdo Css",
+        "description": "Serve VDO.ninja custom theme CSS",
+        "operationId": "get_vdo_css_api_v1_vdoninja_css_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recorder/status": {
+      "get": {
+        "tags": [
+          "Recorder"
+        ],
+        "summary": "Get Recorder Status",
+        "description": "Get current recorder status",
+        "operationId": "get_recorder_status_api_v1_recorder_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecorderStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recorder/start": {
+      "post": {
+        "tags": [
+          "Recorder"
+        ],
+        "summary": "Start Recording",
+        "description": "Start recording on all or specified inputs.\n\nSupports idempotency via X-Idempotency-Key header - if the same key is sent\nwhile already recording, returns the existing session instead of an error.",
+        "operationId": "start_recording_api_v1_recorder_start_post",
+        "parameters": [
+          {
+            "name": "X-Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartRecordingRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StartRecordingResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recorder/stop": {
+      "post": {
+        "tags": [
+          "Recorder"
+        ],
+        "summary": "Stop Recording",
+        "description": "Stop current recording.\n\nSupports idempotency - if already stopped, returns success.",
+        "operationId": "stop_recording_api_v1_recorder_stop_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session Id"
+            }
+          },
+          {
+            "name": "X-Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StopRecordingResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recorder/sessions": {
+      "get": {
+        "tags": [
+          "Recorder"
+        ],
+        "summary": "List Sessions",
+        "description": "List recording sessions",
+        "operationId": "list_sessions_api_v1_recorder_sessions_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RecordingSession"
+                  },
+                  "title": "Response List Sessions Api V1 Recorder Sessions Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recorder/sessions/{session_id}": {
+      "get": {
+        "tags": [
+          "Recorder"
+        ],
+        "summary": "Get Session",
+        "description": "Get details of a specific session",
+        "operationId": "get_session_api_v1_recorder_sessions__session_id__get",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordingSession"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/health": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Health Check",
+        "description": "Simple health check endpoint.\n\nReturns 200 if the API is running, 503 if unhealthy.\nChecks pipeline manager connectivity.",
+        "operationId": "health_check_api_v1_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/health/detailed": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Detailed Health Check",
+        "description": "Detailed health check with service status.\n\nChecks all dependent services and returns overall health.",
+        "operationId": "detailed_health_check_api_v1_health_detailed_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DetailedHealth"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/metrics": {
+      "get": {
+        "tags": [
+          "Metrics"
+        ],
+        "summary": "Get Metrics",
+        "description": "Get current system metrics snapshot.\n\nIncludes CPU, memory, disk, network, and R58-related process metrics.",
+        "operationId": "get_metrics_api_v1_metrics_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetricsSnapshot"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/bundle": {
+      "post": {
+        "tags": [
+          "Support"
+        ],
+        "summary": "Create Support Bundle",
+        "description": "Generate a support bundle ZIP file.\n\nContains system info, logs, configuration, and diagnostic data.",
+        "operationId": "create_support_bundle_api_v1_support_bundle_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/logs": {
+      "get": {
+        "tags": [
+          "Support"
+        ],
+        "summary": "Get Logs",
+        "description": "Get recent logs for a service.\n\nArgs:\n    service: Service name (r58-api, r58-pipeline, mediamtx)\n    lines: Number of lines to return (max 1000)",
+        "operationId": "get_logs_api_v1_support_logs_get",
+        "parameters": [
+          {
+            "name": "service",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "r58-api",
+              "title": "Service"
+            }
+          },
+          {
+            "name": "lines",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 100,
+              "title": "Lines"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Logs Api V1 Support Logs Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/alerts": {
+      "get": {
+        "tags": [
+          "Alerts"
+        ],
+        "summary": "Get Alerts",
+        "description": "Get recent alerts.\n\nQuery parameters:\n- limit: Max alerts to return (default 20)\n- level: Filter by level (info, warning, critical)\n- source: Filter by source (storage, pipeline, etc.)\n- unresolved_only: Only show unresolved alerts",
+        "operationId": "get_alerts_api_v1_alerts_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "level",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Level"
+            }
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Source"
+            }
+          },
+          {
+            "name": "unresolved_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Unresolved Only"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertsListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/alerts/{alert_id}/resolve": {
+      "post": {
+        "tags": [
+          "Alerts"
+        ],
+        "summary": "Resolve Alert",
+        "description": "Mark an alert as resolved",
+        "operationId": "resolve_alert_api_v1_alerts__alert_id__resolve_post",
+        "parameters": [
+          {
+            "name": "alert_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Alert Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/alerts/check": {
+      "post": {
+        "tags": [
+          "Alerts"
+        ],
+        "summary": "Trigger Health Check",
+        "description": "Manually trigger a health check",
+        "operationId": "trigger_health_check_api_v1_alerts_check_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/degradation": {
+      "get": {
+        "tags": [
+          "System"
+        ],
+        "summary": "Get Degradation Status",
+        "description": "Get current system degradation status.\n\nReturns:\n- level: 0=NORMAL, 1=WARN, 2=DEGRADE, 3=CRITICAL\n- resources: Current CPU, memory, disk readings\n- flags: Boolean flags for feature decisions\n- thresholds: Configured thresholds for each level",
+        "operationId": "get_degradation_status_api_v1_degradation_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DegradationStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/degradation/evaluate": {
+      "post": {
+        "tags": [
+          "System"
+        ],
+        "summary": "Trigger Evaluation",
+        "description": "Manually trigger a degradation evaluation",
+        "operationId": "trigger_evaluation_api_v1_degradation_evaluate_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AlertResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "level": {
+            "type": "string",
+            "title": "Level"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "timestamp": {
+            "type": "string",
+            "title": "Timestamp"
+          },
+          "resolved": {
+            "type": "boolean",
+            "title": "Resolved"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
+          },
+          "details": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Details"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "level",
+          "source",
+          "message",
+          "timestamp",
+          "resolved",
+          "resolved_at",
+          "details"
+        ],
+        "title": "AlertResponse",
+        "description": "Alert response model"
+      },
+      "AlertsListResponse": {
+        "properties": {
+          "alerts": {
+            "items": {
+              "$ref": "#/components/schemas/AlertResponse"
+            },
+            "type": "array",
+            "title": "Alerts"
+          },
+          "counts": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Counts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "alerts",
+          "counts"
+        ],
+        "title": "AlertsListResponse",
+        "description": "Alerts list response"
+      },
+      "Body_login_api_v1_auth_login_post": {
+        "properties": {
+          "grant_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^password$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grant Type"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "title": "Password"
+          },
+          "scope": {
+            "type": "string",
+            "title": "Scope",
+            "default": ""
+          },
+          "client_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Id"
+          },
+          "client_secret": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "format": "password",
+            "title": "Client Secret"
+          }
+        },
+        "type": "object",
+        "required": [
+          "username",
+          "password"
+        ],
+        "title": "Body_login_api_v1_auth_login_post"
+      },
+      "CPUMetrics": {
+        "properties": {
+          "percent": {
+            "type": "number",
+            "title": "Percent"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "frequency_mhz": {
+            "type": "number",
+            "title": "Frequency Mhz"
+          }
+        },
+        "type": "object",
+        "required": [
+          "percent",
+          "count",
+          "frequency_mhz"
+        ],
+        "title": "CPUMetrics",
+        "description": "CPU metrics"
+      },
+      "CodecCapability": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "hardware_accelerated": {
+            "type": "boolean",
+            "title": "Hardware Accelerated"
+          },
+          "max_bitrate_kbps": {
+            "type": "integer",
+            "title": "Max Bitrate Kbps"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "hardware_accelerated",
+          "max_bitrate_kbps"
+        ],
+        "title": "CodecCapability",
+        "description": "Codec capability"
+      },
+      "DegradationStatus": {
+        "properties": {
+          "level": {
+            "type": "integer",
+            "title": "Level"
+          },
+          "level_name": {
+            "type": "string",
+            "title": "Level Name"
+          },
+          "resources": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Resources"
+          },
+          "flags": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Flags"
+          },
+          "thresholds": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Thresholds"
+          }
+        },
+        "type": "object",
+        "required": [
+          "level",
+          "level_name",
+          "resources",
+          "flags",
+          "thresholds"
+        ],
+        "title": "DegradationStatus",
+        "description": "Degradation status response"
+      },
+      "DetailedHealth": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Timestamp"
+          },
+          "services": {
+            "items": {
+              "$ref": "#/components/schemas/ServiceStatus"
+            },
+            "type": "array",
+            "title": "Services"
+          },
+          "storage": {
+            "$ref": "#/components/schemas/StorageStatus"
+          },
+          "uptime_seconds": {
+            "type": "number",
+            "title": "Uptime Seconds"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "timestamp",
+          "services",
+          "storage",
+          "uptime_seconds"
+        ],
+        "title": "DetailedHealth",
+        "description": "Detailed health check response"
+      },
+      "DeviceCapabilities": {
+        "properties": {
+          "device_id": {
+            "type": "string",
+            "title": "Device Id"
+          },
+          "device_name": {
+            "type": "string",
+            "title": "Device Name"
+          },
+          "platform": {
+            "type": "string",
+            "title": "Platform"
+          },
+          "api_version": {
+            "type": "string",
+            "title": "Api Version"
+          },
+          "mixer_available": {
+            "type": "boolean",
+            "title": "Mixer Available"
+          },
+          "recorder_available": {
+            "type": "boolean",
+            "title": "Recorder Available"
+          },
+          "graphics_available": {
+            "type": "boolean",
+            "title": "Graphics Available"
+          },
+          "fleet_agent_connected": {
+            "type": "boolean",
+            "title": "Fleet Agent Connected"
+          },
+          "inputs": {
+            "items": {
+              "$ref": "#/components/schemas/InputCapability"
+            },
+            "type": "array",
+            "title": "Inputs"
+          },
+          "codecs": {
+            "items": {
+              "$ref": "#/components/schemas/CodecCapability"
+            },
+            "type": "array",
+            "title": "Codecs"
+          },
+          "preview_modes": {
+            "items": {
+              "$ref": "#/components/schemas/PreviewMode"
+            },
+            "type": "array",
+            "title": "Preview Modes"
+          },
+          "vdoninja": {
+            "$ref": "#/components/schemas/VdoNinjaCapability"
+          },
+          "mediamtx_base_url": {
+            "type": "string",
+            "title": "Mediamtx Base Url"
+          },
+          "max_simultaneous_recordings": {
+            "type": "integer",
+            "title": "Max Simultaneous Recordings"
+          },
+          "max_output_resolution": {
+            "type": "string",
+            "title": "Max Output Resolution"
+          },
+          "storage_total_gb": {
+            "type": "number",
+            "title": "Storage Total Gb"
+          },
+          "storage_available_gb": {
+            "type": "number",
+            "title": "Storage Available Gb"
+          }
+        },
+        "type": "object",
+        "required": [
+          "device_id",
+          "device_name",
+          "platform",
+          "api_version",
+          "mixer_available",
+          "recorder_available",
+          "graphics_available",
+          "fleet_agent_connected",
+          "inputs",
+          "codecs",
+          "preview_modes",
+          "vdoninja",
+          "mediamtx_base_url",
+          "max_simultaneous_recordings",
+          "max_output_resolution",
+          "storage_total_gb",
+          "storage_available_gb"
+        ],
+        "title": "DeviceCapabilities",
+        "description": "Complete device capabilities manifest"
+      },
+      "DeviceConnectionResponse": {
+        "properties": {
+          "connected": {
+            "type": "boolean",
+            "title": "Connected"
+          },
+          "device": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DeviceInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "connected"
+        ],
+        "title": "DeviceConnectionResponse",
+        "description": "Device connection response"
+      },
+      "DeviceInfo": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "ip": {
+            "type": "string",
+            "title": "Ip"
+          },
+          "port": {
+            "type": "integer",
+            "title": "Port"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "last_seen": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Last Seen"
+          },
+          "api_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Api Version"
+          },
+          "capabilities": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capabilities"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "ip",
+          "port",
+          "status",
+          "last_seen"
+        ],
+        "title": "DeviceInfo",
+        "description": "Discovered device information"
+      },
+      "DiskMetrics": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "total_gb": {
+            "type": "number",
+            "title": "Total Gb"
+          },
+          "used_gb": {
+            "type": "number",
+            "title": "Used Gb"
+          },
+          "free_gb": {
+            "type": "number",
+            "title": "Free Gb"
+          },
+          "percent": {
+            "type": "number",
+            "title": "Percent"
+          }
+        },
+        "type": "object",
+        "required": [
+          "path",
+          "total_gb",
+          "used_gb",
+          "free_gb",
+          "percent"
+        ],
+        "title": "DiskMetrics",
+        "description": "Disk metrics"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "InputCapability": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "max_resolution": {
+            "type": "string",
+            "title": "Max Resolution"
+          },
+          "supports_audio": {
+            "type": "boolean",
+            "title": "Supports Audio"
+          },
+          "device_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Path"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "label",
+          "max_resolution",
+          "supports_audio"
+        ],
+        "title": "InputCapability",
+        "description": "Hardware input capability"
+      },
+      "MemoryMetrics": {
+        "properties": {
+          "total_gb": {
+            "type": "number",
+            "title": "Total Gb"
+          },
+          "available_gb": {
+            "type": "number",
+            "title": "Available Gb"
+          },
+          "used_percent": {
+            "type": "number",
+            "title": "Used Percent"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total_gb",
+          "available_gb",
+          "used_percent"
+        ],
+        "title": "MemoryMetrics",
+        "description": "Memory metrics"
+      },
+      "MetricsSnapshot": {
+        "properties": {
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Timestamp"
+          },
+          "cpu": {
+            "$ref": "#/components/schemas/CPUMetrics"
+          },
+          "memory": {
+            "$ref": "#/components/schemas/MemoryMetrics"
+          },
+          "disks": {
+            "items": {
+              "$ref": "#/components/schemas/DiskMetrics"
+            },
+            "type": "array",
+            "title": "Disks"
+          },
+          "network": {
+            "$ref": "#/components/schemas/NetworkMetrics"
+          },
+          "processes": {
+            "items": {
+              "$ref": "#/components/schemas/ProcessMetrics"
+            },
+            "type": "array",
+            "title": "Processes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "timestamp",
+          "cpu",
+          "memory",
+          "disks",
+          "network",
+          "processes"
+        ],
+        "title": "MetricsSnapshot",
+        "description": "Complete metrics snapshot"
+      },
+      "NetworkMetrics": {
+        "properties": {
+          "bytes_sent": {
+            "type": "integer",
+            "title": "Bytes Sent"
+          },
+          "bytes_recv": {
+            "type": "integer",
+            "title": "Bytes Recv"
+          },
+          "packets_sent": {
+            "type": "integer",
+            "title": "Packets Sent"
+          },
+          "packets_recv": {
+            "type": "integer",
+            "title": "Packets Recv"
+          }
+        },
+        "type": "object",
+        "required": [
+          "bytes_sent",
+          "bytes_recv",
+          "packets_sent",
+          "packets_recv"
+        ],
+        "title": "NetworkMetrics",
+        "description": "Network metrics"
+      },
+      "PreviewMode": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "protocol": {
+            "type": "string",
+            "title": "Protocol"
+          },
+          "latency_ms": {
+            "type": "integer",
+            "title": "Latency Ms"
+          },
+          "url_template": {
+            "type": "string",
+            "title": "Url Template"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "protocol",
+          "latency_ms",
+          "url_template"
+        ],
+        "title": "PreviewMode",
+        "description": "Preview mode capability"
+      },
+      "ProcessMetrics": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "pid": {
+            "type": "integer",
+            "title": "Pid"
+          },
+          "cpu_percent": {
+            "type": "number",
+            "title": "Cpu Percent"
+          },
+          "memory_mb": {
+            "type": "number",
+            "title": "Memory Mb"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "pid",
+          "cpu_percent",
+          "memory_mb",
+          "status"
+        ],
+        "title": "ProcessMetrics",
+        "description": "Process-specific metrics"
+      },
+      "RecorderStatus": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
+          },
+          "duration_ms": {
+            "type": "integer",
+            "title": "Duration Ms",
+            "default": 0
+          },
+          "inputs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Inputs",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "RecorderStatus",
+        "description": "Current recorder status"
+      },
+      "RecordingSession": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Started At"
+          },
+          "ended_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "total_bytes": {
+            "type": "integer",
+            "title": "Total Bytes"
+          },
+          "files": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Files"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "started_at",
+          "ended_at",
+          "status",
+          "total_bytes",
+          "files"
+        ],
+        "title": "RecordingSession",
+        "description": "Recording session details"
+      },
+      "RoomStatus": {
+        "properties": {
+          "room": {
+            "type": "string",
+            "title": "Room"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "sources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sources"
+          }
+        },
+        "type": "object",
+        "required": [
+          "room",
+          "status",
+          "sources"
+        ],
+        "title": "RoomStatus",
+        "description": "VDO.ninja room status"
+      },
+      "ServiceStatus": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "status"
+        ],
+        "title": "ServiceStatus",
+        "description": "Individual service status"
+      },
+      "StartRecordingRequest": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "inputs": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inputs"
+          }
+        },
+        "type": "object",
+        "title": "StartRecordingRequest",
+        "description": "Request to start recording"
+      },
+      "StartRecordingResponse": {
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "title": "Session Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Started At"
+          },
+          "inputs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Inputs"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "session_id",
+          "name",
+          "started_at",
+          "inputs",
+          "status"
+        ],
+        "title": "StartRecordingResponse",
+        "description": "Response after starting recording"
+      },
+      "StopRecordingResponse": {
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "title": "Session Id"
+          },
+          "duration_ms": {
+            "type": "integer",
+            "title": "Duration Ms"
+          },
+          "files": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Files"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "session_id",
+          "duration_ms",
+          "files",
+          "status"
+        ],
+        "title": "StopRecordingResponse",
+        "description": "Response after stopping recording"
+      },
+      "StorageStatus": {
+        "properties": {
+          "total_gb": {
+            "type": "number",
+            "title": "Total Gb"
+          },
+          "available_gb": {
+            "type": "number",
+            "title": "Available Gb"
+          },
+          "used_percent": {
+            "type": "number",
+            "title": "Used Percent"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total_gb",
+          "available_gb",
+          "used_percent"
+        ],
+        "title": "StorageStatus",
+        "description": "Storage status information"
+      },
+      "Token": {
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "title": "Access Token"
+          },
+          "token_type": {
+            "type": "string",
+            "title": "Token Type"
+          },
+          "expires_in": {
+            "type": "integer",
+            "title": "Expires In"
+          }
+        },
+        "type": "object",
+        "required": [
+          "access_token",
+          "token_type",
+          "expires_in"
+        ],
+        "title": "Token",
+        "description": "JWT token response"
+      },
+      "UserResponse": {
+        "properties": {
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role"
+          }
+        },
+        "type": "object",
+        "required": [
+          "username",
+          "role"
+        ],
+        "title": "UserResponse",
+        "description": "Current user response"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "VdoNinjaCapability": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "host": {
+            "type": "string",
+            "title": "Host"
+          },
+          "port": {
+            "type": "integer",
+            "title": "Port"
+          },
+          "room": {
+            "type": "string",
+            "title": "Room"
+          }
+        },
+        "type": "object",
+        "required": [
+          "enabled",
+          "host",
+          "port",
+          "room"
+        ],
+        "title": "VdoNinjaCapability",
+        "description": "VDO.ninja integration capability"
+      },
+      "VdoUrlRequest": {
+        "properties": {
+          "profile": {
+            "type": "string",
+            "title": "Profile"
+          },
+          "room": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Room"
+          },
+          "sources": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sources"
+          },
+          "guest_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guest Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "profile"
+        ],
+        "title": "VdoUrlRequest",
+        "description": "Request to generate a VDO.ninja URL"
+      },
+      "VdoUrlResponse": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "profile": {
+            "type": "string",
+            "title": "Profile"
+          },
+          "room": {
+            "type": "string",
+            "title": "Room"
+          },
+          "css_url": {
+            "type": "string",
+            "title": "Css Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url",
+          "profile",
+          "room",
+          "css_url"
+        ],
+        "title": "VdoUrlResponse",
+        "description": "Generated VDO.ninja URL response"
+      }
+    },
+    "securitySchemes": {
+      "OAuth2PasswordBearer": {
+        "type": "oauth2",
+        "flows": {
+          "password": {
+            "scopes": {},
+            "tokenUrl": "/api/v1/auth/login"
+          }
+        }
+      }
+    }
+  }
+}

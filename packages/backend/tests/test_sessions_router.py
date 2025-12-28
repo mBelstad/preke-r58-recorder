@@ -148,6 +148,14 @@ class TestStopRecording:
     
     def test_stop_recording_success(self, client, mock_pipeline_client):
         """Test successful recording stop"""
+        # First, set up as if recording is active
+        mock_pipeline_client.return_value.get_recording_status = AsyncMock(
+            return_value={
+                "recording": True,
+                "session_id": "stopped-session",
+                "bytes_written": {"cam1": 1024}
+            }
+        )
         mock_pipeline_client.return_value.stop_recording = AsyncMock(
             return_value={
                 "session_id": "stopped-session",
@@ -167,18 +175,29 @@ class TestStopRecording:
         assert "cam1" in data["files"]
     
     def test_stop_recording_not_recording(self, client, mock_pipeline_client):
-        """Test stopping when not recording returns 400"""
-        mock_pipeline_client.return_value.stop_recording = AsyncMock(
-            return_value={"error": "Not recording"}
+        """Test stopping when not recording returns success (idempotent)"""
+        # Not recording - should return 200 with empty data (idempotent)
+        mock_pipeline_client.return_value.get_recording_status = AsyncMock(
+            return_value={"recording": False}
         )
         
         response = client.post("/api/v1/recorder/stop")
         
-        assert response.status_code == 400
-        assert "Not recording" in response.json()["detail"]
+        # Now idempotent - returns success even if not recording
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "stopped"
+        assert data["duration_ms"] == 0
     
     def test_stop_recording_with_session_id(self, client, mock_pipeline_client):
         """Test stopping recording with specific session_id"""
+        mock_pipeline_client.return_value.get_recording_status = AsyncMock(
+            return_value={
+                "recording": True,
+                "session_id": "specific-session",
+                "bytes_written": {}
+            }
+        )
         mock_pipeline_client.return_value.stop_recording = AsyncMock(
             return_value={
                 "session_id": "specific-session",
@@ -195,14 +214,18 @@ class TestStopRecording:
         assert data["session_id"] == "specific-session"
     
     def test_stop_recording_wrong_session_id(self, client, mock_pipeline_client):
-        """Test stopping with wrong session_id returns 400"""
-        mock_pipeline_client.return_value.stop_recording = AsyncMock(
-            return_value={"error": "Session ID mismatch"}
+        """Test stopping with wrong session_id returns 409 Conflict"""
+        mock_pipeline_client.return_value.get_recording_status = AsyncMock(
+            return_value={
+                "recording": True,
+                "session_id": "actual-session",
+                "bytes_written": {}
+            }
         )
         
         response = client.post("/api/v1/recorder/stop?session_id=wrong-session")
         
-        assert response.status_code == 400
+        assert response.status_code == 409  # Conflict
 
 
 class TestSessionList:
@@ -260,14 +283,18 @@ class TestRecorderConcurrency:
         assert response2.status_code == 400
     
     def test_stop_during_start(self, client, mock_pipeline_client):
-        """Test stop request during start returns appropriate error"""
-        mock_pipeline_client.return_value.stop_recording = AsyncMock(
-            return_value={"error": "Recording is starting"}
+        """Test stop request during start returns success (idempotent)"""
+        # With idempotent behavior, stop during start returns 200
+        mock_pipeline_client.return_value.get_recording_status = AsyncMock(
+            return_value={"recording": False}  # Not yet fully started
         )
         
         response = client.post("/api/v1/recorder/stop")
         
-        assert response.status_code == 400
+        # Idempotent: returns success even if not recording
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "stopped"
 
 
 class TestRecorderInputValidation:

@@ -5,6 +5,7 @@ Priority: P1
 import pytest
 import asyncio
 import json
+import os
 from pathlib import Path
 from unittest.mock import patch, AsyncMock
 from datetime import datetime
@@ -13,55 +14,74 @@ from pipeline_manager.ipc import IPCServer, SOCKET_PATH
 from pipeline_manager.state import PipelineState
 
 
+def get_short_socket_path(name: str) -> Path:
+    """Get a short socket path to avoid macOS 104-char limit"""
+    short_dir = Path("/tmp/r58t")
+    short_dir.mkdir(exist_ok=True)
+    return short_dir / f"{name}_{os.getpid()}.sock"
+
+
 class TestIPCServer:
     """Tests for IPC server initialization"""
     
     @pytest.mark.asyncio
     async def test_ipc_server_creates_socket(self, tmp_path):
         """Test IPC server creates socket file"""
-        socket_path = tmp_path / "test.sock"
+        socket_path = get_short_socket_path("create")
         
-        with patch('pipeline_manager.ipc.SOCKET_PATH', socket_path):
-            state = PipelineState()
-            server = IPCServer(state)
-            
-            await server.start()
-            
-            assert socket_path.exists()
-            
-            server.stop()
+        try:
+            with patch('pipeline_manager.ipc.SOCKET_PATH', socket_path):
+                state = PipelineState()
+                server = IPCServer(state)
+                
+                await server.start()
+                
+                assert socket_path.exists()
+                
+                server.stop()
+        finally:
+            if socket_path.exists():
+                socket_path.unlink()
     
     @pytest.mark.asyncio
     async def test_ipc_server_removes_existing_socket(self, tmp_path):
         """Test IPC server removes existing socket file on start"""
-        socket_path = tmp_path / "existing.sock"
+        socket_path = get_short_socket_path("existing")
         socket_path.touch()  # Create existing file
         
-        with patch('pipeline_manager.ipc.SOCKET_PATH', socket_path):
-            state = PipelineState()
-            server = IPCServer(state)
-            
-            await server.start()
-            
-            # Socket should still exist (recreated)
-            assert socket_path.exists()
-            
-            server.stop()
+        try:
+            with patch('pipeline_manager.ipc.SOCKET_PATH', socket_path):
+                state = PipelineState()
+                server = IPCServer(state)
+                
+                await server.start()
+                
+                # Socket should still exist (recreated)
+                assert socket_path.exists()
+                
+                server.stop()
+        finally:
+            if socket_path.exists():
+                socket_path.unlink()
     
     @pytest.mark.asyncio
     async def test_ipc_server_stop_removes_socket(self, tmp_path):
         """Test IPC server removes socket on stop"""
-        socket_path = tmp_path / "cleanup.sock"
+        socket_path = get_short_socket_path("cleanup")
         
-        with patch('pipeline_manager.ipc.SOCKET_PATH', socket_path):
-            state = PipelineState()
-            server = IPCServer(state)
-            
-            await server.start()
-            assert socket_path.exists()
-            
-            server.stop()
-            assert not socket_path.exists()
+        try:
+            with patch('pipeline_manager.ipc.SOCKET_PATH', socket_path):
+                state = PipelineState()
+                server = IPCServer(state)
+                
+                await server.start()
+                assert socket_path.exists()
+                
+                server.stop()
+                assert not socket_path.exists()
+        finally:
+            if socket_path.exists():
+                socket_path.unlink()
 
 
 class TestIPCCommands:
@@ -71,18 +91,25 @@ class TestIPCCommands:
     def ipc_server(self, tmp_path):
         """Create IPC server with test state"""
         state_file = tmp_path / "state.json"
-        socket_path = tmp_path / "ipc.sock"
+        socket_path = get_short_socket_path("cmd")
+        recordings_dir = tmp_path / "recordings"
+        recordings_dir.mkdir(exist_ok=True)
         
         with patch('pipeline_manager.state.STATE_FILE', state_file), \
-             patch('pipeline_manager.ipc.SOCKET_PATH', socket_path):
+             patch('pipeline_manager.ipc.SOCKET_PATH', socket_path), \
+             patch('pipeline_manager.ipc.RECORDINGS_DIR', recordings_dir):
             state = PipelineState()
             server = IPCServer(state)
-            yield server, state
+            yield server, state, recordings_dir
+        
+        # Cleanup socket
+        if socket_path.exists():
+            socket_path.unlink()
     
     @pytest.mark.asyncio
     async def test_status_command_idle(self, ipc_server):
         """Test status command when idle"""
-        server, state = ipc_server
+        server, state, recordings_dir = ipc_server
         
         result = await server.handle_command({"cmd": "status"})
         
@@ -93,7 +120,7 @@ class TestIPCCommands:
     @pytest.mark.asyncio
     async def test_status_command_recording(self, ipc_server):
         """Test status command when recording"""
-        server, state = ipc_server
+        server, state, recordings_dir = ipc_server
         
         # Start recording first
         state.start_recording("test-session", {"cam1": "/tmp/test.mp4"})
@@ -107,7 +134,7 @@ class TestIPCCommands:
     @pytest.mark.asyncio
     async def test_start_recording_command(self, ipc_server):
         """Test recording.start command"""
-        server, state = ipc_server
+        server, state, recordings_dir = ipc_server
         
         result = await server.handle_command({
             "cmd": "recording.start",
@@ -126,7 +153,7 @@ class TestIPCCommands:
     @pytest.mark.asyncio
     async def test_start_recording_generates_session_id(self, ipc_server):
         """Test recording.start generates session_id if not provided"""
-        server, state = ipc_server
+        server, state, recordings_dir = ipc_server
         
         result = await server.handle_command({
             "cmd": "recording.start",
@@ -140,7 +167,7 @@ class TestIPCCommands:
     @pytest.mark.asyncio
     async def test_start_recording_already_recording_error(self, ipc_server):
         """Test recording.start returns error if already recording"""
-        server, state = ipc_server
+        server, state, recordings_dir = ipc_server
         
         # Start first recording
         await server.handle_command({
@@ -160,7 +187,7 @@ class TestIPCCommands:
     @pytest.mark.asyncio
     async def test_stop_recording_command(self, ipc_server):
         """Test recording.stop command"""
-        server, state = ipc_server
+        server, state, recordings_dir = ipc_server
         
         # Start recording first
         await server.handle_command({
@@ -181,7 +208,7 @@ class TestIPCCommands:
     @pytest.mark.asyncio
     async def test_stop_recording_not_recording_error(self, ipc_server):
         """Test recording.stop returns error when not recording"""
-        server, state = ipc_server
+        server, state, recordings_dir = ipc_server
         
         result = await server.handle_command({"cmd": "recording.stop"})
         
@@ -191,7 +218,7 @@ class TestIPCCommands:
     @pytest.mark.asyncio
     async def test_stop_recording_session_id_mismatch(self, ipc_server):
         """Test recording.stop returns error on session_id mismatch"""
-        server, state = ipc_server
+        server, state, recordings_dir = ipc_server
         
         # Start recording
         await server.handle_command({
@@ -212,7 +239,7 @@ class TestIPCCommands:
     @pytest.mark.asyncio
     async def test_recording_status_command_idle(self, ipc_server):
         """Test recording.status command when idle"""
-        server, state = ipc_server
+        server, state, recordings_dir = ipc_server
         
         result = await server.handle_command({"cmd": "recording.status"})
         
@@ -221,7 +248,7 @@ class TestIPCCommands:
     @pytest.mark.asyncio
     async def test_recording_status_command_active(self, ipc_server):
         """Test recording.status command when recording"""
-        server, state = ipc_server
+        server, state, recordings_dir = ipc_server
         
         # Start recording
         await server.handle_command({
@@ -240,7 +267,7 @@ class TestIPCCommands:
     @pytest.mark.asyncio
     async def test_unknown_command_returns_error(self, ipc_server):
         """Test unknown command returns error"""
-        server, state = ipc_server
+        server, state, recordings_dir = ipc_server
         
         result = await server.handle_command({"cmd": "unknown.command"})
         
@@ -250,7 +277,7 @@ class TestIPCCommands:
     @pytest.mark.asyncio
     async def test_missing_cmd_returns_error(self, ipc_server):
         """Test missing cmd field returns error"""
-        server, state = ipc_server
+        server, state, recordings_dir = ipc_server
         
         result = await server.handle_command({"not_cmd": "value"})
         
@@ -264,53 +291,67 @@ class TestIPCConcurrency:
     async def test_concurrent_status_requests(self, tmp_path):
         """Test multiple concurrent status requests"""
         state_file = tmp_path / "state.json"
-        socket_path = tmp_path / "concurrent.sock"
+        socket_path = get_short_socket_path("concurrent")
+        recordings_dir = tmp_path / "recordings"
+        recordings_dir.mkdir(exist_ok=True)
         
-        with patch('pipeline_manager.state.STATE_FILE', state_file), \
-             patch('pipeline_manager.ipc.SOCKET_PATH', socket_path):
-            state = PipelineState()
-            server = IPCServer(state)
-            
-            # Run 10 concurrent status requests
-            tasks = [
-                server.handle_command({"cmd": "status"})
-                for _ in range(10)
-            ]
-            
-            results = await asyncio.gather(*tasks)
-            
-            # All should succeed
-            assert len(results) == 10
-            for result in results:
-                assert result["mode"] == "idle"
+        try:
+            with patch('pipeline_manager.state.STATE_FILE', state_file), \
+                 patch('pipeline_manager.ipc.SOCKET_PATH', socket_path), \
+                 patch('pipeline_manager.ipc.RECORDINGS_DIR', recordings_dir):
+                state = PipelineState()
+                server = IPCServer(state)
+                
+                # Run 10 concurrent status requests
+                tasks = [
+                    server.handle_command({"cmd": "status"})
+                    for _ in range(10)
+                ]
+                
+                results = await asyncio.gather(*tasks)
+                
+                # All should succeed
+                assert len(results) == 10
+                for result in results:
+                    assert result["mode"] == "idle"
+        finally:
+            if socket_path.exists():
+                socket_path.unlink()
     
     @pytest.mark.asyncio
     async def test_rapid_start_stop_via_ipc(self, tmp_path):
         """Test rapid start/stop cycles via IPC"""
         state_file = tmp_path / "state.json"
-        socket_path = tmp_path / "rapid.sock"
+        socket_path = get_short_socket_path("rapid")
+        recordings_dir = tmp_path / "recordings"
+        recordings_dir.mkdir(exist_ok=True)
         
-        with patch('pipeline_manager.state.STATE_FILE', state_file), \
-             patch('pipeline_manager.ipc.SOCKET_PATH', socket_path):
-            state = PipelineState()
-            server = IPCServer(state)
-            
-            for i in range(5):
-                start_result = await server.handle_command({
-                    "cmd": "recording.start",
-                    "session_id": f"rapid-{i}",
-                    "inputs": ["cam1"]
-                })
-                assert start_result["status"] == "started"
+        try:
+            with patch('pipeline_manager.state.STATE_FILE', state_file), \
+                 patch('pipeline_manager.ipc.SOCKET_PATH', socket_path), \
+                 patch('pipeline_manager.ipc.RECORDINGS_DIR', recordings_dir):
+                state = PipelineState()
+                server = IPCServer(state)
                 
-                stop_result = await server.handle_command({
-                    "cmd": "recording.stop"
-                })
-                assert stop_result["status"] == "stopped"
-            
-            # Final state should be idle
-            status = await server.handle_command({"cmd": "status"})
-            assert status["mode"] == "idle"
+                for i in range(5):
+                    start_result = await server.handle_command({
+                        "cmd": "recording.start",
+                        "session_id": f"rapid-{i}",
+                        "inputs": ["cam1"]
+                    })
+                    assert start_result["status"] == "started"
+                    
+                    stop_result = await server.handle_command({
+                        "cmd": "recording.stop"
+                    })
+                    assert stop_result["status"] == "stopped"
+                
+                # Final state should be idle
+                status = await server.handle_command({"cmd": "status"})
+                assert status["mode"] == "idle"
+        finally:
+            if socket_path.exists():
+                socket_path.unlink()
 
 
 class TestIPCFilePaths:
@@ -320,23 +361,30 @@ class TestIPCFilePaths:
     async def test_recording_creates_file_paths(self, tmp_path):
         """Test recording.start creates proper file paths"""
         state_file = tmp_path / "state.json"
-        socket_path = tmp_path / "paths.sock"
+        socket_path = get_short_socket_path("paths")
+        recordings_dir = tmp_path / "recordings"
+        recordings_dir.mkdir(exist_ok=True)
         
-        with patch('pipeline_manager.state.STATE_FILE', state_file), \
-             patch('pipeline_manager.ipc.SOCKET_PATH', socket_path):
-            state = PipelineState()
-            server = IPCServer(state)
-            
-            result = await server.handle_command({
-                "cmd": "recording.start",
-                "session_id": "path-test",
-                "inputs": ["cam1", "cam2"]
-            })
-            
-            # Verify file paths were created
-            assert "cam1" in result["inputs"]
-            assert "cam2" in result["inputs"]
-            assert result["inputs"]["cam1"].endswith(".mp4")
-            assert result["inputs"]["cam2"].endswith(".mp4")
-            assert "path-test" in result["inputs"]["cam1"]
+        try:
+            with patch('pipeline_manager.state.STATE_FILE', state_file), \
+                 patch('pipeline_manager.ipc.SOCKET_PATH', socket_path), \
+                 patch('pipeline_manager.ipc.RECORDINGS_DIR', recordings_dir):
+                state = PipelineState()
+                server = IPCServer(state)
+                
+                result = await server.handle_command({
+                    "cmd": "recording.start",
+                    "session_id": "path-test",
+                    "inputs": ["cam1", "cam2"]
+                })
+                
+                # Verify file paths were created
+                assert "cam1" in result["inputs"]
+                assert "cam2" in result["inputs"]
+                assert result["inputs"]["cam1"].endswith(".mp4")
+                assert result["inputs"]["cam2"].endswith(".mp4")
+                assert "path-test" in result["inputs"]["cam1"]
+        finally:
+            if socket_path.exists():
+                socket_path.unlink()
 
