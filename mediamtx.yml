@@ -27,7 +27,13 @@ srtAddress: :8890
 # WebRTC settings (low latency for live view)
 webrtcAddress: :8889
 webrtcAllowOrigins: ["*"]
-webrtcEncryption: no
+
+# TLS encryption for HTTPS compatibility (fixes "Mixed Content" errors)
+# When serving frontend over HTTPS, WebRTC/WHEP must also use TLS
+# Certificates are set up by scripts/setup-mediamtx-tls.sh
+webrtcEncryption: yes
+webrtcServerKey: /etc/ssl/r58/privkey.pem
+webrtcServerCert: /etc/ssl/r58/fullchain.pem
 
 # ICE configuration for NAT traversal via FRP
 # webrtcAdditionalHosts: IP addresses only (not IP:port!)

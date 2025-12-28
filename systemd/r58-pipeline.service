@@ -1,0 +1,34 @@
+[Unit]
+Description=R58 Pipeline Manager
+After=network.target
+Before=r58-api.service
+
+[Service]
+Type=simple
+User=r58
+Group=r58
+WorkingDirectory=/opt/r58
+ExecStart=/opt/r58/venv/bin/python -m pipeline_manager.main
+Restart=always
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+
+# Create /run/r58 directory on startup
+RuntimeDirectory=r58
+RuntimeDirectoryMode=0755
+
+# Environment
+Environment=PYTHONPATH=/opt/r58/packages/backend
+Environment=PYTHONUNBUFFERED=1
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/r58 /opt/r58/recordings /run/r58
+
+[Install]
+WantedBy=multi-user.target
+
