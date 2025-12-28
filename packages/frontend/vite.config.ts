@@ -10,9 +10,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'robots.txt', 'apple-touch-icon.png'],
       manifest: {
-        name: 'R58 Studio',
-        short_name: 'R58',
-        description: 'R58 Recorder & Mixer Control',
+        name: 'Preke Studio',
+        short_name: 'Preke',
+        description: 'Preke Recorder & Mixer Control',
         theme_color: '#0f172a',
         background_color: '#0f172a',
         display: 'standalone',
