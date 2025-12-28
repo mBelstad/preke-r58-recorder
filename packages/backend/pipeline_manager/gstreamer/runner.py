@@ -339,10 +339,18 @@ class PipelineRunner:
     def get_all_pipelines(self) -> Dict[str, Dict[str, Any]]:
         """Get information about all pipelines."""
         with self._lock:
-            return {
-                pid: self.get_pipeline_info(pid) or {}
-                for pid in self._pipelines.keys()
-            }
+            result = {}
+            for pid, info in self._pipelines.items():
+                result[pid] = {
+                    "pipeline_id": info.pipeline_id,
+                    "pipeline_type": info.pipeline_type,
+                    "state": info.state.value,
+                    "started_at": info.started_at.isoformat() if info.started_at else None,
+                    "output_path": info.output_path,
+                    "device": info.device,
+                    "error_message": info.error_message
+                }
+            return result
     
     def is_running(self, pipeline_id: str) -> bool:
         """Check if a pipeline is running."""
