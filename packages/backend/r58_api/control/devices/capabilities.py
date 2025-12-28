@@ -49,24 +49,24 @@ class DeviceCapabilities(BaseModel):
     device_name: str
     platform: str  # "r58", "macos", "windows"
     api_version: str
-    
+
     # Feature flags
     mixer_available: bool
     recorder_available: bool
     graphics_available: bool
     fleet_agent_connected: bool
-    
+
     # Hardware
     inputs: List[InputCapability]
     codecs: List[CodecCapability]
     preview_modes: List[PreviewMode]
-    
+
     # VDO.ninja (local)
     vdoninja: VdoNinjaCapability
-    
+
     # Endpoints
     mediamtx_base_url: str
-    
+
     # Limits
     max_simultaneous_recordings: int
     max_output_resolution: str
@@ -130,16 +130,16 @@ def get_preview_modes(settings: Settings) -> List[PreviewMode]:
 
 def get_storage_info() -> tuple[float, float]:
     """Get storage information.
-    
+
     Prefers SD card mount at /mnt/sdcard for R58 recordings storage.
     Falls back to root filesystem if SD card is not available.
     """
-    import shutil
     import os
-    
+    import shutil
+
     # Prefer SD card for R58 recordings
     paths_to_check = ["/mnt/sdcard", "/"]
-    
+
     for path in paths_to_check:
         try:
             if os.path.exists(path):
@@ -150,7 +150,7 @@ def get_storage_info() -> tuple[float, float]:
                     return total_gb, available_gb
         except Exception:
             continue
-    
+
     return 0.0, 0.0
 
 
@@ -160,28 +160,28 @@ async def get_capabilities(
 ) -> DeviceCapabilities:
     """
     Get device capabilities manifest.
-    
+
     The UI uses this to adapt its features based on what the device supports.
     """
     storage_total, storage_available = get_storage_info()
-    
+
     return DeviceCapabilities(
         device_id=settings.device_id,
         device_name="R58 Recorder",
         platform="r58",
         api_version="2.0.0",
-        
+
         # Feature flags
         mixer_available=settings.vdoninja_enabled,
         recorder_available=True,
         graphics_available=True,
         fleet_agent_connected=settings.fleet_enabled,
-        
+
         # Hardware
         inputs=detect_inputs(settings),
         codecs=detect_codecs(),
         preview_modes=get_preview_modes(settings),
-        
+
         # VDO.ninja
         vdoninja=VdoNinjaCapability(
             enabled=settings.vdoninja_enabled,
@@ -189,10 +189,10 @@ async def get_capabilities(
             port=settings.vdoninja_port,
             room=settings.vdoninja_room,
         ),
-        
+
         # Endpoints
         mediamtx_base_url=settings.mediamtx_whep_base,
-        
+
         # Limits
         max_simultaneous_recordings=4,
         max_output_resolution="1920x1080",

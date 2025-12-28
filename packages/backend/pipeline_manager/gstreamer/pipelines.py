@@ -11,7 +11,7 @@ Encoder Architecture:
   - Baseline profile (no B-frames) prevents DTS errors
   - Tested stable: 2025-12-28 (see docs/fix-log.md)
 
-- **Recording**: Uses H.265 (mpph265enc)  
+- **Recording**: Uses H.265 (mpph265enc)
   - Better compression efficiency (~30-40% smaller files)
   - Tested stable: 2025-12-19 (see docs/fix-log.md)
   - Used for local file storage only (not browser playback)
@@ -19,8 +19,8 @@ Encoder Architecture:
 DO NOT use H.265 for preview - browsers cannot decode H.265 via WebRTC!
 """
 import logging
-from typing import Optional, Tuple, Any, Dict
 from pathlib import Path
+from typing import Any, Dict, Optional, Tuple
 
 from . import get_gst
 
@@ -29,19 +29,19 @@ logger = logging.getLogger(__name__)
 
 def get_h264_hardware_encoder(bitrate: int) -> Tuple[str, str, str]:
     """Get H.264 hardware encoder using Rockchip MPP.
-    
+
     USE THIS FOR: Preview/streaming to MediaMTX (browser WebRTC requires H.264)
     DO NOT USE FOR: Recording (use H.265 for better compression)
-    
+
     Uses mpph264enc with QP-based rate control.
     Baseline profile (no B-frames) prevents DTS errors.
-    
+
     Tested stable on 2025-12-28 with this exact configuration.
     Previous kernel panics were with different parameters.
-    
+
     Args:
         bitrate: Target bitrate in kbps
-        
+
     Returns:
         Tuple of (encoder_str, caps_str, parse_str)
     """
@@ -58,16 +58,16 @@ def get_h264_hardware_encoder(bitrate: int) -> Tuple[str, str, str]:
 
 def get_h265_encoder(bitrate: int) -> Tuple[str, str, str]:
     """Get H.265 hardware encoder using Rockchip MPP.
-    
+
     USE THIS FOR: Recording to file (better compression, ~30-40% smaller)
     DO NOT USE FOR: Preview/streaming (browsers cannot decode H.265 via WebRTC)
-    
+
     Uses mpph265enc for hardware acceleration.
     Tested stable on 2025-12-19 - no kernel panics, low CPU usage (~10% per stream).
-    
+
     Args:
         bitrate: Target bitrate in kbps
-        
+
     Returns:
         Tuple of (encoder_str, caps_str, parse_str)
     """
@@ -80,13 +80,13 @@ def get_h265_encoder(bitrate: int) -> Tuple[str, str, str]:
 
 def get_h264_software_encoder(bitrate: int) -> Tuple[str, str]:
     """Get H.264 software encoder for streaming compatibility.
-    
+
     Note: mpph264enc (H.264 hardware) can cause issues.
     Use this for RTMP streaming (flvmux requires H.264).
-    
+
     Args:
         bitrate: Target bitrate in kbps
-        
+
     Returns:
         Tuple of (encoder_str, caps_str)
     """
@@ -100,7 +100,7 @@ def get_h264_software_encoder(bitrate: int) -> Tuple[str, str]:
 
 def detect_device_type(device_path: str) -> str:
     """Detect the type of video device.
-    
+
     Returns:
         'hdmirx' - RK3588 HDMI receiver (direct)
         'hdmi_rkcif' - HDMI input via rkcif (LT6911 bridge)
@@ -110,24 +110,24 @@ def detect_device_type(device_path: str) -> str:
     path = Path(device_path)
     if not path.exists():
         return "unknown"
-    
+
     # R58 4x4 3S specific: Known HDMI port mappings
     hdmi_rkcif_devices = ["/dev/video0", "/dev/video11", "/dev/video22"]
     if str(path) in hdmi_rkcif_devices:
         return "hdmi_rkcif"
-    
+
     # video60 is the direct hdmirx port
     if "video60" in str(path):
         return "hdmirx"
-    
+
     # Check sysfs for more info
     try:
         sysfs_base = Path("/sys/class/video4linux")
         sysfs_path = sysfs_base / path.name
-        
+
         if not sysfs_path.exists():
             return "unknown"
-        
+
         name_path = sysfs_path / "name"
         if name_path.exists():
             name = name_path.read_text().strip().lower()
@@ -135,21 +135,21 @@ def detect_device_type(device_path: str) -> str:
                 return "hdmirx"
             if "uvc" in name or "usb" in name:
                 return "usb"
-        
+
     except Exception as e:
         logger.warning(f"Error detecting device type for {device_path}: {e}")
-    
+
     return "unknown"
 
 
 def get_device_capabilities(device_path: str) -> Dict[str, Any]:
     """Get device capabilities using v4l2-ctl.
-    
+
     Returns:
         Dictionary with format, width, height, framerate, has_signal, etc.
     """
     import subprocess
-    
+
     result = {
         'format': 'NV16',
         'width': 1920,
@@ -159,7 +159,7 @@ def get_device_capabilities(device_path: str) -> Dict[str, Any]:
         'is_bayer': False,
         'bayer_format': None
     }
-    
+
     try:
         # Get current format
         proc = subprocess.run(
@@ -168,7 +168,7 @@ def get_device_capabilities(device_path: str) -> Dict[str, Any]:
             text=True,
             timeout=5
         )
-        
+
         if proc.returncode == 0:
             output = proc.stdout
             # Parse width/height
@@ -193,15 +193,15 @@ def get_device_capabilities(device_path: str) -> Dict[str, Any]:
                         else:
                             fmt = fmt_part.split()[0]  # Fallback: get first word
                         result['format'] = fmt
-            
+
             # Check for no signal (640x480 BGR typically means no signal)
             if result['width'] == 640 and result['height'] == 480:
                 if result['format'] in ['BGR3', 'BGR']:
                     result['has_signal'] = False
-                    
+
     except Exception as e:
         logger.warning(f"Error getting device capabilities for {device_path}: {e}")
-    
+
     return result
 
 
@@ -212,23 +212,23 @@ def build_source_pipeline(
     target_fps: int = 30
 ) -> str:
     """Build the video source portion of a pipeline.
-    
+
     Handles device detection and format conversion.
-    
+
     Args:
         device: V4L2 device path (e.g., /dev/video11)
         target_width: Target output width
         target_height: Target output height
         target_fps: Target framerate
-        
+
     Returns:
         GStreamer pipeline string for video source
     """
     device_type = detect_device_type(device)
     caps = get_device_capabilities(device)
-    
+
     logger.info(f"Building source pipeline: device={device}, type={device_type}, caps={caps}")
-    
+
     if not caps['has_signal']:
         # No signal - use test pattern
         logger.warning(f"No signal on {device}, using black test pattern")
@@ -236,7 +236,7 @@ def build_source_pipeline(
             f"videotestsrc pattern=black is-live=true ! "
             f"video/x-raw,width={target_width},height={target_height},framerate={target_fps}/1,format=NV12"
         )
-    
+
     # Build source based on device type
     if device_type == "hdmirx":
         src_width = caps['width']
@@ -249,7 +249,7 @@ def build_source_pipeline(
             f"videoscale ! "
             f"video/x-raw,width={target_width},height={target_height},format=NV12"
         )
-    
+
     elif device_type == "hdmi_rkcif":
         src_format = caps['format'] or 'NV16'
         src_width = caps['width']
@@ -263,7 +263,7 @@ def build_source_pipeline(
             f"videoscale ! "
             f"video/x-raw,width={target_width},height={target_height},format=NV12"
         )
-    
+
     elif device_type == "usb":
         return (
             f"v4l2src device={device} ! "
@@ -273,7 +273,7 @@ def build_source_pipeline(
             f"videoscale ! "
             f"video/x-raw,width={target_width},height={target_height},format=NV12"
         )
-    
+
     else:
         # Generic fallback
         return (
@@ -292,24 +292,24 @@ def build_preview_pipeline_string(
     resolution: str = "1920x1080"
 ) -> str:
     """Build GStreamer pipeline string for live preview streaming.
-    
+
     Streams to MediaMTX via RTSP for WHEP preview.
     Uses H.264 hardware encoder with baseline profile.
-    
+
     Args:
         cam_id: Camera identifier (used as RTSP path)
         device: V4L2 device path
         bitrate: Target bitrate in kbps
         resolution: Target resolution "WxH"
-        
+
     Returns:
         GStreamer pipeline string
     """
     width, height = resolution.split("x")
     source_str = build_source_pipeline(device, int(width), int(height), 30)
-    
+
     encoder_str, caps_str, parse_str = get_h264_hardware_encoder(bitrate)
-    
+
     # Stream to MediaMTX via RTSP with TCP
     pipeline_str = (
         f"{source_str} ! "
@@ -320,7 +320,7 @@ def build_preview_pipeline_string(
         f"{parse_str} config-interval=-1 ! "
         f"rtspclientsink location=rtsp://127.0.0.1:8554/{cam_id} protocols=tcp latency=0"
     )
-    
+
     return pipeline_str
 
 
@@ -333,10 +333,10 @@ def build_recording_pipeline_string(
     with_preview: bool = False
 ) -> str:
     """Build GStreamer pipeline string for recording.
-    
+
     Uses H.265 hardware encoder for efficient recording.
     Optionally tees to MediaMTX for simultaneous preview.
-    
+
     Args:
         cam_id: Camera identifier
         device: V4L2 device path
@@ -344,17 +344,17 @@ def build_recording_pipeline_string(
         bitrate: Target bitrate in kbps
         resolution: Target resolution "WxH"
         with_preview: Also stream preview to MediaMTX
-        
+
     Returns:
         GStreamer pipeline string
     """
     width, height = resolution.split("x")
     source_str = build_source_pipeline(device, int(width), int(height), 30)
-    
+
     # Use H.265 for recording (better compression)
     encoder_str, caps_str, parse_str = get_h265_encoder(bitrate)
     mux_str = "matroskamux"
-    
+
     if with_preview:
         # Tee: H.265 recording + H.264 preview streaming via RTSP
         # Uses hardware H.264 encoder for preview (tested stable 2025-12-28)
@@ -389,7 +389,7 @@ def build_recording_pipeline_string(
             f"{mux_str} ! "
             f"filesink location={output_path}"
         )
-    
+
     return pipeline_str
 
 
@@ -399,15 +399,15 @@ def build_subscriber_recording_pipeline_string(
     output_path: str
 ) -> str:
     """Build pipeline to record from MediaMTX RTSP stream.
-    
+
     Subscribes to existing MediaMTX stream and records to file.
     Uses H.264 because that's what the preview streams use.
-    
+
     Args:
         cam_id: Camera identifier
         source_url: RTSP URL (e.g., rtsp://localhost:8554/cam0)
         output_path: Output file path
-        
+
     Returns:
         GStreamer pipeline string
     """
@@ -419,16 +419,16 @@ def build_subscriber_recording_pipeline_string(
         f"mp4mux ! "
         f"filesink location={output_path}"
     )
-    
+
     return pipeline_str
 
 
 def create_pipeline(pipeline_string: str) -> Optional[Any]:
     """Create a GStreamer pipeline from a pipeline string.
-    
+
     Args:
         pipeline_string: GStreamer pipeline description
-        
+
     Returns:
         Gst.Pipeline object, or None if creation failed
     """
@@ -436,7 +436,7 @@ def create_pipeline(pipeline_string: str) -> Optional[Any]:
     if Gst is None:
         logger.error("GStreamer not available")
         return None
-    
+
     try:
         logger.info(f"Creating pipeline: {pipeline_string}")
         pipeline = Gst.parse_launch(pipeline_string)

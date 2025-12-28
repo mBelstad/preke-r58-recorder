@@ -3,7 +3,7 @@ import asyncio
 import json
 import logging
 import random
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List, Optional
 
 from ..config import get_settings
 
@@ -29,12 +29,12 @@ class PipelineTimeoutError(Exception):
 
 class PipelineClient:
     """Async client for pipeline-manager IPC with retry and timeout support"""
-    
+
     def __init__(self):
         self.settings = get_settings()
         self.socket_path = self.settings.pipeline_socket_path
         self._consecutive_failures = 0
-    
+
     async def _send_command(
         self,
         cmd: Dict[str, Any],
@@ -43,36 +43,36 @@ class PipelineClient:
     ) -> Dict[str, Any]:
         """
         Send a command to the pipeline manager and get response.
-        
+
         Args:
             cmd: Command dictionary to send
             timeout: Override default read timeout
             retries: Number of retry attempts on failure
-        
+
         Returns:
             Response dictionary from pipeline manager
-        
+
         Raises:
             Returns error dict on failure (for backward compatibility)
         """
         read_timeout = timeout or IPC_READ_TIMEOUT
         last_error: Optional[Exception] = None
-        
+
         for attempt in range(retries + 1):
             try:
                 result = await self._send_command_once(cmd, read_timeout)
-                
+
                 # Success - reset failure counter
                 if self._consecutive_failures > 0:
                     logger.info(f"Pipeline connection restored after {self._consecutive_failures} failures")
                 self._consecutive_failures = 0
-                
+
                 return result
-                
+
             except (PipelineConnectionError, PipelineTimeoutError) as e:
                 last_error = e
                 self._consecutive_failures += 1
-                
+
                 if attempt < retries:
                     # Exponential backoff with jitter
                     delay = min(
@@ -89,10 +89,10 @@ class PipelineClient:
                         f"Pipeline command failed after {retries + 1} attempts: {e}. "
                         f"Consecutive failures: {self._consecutive_failures}"
                     )
-        
+
         # Return error dict for backward compatibility
         return {"error": str(last_error)}
-    
+
     async def _send_command_once(
         self,
         cmd: Dict[str, Any],
@@ -100,13 +100,13 @@ class PipelineClient:
     ) -> Dict[str, Any]:
         """
         Single attempt to send command and get response.
-        
+
         Raises:
             PipelineConnectionError: If cannot connect
             PipelineTimeoutError: If response times out
         """
         writer: Optional[asyncio.StreamWriter] = None
-        
+
         try:
             # Connect with timeout
             try:
@@ -126,12 +126,12 @@ class PipelineClient:
                 raise PipelineConnectionError(
                     "Pipeline manager connection refused"
                 )
-            
+
             # Send command
             cmd_bytes = json.dumps(cmd).encode() + b"\n"
             writer.write(cmd_bytes)
             await writer.drain()
-            
+
             # Read response with timeout
             try:
                 response = await asyncio.wait_for(
@@ -142,17 +142,17 @@ class PipelineClient:
                 raise PipelineTimeoutError(
                     f"Timeout waiting for pipeline response ({read_timeout}s)"
                 )
-            
+
             if not response:
                 raise PipelineConnectionError(
                     "Pipeline manager closed connection unexpectedly"
                 )
-            
+
             return json.loads(response)
-            
+
         except json.JSONDecodeError as e:
             raise PipelineConnectionError(f"Invalid JSON response: {e}")
-            
+
         finally:
             # Always clean up the writer
             if writer is not None:
@@ -161,16 +161,16 @@ class PipelineClient:
                     await asyncio.wait_for(writer.wait_closed(), timeout=1.0)
                 except asyncio.TimeoutError:
                     pass  # Force close
-    
+
     @property
     def is_healthy(self) -> bool:
         """Check if pipeline connection is healthy"""
         return self._consecutive_failures < 3
-    
+
     async def get_status(self) -> Dict[str, Any]:
         """Get current pipeline status"""
         return await self._send_command({"cmd": "status"})
-    
+
     async def start_recording(
         self,
         session_id: Optional[str] = None,
@@ -184,42 +184,42 @@ class PipelineClient:
             cmd["session_id"] = session_id
         if inputs:
             cmd["inputs"] = inputs
-        
+
         return await self._send_command(cmd)
-    
+
     async def stop_recording(self, session_id: Optional[str] = None) -> Dict[str, Any]:
         """Stop current recording"""
         cmd = {"cmd": "recording.stop"}
         if session_id:
             cmd["session_id"] = session_id
-        
+
         return await self._send_command(cmd)
-    
+
     async def get_recording_status(self) -> Dict[str, Any]:
         """Get current recording status"""
         return await self._send_command({"cmd": "recording.status"})
-    
+
     async def start_preview(self, input_id: str) -> Dict[str, Any]:
         """Start preview pipeline for an input"""
         return await self._send_command({
             "cmd": "preview.start",
             "input_id": input_id,
         })
-    
+
     async def stop_preview(self, input_id: str) -> Dict[str, Any]:
         """Stop preview pipeline for an input"""
         return await self._send_command({
             "cmd": "preview.stop",
             "input_id": input_id,
         })
-    
+
     async def get_preview_status(self, input_id: Optional[str] = None) -> Dict[str, Any]:
         """Get preview status for one or all inputs"""
         cmd = {"cmd": "preview.status"}
         if input_id:
             cmd["input_id"] = input_id
         return await self._send_command(cmd)
-    
+
     async def get_pipeline_status(self) -> Dict[str, Any]:
         """Get status of all pipelines (preview and recording)"""
         return await self._send_command({"cmd": "pipeline.status"})

@@ -1,9 +1,9 @@
 """Recording session models"""
-from datetime import datetime
-from typing import Optional, List
 import uuid
+from datetime import datetime
+from typing import List, Optional
 
-from sqlmodel import SQLModel, Field, Relationship
+from sqlmodel import Field, Relationship, SQLModel
 
 
 class RecordingSessionBase(SQLModel):
@@ -18,9 +18,9 @@ class RecordingSessionBase(SQLModel):
 class RecordingSession(RecordingSessionBase, table=True):
     """Recording session database model"""
     __tablename__ = "recording_sessions"
-    
+
     id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
-    
+
     # Relationship to recordings
     recordings: List["Recording"] = Relationship(back_populates="session")
 
@@ -50,10 +50,10 @@ class RecordingBase(SQLModel):
 class Recording(RecordingBase, table=True):
     """Recording database model"""
     __tablename__ = "recordings"
-    
+
     id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
     session_id: str = Field(foreign_key="recording_sessions.id")
-    
+
     # Relationship to session
     session: RecordingSession = Relationship(back_populates="recordings")
 

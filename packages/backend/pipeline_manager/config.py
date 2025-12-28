@@ -3,10 +3,9 @@
 Loads camera and recording settings from config.yml or environment.
 """
 import logging
-import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -45,10 +44,10 @@ class PipelineConfig:
 
 def load_config(config_path: Optional[Path] = None) -> PipelineConfig:
     """Load pipeline configuration from YAML file.
-    
+
     Args:
         config_path: Optional explicit path to config file
-        
+
     Returns:
         PipelineConfig instance
     """
@@ -61,11 +60,11 @@ def load_config(config_path: Optional[Path] = None) -> PipelineConfig:
             if p.exists():
                 path = p
                 break
-    
+
     if path is None:
         logger.warning("No config.yml found, using defaults")
         return _default_config()
-    
+
     try:
         import yaml
         with open(path) as f:
@@ -100,7 +99,7 @@ def _default_config() -> PipelineConfig:
 def _parse_config(data: Dict[str, Any]) -> PipelineConfig:
     """Parse configuration from YAML data."""
     config = PipelineConfig()
-    
+
     # Parse cameras
     cameras_data = data.get("cameras", {})
     for cam_id, cam_data in cameras_data.items():
@@ -116,17 +115,17 @@ def _parse_config(data: Dict[str, Any]) -> PipelineConfig:
                 mediamtx_path=cam_data.get("mediamtx_path"),
                 output_path=cam_data.get("output_path", f"/opt/r58/recordings/{cam_id}_{{timestamp}}.mkv"),
             )
-    
+
     # Parse recording settings
     recording_data = data.get("recording", {})
     config.min_disk_space_gb = recording_data.get("min_disk_space_gb", 10.0)
     config.warning_disk_space_gb = recording_data.get("warning_disk_space_gb", 5.0)
-    
+
     # Parse MediaMTX settings
     mediamtx_data = data.get("mediamtx", {})
     config.mediamtx_rtsp_port = mediamtx_data.get("rtsp_port", 8554)
     config.mediamtx_rtmp_port = mediamtx_data.get("rtmp_port", 1935)
-    
+
     return config
 
 

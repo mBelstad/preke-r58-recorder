@@ -1,8 +1,8 @@
 """User models"""
-from typing import Optional
 import uuid
+from typing import Optional
 
-from sqlmodel import SQLModel, Field
+from sqlmodel import Field, SQLModel
 
 
 class UserBase(SQLModel):
@@ -15,7 +15,7 @@ class UserBase(SQLModel):
 class User(UserBase, table=True):
     """User database model"""
     __tablename__ = "users"
-    
+
     id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
     hashed_password: str
 

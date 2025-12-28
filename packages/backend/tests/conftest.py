@@ -2,15 +2,13 @@
 R58 Backend Test Fixtures
 Shared fixtures for pytest tests
 """
-import pytest
-import tempfile
-import json
 from pathlib import Path
-from unittest.mock import Mock, AsyncMock
-from typing import Generator, AsyncGenerator
+from typing import AsyncGenerator, Generator
+from unittest.mock import AsyncMock, Mock
 
+import pytest
 from fastapi.testclient import TestClient
-from httpx import AsyncClient, ASGITransport
+from httpx import ASGITransport, AsyncClient
 
 
 # Test environment setup
@@ -79,10 +77,10 @@ def mock_pipeline_client(monkeypatch):
     mock_client._send_command = AsyncMock(return_value={"mode": "idle"})
     mock_client.is_healthy = True
     mock_client._consecutive_failures = 0
-    
+
     # Create a mock function that returns the client
     mock_get_client = Mock(return_value=mock_client)
-    
+
     # Patch at multiple locations to ensure it works regardless of import order
     monkeypatch.setattr(
         "r58_api.media.pipeline_client.get_pipeline_client",
@@ -169,7 +167,7 @@ def mock_disk_usage(monkeypatch):
             self.total = total
             self.used = used
             self.free = free
-    
+
     def set_disk_space(total_gb=100, free_gb=50):
         total = int(total_gb * 1024**3)
         free = int(free_gb * 1024**3)
@@ -178,7 +176,7 @@ def mock_disk_usage(monkeypatch):
             "shutil.disk_usage",
             lambda path: MockUsage(total, used, free)
         )
-    
+
     return set_disk_space
 
 
@@ -186,8 +184,9 @@ def mock_disk_usage(monkeypatch):
 def auth_headers():
     """Generate valid JWT auth headers for testing"""
     from datetime import datetime, timedelta
+
     from jose import jwt
-    
+
     payload = {
         "sub": "test-user",
         "exp": datetime.utcnow() + timedelta(hours=1),
@@ -201,21 +200,21 @@ def auth_headers():
 def websocket_messages():
     """Capture WebSocket messages for testing"""
     messages = []
-    
+
     class MessageCapture:
         def append(self, msg):
             messages.append(msg)
-        
+
         def clear(self):
             messages.clear()
-        
+
         @property
         def all(self):
             return messages.copy()
-        
+
         @property
         def last(self):
             return messages[-1] if messages else None
-    
+
     return MessageCapture()
 

@@ -1,8 +1,6 @@
 """Database setup and connection management"""
-from pathlib import Path
-from typing import Optional
 
-from sqlmodel import SQLModel, create_engine, Session
+from sqlmodel import Session, SQLModel, create_engine
 
 from ..config import get_settings
 
@@ -14,11 +12,11 @@ def get_engine():
     global _engine
     if _engine is None:
         settings = get_settings()
-        
+
         # Ensure directory exists
         db_path = settings.db_path
         db_path.parent.mkdir(parents=True, exist_ok=True)
-        
+
         _engine = create_engine(
             f"sqlite:///{db_path}",
             echo=settings.debug,

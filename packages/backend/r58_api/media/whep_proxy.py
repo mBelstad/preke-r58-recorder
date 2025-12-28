@@ -7,7 +7,7 @@ WHEP (pull) - For viewing streams (camera previews)
 WHIP (push) - For publishing streams (program output)
 """
 import httpx
-from fastapi import APIRouter, Request, Response, HTTPException
+from fastapi import APIRouter, HTTPException, Request, Response
 
 from ..config import get_settings
 
@@ -30,7 +30,7 @@ def get_client() -> httpx.AsyncClient:
 async def whep_proxy(stream_id: str, request: Request) -> Response:
     """
     Proxy WHEP requests to local MediaMTX (for viewing streams).
-    
+
     Supports all WHEP operations:
     - POST: Create WHEP session (send SDP offer, receive answer)
     - PATCH: ICE trickle candidates
@@ -39,7 +39,7 @@ async def whep_proxy(stream_id: str, request: Request) -> Response:
     """
     settings = get_settings()
     mediamtx_url = f"{settings.mediamtx_whep_base}/{stream_id}/whep"
-    
+
     return await _proxy_request(request, mediamtx_url)
 
 
@@ -47,9 +47,9 @@ async def whep_proxy(stream_id: str, request: Request) -> Response:
 async def whip_proxy(stream_id: str, request: Request) -> Response:
     """
     Proxy WHIP requests to local MediaMTX (for publishing streams).
-    
+
     Used by VDO.ninja to push the program output to MediaMTX.
-    
+
     Supports all WHIP operations:
     - POST: Create WHIP session (send SDP offer, receive answer)
     - PATCH: ICE trickle candidates
@@ -59,24 +59,24 @@ async def whip_proxy(stream_id: str, request: Request) -> Response:
     # WHIP uses the same base URL as WHEP, just different endpoint
     mediamtx_base = settings.mediamtx_whep_base
     mediamtx_url = f"{mediamtx_base}/{stream_id}/whip"
-    
+
     return await _proxy_request(request, mediamtx_url)
 
 
 async def _proxy_request(request: Request, target_url: str) -> Response:
     """Common proxy logic for WHEP and WHIP requests."""
     client = get_client()
-    
+
     # Forward headers, excluding host
     headers = {
         k: v for k, v in request.headers.items()
         if k.lower() not in ('host', 'content-length')
     }
-    
+
     try:
         # Read request body
         body = await request.body()
-        
+
         # Forward request to MediaMTX
         response = await client.request(
             method=request.method,
@@ -84,20 +84,20 @@ async def _proxy_request(request: Request, target_url: str) -> Response:
             headers=headers,
             content=body,
         )
-        
+
         # Return response with appropriate headers
         response_headers = dict(response.headers)
         # Remove headers that shouldn't be forwarded
         for h in ('transfer-encoding', 'content-encoding', 'content-length'):
             response_headers.pop(h, None)
-        
+
         return Response(
             content=response.content,
             status_code=response.status_code,
             headers=response_headers,
             media_type=response.headers.get('content-type', 'application/sdp')
         )
-        
+
     except httpx.ConnectError:
         raise HTTPException(
             status_code=503,

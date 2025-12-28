@@ -2,11 +2,11 @@
 import json
 import logging
 import uuid
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
 from typing import Optional
 
+from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
+
 from .manager import get_connection_manager
-from .events import EventType, BaseEvent
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -20,22 +20,22 @@ async def websocket_endpoint(
 ):
     """
     WebSocket endpoint for real-time events.
-    
+
     Connect with: ws://host:8000/api/v1/ws?token=jwt_token
     """
     # TODO: Validate JWT token
     # For now, accept all connections
-    
+
     client_id = str(uuid.uuid4())
     manager = get_connection_manager()
-    
+
     try:
         await manager.connect(websocket, client_id)
-        
+
         while True:
             # Wait for client messages
             data = await websocket.receive_text()
-            
+
             try:
                 message = json.loads(data)
                 await handle_client_message(websocket, client_id, message)
@@ -44,7 +44,7 @@ async def websocket_endpoint(
                     "type": "error",
                     "payload": {"message": "Invalid JSON"}
                 })
-    
+
     except WebSocketDisconnect:
         manager.disconnect(client_id)
     except Exception as e:
@@ -60,28 +60,28 @@ async def handle_client_message(
     """Handle incoming client messages"""
     msg_type = message.get("type")
     manager = get_connection_manager()
-    
+
     if msg_type == "sync_request":
         # Client is requesting state sync (typically after reconnection)
         last_seq = message.get("last_seq", 0)
-        
+
         logger.info(f"[WS] Client {client_id[:8]} requesting sync from seq {last_seq}")
-        
+
         # Get full sync response with state and missed events
         sync_response = await manager.get_sync_response(last_seq)
-        
+
         await websocket.send_json(sync_response)
-        
+
         missed_count = sync_response["payload"]["missed_event_count"]
         if missed_count > 0:
             logger.info(f"[WS] Sent {missed_count} missed events to client {client_id[:8]}")
         else:
             logger.debug(f"[WS] No missed events for client {client_id[:8]}")
-    
+
     elif msg_type == "ping":
         # Respond to ping
         await websocket.send_json({"type": "pong", "ts": message.get("ts")})
-    
+
     elif msg_type == "get_state":
         # Client requesting current state without event replay
         state = manager.current_state
@@ -90,7 +90,7 @@ async def handle_client_message(
             "seq": manager.sequence,
             "payload": state,
         })
-    
+
     elif msg_type == "subscribe":
         # Client wants to subscribe to specific event types
         event_types = message.get("events", [])
@@ -100,7 +100,7 @@ async def handle_client_message(
             "type": "subscribed",
             "payload": {"events": event_types}
         })
-    
+
     else:
         # Unknown message type
         logger.warning(f"[WS] Unknown message type from {client_id[:8]}: {msg_type}")

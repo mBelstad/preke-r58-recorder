@@ -1,10 +1,10 @@
 """Pipeline state persistence"""
 import json
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 from typing import Dict, Optional
-from pydantic import BaseModel
 
+from pydantic import BaseModel
 
 STATE_FILE = Path("/var/lib/r58/pipeline_state.json")
 
@@ -22,13 +22,13 @@ class PipelineState(BaseModel):
     current_mode: str = "idle"  # "idle", "recording", "mixing"
     active_recording: Optional[RecordingState] = None
     last_error: Optional[str] = None
-    
+
     def save(self):
         """Persist state to disk"""
         STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
         STATE_FILE.write_text(self.model_dump_json(indent=2))
         print(f"[Pipeline State] Saved to {STATE_FILE}")
-    
+
     @classmethod
     def load(cls) -> "PipelineState":
         """Load state from disk or create new"""
@@ -39,7 +39,7 @@ class PipelineState(BaseModel):
             except Exception as e:
                 print(f"[Pipeline State] Failed to load: {e}")
         return cls()
-    
+
     def start_recording(self, session_id: str, inputs: Dict[str, str]) -> None:
         """Start a new recording session"""
         self.current_mode = "recording"
@@ -51,7 +51,7 @@ class PipelineState(BaseModel):
         )
         self.last_error = None
         self.save()
-    
+
     def stop_recording(self) -> Optional[RecordingState]:
         """Stop current recording and return final state"""
         recording = self.active_recording
@@ -59,12 +59,12 @@ class PipelineState(BaseModel):
         self.active_recording = None
         self.save()
         return recording
-    
+
     def update_bytes(self, input_id: str, bytes_written: int) -> None:
         """Update bytes written for an input"""
         if self.active_recording and input_id in self.active_recording.bytes_written:
             self.active_recording.bytes_written[input_id] = bytes_written
-    
+
     def set_error(self, error: str) -> None:
         """Record an error"""
         self.last_error = error

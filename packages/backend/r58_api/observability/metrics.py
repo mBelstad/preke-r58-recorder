@@ -1,8 +1,8 @@
 """Metrics snapshot endpoint"""
-import psutil
 from datetime import datetime
-from typing import Dict, Any, List
+from typing import List
 
+import psutil
 from fastapi import APIRouter
 from pydantic import BaseModel
 
@@ -112,7 +112,7 @@ def get_process_metrics() -> List[ProcessMetrics]:
     """Get R58-related process metrics"""
     r58_processes = []
     target_names = ["r58", "python", "mediamtx", "gst-launch", "uvicorn"]
-    
+
     for proc in psutil.process_iter(['pid', 'name', 'cpu_percent', 'memory_info', 'status']):
         try:
             name = proc.info['name'].lower()
@@ -126,7 +126,7 @@ def get_process_metrics() -> List[ProcessMetrics]:
                 ))
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             continue
-    
+
     return r58_processes
 
 
@@ -134,7 +134,7 @@ def get_process_metrics() -> List[ProcessMetrics]:
 async def get_metrics() -> MetricsSnapshot:
     """
     Get current system metrics snapshot.
-    
+
     Includes CPU, memory, disk, network, and R58-related process metrics.
     """
     return MetricsSnapshot(

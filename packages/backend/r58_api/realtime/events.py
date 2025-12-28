@@ -1,44 +1,45 @@
 """WebSocket event schema definitions"""
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, Optional, List
+from typing import Any, Dict, Optional
+
 from pydantic import BaseModel, Field
 
 
 class EventType(str, Enum):
     """Event types for WebSocket communication"""
-    
+
     # System
     CONNECTED = "connected"
     HEARTBEAT = "heartbeat"
     ERROR = "error"
     SYNC_RESPONSE = "sync_response"
-    
+
     # Mode
     MODE_CHANGED = "mode.changed"
-    
+
     # Recorder
     RECORDING_STARTED = "recorder.started"
     RECORDING_STOPPED = "recorder.stopped"
     RECORDING_PROGRESS = "recorder.progress"
-    
+
     # Pipeline/Preview
     PREVIEW_STARTED = "preview.started"
     PREVIEW_STOPPED = "preview.stopped"
     PIPELINE_ERROR = "pipeline.error"
-    
+
     # Mixer
     SCENE_CHANGED = "mixer.scene_changed"
     SOURCE_UPDATED = "mixer.source_updated"
-    
+
     # Inputs
     INPUT_SIGNAL_CHANGED = "input.signal_changed"
     INPUT_ERROR = "input.error"
-    
+
     # Graphics
     OVERLAY_SHOWN = "graphics.overlay_shown"
     OVERLAY_HIDDEN = "graphics.overlay_hidden"
-    
+
     # System
     HEALTH_CHANGED = "health.changed"
     STORAGE_WARNING = "storage.warning"
@@ -71,7 +72,7 @@ class HeartbeatEvent(BaseEvent):
 class RecordingProgressEvent(BaseEvent):
     """Recording progress update"""
     type: EventType = EventType.RECORDING_PROGRESS
-    
+
     @classmethod
     def create(
         cls,
@@ -95,7 +96,7 @@ class RecordingProgressEvent(BaseEvent):
 class InputSignalEvent(BaseEvent):
     """Input signal status change"""
     type: EventType = EventType.INPUT_SIGNAL_CHANGED
-    
+
     @classmethod
     def create(
         cls,
@@ -121,7 +122,7 @@ class InputSignalEvent(BaseEvent):
 class PreviewStartedEvent(BaseEvent):
     """Preview pipeline started"""
     type: EventType = EventType.PREVIEW_STARTED
-    
+
     @classmethod
     def create(
         cls,
@@ -143,7 +144,7 @@ class PreviewStartedEvent(BaseEvent):
 class PreviewStoppedEvent(BaseEvent):
     """Preview pipeline stopped"""
     type: EventType = EventType.PREVIEW_STOPPED
-    
+
     @classmethod
     def create(
         cls,
@@ -163,7 +164,7 @@ class PreviewStoppedEvent(BaseEvent):
 class PipelineErrorEvent(BaseEvent):
     """Pipeline error occurred"""
     type: EventType = EventType.PIPELINE_ERROR
-    
+
     @classmethod
     def create(
         cls,

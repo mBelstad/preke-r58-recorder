@@ -1,5 +1,4 @@
 """Health check endpoints for observability"""
-import asyncio
 import logging
 import shutil
 from datetime import datetime
@@ -46,16 +45,16 @@ _startup_time = datetime.now()
 async def check_service_health(name: str) -> ServiceStatus:
     """Check health of a specific service"""
     settings = get_settings()
-    
+
     if name == "pipeline_manager":
         return await _check_pipeline_manager()
-    
+
     elif name == "mediamtx":
         return await _check_mediamtx(settings)
-    
+
     elif name == "vdoninja":
         return await _check_vdoninja(settings)
-    
+
     # Default healthy status for unknown services
     return ServiceStatus(
         name=name,
@@ -67,21 +66,21 @@ async def check_service_health(name: str) -> ServiceStatus:
 async def _check_pipeline_manager() -> ServiceStatus:
     """Check pipeline manager health via IPC"""
     client = get_pipeline_client()
-    
+
     try:
         result = await client._send_command(
             {"cmd": "status"},
             timeout=2.0,
             retries=0,  # No retries for health check
         )
-        
+
         if result.get("error"):
             return ServiceStatus(
                 name="pipeline_manager",
                 status="unhealthy",
                 message=str(result.get("error")),
             )
-        
+
         # Check if pipeline is healthy based on IPC consecutive failures
         if not client.is_healthy:
             return ServiceStatus(
@@ -89,7 +88,7 @@ async def _check_pipeline_manager() -> ServiceStatus:
                 status="degraded",
                 message=f"Intermittent failures ({client._consecutive_failures})",
             )
-        
+
         return ServiceStatus(
             name="pipeline_manager",
             status="healthy",
@@ -106,7 +105,7 @@ async def _check_pipeline_manager() -> ServiceStatus:
 async def _check_mediamtx(settings: Settings) -> ServiceStatus:
     """
     Check MediaMTX health by calling its API.
-    
+
     MediaMTX API endpoints:
     - GET /v3/paths/list - List all paths
     - GET /v3/config/global/get - Get global config
@@ -116,12 +115,12 @@ async def _check_mediamtx(settings: Settings) -> ServiceStatus:
             # Try to list paths - this confirms MediaMTX is running
             url = f"{settings.mediamtx_api_url}/v3/paths/list"
             resp = await client.get(url)
-            
+
             if resp.status_code == 200:
                 data = resp.json()
                 items = data.get("items", [])
                 active_paths = len([p for p in items if p.get("ready")])
-                
+
                 return ServiceStatus(
                     name="mediamtx",
                     status="healthy",
@@ -133,7 +132,7 @@ async def _check_mediamtx(settings: Settings) -> ServiceStatus:
                     status="degraded",
                     message=f"API returned HTTP {resp.status_code}",
                 )
-    
+
     except httpx.ConnectError:
         return ServiceStatus(
             name="mediamtx",
@@ -158,7 +157,7 @@ async def _check_mediamtx(settings: Settings) -> ServiceStatus:
 async def _check_vdoninja(settings: Settings) -> ServiceStatus:
     """
     Check VDO.ninja local server health.
-    
+
     VDO.ninja runs on HTTPS port 8443 on the R58.
     """
     if not settings.vdoninja_enabled:
@@ -167,13 +166,13 @@ async def _check_vdoninja(settings: Settings) -> ServiceStatus:
             status="healthy",
             message="Disabled in config",
         )
-    
+
     try:
         # VDO.ninja is served over HTTPS, might have self-signed cert
         async with httpx.AsyncClient(timeout=3.0, verify=False) as client:
             url = f"https://localhost:{settings.vdoninja_port}/"
             resp = await client.get(url)
-            
+
             if resp.status_code == 200:
                 return ServiceStatus(
                     name="vdoninja",
@@ -186,7 +185,7 @@ async def _check_vdoninja(settings: Settings) -> ServiceStatus:
                     status="degraded",
                     message=f"HTTP {resp.status_code}",
                 )
-    
+
     except httpx.ConnectError:
         return ServiceStatus(
             name="vdoninja",
@@ -232,20 +231,20 @@ def get_storage_status() -> StorageStatus:
 async def health_check(response: Response):
     """
     Simple health check endpoint.
-    
+
     Returns 200 if the API is running, 503 if unhealthy.
     Checks pipeline manager connectivity.
     """
     # Check pipeline manager health
     pipeline_status = await check_service_health("pipeline_manager")
-    
+
     if pipeline_status.status == "unhealthy":
         response.status_code = 503
         return {
             "status": "unhealthy",
             "message": f"Pipeline manager: {pipeline_status.message}",
         }
-    
+
     # Check disk space
     storage = get_storage_status()
     if storage.available_gb < 1.0:  # Less than 1GB warning
@@ -254,13 +253,13 @@ async def health_check(response: Response):
             "status": "unhealthy",
             "message": f"Low disk space: {storage.available_gb:.1f}GB available",
         }
-    
+
     if pipeline_status.status == "degraded":
         return {
             "status": "degraded",
             "message": pipeline_status.message,
         }
-    
+
     return {"status": "healthy"}
 
 
@@ -270,7 +269,7 @@ async def detailed_health_check(
 ) -> DetailedHealth:
     """
     Detailed health check with service status.
-    
+
     Checks all dependent services and returns overall health.
     """
     services = [
@@ -278,10 +277,10 @@ async def detailed_health_check(
         await check_service_health("pipeline_manager"),
         await check_service_health("mediamtx"),
     ]
-    
+
     if settings.vdoninja_enabled:
         services.append(await check_service_health("vdoninja"))
-    
+
     # Determine overall status
     if any(s.status == "unhealthy" for s in services):
         overall_status = "unhealthy"
@@ -289,9 +288,9 @@ async def detailed_health_check(
         overall_status = "degraded"
     else:
         overall_status = "healthy"
-    
+
     uptime = (datetime.now() - _startup_time).total_seconds()
-    
+
     return DetailedHealth(
         status=overall_status,
         timestamp=datetime.now(),

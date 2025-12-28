@@ -4,14 +4,13 @@ import json
 import zipfile
 from datetime import datetime
 from pathlib import Path
-from typing import List
 
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 
 from ..config import get_settings
-from .health import get_storage_status, check_service_health
-from .metrics import get_cpu_metrics, get_memory_metrics, get_disk_metrics
+from .health import check_service_health, get_storage_status
+from .metrics import get_cpu_metrics, get_disk_metrics, get_memory_metrics
 
 router = APIRouter(prefix="/api/v1/support", tags=["Support"])
 
@@ -33,9 +32,9 @@ def get_recent_logs(service: str, lines: int = 500) -> str:
 
 def get_system_info() -> dict:
     """Get system information"""
-    import platform
     import os
-    
+    import platform
+
     return {
         "hostname": platform.node(),
         "platform": platform.platform(),
@@ -63,14 +62,14 @@ def get_config_info() -> dict:
 async def create_support_bundle() -> StreamingResponse:
     """
     Generate a support bundle ZIP file.
-    
+
     Contains system info, logs, configuration, and diagnostic data.
     """
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    
+
     # Create in-memory ZIP file
     buffer = io.BytesIO()
-    
+
     with zipfile.ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
         # System info
         system_info = {
@@ -79,7 +78,7 @@ async def create_support_bundle() -> StreamingResponse:
             "config": get_config_info(),
         }
         zf.writestr("system_info.json", json.dumps(system_info, indent=2))
-        
+
         # Metrics snapshot
         metrics = {
             "cpu": get_cpu_metrics().model_dump(),
@@ -88,19 +87,19 @@ async def create_support_bundle() -> StreamingResponse:
             "storage": get_storage_status().model_dump(),
         }
         zf.writestr("metrics.json", json.dumps(metrics, indent=2))
-        
+
         # Service health
         services = ["r58-api", "r58-pipeline", "mediamtx"]
         health = {}
         for service in services:
             health[service] = check_service_health(service).model_dump()
         zf.writestr("health.json", json.dumps(health, indent=2))
-        
+
         # Recent logs
         for service in services:
             logs = get_recent_logs(service)
             zf.writestr(f"logs/{service}.log", logs)
-        
+
         # Config file (if exists)
         config_path = Path("/etc/r58/r58.env")
         if config_path.exists():
@@ -117,7 +116,7 @@ async def create_support_bundle() -> StreamingResponse:
                 zf.writestr("config/r58.env", "\n".join(sanitized))
             except Exception as e:
                 zf.writestr("config/r58.env", f"Error reading config: {e}")
-        
+
         # MediaMTX config
         mediamtx_path = Path("/opt/r58/mediamtx.yml")
         if mediamtx_path.exists():
@@ -125,9 +124,9 @@ async def create_support_bundle() -> StreamingResponse:
                 zf.writestr("config/mediamtx.yml", mediamtx_path.read_text())
             except Exception as e:
                 zf.writestr("config/mediamtx.yml", f"Error reading config: {e}")
-    
+
     buffer.seek(0)
-    
+
     return StreamingResponse(
         buffer,
         media_type="application/zip",
@@ -144,14 +143,14 @@ async def get_logs(
 ) -> dict:
     """
     Get recent logs for a service.
-    
+
     Args:
         service: Service name (r58-api, r58-pipeline, mediamtx)
         lines: Number of lines to return (max 1000)
     """
     lines = min(lines, 1000)
     logs = get_recent_logs(service, lines)
-    
+
     return {
         "service": service,
         "lines": lines,

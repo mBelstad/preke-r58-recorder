@@ -1,8 +1,8 @@
 """LAN Device Discovery - Find R58 devices on local network"""
-from typing import List, Optional
-from datetime import datetime
 import asyncio
 import socket
+from datetime import datetime
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
@@ -46,7 +46,7 @@ _discovered_devices: dict[str, DeviceInfo] = {}
 async def probe_device(ip: str, port: int = 8000, timeout: float = 2.0) -> Optional[DeviceInfo]:
     """Probe a potential R58 device"""
     import httpx
-    
+
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
             # Try to get capabilities
@@ -65,7 +65,7 @@ async def probe_device(ip: str, port: int = 8000, timeout: float = 2.0) -> Optio
                 )
     except Exception:
         pass
-    
+
     return None
 
 
@@ -81,23 +81,23 @@ async def scan_network_range(
     if len(parts) != 2:
         parts = [base_ip, "0"]
     base = parts[0]
-    
+
     # Create scan tasks
     tasks = []
     for i in range(start, end + 1):
         ip = f"{base}.{i}"
         tasks.append(probe_device(ip, port))
-    
+
     # Run all probes concurrently
     results = await asyncio.gather(*tasks, return_exceptions=True)
-    
+
     # Filter successful probes
     devices = []
     for result in results:
         if isinstance(result, DeviceInfo):
             devices.append(result)
             _discovered_devices[result.id] = result
-    
+
     return devices
 
 
@@ -119,7 +119,7 @@ async def list_devices(
 ) -> List[DeviceInfo]:
     """
     List all discovered R58 devices.
-    
+
     Returns cached device list from previous discovery scans.
     """
     # Always include self
@@ -133,10 +133,10 @@ async def list_devices(
         last_seen=datetime.now(),
         api_version="2.0.0",
     )
-    
+
     devices = [self_device]
     devices.extend(_discovered_devices.values())
-    
+
     return devices
 
 
@@ -146,16 +146,16 @@ async def scan_for_devices(
 ) -> List[DeviceInfo]:
     """
     Scan the local network for R58 devices.
-    
+
     Scans the local subnet (e.g., 192.168.1.1-254) for devices
     with an R58 API running on port 8000.
     """
     local_ip = get_local_ip()
     base_ip = ".".join(local_ip.split(".")[:3])
-    
+
     # Scan common range
     devices = await scan_network_range(base_ip, 1, 254, port=8000)
-    
+
     return devices
 
 
@@ -164,7 +164,7 @@ async def get_device(device_id: str) -> DeviceInfo:
     """Get details for a specific device"""
     if device_id in _discovered_devices:
         return _discovered_devices[device_id]
-    
+
     from fastapi import HTTPException
     raise HTTPException(status_code=404, detail="Device not found")
 
@@ -173,7 +173,7 @@ async def get_device(device_id: str) -> DeviceInfo:
 async def connect_to_device(device_id: str) -> DeviceConnectionResponse:
     """
     Establish connection to a remote device.
-    
+
     Returns device information if connection is successful.
     """
     if device_id not in _discovered_devices:
@@ -181,23 +181,23 @@ async def connect_to_device(device_id: str) -> DeviceConnectionResponse:
             connected=False,
             error="Device not found in discovery cache",
         )
-    
+
     device = _discovered_devices[device_id]
-    
+
     # Probe device to verify it's still online
     probed = await probe_device(device.ip, device.port)
-    
+
     if probed:
         _discovered_devices[device_id] = probed
         return DeviceConnectionResponse(
             connected=True,
             device=probed,
         )
-    
+
     # Mark as offline
     device.status = "offline"
     device.last_seen = datetime.now()
-    
+
     return DeviceConnectionResponse(
         connected=False,
         device=device,

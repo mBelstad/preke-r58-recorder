@@ -1,15 +1,14 @@
 """Recording session management endpoints"""
-from typing import List, Optional, Dict
+import asyncio
+import json
+import logging
+import re
+import shutil
 from datetime import datetime
 from pathlib import Path
-import asyncio
-import shutil
-import logging
-import os
-import json
-import re
+from typing import Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi import APIRouter, Depends, Header, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
@@ -78,10 +77,10 @@ async def get_recorder_status(
     """Get current recorder status"""
     client = get_pipeline_client()
     status = await client.get_recording_status()
-    
+
     if status.get("error"):
         return RecorderStatus(status="idle")
-    
+
     if status.get("recording"):
         return RecorderStatus(
             status="recording",
@@ -89,7 +88,7 @@ async def get_recorder_status(
             duration_ms=status.get("duration_ms", 0),
             inputs=list(status.get("bytes_written", {}).keys()),
         )
-    
+
     return RecorderStatus(status="idle")
 
 
@@ -116,7 +115,7 @@ async def start_recording(
 ) -> StartRecordingResponse:
     """
     Start recording on all or specified inputs.
-    
+
     Supports idempotency via X-Idempotency-Key header - if the same key is sent
     while already recording, returns the existing session instead of an error.
     """
@@ -128,7 +127,7 @@ async def start_recording(
             status_code=503,
             detail="Recording operation in progress, please retry"
         )
-    
+
     try:
         return await _start_recording_impl(request, settings, x_idempotency_key)
     finally:
@@ -142,7 +141,7 @@ async def _start_recording_impl(
 ) -> StartRecordingResponse:
     """Internal implementation of start_recording with all checks."""
     client = get_pipeline_client()
-    
+
     # 1. Check disk space first
     available_gb, is_sufficient = check_disk_space()
     if not is_sufficient:
@@ -151,12 +150,12 @@ async def _start_recording_impl(
             status_code=507,  # Insufficient Storage
             detail=f"Insufficient disk space: {available_gb:.1f}GB available, need {MIN_DISK_SPACE_GB}GB minimum"
         )
-    
+
     # 2. Check if already recording
     current_status = await client.get_recording_status()
     if current_status.get("recording"):
         current_session = current_status.get("session_id")
-        
+
         # If same idempotency key, return existing session (idempotent)
         if idempotency_key and current_session == idempotency_key:
             logger.info(f"Idempotent request for existing session: {current_session}")
@@ -167,13 +166,13 @@ async def _start_recording_impl(
                 inputs=list(current_status.get("bytes_written", {}).keys()),
                 status="recording",
             )
-        
+
         # Different session already running
         raise HTTPException(
             status_code=409,  # Conflict
             detail=f"Already recording session: {current_session}"
         )
-    
+
     # 3. Use configured inputs if not specified
     inputs = request.inputs or settings.enabled_inputs
     if not inputs:
@@ -181,18 +180,18 @@ async def _start_recording_impl(
             status_code=400,
             detail="No inputs specified and no default inputs configured"
         )
-    
+
     # 4. Use idempotency key as session ID if provided
     session_id = idempotency_key if idempotency_key else None
-    
+
     # 5. Start recording
     logger.info(f"Starting recording with inputs: {inputs}, session_id: {session_id}")
     result = await client.start_recording(session_id=session_id, inputs=inputs)
-    
+
     if result.get("error"):
         logger.error(f"Failed to start recording: {result['error']}")
         raise HTTPException(status_code=400, detail=result["error"])
-    
+
     logger.info(f"Recording started: session_id={result['session_id']}")
     return StartRecordingResponse(
         session_id=result["session_id"],
@@ -210,7 +209,7 @@ async def stop_recording(
 ) -> StopRecordingResponse:
     """
     Stop current recording.
-    
+
     Supports idempotency - if already stopped, returns success.
     """
     # Acquire lock to prevent race conditions
@@ -221,7 +220,7 @@ async def stop_recording(
             status_code=503,
             detail="Recording operation in progress, please retry"
         )
-    
+
     try:
         return await _stop_recording_impl(session_id)
     finally:
@@ -231,7 +230,7 @@ async def stop_recording(
 async def _stop_recording_impl(session_id: Optional[str]) -> StopRecordingResponse:
     """Internal implementation of stop_recording."""
     client = get_pipeline_client()
-    
+
     # Check if currently recording
     current_status = await client.get_recording_status()
     if not current_status.get("recording"):
@@ -243,7 +242,7 @@ async def _stop_recording_impl(session_id: Optional[str]) -> StopRecordingRespon
             files={},
             status="stopped",
         )
-    
+
     # If session_id specified, verify it matches
     current_session = current_status.get("session_id")
     if session_id and current_session != session_id:
@@ -251,14 +250,14 @@ async def _stop_recording_impl(session_id: Optional[str]) -> StopRecordingRespon
             status_code=409,
             detail=f"Session mismatch: expected {session_id}, current is {current_session}"
         )
-    
+
     logger.info(f"Stopping recording: session_id={current_session}")
     result = await client.stop_recording(session_id=session_id)
-    
+
     if result.get("error"):
         logger.error(f"Failed to stop recording: {result['error']}")
         raise HTTPException(status_code=400, detail=result["error"])
-    
+
     logger.info(f"Recording stopped: session_id={result.get('session_id')}")
     return StopRecordingResponse(
         session_id=result.get("session_id", ""),
@@ -290,7 +289,7 @@ class SessionWithFiles(BaseModel):
 
 def parse_recording_filename(filename: str) -> Optional[Dict]:
     """Parse recording filename to extract session info.
-    
+
     Format: {session_id}_{camera_id}_{timestamp}.mkv
     Example: abc123_cam1_20251228_120000.mkv
     """
@@ -359,18 +358,18 @@ async def list_sessions(
     """List recording sessions from the recordings directory."""
     if not RECORDINGS_DIR.exists():
         return []
-    
+
     # Scan recordings directory for .mkv files
     sessions_map: Dict[str, List[RecordingFile]] = {}
-    
+
     for file_path in RECORDINGS_DIR.glob("*.mkv"):
         parsed = parse_recording_filename(file_path.name)
         if not parsed:
             continue
-        
+
         session_id = parsed['session_id']
         stat = file_path.stat()
-        
+
         recording_file = RecordingFile(
             filename=file_path.name,
             path=str(file_path),
@@ -378,29 +377,29 @@ async def list_sessions(
             camera_id=parsed['camera_id'],
             created_at=parsed['timestamp'],
         )
-        
+
         if session_id not in sessions_map:
             sessions_map[session_id] = []
         sessions_map[session_id].append(recording_file)
-    
+
     # Build session list
     sessions = []
     for session_id, files in sessions_map.items():
         if not files:
             continue
-        
+
         metadata = get_session_metadata(session_id)
         files_sorted = sorted(files, key=lambda f: f.created_at)
-        
+
         # Calculate total size and duration estimate
         total_size = sum(f.size_bytes for f in files)
         first_file = files_sorted[0]
-        last_file = files_sorted[-1] if len(files_sorted) > 1 else first_file
-        
+        _last_file = files_sorted[-1] if len(files_sorted) > 1 else first_file
+
         # Estimate duration from first file creation time
         # For more accurate duration, we'd need to probe the files with ffprobe
         duration_estimate = 0.0  # Placeholder
-        
+
         sessions.append(SessionWithFiles(
             id=session_id,
             name=metadata.get('name'),
@@ -410,10 +409,10 @@ async def list_sessions(
             total_size=format_size(total_size),
             files=files,
         ))
-    
+
     # Sort by date (newest first)
     sessions.sort(key=lambda s: s.files[0].created_at if s.files else datetime.min, reverse=True)
-    
+
     # Apply pagination
     return sessions[offset:offset + limit]
 
@@ -423,14 +422,14 @@ async def get_session(session_id: str) -> SessionWithFiles:
     """Get details of a specific session."""
     if not RECORDINGS_DIR.exists():
         raise HTTPException(status_code=404, detail="Session not found")
-    
+
     # Find files matching this session
     files = []
     for file_path in RECORDINGS_DIR.glob(f"{session_id}_*.mkv"):
         parsed = parse_recording_filename(file_path.name)
         if not parsed:
             continue
-        
+
         stat = file_path.stat()
         files.append(RecordingFile(
             filename=file_path.name,
@@ -439,15 +438,15 @@ async def get_session(session_id: str) -> SessionWithFiles:
             camera_id=parsed['camera_id'],
             created_at=parsed['timestamp'],
         ))
-    
+
     if not files:
         raise HTTPException(status_code=404, detail="Session not found")
-    
+
     metadata = get_session_metadata(session_id)
     files_sorted = sorted(files, key=lambda f: f.created_at)
     total_size = sum(f.size_bytes for f in files)
     first_file = files_sorted[0]
-    
+
     return SessionWithFiles(
         id=session_id,
         name=metadata.get('name'),
@@ -474,11 +473,11 @@ async def rename_session(
     session_files = list(RECORDINGS_DIR.glob(f"{session_id}_*.mkv"))
     if not session_files:
         raise HTTPException(status_code=404, detail="Session not found")
-    
+
     # Save metadata
     metadata = get_session_metadata(session_id)
     metadata['name'] = request.name
-    
+
     if save_session_metadata(session_id, metadata):
         return {"success": True, "session_id": session_id, "name": request.name}
     else:
@@ -490,17 +489,17 @@ async def delete_session(session_id: str) -> Dict:
     """Delete a recording session and all its files."""
     if not RECORDINGS_DIR.exists():
         raise HTTPException(status_code=404, detail="Session not found")
-    
+
     # Find all files for this session
     files_to_delete = list(RECORDINGS_DIR.glob(f"{session_id}_*.mkv"))
     metadata_file = RECORDINGS_DIR / f"{session_id}.json"
-    
+
     if not files_to_delete:
         raise HTTPException(status_code=404, detail="Session not found")
-    
+
     deleted_count = 0
     total_bytes = 0
-    
+
     for file_path in files_to_delete:
         try:
             total_bytes += file_path.stat().st_size
@@ -509,14 +508,14 @@ async def delete_session(session_id: str) -> Dict:
             logger.info(f"Deleted recording file: {file_path}")
         except Exception as e:
             logger.error(f"Failed to delete {file_path}: {e}")
-    
+
     # Delete metadata file if exists
     if metadata_file.exists():
         try:
             metadata_file.unlink()
         except Exception:
             pass
-    
+
     return {
         "success": True,
         "session_id": session_id,
@@ -529,18 +528,18 @@ async def delete_session(session_id: str) -> Dict:
 async def download_file(session_id: str, filename: str):
     """Download a specific recording file."""
     file_path = RECORDINGS_DIR / filename
-    
+
     # Security check - ensure file is within recordings directory
     if not file_path.resolve().is_relative_to(RECORDINGS_DIR.resolve()):
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found")
-    
+
     # Verify filename matches session
     if not filename.startswith(f"{session_id}_"):
         raise HTTPException(status_code=403, detail="File does not belong to session")
-    
+
     return FileResponse(
         path=str(file_path),
         filename=filename,

@@ -4,9 +4,9 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from pydantic import BaseModel
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from pydantic import BaseModel
 
 from ...config import Settings, get_settings
 
@@ -115,14 +115,14 @@ def create_access_token(
 ) -> str:
     """Create a JWT access token"""
     to_encode = data.copy()
-    
+
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
     else:
         expire = datetime.utcnow() + timedelta(minutes=settings.jwt_expire_minutes)
-    
+
     to_encode.update({"exp": expire})
-    
+
     encoded_jwt = jwt.encode(
         to_encode,
         settings.jwt_secret,
@@ -138,7 +138,7 @@ async def get_current_user(
     """Get current user from JWT token"""
     if not token:
         return None
-    
+
     try:
         payload = jwt.decode(
             token,
@@ -148,15 +148,15 @@ async def get_current_user(
         username: str = payload.get("sub")
         if username is None:
             return None
-        
+
         token_data = TokenData(username=username, role=payload.get("role", "operator"))
     except JWTError:
         return None
-    
+
     user = get_user(token_data.username)
     if user is None or user.disabled:
         return None
-    
+
     return User(username=user.username, role=user.role)
 
 
@@ -192,19 +192,19 @@ async def login(
 ) -> Token:
     """Login and get access token"""
     user = authenticate_user(form_data.username, form_data.password)
-    
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     access_token = create_access_token(
         data={"sub": user.username, "role": user.role},
         settings=settings,
     )
-    
+
     return Token(
         access_token=access_token,
         token_type="bearer",
@@ -222,7 +222,7 @@ async def refresh_token(
         data={"sub": user.username, "role": user.role},
         settings=settings,
     )
-    
+
     return Token(
         access_token=access_token,
         token_type="bearer",

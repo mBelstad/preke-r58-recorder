@@ -11,8 +11,6 @@ from typing import Deque, List, Optional
 from fastapi import APIRouter, BackgroundTasks
 from pydantic import BaseModel
 
-from ..config import get_settings
-
 router = APIRouter(prefix="/api/v1", tags=["Alerts"])
 logger = logging.getLogger(__name__)
 
@@ -52,18 +50,18 @@ class Alert:
 class AlertManager:
     """
     Manages system alerts and health monitoring.
-    
+
     Features:
     - Tracks last 100 alerts
     - Deduplication (same source+message within 60s)
     - Auto-resolve for transient issues
     - Background health check loop
     """
-    
+
     MAX_ALERTS = 100
     DEDUP_WINDOW_SECONDS = 60
     CHECK_INTERVAL_SECONDS = 30
-    
+
     # Thresholds
     DISK_WARNING_PERCENT = 80
     DISK_CRITICAL_PERCENT = 95
@@ -72,14 +70,14 @@ class AlertManager:
     MEMORY_CRITICAL_PERCENT = 95
     CPU_WARNING_PERCENT = 80
     CPU_CRITICAL_PERCENT = 95
-    
+
     def __init__(self):
         self._alerts: Deque[Alert] = deque(maxlen=self.MAX_ALERTS)
         self._alert_counter = 0
         self._running = False
         self._check_task: Optional[asyncio.Task] = None
         self._last_alert_key: dict = {}  # For deduplication
-    
+
     def add_alert(
         self,
         level: AlertLevel,
@@ -91,15 +89,15 @@ class AlertManager:
         # Deduplication check
         key = f"{source.value}:{message}"
         now = datetime.now()
-        
+
         if key in self._last_alert_key:
             last_time = self._last_alert_key[key]
             if (now - last_time).total_seconds() < self.DEDUP_WINDOW_SECONDS:
                 # Skip duplicate
                 return None
-        
+
         self._last_alert_key[key] = now
-        
+
         # Create alert
         self._alert_counter += 1
         alert = Alert(
@@ -110,9 +108,9 @@ class AlertManager:
             timestamp=now,
             details=details or {},
         )
-        
+
         self._alerts.appendleft(alert)
-        
+
         # Log alert
         if level == AlertLevel.CRITICAL:
             logger.critical(f"[ALERT] {source.value}: {message}", extra={"alert_id": alert.id})
@@ -120,9 +118,9 @@ class AlertManager:
             logger.warning(f"[ALERT] {source.value}: {message}", extra={"alert_id": alert.id})
         else:
             logger.info(f"[ALERT] {source.value}: {message}", extra={"alert_id": alert.id})
-        
+
         return alert
-    
+
     def resolve_alert(self, alert_id: str) -> bool:
         """Mark an alert as resolved"""
         for alert in self._alerts:
@@ -132,7 +130,7 @@ class AlertManager:
                 logger.info(f"[ALERT] Resolved: {alert.source.value} - {alert.message}")
                 return True
         return False
-    
+
     def get_alerts(
         self,
         limit: int = 20,
@@ -142,24 +140,24 @@ class AlertManager:
     ) -> List[Alert]:
         """Get recent alerts with optional filtering"""
         alerts = list(self._alerts)
-        
+
         if level:
             alerts = [a for a in alerts if a.level == level]
-        
+
         if source:
             alerts = [a for a in alerts if a.source == source]
-        
+
         if unresolved_only:
             alerts = [a for a in alerts if not a.resolved]
-        
+
         return alerts[:limit]
-    
+
     def get_counts(self) -> dict:
         """Get alert counts by level"""
         critical = sum(1 for a in self._alerts if a.level == AlertLevel.CRITICAL and not a.resolved)
         warning = sum(1 for a in self._alerts if a.level == AlertLevel.WARNING and not a.resolved)
         info = sum(1 for a in self._alerts if a.level == AlertLevel.INFO and not a.resolved)
-        
+
         return {
             "critical": critical,
             "warning": warning,
@@ -167,23 +165,23 @@ class AlertManager:
             "total_unresolved": critical + warning + info,
             "total": len(self._alerts),
         }
-    
+
     async def start_background_checks(self):
         """Start background health check loop"""
         if self._running:
             return
-        
+
         self._running = True
         self._check_task = asyncio.create_task(self._check_loop())
         logger.info("[AlertManager] Started background health checks")
-    
+
     def stop_background_checks(self):
         """Stop background health check loop"""
         self._running = False
         if self._check_task:
             self._check_task.cancel()
         logger.info("[AlertManager] Stopped background health checks")
-    
+
     async def _check_loop(self):
         """Background loop for health checks"""
         while self._running:
@@ -194,14 +192,14 @@ class AlertManager:
                 break
             except Exception as e:
                 logger.error(f"[AlertManager] Health check error: {e}")
-    
+
     async def run_health_checks(self):
         """Run all health checks and generate alerts"""
         await self._check_storage()
         await self._check_memory()
         await self._check_cpu()
         await self._check_pipeline()
-    
+
     async def _check_storage(self):
         """Check disk storage"""
         try:
@@ -211,10 +209,10 @@ class AlertManager:
                 usage = shutil.disk_usage(path)
             except FileNotFoundError:
                 usage = shutil.disk_usage("/")
-            
+
             percent = (usage.used / usage.total) * 100
             free_gb = usage.free / (1024 ** 3)
-            
+
             if percent >= self.DISK_CRITICAL_PERCENT or free_gb < self.DISK_CRITICAL_GB:
                 self.add_alert(
                     AlertLevel.CRITICAL,
@@ -231,13 +229,13 @@ class AlertManager:
                 )
         except Exception as e:
             logger.error(f"[AlertManager] Storage check failed: {e}")
-    
+
     async def _check_memory(self):
         """Check memory usage"""
         try:
             import psutil
             mem = psutil.virtual_memory()
-            
+
             if mem.percent >= self.MEMORY_CRITICAL_PERCENT:
                 self.add_alert(
                     AlertLevel.CRITICAL,
@@ -256,13 +254,13 @@ class AlertManager:
             pass  # psutil not available
         except Exception as e:
             logger.error(f"[AlertManager] Memory check failed: {e}")
-    
+
     async def _check_cpu(self):
         """Check CPU usage"""
         try:
             import psutil
             cpu = psutil.cpu_percent(interval=0.5)
-            
+
             if cpu >= self.CPU_CRITICAL_PERCENT:
                 self.add_alert(
                     AlertLevel.CRITICAL,
@@ -281,14 +279,14 @@ class AlertManager:
             pass  # psutil not available
         except Exception as e:
             logger.error(f"[AlertManager] CPU check failed: {e}")
-    
+
     async def _check_pipeline(self):
         """Check pipeline manager health"""
         try:
             from ..media.pipeline_client import get_pipeline_client
-            
+
             client = get_pipeline_client()
-            
+
             # Check if pipeline is healthy
             if not client.is_healthy:
                 self.add_alert(
@@ -342,7 +340,7 @@ async def get_alerts(
 ):
     """
     Get recent alerts.
-    
+
     Query parameters:
     - limit: Max alerts to return (default 20)
     - level: Filter by level (info, warning, critical)
@@ -350,17 +348,17 @@ async def get_alerts(
     - unresolved_only: Only show unresolved alerts
     """
     manager = get_alert_manager()
-    
+
     alert_level = AlertLevel(level) if level else None
     alert_source = AlertSource(source) if source else None
-    
+
     alerts = manager.get_alerts(
         limit=limit,
         level=alert_level,
         source=alert_source,
         unresolved_only=unresolved_only,
     )
-    
+
     return AlertsListResponse(
         alerts=[
             AlertResponse(
@@ -383,10 +381,10 @@ async def get_alerts(
 async def resolve_alert(alert_id: str):
     """Mark an alert as resolved"""
     manager = get_alert_manager()
-    
+
     if manager.resolve_alert(alert_id):
         return {"status": "resolved", "alert_id": alert_id}
-    
+
     return {"status": "not_found", "alert_id": alert_id}
 
 
