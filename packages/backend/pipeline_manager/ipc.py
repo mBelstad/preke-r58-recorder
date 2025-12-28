@@ -316,7 +316,7 @@ class IPCServer:
         if cmd == "status":
             return {
                 "mode": self.state.current_mode,
-                "recording": self.state.active_recording.model_dump() if self.state.active_recording else None,
+                "recording": self.state.active_recording.model_dump(mode="json") if self.state.active_recording else None,
                 "last_error": self.state.last_error,
             }
 
