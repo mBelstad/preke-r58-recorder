@@ -61,10 +61,23 @@ html, body {
 
 /* Utility classes */
 @layer components {
+  /* 
+   * Touch-optimized buttons
+   * Minimum 44px touch target for accessibility (WCAG 2.5.5)
+   */
   .btn {
     @apply px-4 py-2 rounded-r58 font-medium transition-all duration-150;
     @apply bg-r58-bg-tertiary text-r58-text-primary;
     @apply hover:bg-r58-accent-primary active:scale-[0.98];
+    /* Touch target minimum 44px */
+    min-height: 44px;
+    min-width: 44px;
+    /* Prevent text selection on touch */
+    -webkit-user-select: none;
+    user-select: none;
+    /* Better touch feedback */
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
   }
   
   .btn-primary {
@@ -80,7 +93,14 @@ html, body {
   }
   
   .btn-lg {
-    @apply px-6 py-3 text-lg min-h-[48px];
+    @apply px-6 py-3 text-lg;
+    min-height: 56px;
+  }
+  
+  /* Extra large button for kiosk mode */
+  .btn-xl {
+    @apply px-8 py-4 text-xl font-semibold;
+    min-height: 64px;
   }
   
   .card {
@@ -108,6 +128,88 @@ html, body {
   
   .badge-warning {
     @apply bg-r58-accent-warning/20 text-r58-accent-warning;
+  }
+  
+  /* Touch-optimized input */
+  .input {
+    min-height: 44px;
+    -webkit-user-select: text;
+    user-select: text;
+  }
+  
+  /* Touch-optimized checkbox */
+  .checkbox {
+    @apply w-5 h-5 rounded bg-r58-bg-tertiary border-2 border-r58-bg-tertiary;
+    @apply checked:bg-r58-accent-primary checked:border-r58-accent-primary;
+    @apply focus:ring-2 focus:ring-r58-accent-primary/50;
+    /* Minimum touch target */
+    min-width: 44px;
+    min-height: 44px;
+    /* Center the actual checkbox */
+    display: grid;
+    place-items: center;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  /* Touch-friendly link/button areas */
+  .touch-target {
+    position: relative;
+  }
+  
+  .touch-target::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+  }
+}
+
+/* Kiosk/Touch mode optimizations */
+@layer utilities {
+  /* Apply to body when in kiosk/touch mode */
+  .touch-mode {
+    /* Disable text selection globally */
+    -webkit-user-select: none;
+    user-select: none;
+    /* Disable context menu */
+    -webkit-touch-callout: none;
+    /* Smooth scrolling */
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .touch-mode input,
+  .touch-mode textarea {
+    /* Re-enable selection for inputs */
+    -webkit-user-select: text;
+    user-select: text;
+  }
+  
+  /* Larger touch targets for all interactive elements */
+  .touch-mode button,
+  .touch-mode [role="button"],
+  .touch-mode a,
+  .touch-mode input[type="checkbox"],
+  .touch-mode input[type="radio"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Performance mode - reduce animations */
+  .performance-mode * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  
+  /* Keep essential animations */
+  .performance-mode .animate-spin,
+  .performance-mode .animate-recording {
+    animation-duration: 1s !important;
+    animation-iteration-count: infinite !important;
   }
 }
 

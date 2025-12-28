@@ -6,11 +6,15 @@
  * - Write speed (MB/s)
  * - Buffer status (OK/Warning/Critical)
  * - Frames dropped counter
+ * 
+ * Respects performance mode for update frequency.
  */
 import { ref, computed, watch, onUnmounted } from 'vue'
 import { useRecorderStore } from '@/stores/recorder'
+import { usePerformanceMode } from '@/composables/usePerformanceMode'
 
 const recorderStore = useRecorderStore()
+const { isActive: isPerformanceMode, updateInterval } = usePerformanceMode()
 
 // Track bytes over time to calculate write speed
 const previousBytes = ref<Record<string, number>>({})
@@ -31,8 +35,9 @@ function calculateWriteSpeed() {
     totalDelta += (input.bytesWritten - prevBytes)
   })
   
-  // Convert to MB/s (interval is 1 second)
-  writeSpeedMBps.value = Math.round((totalDelta / (1024 * 1024)) * 10) / 10
+  // Convert to MB/s (interval based on update frequency)
+  const intervalSeconds = (isPerformanceMode.value ? 2 : 1)
+  writeSpeedMBps.value = Math.round((totalDelta / (1024 * 1024) / intervalSeconds) * 10) / 10
   previousBytes.value = currentBytes
 }
 
@@ -45,8 +50,9 @@ watch(() => recorderStore.isRecording, (isRecording) => {
     bufferPercent.value = 0
     framesDropped.value = 0
     
-    // Start speed calculation
-    speedInterval = window.setInterval(calculateWriteSpeed, 1000)
+    // Start speed calculation (slower in performance mode)
+    const interval = isPerformanceMode.value ? 2000 : 1000
+    speedInterval = window.setInterval(calculateWriteSpeed, interval)
   } else {
     if (speedInterval) {
       clearInterval(speedInterval)
@@ -54,6 +60,15 @@ watch(() => recorderStore.isRecording, (isRecording) => {
     }
   }
 }, { immediate: true })
+
+// Adjust interval when performance mode changes
+watch(isPerformanceMode, (perfMode) => {
+  if (recorderStore.isRecording && speedInterval) {
+    clearInterval(speedInterval)
+    const interval = perfMode ? 2000 : 1000
+    speedInterval = window.setInterval(calculateWriteSpeed, interval)
+  }
+})
 
 onUnmounted(() => {
   if (speedInterval) {

@@ -1,12 +1,16 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { useRecorderStore } from '@/stores/recorder'
+import SettingsPanel from '@/components/shared/SettingsPanel.vue'
 
 const recorderStore = useRecorderStore()
 
 const currentSession = computed(() => recorderStore.currentSession)
 const activeInputs = computed(() => recorderStore.activeInputs)
 const isRecording = computed(() => recorderStore.isRecording)
+
+// Settings panel visibility
+const showSettings = ref(false)
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return '0 B'
@@ -85,21 +89,34 @@ function formatBytes(bytes: number): string {
           </span>
         </button>
         <button 
-          class="btn w-full justify-center disabled:opacity-50 disabled:cursor-not-allowed group relative" 
-          :disabled="isRecording"
-          :title="isRecording ? 'Cannot change settings while recording' : 'Open recording settings'"
+          @click="showSettings = !showSettings"
+          class="btn w-full justify-center"
         >
-          Recording Settings
-          <!-- Disabled reason tooltip -->
-          <span 
-            v-if="isRecording"
-            class="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-r58-bg-tertiary text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none"
-          >
-            Stop recording first
-          </span>
+          {{ showSettings ? 'Hide Settings' : 'Interface Settings' }}
         </button>
       </div>
     </div>
+    
+    <!-- Settings Panel (collapsible) -->
+    <Transition name="slide-fade">
+      <div v-if="showSettings" class="card">
+        <SettingsPanel />
+      </div>
+    </Transition>
   </div>
 </template>
+
+<style scoped>
+.slide-fade-enter-active {
+  transition: all 0.2s ease-out;
+}
+.slide-fade-leave-active {
+  transition: all 0.15s ease-in;
+}
+.slide-fade-enter-from,
+.slide-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+</style>
 

@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRecorderStore } from '@/stores/recorder'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import { useDiskSpace } from '@/composables/useDiskSpace'
+import { useAudioFeedback } from '@/composables/useAudioFeedback'
 import { toast } from '@/composables/useToast'
 import ConfirmDialog from '@/components/shared/ConfirmDialog.vue'
 import SessionNameDialog from '@/components/recorder/SessionNameDialog.vue'
@@ -10,6 +11,7 @@ import SessionNameDialog from '@/components/recorder/SessionNameDialog.vue'
 const recorderStore = useRecorderStore()
 const { register } = useKeyboardShortcuts()
 const { preflightCheck, status: diskStatus, canStartRecording } = useDiskSpace()
+const { playRecordStart, playRecordStop, playError, playWarning, vibrate } = useAudioFeedback()
 
 const stopConfirmDialog = ref<InstanceType<typeof ConfirmDialog> | null>(null)
 const confirmButtonEnabled = ref(false)
@@ -72,12 +74,15 @@ async function handleStartRecording(sessionName?: string) {
     
     if (!preflight.ok) {
       // Critical - cannot proceed
+      playError()
+      vibrate(200)
       toast.error('Cannot start recording', preflight.message || 'Preflight check failed')
       return
     }
     
     if (preflight.message && diskStatus.value === 'warning') {
       // Warning - show dialog and let user decide
+      playWarning()
       toast.warning('Low disk space', preflight.message)
     }
     
@@ -99,8 +104,16 @@ async function startRecording(sessionName?: string) {
   try {
     await recorderStore.startRecording(sessionName)
     const displayName = sessionName || recorderStore.sessionId
+    
+    // Audio/haptic feedback
+    playRecordStart()
+    vibrate([50, 30, 50]) // Short double vibration
+    
     toast.success('Recording started', `Session: ${displayName}`)
   } catch (error: any) {
+    playError()
+    vibrate(200) // Long vibration for error
+    
     toast.error('Failed to start recording', error.message || 'Unknown error', {
       label: 'Retry',
       onClick: () => handleStartRecording(sessionName),
@@ -128,9 +141,17 @@ function handleSessionNameCancel() {
 
 async function stopRecording() {
   try {
-    const result = await recorderStore.stopRecording()
+    await recorderStore.stopRecording()
+    
+    // Audio/haptic feedback
+    playRecordStop()
+    vibrate(100) // Single vibration for stop
+    
     toast.success('Recording stopped', `Duration: ${duration.value}`)
   } catch (error: any) {
+    playError()
+    vibrate(200)
+    
     toast.error('Failed to stop recording', error.message || 'Unknown error')
   }
 }
