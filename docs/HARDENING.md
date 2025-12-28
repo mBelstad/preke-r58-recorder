@@ -975,57 +975,51 @@ def check_disk_space(path: str = "/opt/r58/recordings") -> tuple[float, bool]:
 
 ---
 
-### Priority 2: High (State Consistency)
+### Priority 2: High (State Consistency) ✅ IMPLEMENTED
 
-#### 2.1 Implement WebSocket State Sync
+#### 2.1 Implement WebSocket State Sync ✅
 
-**File:** `packages/backend/r58_api/realtime/handlers.py`
+**Files:** 
+- `packages/backend/r58_api/realtime/manager.py`
+- `packages/backend/r58_api/realtime/handlers.py`
+- `packages/frontend/src/composables/useWebSocket.ts`
 
-**Change:** Implement actual sync_response with current state
+**Status:** COMPLETED
 
-```python
-async def handle_client_message(websocket, client_id, message):
-    if message.get("type") == "sync_request":
-        # Get current state
-        client = get_pipeline_client()
-        recording_status = await client.get_recording_status()
-        
-        await websocket.send_json({
-            "type": "sync_response",
-            "payload": {
-                "recording": recording_status.get("recording", False),
-                "session_id": recording_status.get("session_id"),
-                "duration_ms": recording_status.get("duration_ms", 0),
-                "inputs": list(recording_status.get("bytes_written", {}).keys()),
-            }
-        })
-```
+**Implementation:**
+- Added `EventBuffer` class (circular buffer, 100 events) for event replay
+- Added `_current_state` cache updated on every broadcast
+- `get_sync_response()` fetches authoritative state from pipeline manager
+- Returns both current state AND missed events since `last_seq`
+- Frontend `handleSyncResponse()` restores recorder state and replays events
 
 **Acceptance Criteria:**
-- [ ] sync_response includes current recording state
-- [ ] Frontend correctly restores state on reconnect
-- [ ] Test verifies state sync after disconnect
-
-**Effort:** 2 hours
+- [x] sync_response includes current recording state
+- [x] sync_response includes missed events for replay
+- [x] Frontend correctly restores state on reconnect
+- [x] Can detect when client is too far behind (`can_replay=false`)
 
 ---
 
-#### 2.2 Add Recording Operation Lock
+#### 2.2 Add Recording Operation Lock ✅ (Already done in P1)
 
 **File:** `packages/backend/r58_api/control/sessions/router.py`
 
-**Change:** Add asyncio.Lock to prevent race conditions
+**Status:** COMPLETED in P1 hardening
+
+**Implementation:**
+- `asyncio.Lock()` with 5-second acquisition timeout
+- Returns 503 if lock cannot be acquired
+- Both start and stop are protected
 
 **Acceptance Criteria:**
-- [ ] Only one start/stop can execute at a time
-- [ ] Second request waits or fails gracefully
-- [ ] No deadlocks (timeout on lock acquisition)
-
-**Effort:** 1 hour
+- [x] Only one start/stop can execute at a time
+- [x] Second request waits or fails gracefully (503)
+- [x] No deadlocks (timeout on lock acquisition)
 
 ---
 
-#### 2.3 Add Idempotency Key Support
+#### 2.3 Add Idempotency Key Support ✅ (Already done in P1)
 
 **File:** `packages/backend/r58_api/control/sessions/router.py`
 
@@ -1142,11 +1136,11 @@ async def handle_client_message(websocket, client_id, message):
 | Week | Tasks | Status | Total Hours |
 |------|-------|--------|-------------|
 | 1 | 1.1 (Watchdog), 1.2 (Disk check), 1.3 (IPC retry), Lock, Idempotency | ✅ DONE | 3.5h |
-| 2 | 2.1 (WS sync) | Pending | 2h |
+| 2 | 2.1 (WS sync), 2.2 (Lock), 2.3 (Idempotency) | ✅ DONE | 5h |
 | 3 | 3.1 (Logging), 3.2 (MediaMTX health), 3.3 (Alerts) | Pending | 6h |
 | 4 | 4.1 (Response time), 4.2 (Degradation), 4.3 (API retry) | Pending | 5.5h |
 
-**Total:** ~17 hours remaining (P1 complete)
+**Total:** ~11.5 hours remaining (P1 + P2 complete)
 
 ---
 

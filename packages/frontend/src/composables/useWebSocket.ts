@@ -104,13 +104,22 @@ export function useR58WebSocket() {
   
   function handleEvent(event: BaseEvent) {
     switch (event.type) {
+      // Sync response - restore full state on reconnect
+      case 'sync_response':
+        handleSyncResponse(event.payload)
+        break
+        
       // Recorder events
       case 'recorder.started':
         recorderStore.status = 'recording'
+        if (event.payload?.session_id) {
+          recorderStore.sessionId = event.payload.session_id
+        }
         break
         
       case 'recorder.stopped':
         recorderStore.status = 'idle'
+        recorderStore.sessionId = null
         break
         
       case 'recorder.progress':
@@ -146,13 +155,69 @@ export function useR58WebSocket() {
         break
         
       case 'connected':
+        console.log('[WebSocket] Connected to device:', event.device_id)
+        break
+        
       case 'heartbeat':
-        // Keep-alive events
+        // Keep-alive events - silent
         break
         
       default:
         console.log('[WebSocket] Unknown event:', event.type, event.payload)
     }
+  }
+  
+  function handleSyncResponse(payload: any) {
+    /**
+     * Handle sync response from server.
+     * This restores full state after a reconnection.
+     */
+    const { state, events, can_replay, missed_event_count, current_seq } = payload
+    
+    console.log(`[WebSocket] Sync response: ${missed_event_count} missed events, can_replay=${can_replay}`)
+    
+    // Update our sequence to match server
+    if (current_seq) {
+      lastSeq.value = current_seq
+    }
+    
+    // Restore authoritative state
+    if (state) {
+      // Restore mode
+      if (state.mode === 'recording' && state.recording) {
+        recorderStore.status = 'recording'
+        recorderStore.sessionId = state.recording.session_id
+        recorderStore.durationMs = state.recording.duration_ms || 0
+      } else {
+        recorderStore.status = 'idle'
+        recorderStore.sessionId = null
+      }
+      
+      // Restore input states
+      if (state.inputs) {
+        for (const [inputId, inputState] of Object.entries(state.inputs as Record<string, any>)) {
+          recorderStore.updateInputSignal(
+            inputId,
+            inputState.has_signal,
+            inputState.resolution,
+            inputState.framerate
+          )
+        }
+      }
+    }
+    
+    // Replay missed events in order
+    if (events && events.length > 0) {
+      console.log(`[WebSocket] Replaying ${events.length} missed events`)
+      for (const event of events) {
+        // Skip sync_response to avoid infinite loop
+        if (event.type !== 'sync_response') {
+          handleEvent(event)
+        }
+      }
+    }
+    
+    console.log('[WebSocket] State sync complete')
   }
   
   function send(type: string, payload?: any) {

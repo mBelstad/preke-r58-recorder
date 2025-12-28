@@ -22,8 +22,10 @@ export interface InputStatus {
 export const useRecorderStore = defineStore('recorder', () => {
   // State
   const status = ref<'idle' | 'starting' | 'recording' | 'stopping'>('idle')
+  const sessionId = ref<string | null>(null)
   const currentSession = ref<RecordingSession | null>(null)
   const duration = ref(0)
+  const durationMs = ref(0)  // Alias for WebSocket updates
   const inputs = ref<InputStatus[]>([
     { id: 'cam1', label: 'HDMI 1', hasSignal: true, isRecording: false, bytesWritten: 0, resolution: '1920x1080', framerate: 30 },
     { id: 'cam2', label: 'HDMI 2', hasSignal: true, isRecording: false, bytesWritten: 0, resolution: '1920x1080', framerate: 30 },
@@ -109,8 +111,23 @@ export const useRecorderStore = defineStore('recorder', () => {
     }, 100)
   }
 
-  function updateFromEvent(event: { duration_ms: number; inputs?: InputStatus[] }) {
-    duration.value = event.duration_ms
+  function updateFromEvent(event: { duration_ms?: number; bytes_written?: Record<string, number>; session_id?: string; inputs?: InputStatus[] }) {
+    if (event.duration_ms !== undefined) {
+      duration.value = event.duration_ms
+      durationMs.value = event.duration_ms
+    }
+    if (event.session_id) {
+      sessionId.value = event.session_id
+    }
+    if (event.bytes_written) {
+      // Update bytes written per input
+      for (const [inputId, bytes] of Object.entries(event.bytes_written)) {
+        const input = inputs.value.find(i => i.id === inputId)
+        if (input) {
+          input.bytesWritten = bytes
+        }
+      }
+    }
     if (event.inputs) {
       // Update input statuses from WebSocket event
       event.inputs.forEach(update => {
@@ -134,8 +151,10 @@ export const useRecorderStore = defineStore('recorder', () => {
   return {
     // State
     status,
+    sessionId,
     currentSession,
     duration,
+    durationMs,
     inputs,
     
     // Computed
