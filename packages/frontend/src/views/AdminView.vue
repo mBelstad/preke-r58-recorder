@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import DeviceStatus from '@/components/admin/DeviceStatus.vue'
 import LogViewer from '@/components/admin/LogViewer.vue'
 import FleetOverview from '@/components/admin/FleetOverview.vue'
 
+const route = useRoute()
 const activeTab = ref('status')
 
 const tabs = [
@@ -12,6 +14,14 @@ const tabs = [
   { id: 'fleet', label: 'Fleet' },
   { id: 'settings', label: 'Settings' },
 ]
+
+// Handle tab query parameter
+onMounted(() => {
+  const tabParam = route.query.tab as string | undefined
+  if (tabParam && tabs.some(t => t.id === tabParam)) {
+    activeTab.value = tabParam
+  }
+})
 
 async function downloadSupportBundle() {
   try {

@@ -90,6 +90,20 @@ export const embedProfiles = {
       cleanoutput: true,
     }
   },
+  
+  // PROGRAM OUTPUT - Push mixed output via WHIP to MediaMTX
+  programOutput: {
+    params: {
+      scene: true,
+      room: VDO_ROOM,
+      cover: true,
+      quality: 2,
+      cleanoutput: true,
+      hideheader: true,
+      nologo: true,
+      autostart: true,
+    }
+  },
 }
 
 /**
@@ -193,6 +207,40 @@ export function buildCameraContributionUrl(
   url.searchParams.set('videodevice', '0')
   url.searchParams.set('audiodevice', '0')
   url.searchParams.set('autostart', '')
+  url.searchParams.set('css', getVdoCssUrl())
+  
+  return url.toString()
+}
+
+/**
+ * Build a program output URL (WHIP push to MediaMTX)
+ * 
+ * Uses VDO.ninja's scene output to capture the mixed program
+ * and push it via WHIP to MediaMTX.
+ */
+export function buildProgramOutputUrl(whipUrl: string): string {
+  const VDO_HOST = getVdoHost()
+  const VDO_PROTOCOL = getVdoProtocol()
+  const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/`)
+  
+  // Scene output params
+  url.searchParams.set('scene', '')
+  url.searchParams.set('room', VDO_ROOM)
+  url.searchParams.set('cover', '')
+  url.searchParams.set('quality', '2')
+  url.searchParams.set('cleanoutput', '')
+  url.searchParams.set('hideheader', '')
+  url.searchParams.set('nologo', '')
+  
+  // WHIP output - push to MediaMTX
+  url.searchParams.set('whip', whipUrl)
+  
+  // Auto-start without user interaction
+  url.searchParams.set('autostart', '')
+  url.searchParams.set('videodevice', '0')
+  url.searchParams.set('audiodevice', '0')
+  
+  // Custom CSS
   url.searchParams.set('css', getVdoCssUrl())
   
   return url.toString()

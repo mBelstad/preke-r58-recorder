@@ -1,11 +1,16 @@
 """Recording session management endpoints"""
-from typing import List, Optional
+from typing import List, Optional, Dict
 from datetime import datetime
+from pathlib import Path
 import asyncio
 import shutil
 import logging
+import os
+import json
+import re
 
 from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from ...config import Settings, get_settings
@@ -13,6 +18,9 @@ from ...media.pipeline_client import get_pipeline_client
 
 router = APIRouter(prefix="/api/v1/recorder", tags=["Recorder"])
 logger = logging.getLogger(__name__)
+
+# Recordings directory
+RECORDINGS_DIR = Path("/mnt/sdcard/recordings")
 
 # Minimum disk space required to start recording (in GB)
 MIN_DISK_SPACE_GB = 2.0
@@ -260,19 +268,282 @@ async def _stop_recording_impl(session_id: Optional[str]) -> StopRecordingRespon
     )
 
 
-@router.get("/sessions", response_model=List[RecordingSession])
+class RecordingFile(BaseModel):
+    """Single recording file"""
+    filename: str
+    path: str
+    size_bytes: int
+    camera_id: str
+    created_at: datetime
+
+
+class SessionWithFiles(BaseModel):
+    """Session with all its files for library view"""
+    id: str
+    name: Optional[str]
+    date: str
+    duration: str
+    file_count: int
+    total_size: str
+    files: List[RecordingFile]
+
+
+def parse_recording_filename(filename: str) -> Optional[Dict]:
+    """Parse recording filename to extract session info.
+    
+    Format: {session_id}_{camera_id}_{timestamp}.mkv
+    Example: abc123_cam1_20251228_120000.mkv
+    """
+    pattern = r'^([^_]+)_([^_]+)_(\d{8})_(\d{6})\.mkv$'
+    match = re.match(pattern, filename)
+    if match:
+        session_id, camera_id, date_str, time_str = match.groups()
+        try:
+            timestamp = datetime.strptime(f"{date_str}_{time_str}", "%Y%m%d_%H%M%S")
+            return {
+                'session_id': session_id,
+                'camera_id': camera_id,
+                'timestamp': timestamp,
+            }
+        except ValueError:
+            pass
+    return None
+
+
+def get_session_metadata(session_id: str) -> Dict:
+    """Get or create session metadata file."""
+    metadata_path = RECORDINGS_DIR / f"{session_id}.json"
+    if metadata_path.exists():
+        try:
+            with open(metadata_path) as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {'name': None}
+
+
+def save_session_metadata(session_id: str, metadata: Dict) -> bool:
+    """Save session metadata file."""
+    metadata_path = RECORDINGS_DIR / f"{session_id}.json"
+    try:
+        with open(metadata_path, 'w') as f:
+            json.dump(metadata, f, indent=2)
+        return True
+    except Exception as e:
+        logger.error(f"Failed to save metadata for {session_id}: {e}")
+        return False
+
+
+def format_duration(seconds: float) -> str:
+    """Format duration as HH:MM:SS."""
+    hours = int(seconds // 3600)
+    minutes = int((seconds % 3600) // 60)
+    secs = int(seconds % 60)
+    return f"{hours}:{minutes:02d}:{secs:02d}"
+
+
+def format_size(bytes: int) -> str:
+    """Format size in human-readable format."""
+    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+        if bytes < 1024:
+            return f"{bytes:.1f} {unit}"
+        bytes /= 1024
+    return f"{bytes:.1f} PB"
+
+
+@router.get("/sessions", response_model=List[SessionWithFiles])
 async def list_sessions(
     limit: int = 50,
     offset: int = 0,
-) -> List[RecordingSession]:
-    """List recording sessions"""
-    # TODO: Fetch from database
-    return []
+) -> List[SessionWithFiles]:
+    """List recording sessions from the recordings directory."""
+    if not RECORDINGS_DIR.exists():
+        return []
+    
+    # Scan recordings directory for .mkv files
+    sessions_map: Dict[str, List[RecordingFile]] = {}
+    
+    for file_path in RECORDINGS_DIR.glob("*.mkv"):
+        parsed = parse_recording_filename(file_path.name)
+        if not parsed:
+            continue
+        
+        session_id = parsed['session_id']
+        stat = file_path.stat()
+        
+        recording_file = RecordingFile(
+            filename=file_path.name,
+            path=str(file_path),
+            size_bytes=stat.st_size,
+            camera_id=parsed['camera_id'],
+            created_at=parsed['timestamp'],
+        )
+        
+        if session_id not in sessions_map:
+            sessions_map[session_id] = []
+        sessions_map[session_id].append(recording_file)
+    
+    # Build session list
+    sessions = []
+    for session_id, files in sessions_map.items():
+        if not files:
+            continue
+        
+        metadata = get_session_metadata(session_id)
+        files_sorted = sorted(files, key=lambda f: f.created_at)
+        
+        # Calculate total size and duration estimate
+        total_size = sum(f.size_bytes for f in files)
+        first_file = files_sorted[0]
+        last_file = files_sorted[-1] if len(files_sorted) > 1 else first_file
+        
+        # Estimate duration from first file creation time
+        # For more accurate duration, we'd need to probe the files with ffprobe
+        duration_estimate = 0.0  # Placeholder
+        
+        sessions.append(SessionWithFiles(
+            id=session_id,
+            name=metadata.get('name'),
+            date=first_file.created_at.strftime("%Y-%m-%d"),
+            duration=format_duration(duration_estimate) if duration_estimate else "Unknown",
+            file_count=len(files),
+            total_size=format_size(total_size),
+            files=files,
+        ))
+    
+    # Sort by date (newest first)
+    sessions.sort(key=lambda s: s.files[0].created_at if s.files else datetime.min, reverse=True)
+    
+    # Apply pagination
+    return sessions[offset:offset + limit]
 
 
-@router.get("/sessions/{session_id}", response_model=RecordingSession)
-async def get_session(session_id: str) -> RecordingSession:
-    """Get details of a specific session"""
-    # TODO: Fetch from database
-    raise HTTPException(status_code=404, detail="Session not found")
+@router.get("/sessions/{session_id}", response_model=SessionWithFiles)
+async def get_session(session_id: str) -> SessionWithFiles:
+    """Get details of a specific session."""
+    if not RECORDINGS_DIR.exists():
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    # Find files matching this session
+    files = []
+    for file_path in RECORDINGS_DIR.glob(f"{session_id}_*.mkv"):
+        parsed = parse_recording_filename(file_path.name)
+        if not parsed:
+            continue
+        
+        stat = file_path.stat()
+        files.append(RecordingFile(
+            filename=file_path.name,
+            path=str(file_path),
+            size_bytes=stat.st_size,
+            camera_id=parsed['camera_id'],
+            created_at=parsed['timestamp'],
+        ))
+    
+    if not files:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    metadata = get_session_metadata(session_id)
+    files_sorted = sorted(files, key=lambda f: f.created_at)
+    total_size = sum(f.size_bytes for f in files)
+    first_file = files_sorted[0]
+    
+    return SessionWithFiles(
+        id=session_id,
+        name=metadata.get('name'),
+        date=first_file.created_at.strftime("%Y-%m-%d"),
+        duration="Unknown",  # Would need ffprobe for accurate duration
+        file_count=len(files),
+        total_size=format_size(total_size),
+        files=files,
+    )
+
+
+class RenameSessionRequest(BaseModel):
+    """Request to rename a session"""
+    name: str
+
+
+@router.patch("/sessions/{session_id}")
+async def rename_session(
+    session_id: str,
+    request: RenameSessionRequest,
+) -> Dict:
+    """Rename a recording session."""
+    # Verify session exists
+    session_files = list(RECORDINGS_DIR.glob(f"{session_id}_*.mkv"))
+    if not session_files:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    # Save metadata
+    metadata = get_session_metadata(session_id)
+    metadata['name'] = request.name
+    
+    if save_session_metadata(session_id, metadata):
+        return {"success": True, "session_id": session_id, "name": request.name}
+    else:
+        raise HTTPException(status_code=500, detail="Failed to save session metadata")
+
+
+@router.delete("/sessions/{session_id}")
+async def delete_session(session_id: str) -> Dict:
+    """Delete a recording session and all its files."""
+    if not RECORDINGS_DIR.exists():
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    # Find all files for this session
+    files_to_delete = list(RECORDINGS_DIR.glob(f"{session_id}_*.mkv"))
+    metadata_file = RECORDINGS_DIR / f"{session_id}.json"
+    
+    if not files_to_delete:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    deleted_count = 0
+    total_bytes = 0
+    
+    for file_path in files_to_delete:
+        try:
+            total_bytes += file_path.stat().st_size
+            file_path.unlink()
+            deleted_count += 1
+            logger.info(f"Deleted recording file: {file_path}")
+        except Exception as e:
+            logger.error(f"Failed to delete {file_path}: {e}")
+    
+    # Delete metadata file if exists
+    if metadata_file.exists():
+        try:
+            metadata_file.unlink()
+        except Exception:
+            pass
+    
+    return {
+        "success": True,
+        "session_id": session_id,
+        "deleted_files": deleted_count,
+        "freed_bytes": total_bytes,
+    }
+
+
+@router.get("/sessions/{session_id}/files/{filename}")
+async def download_file(session_id: str, filename: str):
+    """Download a specific recording file."""
+    file_path = RECORDINGS_DIR / filename
+    
+    # Security check - ensure file is within recordings directory
+    if not file_path.resolve().is_relative_to(RECORDINGS_DIR.resolve()):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    # Verify filename matches session
+    if not filename.startswith(f"{session_id}_"):
+        raise HTTPException(status_code=403, detail="File does not belong to session")
+    
+    return FileResponse(
+        path=str(file_path),
+        filename=filename,
+        media_type="video/x-matroska",
+    )
 

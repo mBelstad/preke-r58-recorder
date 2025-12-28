@@ -7,7 +7,7 @@
  * - Touch mode toggle
  * - Performance mode toggle
  */
-import { computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useAudioFeedback } from '@/composables/useAudioFeedback'
 import { usePerformanceMode } from '@/composables/usePerformanceMode'
 
@@ -20,23 +20,25 @@ const {
   setAutoEnable: setPerfAutoEnable,
 } = usePerformanceMode()
 
-// Touch mode (stored in localStorage)
-const touchMode = computed({
-  get: () => document.body.classList.contains('touch-mode'),
-  set: (value: boolean) => {
-    if (value) {
-      document.body.classList.add('touch-mode')
-      localStorage.setItem('r58_touch_mode', 'true')
-    } else {
-      document.body.classList.remove('touch-mode')
-      localStorage.setItem('r58_touch_mode', 'false')
-    }
+// Touch mode (stored in localStorage) - using ref for proper reactivity
+const touchMode = ref(false)
+
+function toggleTouchMode() {
+  touchMode.value = !touchMode.value
+  if (touchMode.value) {
+    document.body.classList.add('touch-mode')
+    localStorage.setItem('r58_touch_mode', 'true')
+  } else {
+    document.body.classList.remove('touch-mode')
+    localStorage.setItem('r58_touch_mode', 'false')
   }
-})
+}
 
 // Initialize touch mode from localStorage
 onMounted(() => {
-  if (localStorage.getItem('r58_touch_mode') === 'true') {
+  const storedValue = localStorage.getItem('r58_touch_mode') === 'true'
+  touchMode.value = storedValue
+  if (storedValue) {
     document.body.classList.add('touch-mode')
   }
 })
@@ -86,7 +88,7 @@ function handleAudioToggle() {
         <p class="text-xs text-r58-text-secondary">Larger buttons for touchscreen</p>
       </div>
       <button
-        @click="touchMode = !touchMode"
+        @click="toggleTouchMode"
         :class="[
           'relative w-12 h-7 rounded-full transition-colors',
           touchMode ? 'bg-r58-accent-primary' : 'bg-r58-bg-tertiary'

@@ -13,7 +13,9 @@ import { useRecorderStore, type InputStatus } from '@/stores/recorder'
 import InputPreview from '@/components/shared/InputPreview.vue'
 
 const recorderStore = useRecorderStore()
-const inputs = computed(() => recorderStore.inputs)
+
+// Filter to show only inputs with signal (hides disconnected HDMI inputs)
+const inputs = computed(() => recorderStore.inputs.filter(i => i.hasSignal))
 
 /**
  * Get border color class based on input state
@@ -88,33 +90,31 @@ function getInputTooltip(input: InputStatus): string {
 </script>
 
 <template>
-  <div class="h-full grid grid-cols-2 gap-4">
+  <!-- Empty state when no inputs have signal -->
+  <div v-if="inputs.length === 0" class="h-full flex items-center justify-center">
+    <div class="text-center text-r58-text-secondary">
+      <svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+      </svg>
+      <p class="text-lg font-medium">No Video Sources Connected</p>
+      <p class="text-sm mt-2">Connect HDMI cables to begin recording</p>
+    </div>
+  </div>
+  
+  <!-- Grid of active inputs -->
+  <div v-else class="h-full grid gap-4" :class="inputs.length === 1 ? 'grid-cols-1' : 'grid-cols-2'">
     <div
       v-for="input in inputs"
       :key="input.id"
-      class="relative rounded-lg overflow-hidden border-2 transition-all cursor-pointer"
+      class="relative rounded-lg overflow-hidden border-2 transition-all cursor-pointer aspect-video bg-black"
       :class="getBorderClass(input)"
       :title="getInputTooltip(input)"
     >
-      <!-- Video preview -->
+      <!-- Video preview (only inputs with signal are shown) -->
       <InputPreview
-        v-if="input.hasSignal"
         :input-id="input.id"
-        class="w-full h-full object-cover"
+        class="w-full h-full"
       />
-      
-      <!-- No signal placeholder -->
-      <div
-        v-else
-        class="w-full h-full bg-r58-bg-secondary flex items-center justify-center"
-      >
-        <div class="text-center text-r58-text-secondary">
-          <svg class="w-12 h-12 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-          </svg>
-          <p>No Signal</p>
-        </div>
-      </div>
       
       <!-- Overlay info -->
       <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-4">

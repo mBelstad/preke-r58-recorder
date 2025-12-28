@@ -5,6 +5,8 @@ import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import { toast } from '@/composables/useToast'
 import VdoNinjaEmbed from '@/components/mixer/VdoNinjaEmbed.vue'
 import SourcePanel from '@/components/mixer/SourcePanel.vue'
+import CameraPushBar from '@/components/mixer/CameraPushBar.vue'
+import ProgramOutput from '@/components/mixer/ProgramOutput.vue'
 
 const mixerStore = useMixerStore()
 const { register } = useKeyboardShortcuts()
@@ -145,8 +147,17 @@ function cyclePreviewSource() {
       <!-- Source panel -->
       <aside class="w-80 border-l border-r58-bg-tertiary bg-r58-bg-secondary p-4 overflow-y-auto">
         <SourcePanel />
+        
+        <!-- Program Output control -->
+        <div class="mt-6 pt-4 border-t border-r58-bg-tertiary">
+          <h3 class="text-sm font-semibold text-r58-text-secondary uppercase tracking-wide mb-3">Program Output</h3>
+          <ProgramOutput />
+        </div>
       </aside>
     </div>
+    
+    <!-- Camera Push Bar (auto-pushes HDMI sources to VDO.ninja room) -->
+    <CameraPushBar />
   </div>
 </template>
 

@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { useRecorderStore } from '@/stores/recorder'
 import SettingsPanel from '@/components/shared/SettingsPanel.vue'
 
+const router = useRouter()
 const recorderStore = useRecorderStore()
 
 const currentSession = computed(() => recorderStore.currentSession)
@@ -18,6 +20,11 @@ function formatBytes(bytes: number): string {
   const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
   const i = Math.floor(Math.log(bytes) / Math.log(k))
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+}
+
+function openInputConfig() {
+  // Navigate to Admin page with settings tab
+  router.push({ name: 'admin', query: { tab: 'settings' } })
 }
 </script>
 
@@ -75,6 +82,7 @@ function formatBytes(bytes: number): string {
       <h3 class="text-sm font-semibold text-r58-text-secondary uppercase tracking-wide mb-3">Quick Actions</h3>
       <div class="space-y-2">
         <button 
+          @click="openInputConfig"
           class="btn w-full justify-center disabled:opacity-50 disabled:cursor-not-allowed group relative" 
           :disabled="isRecording"
           :title="isRecording ? 'Cannot configure while recording' : 'Open input configuration'"

@@ -356,27 +356,27 @@ def build_recording_pipeline_string(
     mux_str = "matroskamux"
     
     if with_preview:
-        # Tee: H.265 recording + H.264 preview streaming
-        stream_encoder_str, stream_caps_str = get_h264_software_encoder(bitrate)
+        # Tee: H.265 recording + H.264 preview streaming via RTSP
+        # Uses hardware H.264 encoder for preview (tested stable 2025-12-28)
+        stream_encoder_str, stream_caps_str, stream_parse_str = get_h264_hardware_encoder(bitrate)
         pipeline_str = (
             f"{source_str} ! "
             f"timeoverlay ! "
             f"tee name=source_tee ! "
-            # Recording branch (H.265 hardware)
+            # Recording branch (H.265 hardware for file storage)
             f"queue max-size-buffers=0 max-size-time=0 max-size-bytes=0 ! "
             f"{encoder_str} ! "
             f"{caps_str} ! "
             f"{parse_str} ! "
             f"{mux_str} ! "
             f"filesink location={output_path} "
-            # Preview branch (H.264 for RTMP/MediaMTX)
+            # Preview branch (H.264 hardware for RTSP/MediaMTX - same path as preview pipeline)
             f"source_tee. ! "
             f"queue max-size-buffers=0 max-size-time=0 max-size-bytes=0 ! "
             f"{stream_encoder_str} ! "
             f"{stream_caps_str} ! "
-            f"h264parse ! "
-            f"flvmux streamable=true ! "
-            f"rtmpsink location=rtmp://127.0.0.1:1935/{cam_id}"
+            f"{stream_parse_str} config-interval=-1 ! "
+            f"rtspclientsink location=rtsp://127.0.0.1:8554/{cam_id} protocols=tcp latency=0"
         )
     else:
         # Recording only

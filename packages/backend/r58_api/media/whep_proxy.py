@@ -1,14 +1,17 @@
-"""WHEP proxy for accessing MediaMTX streams over HTTPS.
+"""WHEP/WHIP proxy for accessing MediaMTX streams over HTTPS.
 
-This module proxies WHEP requests from the frontend (served over HTTPS)
+This module proxies WebRTC-HTTP requests from the frontend (served over HTTPS)
 to the local MediaMTX instance, avoiding mixed-content browser errors.
+
+WHEP (pull) - For viewing streams (camera previews)
+WHIP (push) - For publishing streams (program output)
 """
 import httpx
 from fastapi import APIRouter, Request, Response, HTTPException
 
 from ..config import get_settings
 
-router = APIRouter(prefix="/api/v1/whep", tags=["WHEP Proxy"])
+router = APIRouter(prefix="/api/v1", tags=["WebRTC Proxy"])
 
 # HTTP client for proxying requests to MediaMTX
 _client: httpx.AsyncClient | None = None
@@ -23,10 +26,10 @@ def get_client() -> httpx.AsyncClient:
     return _client
 
 
-@router.api_route("/{stream_id}/whep", methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"])
+@router.api_route("/whep/{stream_id}/whep", methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"])
 async def whep_proxy(stream_id: str, request: Request) -> Response:
     """
-    Proxy WHEP requests to local MediaMTX.
+    Proxy WHEP requests to local MediaMTX (for viewing streams).
     
     Supports all WHEP operations:
     - POST: Create WHEP session (send SDP offer, receive answer)
@@ -37,6 +40,31 @@ async def whep_proxy(stream_id: str, request: Request) -> Response:
     settings = get_settings()
     mediamtx_url = f"{settings.mediamtx_whep_base}/{stream_id}/whep"
     
+    return await _proxy_request(request, mediamtx_url)
+
+
+@router.api_route("/whip/{stream_id}/whip", methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"])
+async def whip_proxy(stream_id: str, request: Request) -> Response:
+    """
+    Proxy WHIP requests to local MediaMTX (for publishing streams).
+    
+    Used by VDO.ninja to push the program output to MediaMTX.
+    
+    Supports all WHIP operations:
+    - POST: Create WHIP session (send SDP offer, receive answer)
+    - PATCH: ICE trickle candidates
+    - DELETE: Close session
+    """
+    settings = get_settings()
+    # WHIP uses the same base URL as WHEP, just different endpoint
+    mediamtx_base = settings.mediamtx_whep_base
+    mediamtx_url = f"{mediamtx_base}/{stream_id}/whip"
+    
+    return await _proxy_request(request, mediamtx_url)
+
+
+async def _proxy_request(request: Request, target_url: str) -> Response:
+    """Common proxy logic for WHEP and WHIP requests."""
     client = get_client()
     
     # Forward headers, excluding host
@@ -52,7 +80,7 @@ async def whep_proxy(stream_id: str, request: Request) -> Response:
         # Forward request to MediaMTX
         response = await client.request(
             method=request.method,
-            url=mediamtx_url,
+            url=target_url,
             headers=headers,
             content=body,
         )

@@ -129,15 +129,29 @@ def get_preview_modes(settings: Settings) -> List[PreviewMode]:
 
 
 def get_storage_info() -> tuple[float, float]:
-    """Get storage information"""
+    """Get storage information.
+    
+    Prefers SD card mount at /mnt/sdcard for R58 recordings storage.
+    Falls back to root filesystem if SD card is not available.
+    """
     import shutil
-    try:
-        usage = shutil.disk_usage("/")
-        total_gb = usage.total / (1024 ** 3)
-        available_gb = usage.free / (1024 ** 3)
-        return total_gb, available_gb
-    except Exception:
-        return 0.0, 0.0
+    import os
+    
+    # Prefer SD card for R58 recordings
+    paths_to_check = ["/mnt/sdcard", "/"]
+    
+    for path in paths_to_check:
+        try:
+            if os.path.exists(path):
+                usage = shutil.disk_usage(path)
+                if usage.total > 0:
+                    total_gb = usage.total / (1024 ** 3)
+                    available_gb = usage.free / (1024 ** 3)
+                    return total_gb, available_gb
+        except Exception:
+            continue
+    
+    return 0.0, 0.0
 
 
 @router.get("/capabilities", response_model=DeviceCapabilities)

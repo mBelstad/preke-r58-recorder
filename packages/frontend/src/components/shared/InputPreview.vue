@@ -95,7 +95,7 @@ watch(() => props.inputId, () => {
       autoplay
       muted
       playsinline
-      class="w-full h-full object-cover"
+      class="w-full h-full object-contain"
     ></video>
     
     <!-- Loading overlay -->
