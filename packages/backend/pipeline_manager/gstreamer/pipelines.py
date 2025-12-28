@@ -241,9 +241,19 @@ def build_source_pipeline(
     if device_type == "hdmirx":
         src_width = caps['width']
         src_height = caps['height']
+        src_fps = caps['framerate'] or 30
+        
+        # For 4K sources, capture at a lower framerate to reduce memory pressure
+        is_4k = src_width > 1920 or src_height > 1080
+        capture_fps = min(src_fps, 15) if is_4k else src_fps
+        
+        if is_4k:
+            logger.info(f"4K hdmirx source {device}: capturing at {capture_fps}fps, downscaling to {target_width}x{target_height}")
+        
         return (
             f"v4l2src device={device} io-mode=mmap ! "
-            f"video/x-raw,width={src_width},height={src_height} ! "
+            f"video/x-raw,width={src_width},height={src_height},framerate={capture_fps}/1 ! "
+            f"queue max-size-buffers=3 max-size-time=0 max-size-bytes=0 leaky=downstream ! "
             f"videorate ! video/x-raw,framerate={target_fps}/1 ! "
             f"videoconvert ! "
             f"videoscale ! "
@@ -255,9 +265,19 @@ def build_source_pipeline(
         src_width = caps['width']
         src_height = caps['height']
         src_fps = caps['framerate'] or 60
+        
+        # For 4K sources, capture at a lower framerate to reduce memory pressure
+        # The R58 VPU struggles with multiple 4K@30fps encodes simultaneously
+        is_4k = src_width > 1920 or src_height > 1080
+        capture_fps = min(src_fps, 15) if is_4k else src_fps
+        
+        if is_4k:
+            logger.info(f"4K source {device}: capturing at {capture_fps}fps, downscaling to {target_width}x{target_height}")
+        
         return (
             f"v4l2src device={device} io-mode=mmap ! "
-            f"video/x-raw,format={src_format},width={src_width},height={src_height},framerate={src_fps}/1 ! "
+            f"video/x-raw,format={src_format},width={src_width},height={src_height},framerate={capture_fps}/1 ! "
+            f"queue max-size-buffers=3 max-size-time=0 max-size-bytes=0 leaky=downstream ! "
             f"videorate ! video/x-raw,framerate={target_fps}/1 ! "
             f"videoconvert ! "
             f"videoscale ! "
