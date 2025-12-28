@@ -1,5 +1,35 @@
 # Fix & Incident Log
 
+## 2025-12-28 — mpph264enc Stability Confirmed with QP-Based Rate Control
+
+- **Context**: Re-evaluated mpph264enc stability after implementing new pipeline manager with different encoder parameters.
+- **Previous Finding**: On 2025-12-19, mpph264enc caused kernel panics with unknown configuration.
+- **New Configuration Tested**:
+  ```
+  mpph264enc qp-init=26 qp-min=10 qp-max=51 gop=30 profile=baseline rc-mode=cbr bps=4000000
+  ```
+- **Tests Performed**:
+  1. **System uptime**: 1 week, 1 day, 10 hours - No kernel panics
+  2. **Pipeline uptime**: 12+ minutes continuous streaming
+  3. **dmesg check**: 0 kernel panics, 0 MPP errors, 0 H264 errors
+  4. **Data rate**: ~4.1 Mbps (matches 4 Mbps target)
+  5. **MediaMTX**: Receiving H.264 streams on cam1 and cam2
+- **Results**:
+  - **mpph264enc is STABLE** with QP-based rate control (baseline profile)
+  - No kernel panics, no crashes, no errors
+  - CPU usage: ~50% for 2 cameras (hardware-accelerated)
+- **Key Differences from Failing Config**:
+  - Using `rc-mode=cbr` (Constant Bitrate) with QP parameters
+  - `profile=baseline` (no B-frames, prevents DTS errors)
+  - `qp-init=26 qp-min=10 qp-max=51` for quality control
+- **Browser WebRTC Compatibility**: H.264 is required for browser WebRTC playback (H.265 has limited browser support)
+- **Decision**: Keep mpph264enc for preview streams, use mpph265enc for recordings
+- **Architecture**:
+  ```
+  Preview: V4L2 → mpph264enc → RTSP → MediaMTX → WHEP/WebRTC → Browser
+  Recording: V4L2 → mpph265enc → Matroska → File
+  ```
+
 ## 2025-12-19 — H.265 Hardware Encoder (mpph265enc) Stability Testing
 
 - **Context**: After discovering mpph264enc causes kernel panics, we needed to verify if mpph265enc (H.265 hardware encoder) is stable before migrating the entire system.

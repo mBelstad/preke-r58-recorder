@@ -2,6 +2,21 @@
 
 Ported from src/pipelines.py with adaptations for the new backend structure.
 Provides hardware-accelerated H.264/H.265 encoding using Rockchip MPP.
+
+Encoder Architecture:
+---------------------
+- **Preview (streaming to MediaMTX)**: Uses H.264 (mpph264enc)
+  - Required for browser WebRTC compatibility (H.265 has limited browser support)
+  - Stable with QP-based rate control: qp-init=26, qp-min=10, qp-max=51
+  - Baseline profile (no B-frames) prevents DTS errors
+  - Tested stable: 2025-12-28 (see docs/fix-log.md)
+
+- **Recording**: Uses H.265 (mpph265enc)  
+  - Better compression efficiency (~30-40% smaller files)
+  - Tested stable: 2025-12-19 (see docs/fix-log.md)
+  - Used for local file storage only (not browser playback)
+
+DO NOT use H.265 for preview - browsers cannot decode H.265 via WebRTC!
 """
 import logging
 from typing import Optional, Tuple, Any, Dict
@@ -15,8 +30,14 @@ logger = logging.getLogger(__name__)
 def get_h264_hardware_encoder(bitrate: int) -> Tuple[str, str, str]:
     """Get H.264 hardware encoder using Rockchip MPP.
     
+    USE THIS FOR: Preview/streaming to MediaMTX (browser WebRTC requires H.264)
+    DO NOT USE FOR: Recording (use H.265 for better compression)
+    
     Uses mpph264enc with QP-based rate control.
     Baseline profile (no B-frames) prevents DTS errors.
+    
+    Tested stable on 2025-12-28 with this exact configuration.
+    Previous kernel panics were with different parameters.
     
     Args:
         bitrate: Target bitrate in kbps
@@ -38,8 +59,11 @@ def get_h264_hardware_encoder(bitrate: int) -> Tuple[str, str, str]:
 def get_h265_encoder(bitrate: int) -> Tuple[str, str, str]:
     """Get H.265 hardware encoder using Rockchip MPP.
     
+    USE THIS FOR: Recording to file (better compression, ~30-40% smaller)
+    DO NOT USE FOR: Preview/streaming (browsers cannot decode H.265 via WebRTC)
+    
     Uses mpph265enc for hardware acceleration.
-    Tested stable - no kernel panics, low CPU usage (~10% per stream).
+    Tested stable on 2025-12-19 - no kernel panics, low CPU usage (~10% per stream).
     
     Args:
         bitrate: Target bitrate in kbps
