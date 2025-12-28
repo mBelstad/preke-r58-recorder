@@ -1,6 +1,7 @@
 """IPC server for pipeline manager communication"""
 import asyncio
 import concurrent.futures
+import functools
 import json
 import logging
 import uuid
@@ -12,6 +13,7 @@ from .config import get_config, get_enabled_cameras
 from .gstreamer.pipelines import (
     build_preview_pipeline_string,
     build_recording_pipeline_string,
+    get_device_capabilities,
 )
 from .gstreamer.runner import PipelineState as GstPipelineState
 from .gstreamer.runner import get_runner
@@ -78,6 +80,53 @@ class IPCServer:
             # TODO: Emit WebSocket event to notify UI
             # TODO: Stop GStreamer pipelines
 
+    async def _auto_start_previews(self) -> None:
+        """Start preview pipelines for all enabled cameras on startup.
+
+        This ensures WHEP preview streams are immediately available
+        when the pipeline manager starts.
+        """
+        enabled_cameras = get_enabled_cameras(self.config)
+        loop = asyncio.get_event_loop()
+
+        logger.info(f"Auto-starting previews for {len(enabled_cameras)} enabled cameras")
+
+        for input_id, cam_config in enabled_cameras.items():
+            pipeline_id = f"preview_{input_id}"
+
+            # Skip if already running
+            if self.gst_runner.is_running(pipeline_id):
+                logger.info(f"Preview for {input_id} already running, skipping")
+                continue
+
+            try:
+                pipeline_str = build_preview_pipeline_string(
+                    cam_id=input_id,
+                    device=cam_config.device,
+                    bitrate=cam_config.bitrate,
+                    resolution=cam_config.resolution,
+                )
+
+                success = await loop.run_in_executor(
+                    _executor,
+                    functools.partial(
+                        self.gst_runner.start_pipeline,
+                        pipeline_id=pipeline_id,
+                        pipeline_string=pipeline_str,
+                        pipeline_type="preview",
+                        device=cam_config.device,
+                    )
+                )
+
+                if success:
+                    logger.info(f"Auto-started preview for {input_id}")
+                else:
+                    logger.warning(f"Failed to auto-start preview for {input_id}")
+
+            except Exception as e:
+                logger.error(f"Error auto-starting preview for {input_id}: {e}")
+                # Continue with other cameras even if one fails
+
     async def start(self):
         """Start the IPC server"""
         # Ensure socket directory exists
@@ -97,6 +146,9 @@ class IPCServer:
         SOCKET_PATH.chmod(0o666)
 
         print(f"[IPC Server] Listening on {SOCKET_PATH}")
+
+        # Auto-start preview pipelines for all enabled cameras
+        await self._auto_start_previews()
 
     def stop(self):
         """Stop the IPC server"""
@@ -451,6 +503,35 @@ class IPCServer:
         elif cmd == "pipeline.status":
             # Get status of all pipelines
             return {"pipelines": self.gst_runner.get_all_pipelines()}
+
+        elif cmd == "device.check":
+            # Check device capabilities and signal status for diagnostics
+            device = command.get("device")
+
+            if not device:
+                # Return status for all configured devices
+                enabled_cameras = get_enabled_cameras(self.config)
+                devices = {}
+                for input_id, cam_config in enabled_cameras.items():
+                    try:
+                        caps = get_device_capabilities(cam_config.device)
+                        devices[input_id] = {
+                            "device": cam_config.device,
+                            "capabilities": caps,
+                        }
+                    except Exception as e:
+                        devices[input_id] = {
+                            "device": cam_config.device,
+                            "error": str(e),
+                        }
+                return {"devices": devices}
+
+            # Return status for specific device
+            try:
+                caps = get_device_capabilities(device)
+                return {"device": device, "capabilities": caps}
+            except Exception as e:
+                return {"device": device, "error": str(e)}
 
         else:
             return {"error": f"Unknown command: {cmd}"}
