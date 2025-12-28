@@ -38,7 +38,7 @@ onMounted(() => {
       <div class="space-y-3">
         <div class="flex justify-between items-center">
           <div>
-            <span>Mixer</span>
+          <span>Mixer</span>
             <span class="text-xs text-r58-text-secondary ml-1">(VDO.ninja)</span>
           </div>
           <span 

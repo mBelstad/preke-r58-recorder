@@ -37,20 +37,20 @@ async def lifespan(app: FastAPI):
     
     logger = logging.getLogger(__name__)
     settings = get_settings()
-
+    
     # Setup logging first
     setup_logging(
         level="DEBUG" if settings.debug else "INFO",
         json_format=not settings.debug,  # JSON in production, text in dev
     )
-
+    
     # Initialize database
     init_db()
-
+    
     # Export OpenAPI schema for client generation
     openapi_path = Path(__file__).parent.parent.parent.parent / "openapi" / "openapi.json"
     openapi_path.parent.mkdir(parents=True, exist_ok=True)
-
+    
     schema = get_openapi(
         title=app.title,
         version=app.version,
@@ -58,7 +58,7 @@ async def lifespan(app: FastAPI):
         routes=app.routes,
     )
     openapi_path.write_text(json.dumps(schema, indent=2))
-
+    
     # Auto-start preview pipelines for enabled inputs
     try:
         client = get_pipeline_client()
@@ -75,21 +75,21 @@ async def lifespan(app: FastAPI):
         logger.warning(f"Could not auto-start previews: {e}")
 
     yield
-
+    
     # Cleanup on shutdown
 
 
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application"""
     _settings = get_settings()
-
+    
     app = FastAPI(
         title="R58 API",
         version="2.0.0",
         description="R58 Recorder/Mixer Control API",
         lifespan=lifespan,
     )
-
+    
     # CORS middleware
     app.add_middleware(
         CORSMiddleware,
@@ -98,17 +98,17 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-
+    
     # Add observability middleware (order matters - first added = outermost)
     app.add_middleware(RequestLoggingMiddleware)
     app.add_middleware(LatencyMiddleware)
     app.add_middleware(TraceMiddleware)
-
+    
     # Mount static files for CSS and assets
     static_path = Path(__file__).parent / "static"
     if static_path.exists():
         app.mount("/static", StaticFiles(directory=str(static_path)), name="static")
-
+    
     # Include routers
     app.include_router(auth_router)
     app.include_router(capabilities_router)
@@ -122,7 +122,7 @@ def create_app() -> FastAPI:
     app.include_router(degradation_router)
     app.include_router(websocket_router)
     app.include_router(whep_proxy_router)
-
+    
     return app
 
 
@@ -159,39 +159,39 @@ async def api_info():
 if _frontend_dist:
     # Mount assets separately for proper caching
     app.mount("/assets", StaticFiles(directory=str(_frontend_dist / "assets")), name="frontend_assets")
-
+    
     @app.get("/", response_class=HTMLResponse)
     async def serve_frontend():
         """Serve frontend SPA"""
         return FileResponse(_frontend_dist / "index.html")
-
+    
     @app.get("/sw.js")
     async def serve_sw():
         """Serve service worker"""
         return FileResponse(_frontend_dist / "sw.js", media_type="application/javascript")
-
+    
     @app.get("/manifest.webmanifest")
     async def serve_manifest():
         """Serve PWA manifest"""
         return FileResponse(_frontend_dist / "manifest.webmanifest", media_type="application/manifest+json")
-
+    
     @app.get("/registerSW.js")
     async def serve_register_sw():
         """Serve SW registration script"""
         return FileResponse(_frontend_dist / "registerSW.js", media_type="application/javascript")
-
+    
     @app.get("/{full_path:path}")
     async def serve_spa(request: Request, full_path: str):
         """SPA fallback - serve index.html for Vue Router history mode"""
         # Skip API routes
         if full_path.startswith("api/"):
             return {"detail": "Not found"}
-
+        
         # Try to serve static file first
         file_path = _frontend_dist / full_path
         if file_path.exists() and file_path.is_file():
             return FileResponse(file_path)
-
+        
         # Fallback to index.html for SPA routing
         return FileResponse(_frontend_dist / "index.html")
 else:

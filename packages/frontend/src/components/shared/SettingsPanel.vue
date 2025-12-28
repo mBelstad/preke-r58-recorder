@@ -26,13 +26,13 @@ const touchMode = ref(false)
 function toggleTouchMode() {
   touchMode.value = !touchMode.value
   if (touchMode.value) {
-    document.body.classList.add('touch-mode')
-    localStorage.setItem('r58_touch_mode', 'true')
-  } else {
-    document.body.classList.remove('touch-mode')
-    localStorage.setItem('r58_touch_mode', 'false')
+      document.body.classList.add('touch-mode')
+      localStorage.setItem('r58_touch_mode', 'true')
+    } else {
+      document.body.classList.remove('touch-mode')
+      localStorage.setItem('r58_touch_mode', 'false')
+    }
   }
-}
 
 // Initialize touch mode from localStorage
 onMounted(() => {

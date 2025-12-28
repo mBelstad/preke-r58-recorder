@@ -36,9 +36,9 @@ webrtcServerKey: /etc/ssl/r58/privkey.pem
 webrtcServerCert: /etc/ssl/r58/fullchain.pem
 
 # ICE configuration for NAT traversal via FRP
-# webrtcAdditionalHosts: IP addresses only (not IP:port!)
-# This tells ICE to advertise this IP to remote clients
-webrtcAdditionalHosts: ["65.109.32.111"]
+# webrtcICEHostNAT1To1IPs advertises this IP as a host candidate
+# This is necessary for remote clients to connect through FRP
+webrtcICEHostNAT1To1IPs: ["65.109.32.111"]
 
 # UDP port for WebRTC media (mapped via FRP to 18189 on VPS)
 webrtcLocalUDPAddress: :8189

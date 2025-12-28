@@ -41,7 +41,7 @@ async function fetchSessions() {
     console.error('Failed to fetch sessions:', e)
     error.value = e instanceof Error ? e.message : 'Failed to load recordings'
   } finally {
-    loading.value = false
+  loading.value = false
   }
 }
 
