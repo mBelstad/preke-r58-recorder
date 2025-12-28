@@ -1,0 +1,113 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Global styles */
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
+#app {
+  height: 100%;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-r58-bg-primary;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-r58-bg-tertiary rounded;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-r58-text-secondary;
+}
+
+/* Focus styles */
+:focus-visible {
+  @apply outline-none ring-2 ring-r58-accent-primary ring-offset-2 ring-offset-r58-bg-primary;
+}
+
+/* Transitions */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.slide-enter-active,
+.slide-leave-active {
+  transition: transform 0.3s ease;
+}
+
+.slide-enter-from {
+  transform: translateX(-100%);
+}
+
+.slide-leave-to {
+  transform: translateX(-100%);
+}
+
+/* Utility classes */
+@layer components {
+  .btn {
+    @apply px-4 py-2 rounded-r58 font-medium transition-all duration-150;
+    @apply bg-r58-bg-tertiary text-r58-text-primary;
+    @apply hover:bg-r58-accent-primary active:scale-[0.98];
+  }
+  
+  .btn-primary {
+    @apply bg-r58-accent-primary hover:bg-blue-600;
+  }
+  
+  .btn-success {
+    @apply bg-r58-accent-success hover:bg-green-600;
+  }
+  
+  .btn-danger {
+    @apply bg-r58-accent-danger hover:bg-red-600;
+  }
+  
+  .btn-lg {
+    @apply px-6 py-3 text-lg min-h-[48px];
+  }
+  
+  .card {
+    @apply bg-r58-bg-secondary rounded-r58 border border-r58-bg-tertiary p-4;
+  }
+  
+  .input {
+    @apply bg-r58-bg-tertiary border border-r58-bg-tertiary rounded-r58;
+    @apply px-4 py-2 text-r58-text-primary;
+    @apply focus:border-r58-accent-primary focus:ring-2 focus:ring-r58-accent-primary/20;
+    @apply outline-none transition-all;
+  }
+  
+  .badge {
+    @apply inline-flex items-center px-2 py-1 rounded text-xs font-semibold uppercase tracking-wide;
+  }
+  
+  .badge-success {
+    @apply bg-r58-accent-success/20 text-r58-accent-success;
+  }
+  
+  .badge-danger {
+    @apply bg-r58-accent-danger/20 text-r58-accent-danger;
+  }
+  
+  .badge-warning {
+    @apply bg-r58-accent-warning/20 text-r58-accent-warning;
+  }
+}
+

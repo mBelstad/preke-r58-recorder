@@ -1,0 +1,22 @@
+[Unit]
+Description=R58 MediaMTX Media Server
+After=network.target
+
+[Service]
+Type=simple
+User=r58
+Group=r58
+WorkingDirectory=/opt/r58
+ExecStart=/opt/r58/mediamtx /opt/r58/mediamtx.yml
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+

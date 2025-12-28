@@ -1,0 +1,195 @@
+/**
+ * VDO.ninja URL builder and configuration
+ * 
+ * IMPORTANT: VDO.ninja runs LOCALLY on R58, not on public servers
+ */
+
+// Get VDO.ninja host dynamically based on current page host
+export function getVdoHost(): string {
+  const host = window.location.hostname
+  const port = 8443 // VDO.ninja port on R58
+  return `${host}:${port}`
+}
+
+export const VDO_ROOM = 'studio'
+
+/**
+ * VDO.ninja URL parameter profiles for each embed scenario
+ */
+export const embedProfiles = {
+  // DIRECTOR VIEW - Full control panel for operator
+  director: {
+    params: {
+      director: VDO_ROOM,
+      hidesolo: true,
+      hideheader: true,
+      cleanoutput: true,
+      darkmode: true,
+      nologo: true,
+    }
+  },
+  
+  // SCENE OUTPUT - Clean program output for OBS/streaming
+  scene: {
+    params: {
+      scene: true,
+      room: VDO_ROOM,
+      cover: true,
+      fadein: 500,
+      animated: true,
+      quality: 2,
+      cleanoutput: true,
+      hideheader: true,
+      nologo: true,
+    }
+  },
+  
+  // MULTIVIEW - Grid of all sources
+  multiview: {
+    params: {
+      room: VDO_ROOM,
+      scene: true,
+      grid: true,
+      autoadd: '*',
+      cleanoutput: true,
+      hideheader: true,
+      nologo: true,
+    }
+  },
+  
+  // WHEP SHARE - Add R58 camera to VDO.ninja room via WHEP
+  cameraContribution: {
+    params: {
+      room: VDO_ROOM,
+      videodevice: 0,
+      audiodevice: 0,
+      autostart: true,
+      noaudio: false,
+    }
+  },
+  
+  // GUEST INVITE - Link for remote guests to join
+  guestInvite: {
+    params: {
+      room: VDO_ROOM,
+      webcam: true,
+      mic: true,
+      quality: 1,
+      effects: true,
+    }
+  },
+  
+  // SOLO VIEW - View single source fullscreen
+  soloView: {
+    params: {
+      room: VDO_ROOM,
+      cover: true,
+      cleanoutput: true,
+    }
+  },
+}
+
+/**
+ * Get the CSS URL for VDO.ninja reskin
+ */
+export function getVdoCssUrl(): string {
+  const host = window.location.hostname
+  const port = 8000 // R58 API port
+  return `http://${host}:${port}/static/css/vdo-theme.css`
+}
+
+/**
+ * Build a VDO.ninja URL from a profile and variable substitutions
+ */
+export function buildVdoUrl(
+  profile: keyof typeof embedProfiles,
+  vars: Record<string, string> = {}
+): string {
+  const VDO_HOST = getVdoHost()
+  const config = embedProfiles[profile]
+  const url = new URL(`http://${VDO_HOST}/`)
+  
+  // Always add custom CSS for reskin
+  url.searchParams.set('css', getVdoCssUrl())
+  
+  // Add profile-specific params
+  for (const [key, value] of Object.entries(config.params)) {
+    if (typeof value === 'boolean') {
+      if (value) {
+        url.searchParams.set(key, '')
+      }
+    } else if (typeof value === 'number') {
+      url.searchParams.set(key, value.toString())
+    } else if (typeof value === 'string') {
+      // Check for variable substitution
+      let finalValue = value
+      for (const [varName, varValue] of Object.entries(vars)) {
+        finalValue = finalValue.replace(`{${varName}}`, varValue)
+      }
+      // Only add if no unsubstituted variables remain
+      if (!finalValue.includes('{')) {
+        url.searchParams.set(key, finalValue)
+      }
+    }
+  }
+  
+  // Add any additional vars as params
+  if (vars.push_id) {
+    url.searchParams.set('push', vars.push_id)
+  }
+  if (vars.view_id) {
+    url.searchParams.set('view', vars.view_id)
+  }
+  if (vars.source_ids) {
+    url.searchParams.set('autoadd', vars.source_ids)
+  }
+  if (vars.whep_url) {
+    url.searchParams.set('whepshare', encodeURIComponent(vars.whep_url))
+  }
+  if (vars.label) {
+    url.searchParams.set('label', vars.label)
+  }
+  
+  return url.toString()
+}
+
+/**
+ * Build a guest invite URL
+ */
+export function buildGuestInviteUrl(guestName: string, guestId?: string): string {
+  const VDO_HOST = getVdoHost()
+  const url = new URL(`http://${VDO_HOST}/`)
+  
+  url.searchParams.set('room', VDO_ROOM)
+  url.searchParams.set('push', guestId || guestName.toLowerCase().replace(/\s+/g, '-'))
+  url.searchParams.set('label', guestName)
+  url.searchParams.set('webcam', '')
+  url.searchParams.set('mic', '')
+  url.searchParams.set('quality', '1')
+  
+  return url.toString()
+}
+
+/**
+ * Build a camera contribution URL (WHEP share)
+ */
+export function buildCameraContributionUrl(
+  cameraId: string,
+  whepUrl: string,
+  label: string
+): string {
+  const VDO_HOST = getVdoHost()
+  const url = new URL(`http://${VDO_HOST}/`)
+  
+  url.searchParams.set('push', cameraId)
+  url.searchParams.set('room', VDO_ROOM)
+  url.searchParams.set('whepshare', whepUrl)
+  url.searchParams.set('label', label)
+  url.searchParams.set('videodevice', '0')
+  url.searchParams.set('audiodevice', '0')
+  url.searchParams.set('autostart', '')
+  url.searchParams.set('css', getVdoCssUrl())
+  
+  return url.toString()
+}
+

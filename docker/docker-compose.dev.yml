@@ -1,0 +1,52 @@
+version: "3.8"
+
+services:
+  api:
+    build:
+      context: ../packages/backend
+      dockerfile: ../../docker/Dockerfile.api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../packages/backend:/app
+      - r58-data:/var/lib/r58
+    environment:
+      - R58_DEBUG=true
+      - R58_JWT_SECRET=dev-secret
+      - R58_DEVICE_ID=dev-001
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    build:
+      context: ../packages/frontend
+      dockerfile: ../../docker/Dockerfile.frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ../packages/frontend:/app
+      - /app/node_modules
+    command: npm run dev -- --host
+    depends_on:
+      - api
+
+  mediamtx:
+    image: bluenviron/mediamtx:latest
+    ports:
+      - "8889:8889"  # WHEP
+      - "8554:8554"  # RTSP
+      - "9997:9997"  # API
+    volumes:
+      - ../mediamtx.yml:/mediamtx.yml:ro
+    command: /mediamtx /mediamtx.yml
+
+volumes:
+  r58-data:
+
+networks:
+  default:
+    name: r58-dev
+
