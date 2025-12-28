@@ -37,7 +37,10 @@ onMounted(() => {
       <h3 class="text-sm font-semibold text-r58-text-secondary uppercase tracking-wide mb-4">Features</h3>
       <div class="space-y-3">
         <div class="flex justify-between items-center">
-          <span>Mixer</span>
+          <div>
+            <span>Mixer</span>
+            <span class="text-xs text-r58-text-secondary ml-1">(VDO.ninja)</span>
+          </div>
           <span 
             class="badge"
             :class="capabilitiesStore.mixerEnabled ? 'badge-success' : 'badge-warning'"
@@ -52,15 +55,6 @@ onMounted(() => {
             :class="capabilitiesStore.recorderEnabled ? 'badge-success' : 'badge-warning'"
           >
             {{ capabilitiesStore.recorderEnabled ? 'Enabled' : 'Disabled' }}
-          </span>
-        </div>
-        <div class="flex justify-between items-center">
-          <span>VDO.ninja</span>
-          <span 
-            class="badge"
-            :class="capabilitiesStore.vdoNinjaEnabled ? 'badge-success' : 'badge-warning'"
-          >
-            {{ capabilitiesStore.vdoNinjaEnabled ? 'Enabled' : 'Disabled' }}
           </span>
         </div>
       </div>
