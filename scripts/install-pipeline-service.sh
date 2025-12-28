@@ -15,17 +15,12 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
-# Create r58 user if it doesn't exist
-if ! id "r58" &>/dev/null; then
-    echo "Creating r58 user..."
-    useradd -r -s /bin/false -d /opt/r58 r58
-fi
-
 # Create required directories
 echo "Creating directories..."
-mkdir -p /opt/r58/recordings
-mkdir -p /var/lib/r58
-chown -R r58:r58 /opt/r58/recordings /var/lib/r58
+mkdir -p /opt/r58-app/current/recordings
+mkdir -p /run/r58
+chown -R linaro:linaro /opt/r58-app/current/recordings
+chown -R linaro:linaro /run/r58
 
 # Copy service file
 echo "Installing systemd service..."
@@ -37,18 +32,20 @@ systemctl daemon-reload
 # Enable and start the service
 echo "Enabling and starting service..."
 systemctl enable r58-pipeline.service
-systemctl start r58-pipeline.service
+systemctl restart r58-pipeline.service
+
+# Wait for it to start
+sleep 2
 
 # Check status
 echo ""
 echo "=== Service Status ==="
-systemctl status r58-pipeline.service --no-pager
+systemctl status r58-pipeline.service --no-pager || true
 
 echo ""
-echo "Pipeline manager installed successfully!"
+echo "Pipeline manager installed!"
 echo "Socket available at: /run/r58/pipeline.sock"
 echo ""
 echo "Useful commands:"
 echo "  sudo systemctl status r58-pipeline"
 echo "  sudo journalctl -u r58-pipeline -f"
-
