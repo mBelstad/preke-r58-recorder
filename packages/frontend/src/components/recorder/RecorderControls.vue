@@ -5,15 +5,20 @@ import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import { useDiskSpace } from '@/composables/useDiskSpace'
 import { toast } from '@/composables/useToast'
 import ConfirmDialog from '@/components/shared/ConfirmDialog.vue'
+import SessionNameDialog from '@/components/recorder/SessionNameDialog.vue'
 
 const recorderStore = useRecorderStore()
 const { register } = useKeyboardShortcuts()
-const { preflightCheck, status: diskStatus, canStartRecording, warningMessage } = useDiskSpace()
+const { preflightCheck, status: diskStatus, canStartRecording } = useDiskSpace()
 
 const stopConfirmDialog = ref<InstanceType<typeof ConfirmDialog> | null>(null)
-const diskWarningDialog = ref<InstanceType<typeof ConfirmDialog> | null>(null)
 const confirmButtonEnabled = ref(false)
 const isPreflight = ref(false)
+
+// Session naming state
+const showSessionNameDialog = ref(false)
+const requireSessionName = ref(false) // Toggle via settings
+const pendingSessionName = ref<string | undefined>(undefined)
 
 const isRecording = computed(() => recorderStore.status === 'recording')
 const isStarting = computed(() => recorderStore.status === 'starting')
@@ -58,7 +63,7 @@ async function handleRecordAction() {
   }
 }
 
-async function handleStartRecording() {
+async function handleStartRecording(sessionName?: string) {
   // Run preflight checks
   isPreflight.value = true
   
@@ -76,23 +81,49 @@ async function handleStartRecording() {
       toast.warning('Low disk space', preflight.message)
     }
     
+    // Show session name dialog if required and not already provided
+    if (requireSessionName.value && !sessionName) {
+      pendingSessionName.value = undefined
+      showSessionNameDialog.value = true
+      return // Wait for dialog response
+    }
+    
     // Proceed with recording
-    await startRecording()
+    await startRecording(sessionName || pendingSessionName.value)
   } finally {
     isPreflight.value = false
   }
 }
 
-async function startRecording() {
+async function startRecording(sessionName?: string) {
   try {
-    await recorderStore.startRecording()
-    toast.success('Recording started', `Session ID: ${recorderStore.sessionId}`)
+    await recorderStore.startRecording(sessionName)
+    const displayName = sessionName || recorderStore.sessionId
+    toast.success('Recording started', `Session: ${displayName}`)
   } catch (error: any) {
     toast.error('Failed to start recording', error.message || 'Unknown error', {
       label: 'Retry',
-      onClick: handleStartRecording,
+      onClick: () => handleStartRecording(sessionName),
     })
   }
+}
+
+// Session name dialog handlers
+function handleSessionNameConfirm(name: string) {
+  showSessionNameDialog.value = false
+  pendingSessionName.value = name
+  handleStartRecording(name)
+}
+
+function handleSessionNameSkip() {
+  showSessionNameDialog.value = false
+  pendingSessionName.value = undefined
+  handleStartRecording()
+}
+
+function handleSessionNameCancel() {
+  showSessionNameDialog.value = false
+  isPreflight.value = false
 }
 
 async function stopRecording() {
@@ -171,6 +202,14 @@ async function toggleRecording() {
     cancel-text="Keep Recording"
     :danger="true"
     @confirm="handleConfirmStop"
+  />
+  
+  <!-- Session Name Dialog -->
+  <SessionNameDialog
+    :open="showSessionNameDialog"
+    @confirm="handleSessionNameConfirm"
+    @skip="handleSessionNameSkip"
+    @cancel="handleSessionNameCancel"
   />
 </template>
 
