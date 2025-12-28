@@ -20,7 +20,7 @@ from .gstreamer.pipelines import (
 logger = logging.getLogger(__name__)
 
 SOCKET_PATH = Path("/run/r58/pipeline.sock")
-RECORDINGS_DIR = Path("/opt/r58/recordings")
+RECORDINGS_DIR = Path("/mnt/sdcard/recordings")
 
 # Thread pool for GStreamer operations (blocking)
 _executor = concurrent.futures.ThreadPoolExecutor(max_workers=4, thread_name_prefix="gst_")
