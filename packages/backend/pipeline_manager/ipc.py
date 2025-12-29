@@ -51,6 +51,7 @@ class IPCServer:
         # Set up watchdog callbacks
         self.watchdog.on_stall = self._handle_stall
         self.watchdog.on_disk_low = self._handle_disk_low
+        self.watchdog.on_progress = self._handle_progress
 
     def _queue_event(self, event_type: str, payload: Dict[str, Any]) -> None:
         """Add an event to the queue for API polling"""
@@ -210,6 +211,27 @@ class IPCServer:
                         logger.error(f"Error stopping pipeline for {input_id}: {e}")
             
             self.state.stop_recording()
+
+    async def _handle_progress(self, session_id: str, bytes_written: Dict[str, int]) -> None:
+        """Handle recording progress update from watchdog."""
+        if not self.state.active_recording:
+            return
+        
+        # Update state with current bytes written
+        for input_id, bytes_val in bytes_written.items():
+            self.state.update_bytes(input_id, bytes_val)
+        
+        # Calculate duration from recording start
+        duration_ms = int((datetime.now() - self.state.active_recording.started_at).total_seconds() * 1000)
+        
+        # Queue progress event for API to broadcast
+        self._queue_event("recording.progress", {
+            "session_id": session_id,
+            "duration_ms": duration_ms,
+            "bytes_written": bytes_written,
+        })
+        
+        logger.debug(f"Recording progress: duration={duration_ms}ms, bytes={bytes_written}")
 
     async def _auto_start_previews(self) -> None:
         """Start preview pipelines for all enabled cameras on startup.

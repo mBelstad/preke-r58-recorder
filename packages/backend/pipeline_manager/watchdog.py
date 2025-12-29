@@ -29,6 +29,7 @@ class RecordingWatchdog:
         self,
         on_stall: Optional[Callable[[str, str], Awaitable[None]]] = None,
         on_disk_low: Optional[Callable[[float], Awaitable[None]]] = None,
+        on_progress: Optional[Callable[[str, Dict[str, int]], Awaitable[None]]] = None,
     ):
         """
         Initialize watchdog.
@@ -36,9 +37,11 @@ class RecordingWatchdog:
         Args:
             on_stall: Callback(session_id, input_id) when recording stalls
             on_disk_low: Callback(available_gb) when disk space is low
+            on_progress: Callback(session_id, bytes_written_dict) for progress updates
         """
         self.on_stall = on_stall
         self.on_disk_low = on_disk_low
+        self.on_progress = on_progress
 
         # State tracking
         self._running = False
@@ -132,41 +135,50 @@ class RecordingWatchdog:
         logger.info("[Watchdog] Watch loop ended")
 
     async def _check_recording_health(self) -> None:
-        """Check if any recording inputs have stalled."""
+        """Check if any recording inputs have stalled and report progress."""
         if not self._session_id:
             return
 
         now = datetime.now()
         stall_threshold = timedelta(seconds=STALL_THRESHOLD_SECONDS)
+        
+        # Collect current file sizes for progress reporting
+        current_bytes: Dict[str, int] = {}
 
         for input_id, (last_bytes, last_change) in list(self._input_state.items()):
-            time_since_change = now - last_change
-
-            if time_since_change > stall_threshold:
-                # Check actual file size to confirm stall
-                file_path = self._recording_paths.get(input_id)
-                if file_path:
-                    actual_bytes = self._get_file_size(file_path)
-
-                    if actual_bytes > last_bytes:
-                        # File grew via file system check - update our state
-                        self._input_state[input_id] = (actual_bytes, now)
-                        logger.debug(
-                            f"[Watchdog] {input_id} file grew to {actual_bytes} bytes"
+            file_path = self._recording_paths.get(input_id)
+            if file_path:
+                actual_bytes = self._get_file_size(file_path)
+                current_bytes[input_id] = actual_bytes
+                
+                if actual_bytes > last_bytes:
+                    # File grew - update our state
+                    self._input_state[input_id] = (actual_bytes, now)
+                    logger.debug(
+                        f"[Watchdog] {input_id} file grew to {actual_bytes} bytes"
+                    )
+                else:
+                    # File hasn't grown, check for stall
+                    time_since_change = now - last_change
+                    if time_since_change > stall_threshold:
+                        # Confirmed stall
+                        logger.warning(
+                            f"[Watchdog] STALL DETECTED: {input_id} has not grown for "
+                            f"{time_since_change.total_seconds():.0f}s (session: {self._session_id})"
                         )
-                        continue
 
-                # Confirmed stall
-                logger.warning(
-                    f"[Watchdog] STALL DETECTED: {input_id} has not grown for "
-                    f"{time_since_change.total_seconds():.0f}s (session: {self._session_id})"
-                )
-
-                if self.on_stall:
-                    try:
-                        await self.on_stall(self._session_id, input_id)
-                    except Exception as e:
-                        logger.error(f"[Watchdog] Stall callback failed: {e}")
+                        if self.on_stall:
+                            try:
+                                await self.on_stall(self._session_id, input_id)
+                            except Exception as e:
+                                logger.error(f"[Watchdog] Stall callback failed: {e}")
+        
+        # Emit progress update with all current file sizes
+        if current_bytes and self.on_progress:
+            try:
+                await self.on_progress(self._session_id, current_bytes)
+            except Exception as e:
+                logger.error(f"[Watchdog] Progress callback failed: {e}")
 
     async def _check_disk_space(self) -> None:
         """Check if disk space is critically low."""

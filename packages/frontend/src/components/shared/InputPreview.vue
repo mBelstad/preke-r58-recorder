@@ -1,10 +1,14 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { useRecorderStore } from '@/stores/recorder'
 
 const props = defineProps<{
   inputId: string
   protocol?: 'whep' | 'hls'
 }>()
+
+const recorderStore = useRecorderStore()
+const isRecording = computed(() => recorderStore.status === 'recording')
 
 const videoRef = ref<HTMLVideoElement | null>(null)
 const loading = ref(true)
@@ -100,6 +104,15 @@ onMounted(() => {
 watch(() => props.inputId, () => {
   initWhepPlayback()
 })
+
+// Auto-reconnect when recording stops (if there was an error)
+watch(isRecording, (recording, wasRecording) => {
+  if (wasRecording && !recording && error.value) {
+    // Recording just stopped and we had an error - try to reconnect
+    console.log('[InputPreview] Recording stopped, reconnecting preview...')
+    initWhepPlayback()
+  }
+})
 </script>
 
 <template>
@@ -120,9 +133,21 @@ watch(() => props.inputId, () => {
       <div class="animate-spin w-6 h-6 border-2 border-white border-t-transparent rounded-full"></div>
     </div>
     
-    <!-- Error overlay -->
+    <!-- Recording paused overlay (shown when disconnected during recording) -->
     <div 
-      v-if="error"
+      v-if="error && isRecording"
+      class="absolute inset-0 flex items-center justify-center bg-black/80"
+    >
+      <div class="text-center text-r58-text-secondary">
+        <div class="text-r58-accent-danger text-2xl mb-2">●</div>
+        <p class="text-sm">Preview paused during recording</p>
+        <p class="text-xs mt-1 text-r58-text-tertiary">Preview resumes when recording stops</p>
+      </div>
+    </div>
+    
+    <!-- Error overlay (only when not recording) -->
+    <div 
+      v-else-if="error"
       class="absolute inset-0 flex items-center justify-center bg-black/80"
     >
       <div class="text-center text-r58-text-secondary">

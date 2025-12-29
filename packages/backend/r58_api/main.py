@@ -125,6 +125,8 @@ async def lifespan(app: FastAPI):
                             payload["error_type"] = event_type
                         elif event_type == "recording.recovered":
                             ws_event_type = EventType.HEALTH_CHANGED
+                        elif event_type == "recording.progress":
+                            ws_event_type = EventType.RECORDING_PROGRESS
                         
                         if ws_event_type:
                             event = BaseEvent(
