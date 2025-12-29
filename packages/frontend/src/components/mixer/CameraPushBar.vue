@@ -122,11 +122,13 @@ function getStatusText(status: CameraPushState['status']): string {
 </script>
 
 <template>
-  <div class="camera-push-bar border-t border-r58-bg-tertiary bg-r58-bg-secondary">
+  <div class="camera-push-bar border-t border-r58-bg-tertiary bg-r58-bg-secondary" data-testid="camera-push-bar">
     <!-- Header (clickable to expand/collapse) -->
     <button 
       @click="expanded = !expanded"
       class="w-full px-4 py-2 flex items-center justify-between text-sm hover:bg-r58-bg-tertiary/50 transition-colors"
+      data-testid="camera-push-toggle"
+      aria-expanded="expanded"
     >
       <div class="flex items-center gap-2">
         <span class="font-medium">Camera Sources</span>

@@ -99,11 +99,11 @@ function copySrtUrl() {
 </script>
 
 <template>
-  <div class="program-output space-y-3">
+  <div class="program-output space-y-3" data-testid="program-output">
     <!-- Status indicator -->
-    <div class="flex items-center gap-2 px-3 py-2 bg-r58-bg-tertiary rounded-lg">
-      <span :class="['w-2 h-2 rounded-full', getStatusColor()]"></span>
-      <span class="text-sm font-medium">{{ getStatusText() }}</span>
+    <div class="flex items-center gap-2 px-3 py-2 bg-r58-bg-tertiary rounded-lg" data-testid="program-output-status">
+      <span :class="['w-2 h-2 rounded-full', getStatusColor()]" data-testid="program-output-indicator"></span>
+      <span class="text-sm font-medium" data-testid="program-output-text">{{ getStatusText() }}</span>
       
       <!-- Retry button for errors -->
       <button

@@ -2,6 +2,16 @@
 import { computed } from 'vue'
 import { useMixerStore, type MixerSource } from '@/stores/mixer'
 import { useRecorderStore } from '@/stores/recorder'
+import ScenePresets from '@/components/mixer/ScenePresets.vue'
+import TransitionPicker from '@/components/mixer/TransitionPicker.vue'
+
+// Props from parent
+const props = defineProps<{
+  vdoEmbed?: {
+    setScene: (sceneId: string) => void
+    sendCommand: (action: string, target?: string, value?: unknown) => void
+  }
+}>()
 
 const mixerStore = useMixerStore()
 const recorderStore = useRecorderStore()
@@ -39,10 +49,10 @@ const usingHdmiFallback = computed(() => vdoSources.value.length === 0 && hdmiSo
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="space-y-6" data-testid="source-panel">
     <!-- Sources -->
     <div class="card">
-      <h3 class="text-sm font-semibold text-r58-text-secondary uppercase tracking-wide mb-3">Sources</h3>
+      <h3 class="text-sm font-semibold text-r58-text-secondary uppercase tracking-wide mb-3" data-testid="sources-heading">Sources</h3>
       
       <!-- HDMI fallback hint -->
       <div v-if="usingHdmiFallback" class="mb-3 px-3 py-2 bg-amber-500/10 border border-amber-500/30 rounded-lg text-xs text-amber-400">
@@ -96,6 +106,8 @@ const usingHdmiFallback = computed(() => vdoSources.value.length === 0 && hdmiSo
               @click="mixerStore.setSourceMute(source.id, !source.muted)"
               class="p-2 rounded hover:bg-r58-bg-primary transition-colors"
               :class="{ 'text-r58-accent-danger': source.muted }"
+              :data-testid="`mute-button-${source.id}`"
+              :aria-label="source.muted ? 'Unmute ' + source.label : 'Mute ' + source.label"
             >
               <svg v-if="source.muted" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/>
@@ -110,6 +122,12 @@ const usingHdmiFallback = computed(() => vdoSources.value.length === 0 && hdmiSo
       </div>
     </div>
     
+    <!-- Transitions -->
+    <div class="card">
+      <h3 class="text-sm font-semibold text-r58-text-secondary uppercase tracking-wide mb-3">Transitions</h3>
+      <TransitionPicker :vdo-embed="vdoEmbed" />
+    </div>
+    
     <!-- Quick actions -->
     <div class="card">
       <h3 class="text-sm font-semibold text-r58-text-secondary uppercase tracking-wide mb-3">Guest Invite</h3>
@@ -119,13 +137,14 @@ const usingHdmiFallback = computed(() => vdoSources.value.length === 0 && hdmiSo
     </div>
     
     <!-- Scene buttons -->
-    <div class="card">
+    <div class="card" data-testid="scenes-panel">
       <h3 class="text-sm font-semibold text-r58-text-secondary uppercase tracking-wide mb-3">Scenes</h3>
-      <div class="grid grid-cols-2 gap-2">
+      <div class="grid grid-cols-2 gap-2 mb-4">
         <button 
           @click="mixerStore.setScene('scene1')"
           class="btn"
           :class="{ 'btn-primary': mixerStore.activeScene === 'scene1' }"
+          data-testid="scene-button-1"
         >
           Scene 1
         </button>
@@ -133,6 +152,7 @@ const usingHdmiFallback = computed(() => vdoSources.value.length === 0 && hdmiSo
           @click="mixerStore.setScene('scene2')"
           class="btn"
           :class="{ 'btn-primary': mixerStore.activeScene === 'scene2' }"
+          data-testid="scene-button-2"
         >
           Scene 2
         </button>
@@ -140,6 +160,7 @@ const usingHdmiFallback = computed(() => vdoSources.value.length === 0 && hdmiSo
           @click="mixerStore.setScene('pip')"
           class="btn"
           :class="{ 'btn-primary': mixerStore.activeScene === 'pip' }"
+          data-testid="scene-button-pip"
         >
           PiP
         </button>
@@ -147,9 +168,16 @@ const usingHdmiFallback = computed(() => vdoSources.value.length === 0 && hdmiSo
           @click="mixerStore.setScene('grid')"
           class="btn"
           :class="{ 'btn-primary': mixerStore.activeScene === 'grid' }"
+          data-testid="scene-button-grid"
         >
           Grid
         </button>
+      </div>
+      
+      <!-- Scene Presets -->
+      <div class="pt-3 border-t border-r58-bg-tertiary">
+        <h4 class="text-xs font-semibold text-r58-text-secondary uppercase tracking-wide mb-2">Presets</h4>
+        <ScenePresets :vdo-embed="vdoEmbed" />
       </div>
     </div>
   </div>

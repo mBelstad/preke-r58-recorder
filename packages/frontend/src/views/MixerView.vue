@@ -10,6 +10,11 @@ import SourcePanel from '@/components/mixer/SourcePanel.vue'
 import CameraPushBar from '@/components/mixer/CameraPushBar.vue'
 import ProgramOutput from '@/components/mixer/ProgramOutput.vue'
 import StreamingSettings from '@/components/mixer/StreamingSettings.vue'
+import GuestManager from '@/components/mixer/GuestManager.vue'
+import RecordingControls from '@/components/mixer/RecordingControls.vue'
+import HotkeySettings from '@/components/mixer/HotkeySettings.vue'
+import LayoutEditor from '@/components/mixer/LayoutEditor.vue'
+import ConnectionStatus from '@/components/mixer/ConnectionStatus.vue'
 
 const mixerStore = useMixerStore()
 const recorderStore = useRecorderStore()
@@ -17,6 +22,9 @@ const streamingStore = useStreamingStore()
 const { register } = useKeyboardShortcuts()
 const vdoEmbedRef = ref<InstanceType<typeof VdoNinjaEmbed> | null>(null)
 const streamingSettingsRef = ref<InstanceType<typeof StreamingSettings> | null>(null)
+const guestManagerRef = ref<InstanceType<typeof GuestManager> | null>(null)
+const hotkeySettingsRef = ref<InstanceType<typeof HotkeySettings> | null>(null)
+const layoutEditorRef = ref<InstanceType<typeof LayoutEditor> | null>(null)
 
 const isLive = computed(() => mixerStore.isLive)
 const enabledDestinationsCount = computed(() => streamingStore.enabledDestinations.length)
@@ -152,32 +160,85 @@ function toggleGoLive() {
 function openStreamingSettings() {
   streamingSettingsRef.value?.open()
 }
+
+function openGuestManager() {
+  guestManagerRef.value?.open()
+}
+
+function openHotkeySettings() {
+  hotkeySettingsRef.value?.open()
+}
+
+function openLayoutEditor() {
+  layoutEditorRef.value?.open()
+}
 </script>
 
 <template>
   <div class="h-full flex flex-col">
     <!-- Header -->
-    <header class="flex items-center justify-between px-6 py-4 border-b border-r58-bg-tertiary bg-r58-bg-secondary">
+    <header class="flex items-center justify-between px-6 py-4 border-b border-r58-bg-tertiary bg-r58-bg-secondary" data-testid="mixer-header">
       <div class="flex items-center gap-4">
         <div class="flex items-center gap-2">
           <span 
             class="w-3 h-3 rounded-full"
             :class="isLive ? 'bg-r58-accent-danger animate-recording' : 'bg-r58-bg-tertiary'"
+            data-testid="live-indicator"
           ></span>
-          <span class="text-xl font-semibold text-r58-mixer">Mixer</span>
+          <span class="text-xl font-semibold text-r58-mixer" data-testid="mixer-title">Mixer</span>
         </div>
-        <span v-if="isLive" class="badge badge-danger">ON AIR</span>
+        <span v-if="isLive" class="badge badge-danger" data-testid="on-air-badge">ON AIR</span>
         <span v-if="isLive && enabledDestinationsCount > 0" class="text-xs text-r58-text-secondary">
           Streaming to {{ enabledDestinationsCount }} platform{{ enabledDestinationsCount > 1 ? 's' : '' }}
         </span>
+        
+        <!-- Connection Status -->
+        <ConnectionStatus :vdo-embed="vdoEmbedRef" />
       </div>
       
       <div class="flex items-center gap-4">
+        <!-- Layout Editor Button -->
+        <button 
+          class="btn btn-sm" 
+          @click="openLayoutEditor"
+          title="Edit Layout"
+          data-testid="layout-editor-button"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+          </svg>
+        </button>
+        
+        <!-- Hotkey Settings Button -->
+        <button 
+          class="btn btn-sm" 
+          @click="openHotkeySettings"
+          title="Keyboard Shortcuts (Shift+?)"
+          data-testid="hotkey-settings-button"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+          </svg>
+        </button>
+        
+        <!-- Guest Manager Button -->
+        <button 
+          class="btn btn-sm" 
+          @click="openGuestManager"
+          title="Manage Guests & Sources"
+          data-testid="guest-manager-button"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+          </svg>
+        </button>
+        
         <!-- Streaming Settings Button -->
         <button 
           class="btn btn-sm" 
           @click="openStreamingSettings"
           title="Streaming Settings"
+          data-testid="streaming-settings-button"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -190,6 +251,7 @@ function openStreamingSettings() {
           class="btn"
           :class="isLive ? 'btn-danger' : 'btn-primary'"
           @click="toggleGoLive"
+          data-testid="go-live-button"
         >
           {{ isLive ? 'End Session' : 'Go Live' }}
         </button>
@@ -209,12 +271,18 @@ function openStreamingSettings() {
       
       <!-- Source panel -->
       <aside class="w-80 border-l border-r58-bg-tertiary bg-r58-bg-secondary p-4 overflow-y-auto">
-        <SourcePanel />
+        <SourcePanel :vdo-embed="vdoEmbedRef" />
         
         <!-- Program Output control -->
         <div class="mt-6 pt-4 border-t border-r58-bg-tertiary">
           <h3 class="text-sm font-semibold text-r58-text-secondary uppercase tracking-wide mb-3">Program Output</h3>
           <ProgramOutput />
+        </div>
+        
+        <!-- Local Recording control -->
+        <div class="mt-6 pt-4 border-t border-r58-bg-tertiary">
+          <h3 class="text-sm font-semibold text-r58-text-secondary uppercase tracking-wide mb-3">Local Recording</h3>
+          <RecordingControls :vdo-embed="vdoEmbedRef" />
         </div>
       </aside>
     </div>
@@ -224,6 +292,15 @@ function openStreamingSettings() {
     
     <!-- Streaming Settings Modal (rendered via Teleport) -->
     <StreamingSettings ref="streamingSettingsRef" />
+    
+    <!-- Guest Manager Modal -->
+    <GuestManager ref="guestManagerRef" :vdo-embed="vdoEmbedRef" />
+    
+    <!-- Hotkey Settings Modal -->
+    <HotkeySettings ref="hotkeySettingsRef" />
+    
+    <!-- Layout Editor Modal -->
+    <LayoutEditor ref="layoutEditorRef" :vdo-embed="vdoEmbedRef" />
   </div>
 </template>
 
