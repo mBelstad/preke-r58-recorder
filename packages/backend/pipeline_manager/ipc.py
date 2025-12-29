@@ -576,115 +576,54 @@ class IPCServer:
                 logger.warning(f"Recording blocked by resource limits: {resource_reason}")
                 return {"error": f"Cannot start recording: {resource_reason}"}
 
-            # Create file paths for each input
-            RECORDINGS_DIR.mkdir(parents=True, exist_ok=True)
-
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            input_paths = {}
-            started_pipelines = []
-            stopped_previews = []
-            skipped_inputs = []  # Inputs skipped due to no signal or config issues
-
-            enabled_cameras = get_enabled_cameras(self.config)
+            # TEE Pipeline Architecture:
+            # The ingest pipelines are already running with TEE (preview + recording branches).
+            # Recording is controlled by a valve element in the recording branch.
+            # We just need to open the valves for the requested cameras.
             
-            # Filter inputs to only those with valid signal
-            valid_inputs = []
+            enabled_cameras = get_enabled_cameras(self.config)
+            started_recordings = []
+            skipped_inputs = []
+            input_paths = {}
+            
+            loop = asyncio.get_event_loop()
+            
+            # If no inputs specified, record all streaming cameras
+            if not inputs:
+                inputs = list(enabled_cameras.keys())
+            
             for input_id in inputs:
-                cam_config = enabled_cameras.get(input_id)
-                if not cam_config:
-                    logger.warning(f"Input {input_id} not found in config, skipping")
+                if input_id not in enabled_cameras:
                     skipped_inputs.append({"id": input_id, "reason": "not in config"})
                     continue
-                    
-                # Check for signal
-                try:
-                    caps = get_device_capabilities(cam_config.device)
-                    if not caps.get('has_signal', False):
-                        logger.info(f"Skipping {input_id}: no signal detected on {cam_config.device}")
-                        skipped_inputs.append({"id": input_id, "reason": "no signal"})
-                        continue
-                except Exception as e:
-                    logger.warning(f"Could not check signal for {input_id}: {e}, will attempt anyway")
                 
-                valid_inputs.append(input_id)
-            
-            if not valid_inputs:
-                return {"error": "No inputs with signal available for recording", "skipped": skipped_inputs}
-
-            # First, stop preview pipelines for cameras we want to record
-            # V4L2 doesn't allow multiple processes to open the same device
-            loop = asyncio.get_event_loop()
-            for input_id in valid_inputs:
-                preview_pipeline_id = f"preview_{input_id}"
-                if self.gst_runner.is_running(preview_pipeline_id):
-                    logger.info(f"Stopping preview pipeline for {input_id} before recording")
-                    try:
-                        await loop.run_in_executor(
-                            _executor,
-                            lambda pid=preview_pipeline_id: self.gst_runner.stop_pipeline(pid)
-                        )
-                        stopped_previews.append(input_id)
-                        # Small delay to ensure device is released
-                        await asyncio.sleep(0.1)
-                    except Exception as e:
-                        logger.warning(f"Failed to stop preview {input_id}: {e}")
-
-            for input_id in valid_inputs:
-                # Get camera config (already validated in filtering step)
-                cam_config = enabled_cameras[input_id]
-                
-                # Check if device is busy (another process still holding it)
-                busy, pids = is_device_busy(cam_config.device)
-                if busy:
-                    logger.warning(f"Device {cam_config.device} for {input_id} is busy (PIDs: {pids}), skipping")
-                    skipped_inputs.append({"id": input_id, "reason": f"device busy (PIDs: {pids})"})
+                # Check if camera is streaming with TEE pipeline
+                recording_status = self.ingest_manager.get_recording_status(input_id)
+                if not recording_status.get("is_tee_pipeline"):
+                    skipped_inputs.append({"id": input_id, "reason": "not using TEE pipeline"})
                     continue
-
-                # Create output file path
-                file_path = RECORDINGS_DIR / f"{session_id}_{input_id}_{timestamp}.mkv"
-                input_paths[input_id] = str(file_path)
-
-                # Build and start GStreamer pipeline
-                # Note: with_preview=False because running 2 encoders per camera
-                # (H.265 for recording + H.264 for preview) overloads the RK3588 VPU
-                # when multiple cameras are recording. This caused RGA_BLIT crashes.
-                # Preview is disabled during recording; users see the preview overlay.
+                
+                # Start recording via valve control
                 try:
-                    pipeline_str = build_recording_pipeline_string(
-                        cam_id=input_id,
-                        device=cam_config.device,
-                        output_path=str(file_path),
-                        bitrate=cam_config.bitrate,
-                        resolution=cam_config.resolution,
-                        with_preview=False,  # Disabled to prevent VPU overload with multiple cameras
-                    )
-
-                    pipeline_id = f"recording_{input_id}"
-                    # Run GStreamer operation in thread pool to avoid blocking
                     success = await loop.run_in_executor(
                         _executor,
-                        lambda pid=pipeline_id, pstr=pipeline_str, fp=str(file_path), dev=cam_config.device: self.gst_runner.start_pipeline(
-                            pipeline_id=pid,
-                            pipeline_string=pstr,
-                            pipeline_type="recording",
-                            output_path=fp,
-                            device=dev,
-                        )
+                        lambda cam_id=input_id: self.ingest_manager.start_recording(cam_id)
                     )
-
+                    
                     if success:
-                        started_pipelines.append(input_id)
-                        logger.info(f"Started recording pipeline for {input_id}")
+                        started_recordings.append(input_id)
+                        # Get the recording path from ingest manager
+                        rec_status = self.ingest_manager.get_recording_status(input_id)
+                        input_paths[input_id] = rec_status.get("path", "")
+                        logger.info(f"Started recording for {input_id}")
                     else:
-                        logger.error(f"Failed to start recording pipeline for {input_id}")
-                        skipped_inputs.append({"id": input_id, "reason": "pipeline start failed"})
-
+                        skipped_inputs.append({"id": input_id, "reason": "valve control failed"})
                 except Exception as e:
-                    logger.error(f"Error starting pipeline for {input_id}: {e}")
+                    logger.error(f"Error starting recording for {input_id}: {e}")
                     skipped_inputs.append({"id": input_id, "reason": str(e)})
-
-            if not started_pipelines:
-                return {"error": "Failed to start any recording pipelines", "skipped": skipped_inputs}
+            
+            if not started_recordings:
+                return {"error": "Failed to start any recordings", "skipped": skipped_inputs}
 
             # Start recording state
             self.state.start_recording(session_id, input_paths)
@@ -692,12 +631,12 @@ class IPCServer:
             # Start watchdog
             self.watchdog.start_watching(session_id, input_paths)
 
-            logger.info(f"Recording started: session={session_id}, inputs={started_pipelines}, skipped={len(skipped_inputs)}")
+            logger.info(f"Recording started: session={session_id}, inputs={started_recordings}, skipped={len(skipped_inputs)}")
 
             return {
                 "session_id": session_id,
                 "inputs": input_paths,
-                "started_pipelines": started_pipelines,
+                "started_recordings": started_recordings,
                 "skipped_inputs": skipped_inputs,
                 "status": "started",
             }
@@ -715,7 +654,55 @@ class IPCServer:
             # Stop watchdog
             self.watchdog.stop_watching()
 
-            # Stop all recording GStreamer pipelines
+            # TEE Pipeline Architecture:
+            # Stop recordings by closing the valves (preview continues running)
+            stopped_recordings = []
+            loop = asyncio.get_event_loop()
+            
+            if self.state.active_recording:
+                for input_id in self.state.active_recording.inputs.keys():
+                    try:
+                        success = await loop.run_in_executor(
+                            _executor,
+                            lambda cam_id=input_id: self.ingest_manager.stop_recording(cam_id)
+                        )
+                        if success:
+                            stopped_recordings.append(input_id)
+                            logger.info(f"Stopped recording for {input_id}")
+                        else:
+                            logger.warning(f"Failed to stop recording for {input_id}")
+                    except Exception as e:
+                        logger.error(f"Error stopping recording for {input_id}: {e}")
+
+            # Stop recording state
+            final_state = self.state.stop_recording()
+
+            logger.info(f"Recording stopped: session={final_state.session_id if final_state else 'none'}")
+
+            # Note: With TEE pipeline, preview is always running (no need to restart)
+            # The valve just stops the recording branch, preview continues unaffected
+            
+            return {
+                "session_id": final_state.session_id if final_state else session_id,
+                "stopped_recordings": stopped_recordings,
+                "status": "stopped",
+            }
+
+        # Legacy code path for backward compatibility (disabled)
+        elif cmd == "recording.stop.legacy":
+            session_id = command.get("session_id")
+
+            if self.state.current_mode != "recording":
+                return {"error": "Not recording"}
+
+            if session_id and self.state.active_recording and \
+               self.state.active_recording.session_id != session_id:
+                return {"error": "Session ID mismatch"}
+
+            # Stop watchdog
+            self.watchdog.stop_watching()
+
+            # Stop all recording GStreamer pipelines (OLD way - before TEE)
             stopped_pipelines = []
             if self.state.active_recording:
                 loop = asyncio.get_event_loop()

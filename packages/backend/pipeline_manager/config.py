@@ -19,11 +19,21 @@ CONFIG_PATHS = [
 
 @dataclass
 class CameraConfig:
-    """Configuration for a single camera input."""
+    """Configuration for a single camera input.
+    
+    TEE Pipeline Architecture:
+    - recording_bitrate: High bitrate for quality recording (default: 18Mbps)
+    - preview_bitrate: Lower bitrate for preview streaming (default: 6Mbps)
+    
+    The TEE pipeline splits the stream after RGA scaling, allowing independent
+    quality settings for recording vs preview.
+    """
     cam_id: str
     device: str
     resolution: str = "1920x1080"
-    bitrate: int = 4000
+    recording_bitrate: int = 18000  # 18 Mbps for high-quality recording (H.264 High profile)
+    preview_bitrate: int = 6000     # 6 Mbps for preview streaming (H.264 Baseline)
+    bitrate: int = 4000             # Legacy: used as preview_bitrate if recording_bitrate not set
     codec: str = "h264"
     enabled: bool = True
     mediamtx_enabled: bool = True
@@ -115,11 +125,18 @@ def _parse_config(data: Dict[str, Any]) -> PipelineConfig:
     cameras_data = data.get("cameras", {})
     for cam_id, cam_data in cameras_data.items():
         if isinstance(cam_data, dict):
+            # Support both new (recording_bitrate/preview_bitrate) and legacy (bitrate) configs
+            legacy_bitrate = cam_data.get("bitrate", 4000)
+            recording_bitrate = cam_data.get("recording_bitrate", 18000)
+            preview_bitrate = cam_data.get("preview_bitrate", legacy_bitrate)
+            
             config.cameras[cam_id] = CameraConfig(
                 cam_id=cam_id,
                 device=cam_data.get("device", f"/dev/video{len(config.cameras)}"),
                 resolution=cam_data.get("resolution", "1920x1080"),
-                bitrate=cam_data.get("bitrate", 4000),
+                recording_bitrate=recording_bitrate,
+                preview_bitrate=preview_bitrate,
+                bitrate=legacy_bitrate,  # Keep for backward compatibility
                 codec=cam_data.get("codec", "h264"),
                 enabled=cam_data.get("enabled", True),
                 mediamtx_enabled=cam_data.get("mediamtx_enabled", True),

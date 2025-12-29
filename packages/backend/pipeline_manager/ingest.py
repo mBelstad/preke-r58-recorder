@@ -16,9 +16,13 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, Optional
 
+from datetime import datetime
+from pathlib import Path
+
 from .config import CameraConfig, get_config, get_enabled_cameras
 from .gstreamer.pipelines import (
     build_ingest_pipeline_string,
+    build_tee_recording_pipeline,
     get_device_capabilities,
     initialize_rkcif_device,
     RKCIF_SUBDEV_MAP,
@@ -42,7 +46,17 @@ class IngestStatus:
 
 @dataclass
 class IngestPipeline:
-    """Holds state for a single ingest pipeline."""
+    """Holds state for a single ingest pipeline.
+    
+    TEE Pipeline Architecture:
+    - Preview branch: Always-on streaming to MediaMTX
+    - Recording branch: Controlled via valve element
+    
+    When using TEE pipeline:
+    - is_tee_pipeline=True indicates TEE mode
+    - recording_active tracks whether valve is open (recording)
+    - recording_path stores the current recording file path
+    """
     cam_id: str
     device: str
     pipeline: Any = None  # Gst.Pipeline
@@ -53,6 +67,11 @@ class IngestPipeline:
     error_message: Optional[str] = None
     retry_count: int = 0
     last_signal_check: float = 0
+    # TEE pipeline recording state
+    is_tee_pipeline: bool = False
+    recording_active: bool = False
+    recording_path: Optional[str] = None
+    recording_start_time: Optional[float] = None
 
 
 class IngestManager:
@@ -198,18 +217,27 @@ class IngestManager:
             self._notify_status_change(cam_id)
             return False
         
-        # Build ingest pipeline
+        # Build pipeline - use TEE pipeline for simultaneous recording + preview
         try:
             rtsp_port = getattr(self.config, 'mediamtx_rtsp_port', 8554)
-            pipeline_str = build_ingest_pipeline_string(
+            
+            # Always use TEE pipeline for the new architecture
+            # This enables independent recording + preview with different bitrates
+            recording_path = self._generate_recording_path(cam_id, cam_config)
+            
+            pipeline_str = build_tee_recording_pipeline(
                 cam_id=cam_id,
                 device=device,
+                recording_path=recording_path,
+                recording_bitrate=cam_config.recording_bitrate,
+                preview_bitrate=cam_config.preview_bitrate,
                 resolution=cam_config.resolution,
-                bitrate=cam_config.bitrate,
                 rtsp_port=rtsp_port,
+                use_valve=True,  # Enable valve for recording control
             )
+            is_tee = True
             
-            logger.info(f"Starting ingest for {cam_id}: {pipeline_str}")
+            logger.info(f"Starting TEE pipeline for {cam_id}: {pipeline_str}")
             
             Gst = self._gst
             pipeline = Gst.parse_launch(pipeline_str)
@@ -259,8 +287,12 @@ class IngestManager:
                 pipeline_info.retry_count = 0
                 pipeline_info.resolution = (caps.get('width', 0), caps.get('height', 0))
                 pipeline_info.framerate = caps.get('framerate', 30)
+                # TEE pipeline state
+                pipeline_info.is_tee_pipeline = is_tee
+                pipeline_info.recording_path = recording_path if is_tee else None
+                pipeline_info.recording_active = False  # Valve starts closed
             
-            logger.info(f"Ingest started for {cam_id}: {caps.get('width')}x{caps.get('height')}")
+            logger.info(f"TEE pipeline started for {cam_id}: {caps.get('width')}x{caps.get('height')}, recording={recording_path}")
             self._notify_status_change(cam_id)
             
             # Start health check thread if not running
@@ -348,6 +380,206 @@ class IngestManager:
         for cam_id in list(self.pipelines.keys()):
             results[cam_id] = self.stop_ingest(cam_id)
         return results
+
+    # =========================================================================
+    # Recording Control (via TEE pipeline valve element)
+    # =========================================================================
+
+    def _generate_recording_path(self, cam_id: str, cam_config: CameraConfig) -> str:
+        """Generate recording file path with timestamp.
+        
+        Args:
+            cam_id: Camera identifier
+            cam_config: Camera configuration
+            
+        Returns:
+            Full path for recording file
+        """
+        # Get the base path from config, replacing placeholders
+        output_path = cam_config.output_path
+        
+        # Replace timestamp placeholder
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_path = output_path.replace("%Y%m%d_%H%M%S", timestamp)
+        output_path = output_path.replace("{timestamp}", timestamp)
+        output_path = output_path.replace("{cam_id}", cam_id)
+        
+        # Ensure directory exists
+        output_dir = Path(output_path).parent
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        return output_path
+
+    def start_recording(self, cam_id: str) -> bool:
+        """Start recording for a camera by opening the valve.
+        
+        The TEE pipeline must already be running. This method opens the
+        valve element to allow frames to flow to the recording branch.
+        
+        Args:
+            cam_id: Camera identifier
+            
+        Returns:
+            True if recording started successfully
+        """
+        with self._lock:
+            pipeline_info = self.pipelines.get(cam_id)
+            if not pipeline_info:
+                logger.error(f"Cannot start recording: {cam_id} not found")
+                return False
+            
+            if not pipeline_info.is_tee_pipeline:
+                logger.error(f"Cannot start recording: {cam_id} is not using TEE pipeline")
+                return False
+            
+            if pipeline_info.state != "streaming":
+                logger.error(f"Cannot start recording: {cam_id} is not streaming (state={pipeline_info.state})")
+                return False
+            
+            if pipeline_info.recording_active:
+                logger.warning(f"Recording already active for {cam_id}")
+                return True
+            
+            pipeline = pipeline_info.pipeline
+            if not pipeline:
+                logger.error(f"Cannot start recording: {cam_id} has no pipeline")
+                return False
+        
+        # Get the valve element and open it
+        try:
+            rec_valve = pipeline.get_by_name("rec_valve")
+            if not rec_valve:
+                logger.error(f"Cannot start recording: rec_valve not found in {cam_id} pipeline")
+                return False
+            
+            # Open the valve (stop dropping frames)
+            rec_valve.set_property("drop", False)
+            
+            with self._lock:
+                pipeline_info.recording_active = True
+                pipeline_info.recording_start_time = time.time()
+            
+            logger.info(f"Recording started for {cam_id}: {pipeline_info.recording_path}")
+            self._notify_status_change(cam_id)
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to start recording for {cam_id}: {e}")
+            return False
+
+    def stop_recording(self, cam_id: str) -> bool:
+        """Stop recording for a camera by closing the valve.
+        
+        This closes the valve to stop frames flowing to the recording branch.
+        The recording file will be finalized.
+        
+        Args:
+            cam_id: Camera identifier
+            
+        Returns:
+            True if recording stopped successfully
+        """
+        with self._lock:
+            pipeline_info = self.pipelines.get(cam_id)
+            if not pipeline_info:
+                logger.error(f"Cannot stop recording: {cam_id} not found")
+                return False
+            
+            if not pipeline_info.recording_active:
+                logger.warning(f"Recording not active for {cam_id}")
+                return True
+            
+            pipeline = pipeline_info.pipeline
+            if not pipeline:
+                logger.error(f"Cannot stop recording: {cam_id} has no pipeline")
+                return False
+        
+        try:
+            rec_valve = pipeline.get_by_name("rec_valve")
+            if not rec_valve:
+                logger.error(f"Cannot stop recording: rec_valve not found in {cam_id} pipeline")
+                return False
+            
+            # Close the valve (start dropping frames)
+            rec_valve.set_property("drop", True)
+            
+            # Calculate recording duration
+            duration = 0
+            if pipeline_info.recording_start_time:
+                duration = time.time() - pipeline_info.recording_start_time
+            
+            with self._lock:
+                pipeline_info.recording_active = False
+                pipeline_info.recording_start_time = None
+            
+            logger.info(f"Recording stopped for {cam_id}: {pipeline_info.recording_path} (duration: {duration:.1f}s)")
+            self._notify_status_change(cam_id)
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to stop recording for {cam_id}: {e}")
+            return False
+
+    def start_all_recordings(self) -> Dict[str, bool]:
+        """Start recording for all streaming cameras.
+        
+        Returns:
+            Dict mapping cam_id to success boolean
+        """
+        results = {}
+        for cam_id, pipeline_info in self.pipelines.items():
+            if pipeline_info.state == "streaming" and pipeline_info.is_tee_pipeline:
+                results[cam_id] = self.start_recording(cam_id)
+            else:
+                results[cam_id] = False
+        return results
+
+    def stop_all_recordings(self) -> Dict[str, bool]:
+        """Stop recording for all cameras.
+        
+        Returns:
+            Dict mapping cam_id to success boolean
+        """
+        results = {}
+        for cam_id, pipeline_info in self.pipelines.items():
+            if pipeline_info.recording_active:
+                results[cam_id] = self.stop_recording(cam_id)
+            else:
+                results[cam_id] = True  # Already stopped
+        return results
+
+    def get_recording_status(self, cam_id: str) -> Dict[str, Any]:
+        """Get recording status for a camera.
+        
+        Args:
+            cam_id: Camera identifier
+            
+        Returns:
+            Dict with recording status info
+        """
+        with self._lock:
+            pipeline_info = self.pipelines.get(cam_id)
+            if not pipeline_info:
+                return {"recording": False, "error": "Camera not found"}
+            
+            duration = 0
+            if pipeline_info.recording_active and pipeline_info.recording_start_time:
+                duration = time.time() - pipeline_info.recording_start_time
+            
+            return {
+                "recording": pipeline_info.recording_active,
+                "path": pipeline_info.recording_path,
+                "duration_seconds": duration,
+                "is_tee_pipeline": pipeline_info.is_tee_pipeline,
+            }
+
+    def get_all_recording_statuses(self) -> Dict[str, Dict[str, Any]]:
+        """Get recording status for all cameras.
+        
+        Returns:
+            Dict mapping cam_id to recording status
+        """
+        return {cam_id: self.get_recording_status(cam_id) for cam_id in self.pipelines.keys()}
 
     def get_pipeline_status(self, cam_id: str) -> Optional[IngestStatus]:
         """Get status for a specific pipeline.

@@ -67,11 +67,18 @@ mixer:
 #   HDMI N60 → /dev/video60 (hdmirx direct)
 #   HDMI N11 → /dev/video11 (rkcif-mipi-lvds1 via LT6911 4-002b bridge)
 #   HDMI N21 → /dev/video22 (rkcif-mipi-lvds2 via LT6911 2-002b bridge)
+#
+# TEE Pipeline Architecture (NEW):
+#   - Single RGA scale operation shared by both recording + preview branches
+#   - Recording: 1080p 18Mbps H.264 High profile → .mkv (DaVinci Resolve compatible)
+#   - Preview: 1080p 6Mbps H.264 Baseline → MediaMTX → WHEP
+#   - Recording can start/stop without affecting preview (valve element)
 cameras:
   cam0:
     device: /dev/video0  # HDMI N0 (rkcif via LT6911 bridge)
-    resolution: 1280x720  # 720p for lower CPU load (software conversion)
-    bitrate: 2500  # 2.5 Mbps for 720p
+    resolution: 1920x1080  # 1080p output (RGA hardware scaling from 4K)
+    recording_bitrate: 18000  # 18 Mbps for high-quality recording
+    preview_bitrate: 6000  # 6 Mbps for preview streaming
     codec: h264  # Hardware encoding via mpph264enc (VPU)
     output_path: /mnt/sdcard/recordings/cam0/recording_%Y%m%d_%H%M%S.mkv
     mediamtx_enabled: true
@@ -80,8 +87,9 @@ cameras:
 
   cam1:
     device: /dev/video60  # HDMI N60 (hdmirx direct)
-    resolution: 1280x720  # 720p for lower CPU load (software conversion)
-    bitrate: 2500  # 2.5 Mbps for 720p
+    resolution: 1920x1080  # 1080p output (RGA hardware scaling from 4K)
+    recording_bitrate: 18000  # 18 Mbps for high-quality recording
+    preview_bitrate: 6000  # 6 Mbps for preview streaming
     codec: h264  # Hardware encoding via mpph264enc (VPU)
     output_path: /mnt/sdcard/recordings/cam1/recording_%Y%m%d_%H%M%S.mkv
     mediamtx_enabled: true
@@ -90,8 +98,9 @@ cameras:
 
   cam2:
     device: /dev/video11  # HDMI N11 (rkcif via LT6911 bridge)
-    resolution: 1280x720  # 720p for lower CPU load (software conversion)
-    bitrate: 2500  # 2.5 Mbps for 720p
+    resolution: 1920x1080  # 1080p output (RGA hardware scaling from 4K)
+    recording_bitrate: 18000  # 18 Mbps for high-quality recording
+    preview_bitrate: 6000  # 6 Mbps for preview streaming
     codec: h264  # Hardware encoding via mpph264enc (VPU)
     output_path: /mnt/sdcard/recordings/cam2/recording_%Y%m%d_%H%M%S.mkv
     mediamtx_enabled: true
@@ -100,8 +109,9 @@ cameras:
 
   cam3:
     device: /dev/video22  # HDMI N21 (rkcif-mipi-lvds2 via LT6911 2-002b bridge)
-    resolution: 1280x720  # 720p for lower CPU load (software conversion)
-    bitrate: 2500  # 2.5 Mbps for 720p
+    resolution: 1920x1080  # 1080p output (RGA hardware scaling from 4K)
+    recording_bitrate: 18000  # 18 Mbps for high-quality recording
+    preview_bitrate: 6000  # 6 Mbps for preview streaming
     codec: h264  # Hardware encoding via mpph264enc (VPU)
     output_path: /mnt/sdcard/recordings/cam3/recording_%Y%m%d_%H%M%S.mkv
     mediamtx_enabled: true
@@ -109,12 +119,13 @@ cameras:
     enabled: true  # HDMI 3 - 4K camera connected
 
 # Recording configuration
+# Using MKV container for edit-while-record capability (DaVinci Resolve compatible)
 recording:
   enabled: true
   gop: 30  # Keyframe interval (frames) - 1 second at 30fps
-  fragmented: true  # Enable fragmented MP4 for growing file editing
-  fragment_duration: 1000  # Fragment size (ms)
-  filename_pattern: "{cam_id}_{timestamp}.mp4"
+  container: mkv  # MKV for edit-while-record, MP4 for final delivery
+  streamable: true  # Enable streamable MKV (matroskamux streamable=true)
+  filename_pattern: "{cam_id}_{timestamp}.mkv"
   min_disk_space_gb: 10  # Minimum disk space to start recording
   warning_disk_space_gb: 5  # Warning threshold during recording
 

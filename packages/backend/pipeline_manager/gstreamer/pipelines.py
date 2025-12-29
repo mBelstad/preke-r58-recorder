@@ -642,6 +642,171 @@ def build_ingest_pipeline_string(
     return pipeline_str
 
 
+def build_tee_recording_pipeline(
+    cam_id: str,
+    device: str,
+    recording_path: str,
+    recording_bitrate: int = 18000,   # 18 Mbps for quality recording
+    preview_bitrate: int = 6000,      # 6 Mbps for streaming
+    resolution: str = "1920x1080",
+    rtsp_port: int = 8554,
+    use_valve: bool = True,           # Enable valve for recording control
+) -> str:
+    """Build TEE pipeline with independent recording + always-on preview.
+    
+    This is the optimized architecture for simultaneous recording and preview:
+    - Single RGA scale operation (shared by both branches)
+    - Recording can start/stop without affecting preview (via valve element)
+    - .mkv container for edit-while-record (DaVinci Resolve compatible)
+    - Dual VPU H.264 encoding (different bitrates/profiles)
+    
+    Pipeline structure:
+        v4l2src (UYVY) → [RGA: videoscale] → [RGA: videoconvert NV12] → TEE
+                                                                        ├─→ Recording (18Mbps High) → .mkv
+                                                                        └─→ Preview (6Mbps Baseline) → RTSP
+    
+    Prerequisites:
+    - GST_VIDEO_CONVERT_USE_RGA=1 set before GStreamer import
+    - MediaMTX running on localhost:rtsp_port
+    - Device initialized (rkcif devices need format set via initialize_rkcif_device)
+    
+    Args:
+        cam_id: Camera identifier (used as RTSP path, e.g., "cam2")
+        device: V4L2 device path (e.g., "/dev/video11")
+        recording_path: Output file path for recording (should end in .mkv)
+        recording_bitrate: Bitrate for recording in kbps (default: 18000 = 18Mbps)
+        preview_bitrate: Bitrate for preview stream in kbps (default: 6000 = 6Mbps)
+        resolution: Target resolution "WxH" (default: 1920x1080)
+        rtsp_port: MediaMTX RTSP port (default: 8554)
+        use_valve: If True, include valve element to control recording (default: True)
+        
+    Returns:
+        GStreamer pipeline string
+        
+    Note:
+        When use_valve=True, recording starts paused (valve drop=true).
+        To start recording: pipeline.get_by_name('rec_valve').set_property('drop', False)
+        To stop recording: set drop=True, then send EOS to finalize the file
+    """
+    target_width, target_height = resolution.split("x")
+    target_width = int(target_width)
+    target_height = int(target_height)
+    
+    # Initialize device and get capabilities
+    if device in RKCIF_SUBDEV_MAP:
+        caps = initialize_rkcif_device(device)
+    else:
+        caps = get_device_capabilities(device)
+    
+    logger.info(f"Building TEE pipeline: {cam_id}, device={device}, caps={caps}, target={target_width}x{target_height}")
+    
+    if not caps.get('has_signal', False):
+        # No signal - return a test pattern pipeline
+        logger.warning(f"No signal on {device}, using black test pattern for TEE pipeline")
+        return _build_tee_test_pattern_pipeline(
+            cam_id, target_width, target_height,
+            recording_path, recording_bitrate, preview_bitrate,
+            rtsp_port, use_valve
+        )
+    
+    src_width = caps['width']
+    src_height = caps['height']
+    
+    logger.info(f"{cam_id}: TEE pipeline source {src_width}x{src_height} -> target {target_width}x{target_height}")
+    
+    # === SOURCE ===
+    # Capture UYVY 4:2:2 at native resolution for best quality from source
+    source = f"v4l2src device={device} io-mode=mmap ! video/x-raw,format=UYVY"
+    
+    # === SCALE + CONVERT (ONCE, shared by both branches) ===
+    # RGA handles scaling via GST_VIDEO_CONVERT_USE_RGA=1 env var
+    # Then convert UYVY→NV12 for encoders (also RGA-accelerated)
+    scale_convert = (
+        f"videoscale ! "
+        f"video/x-raw,width={target_width},height={target_height} ! "
+        f"videoconvert ! "
+        f"video/x-raw,format=NV12"
+    )
+    
+    # === RECORDING BRANCH ===
+    # High bitrate H.264 High profile for quality recording
+    # matroskamux for edit-while-record capability (DaVinci Resolve compatible)
+    valve_element = "valve name=rec_valve drop=true ! " if use_valve else ""
+    recording_branch = (
+        f"queue name=rec_queue max-size-buffers=60 max-size-time=0 "
+        f"max-size-bytes=0 leaky=downstream ! "
+        f"{valve_element}"
+        f"mpph264enc "
+        f"qp-init=20 qp-min=10 qp-max=35 "
+        f"gop=30 profile=high rc-mode=cbr "
+        f"bps={recording_bitrate * 1000} ! "
+        f"video/x-h264,stream-format=byte-stream ! "
+        f"h264parse config-interval=1 ! "
+        f"matroskamux streamable=true ! "
+        f"filesink location={recording_path} sync=false"
+    )
+    
+    # === PREVIEW BRANCH (Always On) ===
+    # Lower bitrate H.264 Baseline for streaming efficiency (browser compatible)
+    preview_branch = (
+        f"queue name=preview_queue max-size-buffers=30 max-size-time=0 "
+        f"max-size-bytes=0 leaky=downstream ! "
+        f"mpph264enc "
+        f"qp-init=26 qp-min=10 qp-max=51 "
+        f"gop=30 profile=baseline rc-mode=cbr "
+        f"bps={preview_bitrate * 1000} ! "
+        f"video/x-h264,stream-format=byte-stream ! "
+        f"h264parse config-interval=-1 ! "
+        f"rtspclientsink location=rtsp://127.0.0.1:{rtsp_port}/{cam_id} "
+        f"protocols=tcp latency=0"
+    )
+    
+    # === COMBINED PIPELINE ===
+    pipeline = (
+        f"{source} ! "
+        f"{scale_convert} ! "
+        f"tee name=t ! "
+        f"{recording_branch} "
+        f"t. ! {preview_branch}"
+    )
+    
+    return pipeline
+
+
+def _build_tee_test_pattern_pipeline(
+    cam_id: str,
+    width: int,
+    height: int,
+    recording_path: str,
+    recording_bitrate: int,
+    preview_bitrate: int,
+    rtsp_port: int,
+    use_valve: bool
+) -> str:
+    """Build TEE pipeline with test pattern when no signal is available."""
+    valve_element = "valve name=rec_valve drop=true ! " if use_valve else ""
+    
+    return (
+        f"videotestsrc pattern=black is-live=true ! "
+        f"video/x-raw,format=NV12,width={width},height={height},framerate=30/1 ! "
+        f"tee name=t ! "
+        # Recording branch
+        f"queue max-size-buffers=30 leaky=downstream ! "
+        f"{valve_element}"
+        f"mpph264enc qp-init=20 gop=30 profile=high bps={recording_bitrate * 1000} ! "
+        f"video/x-h264,stream-format=byte-stream ! "
+        f"h264parse config-interval=1 ! "
+        f"matroskamux streamable=true ! "
+        f"filesink location={recording_path} sync=false "
+        # Preview branch
+        f"t. ! queue max-size-buffers=30 leaky=downstream ! "
+        f"mpph264enc qp-init=26 gop=30 profile=baseline bps={preview_bitrate * 1000} ! "
+        f"video/x-h264,stream-format=byte-stream ! "
+        f"h264parse config-interval=-1 ! "
+        f"rtspclientsink location=rtsp://127.0.0.1:{rtsp_port}/{cam_id} protocols=tcp latency=0"
+    )
+
+
 def build_recording_pipeline_string(
     cam_id: str,
     device: str,
