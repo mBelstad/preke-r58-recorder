@@ -20,7 +20,7 @@ export const VDO_ROOM = 'studio'
  * VDO.ninja URL parameter profiles for each embed scenario
  */
 export const embedProfiles = {
-  // DIRECTOR VIEW - Full control panel for operator (no video previews)
+  // DIRECTOR VIEW - Full control panel for operator
   director: {
     base: '/',
     params: {
@@ -33,18 +33,16 @@ export const embedProfiles = {
     }
   },
   
-  // MIXER VIEW - Director view with video previews enabled
-  // Uses the main VDO.ninja director interface with previewmode
-  // This gives us: controls + video previews for each source
+  // MIXER VIEW - Alternative director view (same as director for now)
   mixer: {
     base: '/',
     params: {
       director: VDO_ROOM,
-      previewmode: true,      // Activates preview layout with video thumbnails
       hidesolo: true,
+      hideheader: true,
+      cleanoutput: true,
       darkmode: true,
       nologo: true,
-      api: 'r58api',          // API key for postMessage control
     }
   },
   

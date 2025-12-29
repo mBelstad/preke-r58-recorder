@@ -215,7 +215,7 @@ function openHotkeySettings() {
       <div class="flex-1 p-4">
         <VdoNinjaEmbed 
           ref="vdoEmbedRef"
-          profile="mixer"
+          profile="director"
           class="h-full"
         />
       </div>
