@@ -265,9 +265,9 @@ onMounted(() => {
       <div class="device-setup__card" :class="{ 'device-setup__card--wide': hasDevices }">
         <!-- Header with Logo -->
         <header class="device-setup__header">
-          <!-- Preke Logo -->
+          <!-- Preke Logo (white version for dark background) -->
           <div class="device-setup__logo-container">
-            <img src="/logo.svg" alt="Preke" class="device-setup__logo" />
+            <img src="/logo-white.svg" alt="Preke" class="device-setup__logo" />
           </div>
           
           <!-- Tagline -->
