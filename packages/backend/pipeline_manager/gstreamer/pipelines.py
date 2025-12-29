@@ -450,9 +450,9 @@ def build_source_pipeline(
         src_height = caps['height']
         src_fps = caps['framerate'] or 30
         
-        # For 4K sources, capture at a lower framerate to reduce memory pressure
+        # Capture at native framerate - with H.264-only encoding we can handle 4K@30fps
         is_4k = src_width > 1920 or src_height > 1080
-        capture_fps = min(src_fps, 15) if is_4k else src_fps
+        capture_fps = min(src_fps, 30)  # Cap at 30fps max
         
         if is_4k:
             logger.info(f"4K hdmirx source {device}: capturing at {capture_fps}fps, downscaling to {target_width}x{target_height}")
@@ -473,10 +473,10 @@ def build_source_pipeline(
         src_height = caps['height']
         src_fps = caps['framerate'] or 60
         
-        # For 4K sources, capture at a lower framerate to reduce memory pressure
-        # The R58 VPU struggles with multiple 4K@30fps encodes simultaneously
+        # Capture at native framerate - with H.264-only encoding we can handle 4K@30fps
+        # The VPU is stable with 4 simultaneous H.264 encoders
         is_4k = src_width > 1920 or src_height > 1080
-        capture_fps = min(src_fps, 15) if is_4k else src_fps
+        capture_fps = min(src_fps, 30)  # Cap at 30fps max
         
         if is_4k:
             logger.info(f"4K source {device}: capturing at {capture_fps}fps, downscaling to {target_width}x{target_height}")
