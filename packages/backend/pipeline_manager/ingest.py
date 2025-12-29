@@ -295,12 +295,14 @@ class IngestManager:
                 get_device_monitor().mark_pipeline_active(cam_id)
             except Exception as e:
                 logger.debug(f"Could not notify device monitor: {e}")
-                # TEE pipeline state
+            
+            # TEE pipeline state - set outside the try block
+            with self._lock:
                 pipeline_info.is_tee_pipeline = is_tee
                 pipeline_info.recording_path = recording_path if is_tee else None
-                pipeline_info.recording_active = False  # Valve starts closed
+                pipeline_info.recording_active = False  # Valve starts closed (recording off)
             
-            logger.info(f"TEE pipeline started for {cam_id}: {caps.get('width')}x{caps.get('height')}, recording={recording_path}")
+            logger.info(f"TEE pipeline started for {cam_id}: {caps.get('width')}x{caps.get('height')}, recording_path={recording_path}")
             self._notify_status_change(cam_id)
             
             # Start health check thread if not running

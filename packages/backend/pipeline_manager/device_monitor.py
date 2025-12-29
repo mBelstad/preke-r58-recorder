@@ -220,7 +220,7 @@ class DeviceMonitor:
                     'has_signal': has_signal,
                     'width': width,
                     'height': height,
-                    'format': 'UYVY',  # rkcif devices use UYVY (LT6911 bridges)
+                    'format': 'NV12',  # All devices now use NV12 (no videoconvert needed)
                 }
             else:
                 # hdmirx or other device - just get capabilities without init

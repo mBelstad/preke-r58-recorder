@@ -150,18 +150,19 @@ def initialize_rkcif_device(device_path: str) -> Dict[str, Any]:
             if width > 0 and height > 0:
                 logger.info(f"{device_path}: Subdev reports {width}x{height}, setting format")
                 
-                # Set format on video device - use UYVY which is native for LT6911 bridges
-                # This is what the original working code used (src/device_detection.py)
+                # Set format on video device - use NV12 which is supported by all devices
+                # NV12 goes directly to encoder without needing videoconvert
+                # All rkcif and hdmirx devices support NV12 (verified via v4l2-ctl --list-formats)
                 set_result = subprocess.run(
                     ["v4l2-ctl", "-d", device_path,
-                     f"--set-fmt-video=width={width},height={height},pixelformat=UYVY"],
+                     f"--set-fmt-video=width={width},height={height},pixelformat=NV12"],
                     capture_output=True, text=True, timeout=5
                 )
                 
                 if set_result.returncode != 0:
                     logger.warning(f"Failed to set format on {device_path}: {set_result.stderr}")
                 else:
-                    logger.info(f"{device_path}: Format set to {width}x{height} UYVY")
+                    logger.info(f"{device_path}: Format set to {width}x{height} NV12")
             else:
                 logger.warning(f"{device_path}: Subdev reports invalid resolution {width}x{height}")
         else:
@@ -346,13 +347,10 @@ def get_device_capabilities(device_path: str) -> Dict[str, Any]:
     """
     import subprocess
 
-    # Default format depends on device type:
-    # - rkcif devices (video0/11/22): UYVY (LT6911 bridges)
-    # - hdmirx device (video60): NV16
-    default_format = 'NV16' if 'video60' in device_path else 'UYVY'
-    
+    # All devices now use NV12 - supported by both rkcif and hdmirx
+    # NV12 goes directly to encoder without needing videoconvert
     result = {
-        'format': default_format,
+        'format': 'NV12',
         'width': 1920,
         'height': 1080,
         'framerate': 30,
@@ -678,20 +676,21 @@ def build_tee_recording_pipeline(
     """Build TEE pipeline with independent recording + always-on preview.
     
     This is the optimized architecture for simultaneous recording and preview:
-    - Single RGA scale operation (shared by both branches)
+    - NV12 captured directly from source (no videoconvert needed)
+    - RGA-accelerated videoscale (shared by both branches)
     - Recording can start/stop without affecting preview (via valve element)
     - .mkv container for edit-while-record (DaVinci Resolve compatible)
     - Dual VPU H.264 encoding (different bitrates/profiles)
     
     Pipeline structure:
-        v4l2src (UYVY) → [RGA: videoscale] → [RGA: videoconvert NV12] → TEE
-                                                                        ├─→ Recording (18Mbps High) → .mkv
-                                                                        └─→ Preview (6Mbps Baseline) → RTSP
+        v4l2src (NV12) → [RGA: videoscale 1080p] → TEE
+                                                    ├─→ Recording (18Mbps High) → .mkv
+                                                    └─→ Preview (6Mbps Baseline) → RTSP
     
     Prerequisites:
     - GST_VIDEO_CONVERT_USE_RGA=1 set before GStreamer import
     - MediaMTX running on localhost:rtsp_port
-    - Device initialized (rkcif devices need format set via initialize_rkcif_device)
+    - Device initialized with NV12 format (via initialize_rkcif_device)
     
     Args:
         cam_id: Camera identifier (used as RTSP path, e.g., "cam2")
@@ -734,25 +733,23 @@ def build_tee_recording_pipeline(
     
     src_width = caps['width']
     src_height = caps['height']
-    # Use actual format from device: UYVY for rkcif (LT6911), NV16 for hdmirx
-    src_format = caps.get('format', 'UYVY')
+    # All devices now use NV12 directly - no videoconvert needed
+    src_format = 'NV12'
     
-    logger.info(f"{cam_id}: TEE pipeline source {src_format} {src_width}x{src_height} -> target {target_width}x{target_height}")
+    logger.info(f"{cam_id}: TEE pipeline source NV12 {src_width}x{src_height} -> target {target_width}x{target_height}")
     
-    # === SOURCE + SCALE + CONVERT ===
-    # rkcif devices use UYVY (4:2:2), hdmirx uses NV16 (4:2:2)
-    # Both go through: videorate (30fps) → videoscale (RGA) → videoconvert (RGA) → NV12
+    # === SOURCE + SCALE (NV12 DIRECT) ===
+    # All devices capture NV12 directly, eliminating the videoconvert step
+    # NV12 goes straight to encoder after RGA-accelerated scaling
     # 
-    # The videorate element stabilizes framerate from variable sources
-    # RGA accelerates both videoscale and videoconvert (GST_VIDEO_CONVERT_USE_RGA=1)
-    source_and_convert = (
+    # Pipeline: v4l2src (NV12) → videorate (30fps) → videoscale (RGA) → encoder
+    # This is simpler and more efficient than UYVY→NV12 conversion
+    source_pipeline = (
         f"v4l2src device={device} io-mode=mmap ! "
-        f"video/x-raw,format={src_format},width={src_width},height={src_height} ! "
+        f"video/x-raw,format=NV12,width={src_width},height={src_height} ! "
         f"videorate ! video/x-raw,framerate=30/1 ! "
         f"videoscale ! "
-        f"video/x-raw,width={target_width},height={target_height} ! "
-        f"videoconvert ! "
-        f"video/x-raw,format=NV12"
+        f"video/x-raw,format=NV12,width={target_width},height={target_height}"
     )
     
     # === RECORDING BRANCH ===
@@ -790,7 +787,7 @@ def build_tee_recording_pipeline(
     
     # === COMBINED PIPELINE ===
     pipeline = (
-        f"{source_and_convert} ! "
+        f"{source_pipeline} ! "
         f"tee name=t ! "
         f"{recording_branch} "
         f"t. ! {preview_branch}"
