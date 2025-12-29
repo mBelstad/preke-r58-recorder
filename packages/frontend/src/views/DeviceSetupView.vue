@@ -1,9 +1,7 @@
 <script setup lang="ts">
 /**
  * Device Setup View
- * 
- * First-run screen for configuring device connections.
- * Professional branded experience for Preke Studio.
+ * Professional branded first-run experience for Preke Studio
  */
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
@@ -19,37 +17,23 @@ interface DeviceConfig {
 
 const router = useRouter()
 
-// State
 const devices = ref<DeviceConfig[]>([])
 const activeDeviceId = ref<string | null>(null)
 const isLoading = ref(false)
 const isTesting = ref(false)
 const testResult = ref<{ success: boolean; message: string } | null>(null)
-
-// Form state
 const showAddForm = ref(false)
 const newDeviceName = ref('')
 const newDeviceUrl = ref('')
 const formError = ref('')
-
-// Edit state
 const editingDevice = ref<DeviceConfig | null>(null)
 
-// Computed
 const hasDevices = computed(() => devices.value.length > 0)
-const activeDevice = computed(() => 
-  devices.value.find(d => d.id === activeDeviceId.value)
-)
-
-// Check if we're in Electron
+const activeDevice = computed(() => devices.value.find(d => d.id === activeDeviceId.value))
 const inElectron = computed(() => isElectron())
 
-/**
- * Load devices from Electron store
- */
 async function loadDevices() {
   if (!window.electronAPI) return
-  
   try {
     devices.value = await window.electronAPI.getDevices()
     const active = await window.electronAPI.getActiveDevice()
@@ -59,13 +43,9 @@ async function loadDevices() {
   }
 }
 
-/**
- * Test connection to a device URL
- */
 async function testConnection(url: string): Promise<{ success: boolean; message: string }> {
   isTesting.value = true
   testResult.value = null
-  
   try {
     const normalizedUrl = url.replace(/\/+$/, '')
     const response = await fetch(`${normalizedUrl}/api/v1/health`, {
@@ -73,13 +53,11 @@ async function testConnection(url: string): Promise<{ success: boolean; message:
       headers: { 'Accept': 'application/json' },
       signal: AbortSignal.timeout(10000),
     })
-    
     if (response.ok) {
       const data = await response.json()
       return { success: true, message: `Connected! Status: ${data.status || 'OK'}` }
-    } else {
-      return { success: false, message: `HTTP ${response.status}: ${response.statusText}` }
     }
+    return { success: false, message: `HTTP ${response.status}: ${response.statusText}` }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Connection failed'
     return { success: false, message: message.includes('timeout') ? 'Connection timed out' : message }
@@ -88,67 +66,38 @@ async function testConnection(url: string): Promise<{ success: boolean; message:
   }
 }
 
-/**
- * Add a new device
- */
 async function addDevice() {
   if (!window.electronAPI) return
-  
   formError.value = ''
-  
   if (!newDeviceUrl.value.trim()) {
     formError.value = 'Device URL is required'
     return
   }
-  
-  try {
-    new URL(newDeviceUrl.value)
-  } catch {
-    formError.value = 'Invalid URL format. Use http:// or https://'
+  try { new URL(newDeviceUrl.value) } catch {
+    formError.value = 'Invalid URL format'
     return
   }
-  
   isLoading.value = true
-  
   try {
     const result = await testConnection(newDeviceUrl.value)
     testResult.value = result
-    
-    if (!result.success) {
-      formError.value = 'Connection failed. You can still save for later.'
-    }
-    
-    const device = await window.electronAPI.addDevice(
-      newDeviceName.value.trim() || 'Preke Device',
-      newDeviceUrl.value.trim()
-    )
-    
+    if (!result.success) formError.value = 'Connection failed. You can still save for later.'
+    const device = await window.electronAPI.addDevice(newDeviceName.value.trim() || 'Preke Device', newDeviceUrl.value.trim())
     await loadDevices()
-    
-    if (devices.value.length === 1) {
-      await selectDevice(device.id)
-    }
-    
+    if (devices.value.length === 1) await selectDevice(device.id)
     newDeviceName.value = ''
     newDeviceUrl.value = ''
     showAddForm.value = false
     testResult.value = null
-    
   } catch (error) {
-    console.error('Failed to add device:', error)
-    formError.value = 'Failed to save device configuration'
+    formError.value = 'Failed to save device'
   } finally {
     isLoading.value = false
   }
 }
 
-/**
- * Remove a device
- */
 async function removeDevice(deviceId: string) {
-  if (!window.electronAPI) return
-  if (!confirm('Remove this device?')) return
-  
+  if (!window.electronAPI || !confirm('Remove this device?')) return
   try {
     await window.electronAPI.removeDevice(deviceId)
     await loadDevices()
@@ -157,23 +106,14 @@ async function removeDevice(deviceId: string) {
   }
 }
 
-/**
- * Select and connect to a device
- */
 async function selectDevice(deviceId: string) {
   if (!window.electronAPI) return
-  
   isLoading.value = true
-  
   try {
     await window.electronAPI.setActiveDevice(deviceId)
     activeDeviceId.value = deviceId
-    
     const device = devices.value.find(d => d.id === deviceId)
-    if (device) {
-      setDeviceUrl(device.url)
-    }
-    
+    if (device) setDeviceUrl(device.url)
     router.push('/')
   } catch (error) {
     console.error('Failed to select device:', error)
@@ -182,18 +122,12 @@ async function selectDevice(deviceId: string) {
   }
 }
 
-function startEdit(device: DeviceConfig) {
-  editingDevice.value = { ...device }
-}
+function startEdit(device: DeviceConfig) { editingDevice.value = { ...device } }
 
 async function saveEdit() {
   if (!window.electronAPI || !editingDevice.value) return
-  
   try {
-    await window.electronAPI.updateDevice(editingDevice.value.id, {
-      name: editingDevice.value.name,
-      url: editingDevice.value.url,
-    })
+    await window.electronAPI.updateDevice(editingDevice.value.id, { name: editingDevice.value.name, url: editingDevice.value.url })
     await loadDevices()
     editingDevice.value = null
   } catch (error) {
@@ -201,863 +135,573 @@ async function saveEdit() {
   }
 }
 
-function cancelEdit() {
-  editingDevice.value = null
-}
+function cancelEdit() { editingDevice.value = null }
+function goBack() { if (activeDevice.value) router.push('/') }
 
-function goBack() {
-  if (activeDevice.value) {
-    router.push('/')
-  }
-}
-
-onMounted(() => {
-  loadDevices()
-})
+onMounted(() => loadDevices())
 </script>
 
 <template>
-  <div class="setup">
-    <!-- Background layers -->
-    <div class="setup__bg">
-      <div class="setup__bg-gradient" />
-      <div class="setup__bg-texture" />
-      <div class="setup__bg-glow setup__bg-glow--top" />
-      <div class="setup__bg-glow setup__bg-glow--bottom" />
+  <div class="page">
+    <!-- Layered background -->
+    <div class="page__bg">
+      <div class="page__bg-base" />
+      <div class="page__bg-texture" />
+      <div class="page__bg-gradient" />
     </div>
     
-    <div class="setup__container">
-      <!-- Hero Section with Logo -->
-      <header class="setup__hero">
-        <div class="setup__logo-wrapper">
-          <img src="/logo-white.svg" alt="Preke" class="setup__logo" />
-        </div>
+    <div class="page__content">
+      <!-- Hero: Large Logo -->
+      <header class="hero">
+        <img src="/logo-white.svg" alt="Preke" class="hero__logo" />
         
-        <!-- 3D Soundwave -->
-        <div class="setup__wave-container">
-          <div class="setup__wave">
-            <span v-for="i in 24" :key="i" class="setup__wave-bar" :style="{ '--i': i }" />
-          </div>
+        <!-- Subtle animated soundwave -->
+        <div class="hero__wave">
+          <span v-for="i in 32" :key="i" class="hero__bar" :style="{ '--i': i }" />
         </div>
       </header>
       
-      <!-- Main Content Card -->
-      <main class="setup__card" :class="{ 'setup__card--wide': hasDevices }">
-        <!-- Welcome Text (only on first run) -->
-        <div v-if="!hasDevices && !showAddForm" class="setup__welcome">
-          <h1 class="setup__title">Welcome</h1>
-          <p class="setup__subtitle">Connect your first device to get started</p>
-        </div>
+      <!-- Main Card -->
+      <main class="card" :class="{ 'card--wide': hasDevices }">
+        <!-- First run welcome -->
+        <template v-if="!hasDevices && !showAddForm">
+          <p class="card__intro">Connect your first device to get started</p>
+        </template>
         
-        <!-- Devices Header (when devices exist) -->
-        <div v-if="hasDevices && !showAddForm" class="setup__section-header">
-          <h2 class="setup__section-title">Your Devices</h2>
-        </div>
+        <!-- Devices list header -->
+        <h2 v-if="hasDevices && !showAddForm" class="card__heading">Your Devices</h2>
 
         <!-- Device List -->
-        <div v-if="hasDevices && !showAddForm" class="setup__devices">
-          <div 
-            v-for="device in devices" 
-            :key="device.id"
-            class="setup__device"
-            :class="{ 'setup__device--active': device.id === activeDeviceId }"
-          >
-            <!-- Edit Mode -->
-            <div v-if="editingDevice?.id === device.id" class="setup__device-edit">
-              <input v-model="editingDevice.name" type="text" placeholder="Device name" class="setup__input" />
-              <input v-model="editingDevice.url" type="url" placeholder="Device URL" class="setup__input" />
-              <div class="setup__device-edit-actions">
-                <button @click="saveEdit" class="setup__btn setup__btn--primary setup__btn--sm">Save</button>
-                <button @click="cancelEdit" class="setup__btn setup__btn--ghost setup__btn--sm">Cancel</button>
+        <div v-if="hasDevices && !showAddForm" class="devices">
+          <div v-for="device in devices" :key="device.id" class="device" :class="{ 'device--active': device.id === activeDeviceId }">
+            <template v-if="editingDevice?.id === device.id">
+              <input v-model="editingDevice.name" type="text" placeholder="Name" class="input" />
+              <input v-model="editingDevice.url" type="url" placeholder="URL" class="input" />
+              <div class="device__edit-btns">
+                <button @click="saveEdit" class="btn btn--primary btn--sm">Save</button>
+                <button @click="cancelEdit" class="btn btn--ghost btn--sm">Cancel</button>
               </div>
-            </div>
-
-            <!-- View Mode -->
-            <div v-else class="setup__device-row">
-              <div class="setup__device-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                  <rect x="2" y="3" width="20" height="14" rx="2" />
-                  <path d="M8 21h8M12 17v4" />
-                </svg>
+            </template>
+            <template v-else>
+              <div class="device__icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2" /><path d="M8 21h8M12 17v4" /></svg>
               </div>
-              <div class="setup__device-info">
-                <div class="setup__device-name-row">
-                  <span class="setup__device-name">{{ device.name }}</span>
-                  <span v-if="device.id === activeDeviceId" class="setup__badge">Connected</span>
-                </div>
-                <span class="setup__device-url">{{ device.url }}</span>
+              <div class="device__info">
+                <span class="device__name">{{ device.name }}</span>
+                <span v-if="device.id === activeDeviceId" class="device__badge">Connected</span>
+                <span class="device__url">{{ device.url }}</span>
               </div>
-              <div class="setup__device-actions">
-                <button 
-                  v-if="device.id !== activeDeviceId"
-                  @click="selectDevice(device.id)"
-                  :disabled="isLoading"
-                  class="setup__btn setup__btn--primary"
-                >
-                  Connect
-                </button>
-                <button 
-                  v-else
-                  @click="goBack"
-                  class="setup__btn setup__btn--success"
-                >
-                  Open Studio
-                </button>
-                <button @click="startEdit(device)" class="setup__icon-btn" title="Edit">
-                  <svg viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                  </svg>
-                </button>
-                <button @click="removeDevice(device.id)" class="setup__icon-btn setup__icon-btn--danger" title="Remove">
-                  <svg viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
-                  </svg>
-                </button>
+              <div class="device__actions">
+                <button v-if="device.id !== activeDeviceId" @click="selectDevice(device.id)" :disabled="isLoading" class="btn btn--primary">Connect</button>
+                <button v-else @click="goBack" class="btn btn--success">Open Studio</button>
+                <button @click="startEdit(device)" class="icon-btn" title="Edit"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" /></svg></button>
+                <button @click="removeDevice(device.id)" class="icon-btn icon-btn--danger" title="Remove"><svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg></button>
               </div>
-            </div>
+            </template>
           </div>
-          
-          <!-- Add device button -->
-          <button @click="showAddForm = true" class="setup__add-device">
-            <svg viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
-            </svg>
-            <span>Add Device</span>
+          <button @click="showAddForm = true" class="add-btn">
+            <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" /></svg>
+            Add Device
           </button>
         </div>
 
-        <!-- Add Device Form -->
-        <div v-if="showAddForm || !hasDevices" class="setup__form">
-          <h3 v-if="hasDevices" class="setup__form-title">Add New Device</h3>
+        <!-- Add/Edit Form -->
+        <form v-if="showAddForm || !hasDevices" @submit.prevent="addDevice" class="form">
+          <h3 v-if="hasDevices" class="form__title">Add Device</h3>
           
-          <div class="setup__field">
-            <label class="setup__label">Device Name <span class="setup__label-opt">(optional)</span></label>
-            <input 
-              v-model="newDeviceName"
-              type="text"
-              placeholder="e.g., Studio Recorder"
-              class="setup__input"
-            />
-          </div>
+          <label class="field">
+            <span class="field__label">Name <span class="field__opt">(optional)</span></span>
+            <input v-model="newDeviceName" type="text" placeholder="e.g., Studio Recorder" class="input" />
+          </label>
           
-          <div class="setup__field">
-            <label class="setup__label">Device URL <span class="setup__label-req">*</span></label>
-            <input 
-              v-model="newDeviceUrl"
-              type="url"
-              placeholder="https://r58-api.itagenten.no"
-              class="setup__input"
-              :class="{ 'setup__input--error': formError }"
-            />
-            <span v-if="formError" class="setup__error">{{ formError }}</span>
+          <label class="field">
+            <span class="field__label">URL <span class="field__req">*</span></span>
+            <input v-model="newDeviceUrl" type="url" placeholder="https://r58-api.itagenten.no" class="input" :class="{ 'input--error': formError }" />
+            <span v-if="formError" class="field__error">{{ formError }}</span>
+          </label>
+
+          <div v-if="testResult" class="result" :class="testResult.success ? 'result--success' : 'result--error'">
+            <svg v-if="testResult.success" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
+            <svg v-else viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" /></svg>
+            {{ testResult.message }}
           </div>
 
-          <!-- Test Result -->
-          <div 
-            v-if="testResult"
-            class="setup__result"
-            :class="testResult.success ? 'setup__result--success' : 'setup__result--error'"
-          >
-            <svg v-if="testResult.success" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-            </svg>
-            <svg v-else viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
-            </svg>
-            <span>{{ testResult.message }}</span>
-          </div>
-
-          <div class="setup__form-actions">
-            <button 
-              @click="addDevice"
-              :disabled="isLoading || isTesting"
-              class="setup__btn setup__btn--primary setup__btn--lg"
-            >
-              <svg v-if="isLoading || isTesting" class="setup__spinner" viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" opacity="0.25" />
-                <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" opacity="0.75" />
-              </svg>
-              <span>{{ isTesting ? 'Testing...' : 'Connect Device' }}</span>
+          <div class="form__actions">
+            <button type="submit" :disabled="isLoading || isTesting" class="btn btn--primary btn--lg">
+              <svg v-if="isLoading || isTesting" class="spinner" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" opacity="0.25" /><path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" opacity="0.75" /></svg>
+              {{ isTesting ? 'Testing...' : 'Connect Device' }}
             </button>
-            
-            <button v-if="hasDevices" @click="showAddForm = false; testResult = null; formError = ''" class="setup__btn setup__btn--ghost">
-              Cancel
-            </button>
+            <button v-if="hasDevices" type="button" @click="showAddForm = false; testResult = null; formError = ''" class="btn btn--ghost">Cancel</button>
           </div>
-        </div>
+        </form>
 
-        <!-- Not in Electron Warning -->
-        <div v-if="!inElectron" class="setup__warning">
-          <svg viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
-          </svg>
-          <span>Device management requires the <strong>Preke Studio</strong> desktop app.</span>
+        <div v-if="!inElectron" class="warning">
+          <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>
+          Device management requires the <strong>Preke Studio</strong> desktop app.
         </div>
       </main>
       
-      <!-- Footer -->
-      <footer class="setup__footer">
-        <span>Preke Studio</span>
-        <span class="setup__footer-dot">•</span>
-        <span>Desktop v2.0</span>
-      </footer>
+      <footer class="footer">Preke Studio · Desktop v2.0</footer>
     </div>
   </div>
 </template>
 
 <style scoped>
-/* ============================================
-   DESIGN TOKENS
-   ============================================ */
-.setup {
+/* ═══════════════════════════════════════════
+   TOKENS
+   ═══════════════════════════════════════════ */
+.page {
   --gold: #d9981e;
   --gold-light: #f5c842;
-  --gold-glow: rgba(217, 152, 30, 0.4);
-  --dark-base: #070b14;
-  --dark-card: rgba(15, 23, 42, 0.85);
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
+  --gold-glow: rgba(217, 152, 30, 0.35);
+  --bg-dark: #05080f;
+  --bg-card: rgba(12, 18, 30, 0.92);
+  --border: rgba(255, 255, 255, 0.07);
+  --text: #f1f5f9;
+  --text-dim: #94a3b8;
   --text-muted: #64748b;
   --blue: #3b82f6;
   --green: #10b981;
   --red: #ef4444;
 }
 
-/* ============================================
-   LAYOUT
-   ============================================ */
-.setup {
+/* ═══════════════════════════════════════════
+   PAGE LAYOUT
+   ═══════════════════════════════════════════ */
+.page {
   min-height: 100vh;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 2rem;
   position: relative;
-  overflow: hidden;
 }
 
-.setup__container {
+.page__content {
   position: relative;
   z-index: 1;
   width: 100%;
-  max-width: 420px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1.5rem;
-  animation: fadeIn 0.8s ease-out;
-}
-
-/* ============================================
-   BACKGROUND
-   ============================================ */
-.setup__bg {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  background: var(--dark-base);
-}
-
-.setup__bg-gradient {
-  position: absolute;
-  inset: 0;
-  background: 
-    radial-gradient(ellipse 100% 60% at 50% 0%, rgba(59, 130, 246, 0.12), transparent 50%),
-    radial-gradient(ellipse 80% 50% at 100% 100%, rgba(217, 152, 30, 0.08), transparent 50%);
-}
-
-.setup__bg-texture {
-  position: absolute;
-  inset: 0;
-  opacity: 0.02;
-  background-image: 
-    linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
-  background-size: 40px 40px;
-  /* Ready for texture: uncomment when background_image.webp is added */
-  /* background-image: url('/background_image.webp');
-  background-size: 300px;
-  opacity: 0.03; */
-}
-
-.setup__bg-glow {
-  position: absolute;
-  width: 600px;
-  height: 600px;
-  border-radius: 50%;
-  filter: blur(120px);
-  pointer-events: none;
-}
-
-.setup__bg-glow--top {
-  top: -300px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: radial-gradient(circle, rgba(59, 130, 246, 0.15), transparent 70%);
-}
-
-.setup__bg-glow--bottom {
-  bottom: -300px;
-  right: -200px;
-  background: radial-gradient(circle, var(--gold-glow), transparent 70%);
-  opacity: 0.5;
-}
-
-/* ============================================
-   HERO SECTION (Logo + Wave)
-   ============================================ */
-.setup__hero {
+  max-width: 400px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 2rem;
+  animation: fadeUp 0.7s ease-out;
 }
 
-.setup__logo-wrapper {
-  position: relative;
+/* ═══════════════════════════════════════════
+   BACKGROUND LAYERS
+   ═══════════════════════════════════════════ */
+.page__bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
 }
 
-.setup__logo {
-  height: 80px;
-  width: auto;
-  filter: drop-shadow(0 4px 24px rgba(255, 255, 255, 0.1));
+.page__bg-base {
+  position: absolute;
+  inset: 0;
+  background: var(--bg-dark);
 }
 
-/* ============================================
-   3D SOUNDWAVE
-   ============================================ */
-.setup__wave-container {
-  perspective: 500px;
-  height: 48px;
+.page__bg-texture {
+  position: absolute;
+  inset: 0;
+  background-image: url('/background_image.webp');
+  background-size: 400px;
+  opacity: 0.04;
 }
 
-.setup__wave {
+.page__bg-gradient {
+  position: absolute;
+  inset: 0;
+  background: 
+    radial-gradient(ellipse 120% 60% at 50% -10%, rgba(59, 130, 246, 0.08), transparent 60%),
+    radial-gradient(ellipse 80% 60% at 90% 100%, rgba(217, 152, 30, 0.06), transparent 50%),
+    linear-gradient(180deg, transparent, rgba(5, 8, 15, 0.8));
+}
+
+/* ═══════════════════════════════════════════
+   HERO: LARGE LOGO + SUBTLE WAVE
+   ═══════════════════════════════════════════ */
+.hero {
   display: flex;
+  flex-direction: column;
   align-items: center;
+  gap: 1.5rem;
+}
+
+.hero__logo {
+  height: 120px;
+  width: auto;
+  filter: drop-shadow(0 8px 32px rgba(255, 255, 255, 0.08));
+  animation: logoFade 1s ease-out;
+}
+
+/* Subtle, elegant soundwave */
+.hero__wave {
+  display: flex;
+  align-items: flex-end;
   justify-content: center;
-  gap: 3px;
-  height: 100%;
-  transform: rotateX(25deg);
-  transform-style: preserve-3d;
+  gap: 2px;
+  height: 20px;
+  opacity: 0.7;
 }
 
-.setup__wave-bar {
-  --delay: calc(var(--i) * 0.05s);
-  --height: 8px;
+.hero__bar {
+  --delay: calc(var(--i) * 0.08s);
   display: block;
-  width: 3px;
-  height: var(--height);
-  background: linear-gradient(180deg, var(--gold-light), var(--gold));
-  border-radius: 2px;
-  transform-origin: center bottom;
-  animation: wave3d 1.4s ease-in-out infinite;
+  width: 2px;
+  background: linear-gradient(0deg, var(--gold) 0%, var(--gold-light) 100%);
+  border-radius: 1px;
+  animation: gentleWave 2.5s ease-in-out infinite;
   animation-delay: var(--delay);
-  box-shadow: 
-    0 0 8px var(--gold-glow),
-    0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
-/* Create varying heights for visual interest */
-.setup__wave-bar:nth-child(1), .setup__wave-bar:nth-child(24) { --height: 6px; }
-.setup__wave-bar:nth-child(2), .setup__wave-bar:nth-child(23) { --height: 10px; }
-.setup__wave-bar:nth-child(3), .setup__wave-bar:nth-child(22) { --height: 14px; }
-.setup__wave-bar:nth-child(4), .setup__wave-bar:nth-child(21) { --height: 20px; }
-.setup__wave-bar:nth-child(5), .setup__wave-bar:nth-child(20) { --height: 26px; }
-.setup__wave-bar:nth-child(6), .setup__wave-bar:nth-child(19) { --height: 32px; }
-.setup__wave-bar:nth-child(7), .setup__wave-bar:nth-child(18) { --height: 36px; }
-.setup__wave-bar:nth-child(8), .setup__wave-bar:nth-child(17) { --height: 40px; }
-.setup__wave-bar:nth-child(9), .setup__wave-bar:nth-child(16) { --height: 44px; }
-.setup__wave-bar:nth-child(10), .setup__wave-bar:nth-child(15) { --height: 46px; }
-.setup__wave-bar:nth-child(11), .setup__wave-bar:nth-child(14) { --height: 48px; }
-.setup__wave-bar:nth-child(12), .setup__wave-bar:nth-child(13) { --height: 48px; }
+/* Create smooth wave pattern */
+.hero__bar:nth-child(1), .hero__bar:nth-child(32) { height: 3px; }
+.hero__bar:nth-child(2), .hero__bar:nth-child(31) { height: 4px; }
+.hero__bar:nth-child(3), .hero__bar:nth-child(30) { height: 5px; }
+.hero__bar:nth-child(4), .hero__bar:nth-child(29) { height: 6px; }
+.hero__bar:nth-child(5), .hero__bar:nth-child(28) { height: 8px; }
+.hero__bar:nth-child(6), .hero__bar:nth-child(27) { height: 9px; }
+.hero__bar:nth-child(7), .hero__bar:nth-child(26) { height: 11px; }
+.hero__bar:nth-child(8), .hero__bar:nth-child(25) { height: 13px; }
+.hero__bar:nth-child(9), .hero__bar:nth-child(24) { height: 14px; }
+.hero__bar:nth-child(10), .hero__bar:nth-child(23) { height: 16px; }
+.hero__bar:nth-child(11), .hero__bar:nth-child(22) { height: 17px; }
+.hero__bar:nth-child(12), .hero__bar:nth-child(21) { height: 18px; }
+.hero__bar:nth-child(13), .hero__bar:nth-child(20) { height: 19px; }
+.hero__bar:nth-child(14), .hero__bar:nth-child(19) { height: 20px; }
+.hero__bar:nth-child(15), .hero__bar:nth-child(18) { height: 20px; }
+.hero__bar:nth-child(16), .hero__bar:nth-child(17) { height: 20px; }
 
-@keyframes wave3d {
+@keyframes gentleWave {
   0%, 100% {
-    transform: scaleY(0.4) translateZ(0);
-    opacity: 0.6;
+    transform: scaleY(0.5);
+    opacity: 0.5;
   }
   50% {
-    transform: scaleY(1) translateZ(10px);
+    transform: scaleY(1);
     opacity: 1;
   }
 }
 
-/* ============================================
+@keyframes logoFade {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* ═══════════════════════════════════════════
    CARD
-   ============================================ */
-.setup__card {
+   ═══════════════════════════════════════════ */
+.card {
   width: 100%;
-  background: var(--dark-card);
-  backdrop-filter: blur(24px);
-  border: 1px solid var(--border-subtle);
-  border-radius: 20px;
-  padding: 2rem;
-  box-shadow: 
-    0 25px 50px -12px rgba(0, 0, 0, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  background: var(--bg-card);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 1.75rem;
+  box-shadow: 0 20px 50px -15px rgba(0, 0, 0, 0.5);
 }
 
-.setup__card--wide {
-  max-width: 520px;
-}
+.card--wide { max-width: 480px; }
 
-/* ============================================
-   WELCOME SECTION
-   ============================================ */
-.setup__welcome {
+.card__intro {
   text-align: center;
-  margin-bottom: 2rem;
-}
-
-.setup__title {
-  font-size: 1.75rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: 0.5rem;
-}
-
-.setup__subtitle {
+  color: var(--text-dim);
   font-size: 0.9375rem;
-  color: var(--text-secondary);
+  margin-bottom: 1.5rem;
 }
 
-/* ============================================
-   SECTION HEADERS
-   ============================================ */
-.setup__section-header {
+.card__heading {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text);
   margin-bottom: 1rem;
 }
 
-.setup__section-title {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-/* ============================================
-   DEVICES LIST
-   ============================================ */
-.setup__devices {
+/* ═══════════════════════════════════════════
+   DEVICES
+   ═══════════════════════════════════════════ */
+.devices {
   display: flex;
   flex-direction: column;
+  gap: 0.625rem;
+}
+
+.device {
+  display: flex;
+  align-items: center;
   gap: 0.75rem;
-}
-
-.setup__device {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--border-subtle);
-  border-radius: 12px;
-  padding: 1rem;
-  transition: all 0.2s ease;
-}
-
-.setup__device:hover {
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.setup__device--active {
-  border-color: var(--gold);
-  background: rgba(217, 152, 30, 0.08);
-}
-
-.setup__device-row {
-  display: flex;
-  align-items: center;
-  gap: 0.875rem;
-}
-
-.setup__device-icon {
-  width: 40px;
-  height: 40px;
+  flex-wrap: wrap;
+  padding: 0.875rem;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--border);
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.05);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  transition: all 0.15s;
+}
+
+.device:hover { background: rgba(255, 255, 255, 0.04); }
+
+.device--active {
+  border-color: var(--gold);
+  background: rgba(217, 152, 30, 0.06);
+}
+
+.device__icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  display: grid;
+  place-items: center;
   flex-shrink: 0;
 }
 
-.setup__device-icon svg {
-  width: 22px;
-  height: 22px;
-  color: var(--text-secondary);
+.device__icon svg {
+  width: 20px;
+  height: 20px;
+  color: var(--text-muted);
 }
 
-.setup__device--active .setup__device-icon {
-  background: rgba(217, 152, 30, 0.2);
-}
+.device--active .device__icon { background: rgba(217, 152, 30, 0.15); }
+.device--active .device__icon svg { color: var(--gold); }
 
-.setup__device--active .setup__device-icon svg {
-  color: var(--gold);
-}
-
-.setup__device-info {
+.device__info {
   flex: 1;
   min-width: 0;
-}
-
-.setup__device-name-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.375rem 0.5rem;
 }
 
-.setup__device-name {
-  font-size: 0.9375rem;
+.device__name {
+  font-size: 0.875rem;
   font-weight: 500;
-  color: var(--text-primary);
+  color: var(--text);
 }
 
-.setup__device-url {
-  font-size: 0.8125rem;
+.device__badge {
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.125rem 0.375rem;
+  border-radius: 999px;
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--green);
+}
+
+.device__url {
+  width: 100%;
+  font-size: 0.75rem;
   color: var(--text-muted);
-  display: block;
-  margin-top: 0.125rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.setup__badge {
-  padding: 0.125rem 0.5rem;
-  border-radius: 999px;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  background: rgba(16, 185, 129, 0.2);
-  color: var(--green);
-}
-
-.setup__device-actions {
+.device__actions {
   display: flex;
-  align-items: center;
   gap: 0.375rem;
   flex-shrink: 0;
 }
 
-.setup__device-edit {
-  display: flex;
-  flex-direction: column;
-  gap: 0.625rem;
-}
-
-.setup__device-edit-actions {
+.device__edit-btns {
+  width: 100%;
   display: flex;
   gap: 0.5rem;
+  margin-top: 0.5rem;
 }
 
-.setup__add-device {
+.add-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  padding: 0.75rem;
-  margin-top: 0.5rem;
+  gap: 0.375rem;
+  padding: 0.625rem;
+  margin-top: 0.375rem;
   background: transparent;
-  border: 1px dashed rgba(255, 255, 255, 0.15);
-  border-radius: 12px;
-  color: var(--text-secondary);
-  font-size: 0.875rem;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.15s;
 }
 
-.setup__add-device:hover {
+.add-btn:hover {
   border-color: var(--gold);
   color: var(--gold);
-  background: rgba(217, 152, 30, 0.05);
+  background: rgba(217, 152, 30, 0.04);
 }
 
-.setup__add-device svg {
-  width: 16px;
-  height: 16px;
-}
+.add-btn svg { width: 14px; height: 14px; }
 
-/* ============================================
+/* ═══════════════════════════════════════════
    FORM
-   ============================================ */
-.setup__form {
+   ═══════════════════════════════════════════ */
+.form {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 1rem;
 }
 
-.setup__form-title {
-  font-size: 1rem;
-  font-weight: 500;
-  color: var(--text-primary);
-  margin-bottom: 0.25rem;
-}
-
-.setup__field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.375rem;
-}
-
-.setup__label {
-  font-size: 0.8125rem;
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-.setup__label-opt {
-  font-weight: 400;
-  color: var(--text-muted);
-}
-
-.setup__label-req {
-  color: var(--gold);
-}
-
-.setup__input {
-  width: 100%;
-  padding: 0.75rem 1rem;
+.form__title {
   font-size: 0.9375rem;
-  color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--border-subtle);
-  border-radius: 10px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.form__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  margin-top: 0.5rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.field__label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.field__opt { color: var(--text-muted); font-weight: 400; }
+.field__req { color: var(--gold); }
+.field__error { font-size: 0.75rem; color: var(--red); }
+
+.input {
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  font-size: 0.875rem;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  border-radius: 8px;
   outline: none;
-  transition: all 0.15s ease;
+  transition: all 0.15s;
 }
 
-.setup__input::placeholder {
-  color: var(--text-muted);
-}
+.input::placeholder { color: var(--text-muted); }
+.input:focus { border-color: var(--blue); box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15); }
+.input--error { border-color: var(--red); }
 
-.setup__input:focus {
-  border-color: var(--blue);
-  background: rgba(255, 255, 255, 0.08);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
-}
-
-.setup__input--error {
-  border-color: var(--red);
-}
-
-.setup__error {
-  font-size: 0.8125rem;
-  color: var(--red);
-}
-
-.setup__result {
+.result {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.75rem;
-  border-radius: 10px;
-  font-size: 0.875rem;
+  padding: 0.625rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.8125rem;
 }
 
-.setup__result svg {
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
-}
+.result svg { width: 16px; height: 16px; flex-shrink: 0; }
+.result--success { background: rgba(16, 185, 129, 0.1); color: var(--green); }
+.result--error { background: rgba(239, 68, 68, 0.1); color: var(--red); }
 
-.setup__result--success {
-  background: rgba(16, 185, 129, 0.1);
-  color: var(--green);
-}
-
-.setup__result--error {
-  background: rgba(239, 68, 68, 0.1);
-  color: var(--red);
-}
-
-.setup__form-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  margin-top: 0.5rem;
-}
-
-/* ============================================
+/* ═══════════════════════════════════════════
    BUTTONS
-   ============================================ */
-.setup__btn {
+   ═══════════════════════════════════════════ */
+.btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  padding: 0.625rem 1rem;
-  font-size: 0.875rem;
+  gap: 0.375rem;
+  padding: 0.5rem 0.875rem;
+  font-size: 0.8125rem;
   font-weight: 500;
-  border-radius: 10px;
+  border-radius: 8px;
   border: none;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.15s;
   white-space: nowrap;
 }
 
-.setup__btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-.setup__btn--primary {
-  background: var(--blue);
-  color: white;
-}
+.btn--primary { background: var(--blue); color: white; }
+.btn--primary:hover:not(:disabled) { background: #2563eb; }
 
-.setup__btn--primary:hover:not(:disabled) {
-  background: #2563eb;
-  transform: translateY(-1px);
-}
+.btn--success { background: var(--green); color: white; }
+.btn--success:hover:not(:disabled) { background: #059669; }
 
-.setup__btn--success {
-  background: var(--green);
-  color: white;
-}
+.btn--ghost { background: transparent; color: var(--text-dim); border: 1px solid var(--border); }
+.btn--ghost:hover:not(:disabled) { background: rgba(255, 255, 255, 0.04); color: var(--text); }
 
-.setup__btn--success:hover:not(:disabled) {
-  background: #059669;
-}
+.btn--sm { padding: 0.375rem 0.625rem; font-size: 0.75rem; }
+.btn--lg { padding: 0.75rem 1.25rem; font-size: 0.875rem; width: 100%; }
 
-.setup__btn--ghost {
-  background: transparent;
-  color: var(--text-secondary);
-  border: 1px solid var(--border-subtle);
-}
-
-.setup__btn--ghost:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text-primary);
-}
-
-.setup__btn--sm {
-  padding: 0.5rem 0.75rem;
-  font-size: 0.8125rem;
-}
-
-.setup__btn--lg {
-  padding: 0.875rem 1.5rem;
-  font-size: 0.9375rem;
-  width: 100%;
-}
-
-.setup__icon-btn {
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 8px;
+.icon-btn {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
   border: none;
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.15s;
 }
 
-.setup__icon-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--text-primary);
-}
+.icon-btn:hover { background: rgba(255, 255, 255, 0.06); color: var(--text); }
+.icon-btn--danger:hover { background: rgba(239, 68, 68, 0.12); color: var(--red); }
+.icon-btn svg { width: 14px; height: 14px; }
 
-.setup__icon-btn--danger:hover {
-  background: rgba(239, 68, 68, 0.15);
-  color: var(--red);
-}
+.spinner { width: 16px; height: 16px; animation: spin 1s linear infinite; }
 
-.setup__icon-btn svg {
-  width: 16px;
-  height: 16px;
-}
-
-.setup__spinner {
-  width: 18px;
-  height: 18px;
-  animation: spin 1s linear infinite;
-}
-
-/* ============================================
+/* ═══════════════════════════════════════════
    WARNING & FOOTER
-   ============================================ */
-.setup__warning {
+   ═══════════════════════════════════════════ */
+.warning {
   display: flex;
   align-items: center;
-  gap: 0.625rem;
-  padding: 0.875rem;
-  margin-top: 1.25rem;
-  background: rgba(245, 158, 11, 0.1);
-  border: 1px solid rgba(245, 158, 11, 0.2);
-  border-radius: 10px;
-  font-size: 0.8125rem;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  margin-top: 1rem;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.15);
+  border-radius: 8px;
+  font-size: 0.75rem;
   color: #fbbf24;
 }
 
-.setup__warning svg {
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
-}
+.warning svg { width: 16px; height: 16px; flex-shrink: 0; }
+.warning strong { color: #fcd34d; }
 
-.setup__warning strong {
-  color: #fcd34d;
-}
-
-.setup__footer {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  font-size: 0.75rem;
+.footer {
+  font-size: 0.6875rem;
   color: var(--text-muted);
+  letter-spacing: 0.02em;
 }
 
-.setup__footer-dot {
-  opacity: 0.5;
-}
-
-/* ============================================
+/* ═══════════════════════════════════════════
    ANIMATIONS
-   ============================================ */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(16px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+   ═══════════════════════════════════════════ */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+  to { transform: rotate(360deg); }
 }
 
-/* ============================================
+/* ═══════════════════════════════════════════
    RESPONSIVE
-   ============================================ */
+   ═══════════════════════════════════════════ */
 @media (max-width: 480px) {
-  .setup {
-    padding: 1rem;
-  }
-  
-  .setup__logo {
-    height: 64px;
-  }
-  
-  .setup__card {
-    padding: 1.5rem;
-    border-radius: 16px;
-  }
-  
-  .setup__wave-bar {
-    width: 2px;
-    gap: 2px;
-  }
-  
-  .setup__device-actions {
-    flex-wrap: wrap;
-  }
+  .page { padding: 1rem; }
+  .hero__logo { height: 100px; }
+  .card { padding: 1.25rem; }
+  .device__actions { width: 100%; margin-top: 0.5rem; justify-content: flex-end; }
 }
 </style>
