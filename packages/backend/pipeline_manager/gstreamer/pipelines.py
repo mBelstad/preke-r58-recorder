@@ -711,16 +711,17 @@ def build_tee_recording_pipeline(
     
     src_width = caps['width']
     src_height = caps['height']
+    src_format = caps.get('format', 'UYVY')  # Use device's native format
     
-    logger.info(f"{cam_id}: TEE pipeline source {src_width}x{src_height} -> target {target_width}x{target_height}")
+    logger.info(f"{cam_id}: TEE pipeline source {src_format} {src_width}x{src_height} -> target {target_width}x{target_height}")
     
     # === SOURCE ===
-    # Capture UYVY 4:2:2 at native resolution for best quality from source
-    source = f"v4l2src device={device} io-mode=mmap ! video/x-raw,format=UYVY"
+    # Capture at native format (UYVY for rkcif, NV16 for hdmirx)
+    source = f"v4l2src device={device} io-mode=mmap ! video/x-raw,format={src_format}"
     
     # === SCALE + CONVERT (ONCE, shared by both branches) ===
     # RGA handles scaling via GST_VIDEO_CONVERT_USE_RGA=1 env var
-    # Then convert UYVY→NV12 for encoders (also RGA-accelerated)
+    # Then convert source format → NV12 for encoders (also RGA-accelerated)
     scale_convert = (
         f"videoscale ! "
         f"video/x-raw,width={target_width},height={target_height} ! "
