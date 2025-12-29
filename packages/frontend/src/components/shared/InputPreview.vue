@@ -143,21 +143,9 @@ watch(isRecording, (recording, wasRecording) => {
       <div class="animate-spin w-6 h-6 border-2 border-white border-t-transparent rounded-full"></div>
     </div>
     
-    <!-- Recording paused overlay (shown when disconnected during recording) -->
+    <!-- Error overlay with retry button -->
     <div 
-      v-if="error && isRecording"
-      class="absolute inset-0 flex items-center justify-center bg-black/80"
-    >
-      <div class="text-center text-r58-text-secondary">
-        <div class="text-r58-accent-danger text-2xl mb-2">●</div>
-        <p class="text-sm">Preview paused during recording</p>
-        <p class="text-xs mt-1 text-r58-text-tertiary">Preview resumes when recording stops</p>
-      </div>
-    </div>
-    
-    <!-- Error overlay (only when not recording) -->
-    <div 
-      v-else-if="error"
+      v-if="error"
       class="absolute inset-0 flex items-center justify-center bg-black/80"
     >
       <div class="text-center text-r58-text-secondary">
