@@ -28,9 +28,10 @@ const camerasWithSignal = computed(() =>
 )
 
 // Build WHEP URL for a camera
+// MediaMTX WHEP endpoint is at /{streamName}/whep
 function getWhepUrl(cameraId: string): string {
   const origin = window.location.origin
-  return `${origin}/api/v1/whep/${cameraId}/whep`
+  return `${origin}/${cameraId}/whep`
 }
 
 // Initialize or update camera push states when cameras change
