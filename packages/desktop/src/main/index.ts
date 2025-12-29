@@ -1,5 +1,5 @@
 /**
- * R58 Studio Desktop - Main Process Entry
+ * Preke Studio Desktop - Main Process Entry
  * 
  * This is the main entry point for the Electron application.
  * It handles app lifecycle, window creation, and IPC communication.
@@ -21,7 +21,7 @@ if (!gotTheLock) {
 // Initialize logger early
 initializeLogger()
 
-log.info('R58 Studio starting...')
+log.info('Preke Studio starting...')
 log.info(`Version: ${app.getVersion()}`)
 log.info(`Electron: ${process.versions.electron}`)
 log.info(`Chrome: ${process.versions.chrome}`)
@@ -91,7 +91,7 @@ function registerIpcHandlers(): void {
 
     const { canceled, filePath } = await dialog.showSaveDialog(win, {
       title: 'Export Support Bundle',
-      defaultPath: `r58-support-bundle-${Date.now()}.zip`,
+      defaultPath: `preke-studio-support-bundle-${Date.now()}.zip`,
       filters: [{ name: 'ZIP Archive', extensions: ['zip'] }]
     })
 

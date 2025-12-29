@@ -48,7 +48,7 @@ export function createMainWindow(): BrowserWindow {
     height: 900,
     minWidth: 1024,
     minHeight: 768,
-    title: 'R58 Studio',
+    title: 'Preke Studio',
     backgroundColor: '#0f172a', // Match app theme
     
     webPreferences: {

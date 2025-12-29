@@ -115,15 +115,15 @@ function getMenuTemplate(): MenuItemConstructorOptions[] {
       role: 'help' as const,
       submenu: [
         {
-          label: 'R58 Documentation',
+          label: 'Preke Studio Documentation',
           click: async () => {
-            await shell.openExternal('https://github.com/your-org/preke-r58-recorder')
+            await shell.openExternal('https://github.com/itagenten/preke-r58-recorder')
           }
         },
         {
           label: 'Report Issue',
           click: async () => {
-            await shell.openExternal('https://github.com/your-org/preke-r58-recorder/issues')
+            await shell.openExternal('https://github.com/itagenten/preke-r58-recorder/issues')
           }
         },
         { type: 'separator' as const },

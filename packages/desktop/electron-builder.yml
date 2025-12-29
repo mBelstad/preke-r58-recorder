@@ -1,6 +1,6 @@
-appId: no.itagenten.r58studio
-productName: R58 Studio
-copyright: Copyright © 2024 Itagenten
+appId: no.itagenten.prekestudio
+productName: Preke Studio
+copyright: Copyright © 2025 Itagenten
 
 directories:
   output: dist

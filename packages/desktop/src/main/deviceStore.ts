@@ -34,13 +34,13 @@ function generateId(): string {
  * Initialize the store
  */
 const store = new Store<StoreSchema>({
-  name: 'r58-devices',
+  name: 'preke-studio-devices',
   defaults: {
     devices: [],
     activeDeviceId: null
   },
   // Encrypt sensitive data
-  encryptionKey: 'r58-studio-device-config-v1',
+  encryptionKey: 'preke-studio-device-config-v2',
   // Clear invalid data on error
   clearInvalidConfig: true
 })
@@ -97,7 +97,7 @@ export const deviceStore = {
     
     const device: DeviceConfig = {
       id: generateId(),
-      name: name.trim() || 'R58 Device',
+      name: name.trim() || 'Preke Device',
       url: normalizedUrl,
       createdAt: new Date().toISOString()
     }
