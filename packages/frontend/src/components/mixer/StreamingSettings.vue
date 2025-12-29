@@ -83,14 +83,8 @@ defineExpose({ open: openSettings })
 </script>
 
 <template>
-  <div class="streaming-settings">
-    <!-- Trigger button -->
-    <button @click="openSettings" class="btn btn-sm">
-      ⚙️ Streaming Settings
-    </button>
-
-    <!-- Modal -->
-    <Teleport to="body">
+  <!-- Modal (no trigger button - opened via .open() from parent) -->
+  <Teleport to="body">
       <div v-if="isOpen" class="fixed inset-0 z-50 flex items-center justify-center">
         <!-- Backdrop -->
         <div class="absolute inset-0 bg-black/60" @click="closeSettings"></div>
@@ -372,6 +366,5 @@ defineExpose({ open: openSettings })
         </div>
       </div>
     </Teleport>
-  </div>
 </template>
 
