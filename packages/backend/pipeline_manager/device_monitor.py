@@ -220,7 +220,7 @@ class DeviceMonitor:
                     'has_signal': has_signal,
                     'width': width,
                     'height': height,
-                    'format': 'NV16',  # Assume NV16 since pipeline is running
+                    'format': 'UYVY',  # rkcif devices use UYVY (LT6911 bridges)
                 }
             else:
                 # hdmirx or other device - just get capabilities without init

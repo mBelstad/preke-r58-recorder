@@ -150,18 +150,18 @@ def initialize_rkcif_device(device_path: str) -> Dict[str, Any]:
             if width > 0 and height > 0:
                 logger.info(f"{device_path}: Subdev reports {width}x{height}, setting format")
                 
-                # Set format on video device - use NV16 for consistency with hdmirx
-                # All devices (rkcif and hdmirx) support NV16, enabling unified pipeline
+                # Set format on video device - use UYVY which is native for LT6911 bridges
+                # This is what the original working code used (src/device_detection.py)
                 set_result = subprocess.run(
                     ["v4l2-ctl", "-d", device_path,
-                     f"--set-fmt-video=width={width},height={height},pixelformat=NV16"],
+                     f"--set-fmt-video=width={width},height={height},pixelformat=UYVY"],
                     capture_output=True, text=True, timeout=5
                 )
                 
                 if set_result.returncode != 0:
                     logger.warning(f"Failed to set format on {device_path}: {set_result.stderr}")
                 else:
-                    logger.info(f"{device_path}: Format set to {width}x{height} NV16")
+                    logger.info(f"{device_path}: Format set to {width}x{height} UYVY")
             else:
                 logger.warning(f"{device_path}: Subdev reports invalid resolution {width}x{height}")
         else:
@@ -346,8 +346,13 @@ def get_device_capabilities(device_path: str) -> Dict[str, Any]:
     """
     import subprocess
 
+    # Default format depends on device type:
+    # - rkcif devices (video0/11/22): UYVY (LT6911 bridges)
+    # - hdmirx device (video60): NV16
+    default_format = 'NV16' if 'video60' in device_path else 'UYVY'
+    
     result = {
-        'format': 'NV16',
+        'format': default_format,
         'width': 1920,
         'height': 1080,
         'framerate': 30,
@@ -729,14 +734,14 @@ def build_tee_recording_pipeline(
     
     src_width = caps['width']
     src_height = caps['height']
-    # All devices now use NV16 (rkcif initialized with NV16, hdmirx native NV16)
-    src_format = 'NV16'
+    # Use actual format from device: UYVY for rkcif (LT6911), NV16 for hdmirx
+    src_format = caps.get('format', 'UYVY')
     
-    logger.info(f"{cam_id}: TEE pipeline source NV16 {src_width}x{src_height} -> target {target_width}x{target_height}")
+    logger.info(f"{cam_id}: TEE pipeline source {src_format} {src_width}x{src_height} -> target {target_width}x{target_height}")
     
-    # === UNIFIED SOURCE + SCALE + CONVERT ===
-    # All devices now use NV16 format, enabling a single pipeline structure:
-    # NV16 → videorate (30fps) → videoscale (RGA) → videoconvert (RGA) → NV12
+    # === SOURCE + SCALE + CONVERT ===
+    # rkcif devices use UYVY (4:2:2), hdmirx uses NV16 (4:2:2)
+    # Both go through: videorate (30fps) → videoscale (RGA) → videoconvert (RGA) → NV12
     # 
     # The videorate element stabilizes framerate from variable sources
     # RGA accelerates both videoscale and videoconvert (GST_VIDEO_CONVERT_USE_RGA=1)
