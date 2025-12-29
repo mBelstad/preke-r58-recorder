@@ -10,7 +10,7 @@ from datetime import datetime
 from typing import Any, Awaitable, Callable, Dict, Optional
 
 from .config import CameraConfig, get_config, get_enabled_cameras
-from .gstreamer.pipelines import get_device_capabilities
+from .gstreamer.pipelines import get_device_capabilities, initialize_rkcif_device, RKCIF_SUBDEV_MAP
 
 logger = logging.getLogger(__name__)
 
@@ -139,11 +139,19 @@ class DeviceMonitor:
             initial: If True, don't emit events
         """
         # Get current capabilities (runs in executor to avoid blocking)
+        # For rkcif devices, use initialize_rkcif_device which queries subdev and sets format
         loop = asyncio.get_event_loop()
-        caps = await loop.run_in_executor(
-            None,
-            lambda: get_device_capabilities(cam_config.device)
-        )
+        device = cam_config.device
+        if device in RKCIF_SUBDEV_MAP:
+            caps = await loop.run_in_executor(
+                None,
+                lambda: initialize_rkcif_device(device)
+            )
+        else:
+            caps = await loop.run_in_executor(
+                None,
+                lambda: get_device_capabilities(device)
+            )
         
         now = datetime.now()
         has_signal = caps.get('has_signal', False)
