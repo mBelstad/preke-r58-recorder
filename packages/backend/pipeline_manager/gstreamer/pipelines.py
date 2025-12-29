@@ -548,6 +548,54 @@ def build_preview_pipeline_string(
     return pipeline_str
 
 
+def build_ingest_pipeline_string(
+    cam_id: str,
+    device: str,
+    resolution: str = "1920x1080",
+    bitrate: int = 4000,
+    rtsp_port: int = 8554
+) -> str:
+    """Build always-on ingest pipeline string (Publisher pattern).
+    
+    The ingest pipeline:
+    - Captures from V4L2 device at native resolution
+    - Encodes to H.264 using hardware encoder
+    - Streams to MediaMTX via RTSP
+    - Runs continuously (never stops during recording)
+    
+    All consumers (preview, recording, mixer) subscribe to MediaMTX.
+    
+    Args:
+        cam_id: Camera identifier (used as RTSP path)
+        device: V4L2 device path
+        resolution: Target resolution "WxH" (for preview/streaming)
+        bitrate: Target bitrate in kbps
+        rtsp_port: MediaMTX RTSP port
+        
+    Returns:
+        GStreamer pipeline string
+    """
+    width, height = resolution.split("x")
+    source_str = build_source_pipeline(device, int(width), int(height), 30)
+    
+    # Use H.264 hardware encoder - required for browser WebRTC
+    encoder_str, caps_str, parse_str = get_h264_hardware_encoder(bitrate)
+    
+    # Stream to MediaMTX via RTSP with TCP for reliability
+    # config-interval=-1 ensures SPS/PPS sent with every keyframe
+    pipeline_str = (
+        f"{source_str} ! "
+        f"queue max-size-buffers=5 max-size-time=0 max-size-bytes=0 leaky=downstream ! "
+        f"{encoder_str} ! "
+        f"{caps_str} ! "
+        f"queue max-size-buffers=5 max-size-time=0 max-size-bytes=0 leaky=downstream ! "
+        f"{parse_str} config-interval=-1 ! "
+        f"rtspclientsink location=rtsp://127.0.0.1:{rtsp_port}/{cam_id} protocols=tcp latency=0"
+    )
+    
+    return pipeline_str
+
+
 def build_recording_pipeline_string(
     cam_id: str,
     device: str,

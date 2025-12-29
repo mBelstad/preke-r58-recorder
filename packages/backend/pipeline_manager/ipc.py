@@ -15,6 +15,7 @@ from .device_monitor import DeviceMonitor, get_device_monitor
 from .gstreamer.pipelines import (
     build_preview_pipeline_string,
     build_recording_pipeline_string,
+    build_ingest_pipeline_string,
     get_device_capabilities,
     is_device_busy,
 )
@@ -22,6 +23,8 @@ from .gstreamer.runner import PipelineState as GstPipelineState
 from .gstreamer.runner import get_runner
 from .state import PipelineState
 from .watchdog import get_watchdog
+from .ingest import IngestManager, IngestStatus, get_ingest_manager
+from .subscriber_recorder import SubscriberRecorder, get_subscriber_recorder
 
 logger = logging.getLogger(__name__)
 
@@ -36,15 +39,33 @@ EVENT_BUFFER_SIZE = 100
 
 
 class IPCServer:
-    """Unix socket IPC server for pipeline commands"""
+    """Unix socket IPC server for pipeline commands
+    
+    Supports two architectures:
+    1. Legacy: Direct V4L2 access for preview/recording (original)
+    2. Pub/Sub: IngestManager (publisher) + SubscriberRecorder (subscriber)
+    
+    The pub/sub architecture is preferred as it:
+    - Allows preview during recording
+    - Reduces VPU load (single encoder per camera)
+    - Supports hot-plug without stopping recording
+    """
 
-    def __init__(self, state: PipelineState):
+    def __init__(self, state: PipelineState, use_pubsub: bool = True):
         self.state = state
         self.server = None
         self.running = False
         self.watchdog = get_watchdog()
         self.config = get_config()
         self.gst_runner = get_runner(on_state_change=self._on_pipeline_state_change)
+        self.use_pubsub = use_pubsub
+        
+        # Pub/Sub architecture components
+        self.ingest_manager = get_ingest_manager(on_status_change=self._on_ingest_status_change)
+        self.subscriber_recorder = get_subscriber_recorder(
+            on_status_change=self._on_recording_status_change,
+            on_session_event=self._on_session_event,
+        )
         
         # Device monitor for hot-plug detection
         self.device_monitor = get_device_monitor()
@@ -59,6 +80,36 @@ class IPCServer:
         self.watchdog.on_stall = self._handle_stall
         self.watchdog.on_disk_low = self._handle_disk_low
         self.watchdog.on_progress = self._handle_progress
+
+    def _on_ingest_status_change(self, cam_id: str, status: IngestStatus) -> None:
+        """Handle ingest pipeline status changes."""
+        logger.info(f"Ingest {cam_id} status: {status.status}")
+        self._queue_event("ingest.status", {
+            "input_id": cam_id,
+            "status": status.status,
+            "resolution": f"{status.resolution[0]}x{status.resolution[1]}" if status.resolution else None,
+            "has_signal": status.has_signal,
+            "stream_url": status.stream_url,
+            "error": status.error_message,
+        })
+
+    def _on_recording_status_change(self, cam_id: str, recording) -> None:
+        """Handle recording status changes."""
+        logger.info(f"Recording {cam_id} status: {recording.state}")
+        self._queue_event("recording.status", {
+            "input_id": cam_id,
+            "state": recording.state,
+            "output_path": recording.output_path,
+            "error": recording.error_message,
+        })
+
+    def _on_session_event(self, session_id: str, event_type: str, data: dict) -> None:
+        """Handle recording session events."""
+        logger.info(f"Session {session_id} event: {event_type}")
+        self._queue_event(f"session.{event_type}", {
+            "session_id": session_id,
+            **data,
+        })
 
     def _queue_event(self, event_type: str, payload: Dict[str, Any]) -> None:
         """Add an event to the queue for API polling"""
@@ -328,66 +379,89 @@ class IPCServer:
                 })
 
     async def _auto_start_previews(self) -> None:
-        """Start preview pipelines for all enabled cameras on startup.
+        """Start preview/ingest pipelines for all enabled cameras on startup.
 
         This ensures WHEP preview streams are immediately available
         when the pipeline manager starts. Only starts previews for
         cameras that have an active signal.
+        
+        In pub/sub mode, uses IngestManager for always-on streaming.
+        In legacy mode, uses direct preview pipelines.
         """
         enabled_cameras = get_enabled_cameras(self.config)
         loop = asyncio.get_event_loop()
 
-        logger.info(f"Auto-starting previews for {len(enabled_cameras)} enabled cameras")
+        logger.info(f"Auto-starting {'ingest' if self.use_pubsub else 'previews'} for {len(enabled_cameras)} enabled cameras")
 
         started = 0
         skipped_no_signal = 0
 
-        for input_id, cam_config in enabled_cameras.items():
-            pipeline_id = f"preview_{input_id}"
-
-            # Skip if already running
-            if self.gst_runner.is_running(pipeline_id):
-                logger.info(f"Preview for {input_id} already running, skipping")
-                continue
-
-            # Check for signal before starting preview
-            try:
-                caps = get_device_capabilities(cam_config.device)
-                if not caps.get('has_signal', False):
-                    logger.info(f"Skipping preview for {input_id}: no signal detected on {cam_config.device}")
-                    skipped_no_signal += 1
-                    continue
-            except Exception as e:
-                logger.warning(f"Could not check signal for {input_id}: {e}, will attempt preview anyway")
-
-            try:
-                pipeline_str = build_preview_pipeline_string(
-                    cam_id=input_id,
-                    device=cam_config.device,
-                    bitrate=cam_config.bitrate,
-                    resolution=cam_config.resolution,
-                )
-
-                success = await loop.run_in_executor(
-                    _executor,
-                    functools.partial(
-                        self.gst_runner.start_pipeline,
-                        pipeline_id=pipeline_id,
-                        pipeline_string=pipeline_str,
-                        pipeline_type="preview",
-                        device=cam_config.device,
+        if self.use_pubsub:
+            # Pub/Sub mode: Use IngestManager for always-on streams
+            for input_id in enabled_cameras.keys():
+                try:
+                    success = await loop.run_in_executor(
+                        _executor,
+                        lambda cam_id=input_id: self.ingest_manager.start_ingest(cam_id)
                     )
-                )
+                    if success:
+                        logger.info(f"Auto-started ingest for {input_id}")
+                        started += 1
+                    else:
+                        # Check if it's no_signal vs error
+                        status = self.ingest_manager.get_pipeline_status(input_id)
+                        if status and status.status == "no_signal":
+                            skipped_no_signal += 1
+                except Exception as e:
+                    logger.error(f"Error auto-starting ingest for {input_id}: {e}")
+        else:
+            # Legacy mode: Direct preview pipelines
+            for input_id, cam_config in enabled_cameras.items():
+                pipeline_id = f"preview_{input_id}"
 
-                if success:
-                    logger.info(f"Auto-started preview for {input_id}")
-                    started += 1
-                else:
-                    logger.warning(f"Failed to auto-start preview for {input_id}")
+                # Skip if already running
+                if self.gst_runner.is_running(pipeline_id):
+                    logger.info(f"Preview for {input_id} already running, skipping")
+                    continue
 
-            except Exception as e:
-                logger.error(f"Error auto-starting preview for {input_id}: {e}")
-                # Continue with other cameras even if one fails
+                # Check for signal before starting preview
+                try:
+                    caps = get_device_capabilities(cam_config.device)
+                    if not caps.get('has_signal', False):
+                        logger.info(f"Skipping preview for {input_id}: no signal detected on {cam_config.device}")
+                        skipped_no_signal += 1
+                        continue
+                except Exception as e:
+                    logger.warning(f"Could not check signal for {input_id}: {e}, will attempt preview anyway")
+
+                try:
+                    pipeline_str = build_preview_pipeline_string(
+                        cam_id=input_id,
+                        device=cam_config.device,
+                        bitrate=cam_config.bitrate,
+                        resolution=cam_config.resolution,
+                    )
+
+                    success = await loop.run_in_executor(
+                        _executor,
+                        functools.partial(
+                            self.gst_runner.start_pipeline,
+                            pipeline_id=pipeline_id,
+                            pipeline_string=pipeline_str,
+                            pipeline_type="preview",
+                            device=cam_config.device,
+                        )
+                    )
+
+                    if success:
+                        logger.info(f"Auto-started preview for {input_id}")
+                        started += 1
+                    else:
+                        logger.warning(f"Failed to auto-start preview for {input_id}")
+
+                except Exception as e:
+                    logger.error(f"Error auto-starting preview for {input_id}: {e}")
+                    # Continue with other cameras even if one fails
         
         logger.info(f"Auto-start complete: {started} started, {skipped_no_signal} skipped (no signal)")
 
@@ -924,6 +998,209 @@ class IPCServer:
             except Exception as e:
                 logger.error(f"Error stopping pipeline {pipeline_id}: {e}")
                 return {"error": str(e)}
+
+        # =================================================================
+        # PUB/SUB ARCHITECTURE COMMANDS
+        # =================================================================
+        
+        elif cmd == "ingest.start":
+            # Start ingest for a specific camera
+            input_id = command.get("input_id")
+            if not input_id:
+                return {"error": "Missing input_id"}
+            
+            try:
+                loop = asyncio.get_event_loop()
+                success = await loop.run_in_executor(
+                    _executor,
+                    lambda: self.ingest_manager.start_ingest(input_id)
+                )
+                
+                if success:
+                    status = self.ingest_manager.get_pipeline_status(input_id)
+                    return {
+                        "status": "started",
+                        "input_id": input_id,
+                        "stream_url": status.stream_url if status else None,
+                    }
+                else:
+                    status = self.ingest_manager.get_pipeline_status(input_id)
+                    return {
+                        "status": status.status if status else "error",
+                        "input_id": input_id,
+                        "error": status.error_message if status else "Unknown error",
+                    }
+            except Exception as e:
+                logger.error(f"Error starting ingest for {input_id}: {e}")
+                return {"error": str(e)}
+
+        elif cmd == "ingest.stop":
+            # Stop ingest for a specific camera
+            input_id = command.get("input_id")
+            if not input_id:
+                return {"error": "Missing input_id"}
+            
+            try:
+                loop = asyncio.get_event_loop()
+                success = await loop.run_in_executor(
+                    _executor,
+                    lambda: self.ingest_manager.stop_ingest(input_id)
+                )
+                
+                return {"status": "stopped" if success else "error", "input_id": input_id}
+            except Exception as e:
+                logger.error(f"Error stopping ingest for {input_id}: {e}")
+                return {"error": str(e)}
+
+        elif cmd == "ingest.start_all":
+            # Start ingest for all enabled cameras
+            try:
+                loop = asyncio.get_event_loop()
+                results = await loop.run_in_executor(
+                    _executor,
+                    lambda: self.ingest_manager.start_all()
+                )
+                
+                return {"status": "started", "results": results}
+            except Exception as e:
+                logger.error(f"Error starting all ingests: {e}")
+                return {"error": str(e)}
+
+        elif cmd == "ingest.stop_all":
+            # Stop ingest for all cameras
+            try:
+                loop = asyncio.get_event_loop()
+                results = await loop.run_in_executor(
+                    _executor,
+                    lambda: self.ingest_manager.stop_all()
+                )
+                
+                return {"status": "stopped", "results": results}
+            except Exception as e:
+                logger.error(f"Error stopping all ingests: {e}")
+                return {"error": str(e)}
+
+        elif cmd == "ingest.status":
+            # Get ingest status
+            input_id = command.get("input_id")
+            
+            if input_id:
+                status = self.ingest_manager.get_pipeline_status(input_id)
+                if status:
+                    return {
+                        "input_id": input_id,
+                        "status": status.status,
+                        "resolution": f"{status.resolution[0]}x{status.resolution[1]}" if status.resolution else None,
+                        "has_signal": status.has_signal,
+                        "stream_url": status.stream_url,
+                        "uptime_seconds": status.uptime_seconds,
+                        "error": status.error_message,
+                    }
+                else:
+                    return {"error": f"Camera {input_id} not found"}
+            else:
+                # Return all ingest statuses
+                statuses = self.ingest_manager.get_all_statuses()
+                result = {}
+                for cam_id, status in statuses.items():
+                    result[cam_id] = {
+                        "status": status.status,
+                        "resolution": f"{status.resolution[0]}x{status.resolution[1]}" if status.resolution else None,
+                        "has_signal": status.has_signal,
+                        "stream_url": status.stream_url,
+                        "uptime_seconds": status.uptime_seconds,
+                        "error": status.error_message,
+                    }
+                return {"ingests": result}
+
+        elif cmd == "subscriber.record.start":
+            # Start recording using subscriber pattern
+            input_id = command.get("input_id")
+            session_id = command.get("session_id")
+            
+            if not input_id:
+                return {"error": "Missing input_id"}
+            
+            try:
+                loop = asyncio.get_event_loop()
+                success = await loop.run_in_executor(
+                    _executor,
+                    lambda: self.subscriber_recorder.start_recording(input_id, session_id)
+                )
+                
+                if success:
+                    status = self.subscriber_recorder.get_status()
+                    recording = status.get("recordings", {}).get(input_id, {})
+                    return {
+                        "status": "started",
+                        "input_id": input_id,
+                        "output_path": recording.get("output_path"),
+                        "session_id": status.get("session", {}).get("session_id"),
+                    }
+                else:
+                    return {"error": f"Failed to start recording for {input_id}"}
+            except Exception as e:
+                logger.error(f"Error starting subscriber recording for {input_id}: {e}")
+                return {"error": str(e)}
+
+        elif cmd == "subscriber.record.stop":
+            # Stop recording for a specific camera
+            input_id = command.get("input_id")
+            
+            if not input_id:
+                return {"error": "Missing input_id"}
+            
+            try:
+                loop = asyncio.get_event_loop()
+                success = await loop.run_in_executor(
+                    _executor,
+                    lambda: self.subscriber_recorder.stop_recording(input_id)
+                )
+                
+                return {"status": "stopped" if success else "error", "input_id": input_id}
+            except Exception as e:
+                logger.error(f"Error stopping subscriber recording for {input_id}: {e}")
+                return {"error": str(e)}
+
+        elif cmd == "subscriber.session.start":
+            # Start a recording session for multiple cameras
+            session_id = command.get("session_id")
+            camera_ids = command.get("camera_ids")  # Optional: list of camera IDs
+            
+            try:
+                loop = asyncio.get_event_loop()
+                results = await loop.run_in_executor(
+                    _executor,
+                    lambda: self.subscriber_recorder.start_session(session_id, camera_ids)
+                )
+                
+                status = self.subscriber_recorder.get_status()
+                return {
+                    "status": "started",
+                    "session_id": status.get("session", {}).get("session_id"),
+                    "results": results,
+                }
+            except Exception as e:
+                logger.error(f"Error starting recording session: {e}")
+                return {"error": str(e)}
+
+        elif cmd == "subscriber.session.stop":
+            # Stop the current recording session
+            try:
+                loop = asyncio.get_event_loop()
+                results = await loop.run_in_executor(
+                    _executor,
+                    lambda: self.subscriber_recorder.stop_session()
+                )
+                
+                return {"status": "stopped", "results": results}
+            except Exception as e:
+                logger.error(f"Error stopping recording session: {e}")
+                return {"error": str(e)}
+
+        elif cmd == "subscriber.status":
+            # Get subscriber recorder status
+            return self.subscriber_recorder.get_status()
 
         else:
             return {"error": f"Unknown command: {cmd}"}
