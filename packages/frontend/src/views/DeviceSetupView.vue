@@ -33,6 +33,10 @@ const router = useRouter()
 const devices = ref<DeviceConfig[]>([])
 const activeDeviceId = ref<string | null>(null)
 
+// Welcome screen state
+const showWelcome = ref(true)
+const welcomeFadingOut = ref(false)
+
 // Discovery state
 const isDiscovering = ref(false)
 const isBackgroundScan = ref(false) // True when scanning in background (no UI)
@@ -40,6 +44,8 @@ const discoveredDevices = ref<DiscoveredDevice[]>([])
 const scanningSubnet = ref<string>('')
 const backgroundScanInterval = ref<ReturnType<typeof setInterval> | null>(null)
 const backgroundScanTimeout = ref<ReturnType<typeof setTimeout> | null>(null)
+const backgroundScanCount = ref(0)
+const MAX_BACKGROUND_SCANS = 30
 
 // Manual entry
 const showManualEntry = ref(false)
@@ -76,10 +82,17 @@ async function loadDevices() {
   }
 }
 
-function startDiscovery() {
+function startDiscovery(isManual: boolean = false) {
   if (!window.electronAPI || isDiscovering.value) return
   discoveredDevices.value = []
   scanningSubnet.value = ''
+  // Manual scan resets the background counter
+  if (isManual) {
+    backgroundScanCount.value = 0
+    isBackgroundScan.value = false
+    // Restart background scanning
+    startBackgroundScanning()
+  }
   window.electronAPI.startDiscovery()
 }
 
@@ -88,16 +101,22 @@ function stopDiscovery() {
   window.electronAPI.stopDiscovery()
 }
 
-// Passive background scanning - rescans every 45 seconds when no devices found
+// Passive background scanning - rescans every 45 seconds when no devices found (max 30 tries)
 function startBackgroundScanning() {
   stopBackgroundScanning()
   // Wait before starting the interval
   backgroundScanTimeout.value = setTimeout(() => {
     backgroundScanInterval.value = setInterval(() => {
-      // Only scan if not already scanning and no devices found yet
+      // Only scan if not already scanning, no devices found, and under limit
       if (!isDiscovering.value && discoveredDevices.value.length === 0 && !hasDevices.value) {
-        isBackgroundScan.value = true
-        window.electronAPI?.startDiscovery()
+        if (backgroundScanCount.value < MAX_BACKGROUND_SCANS) {
+          backgroundScanCount.value++
+          isBackgroundScan.value = true
+          window.electronAPI?.startDiscovery()
+        } else {
+          // Stop after max tries
+          stopBackgroundScanning()
+        }
       }
     }, 45000) // Every 45 seconds - not aggressive
   }, 30000) // Wait 30 seconds after initial scan before starting background scans
@@ -219,6 +238,10 @@ function setupDiscoveryListeners() {
         // Stop background scanning when we find devices
         stopBackgroundScanning()
         isBackgroundScan.value = false
+        // If device found quickly during welcome, skip welcome immediately
+        if (showWelcome.value) {
+          showWelcome.value = false
+        }
       }
     }),
     window.electronAPI.onScanningSubnet((subnet) => {
@@ -245,14 +268,36 @@ function setupDiscoveryListeners() {
   )
 }
 
-onMounted(() => {
-  loadDevices()
+function dismissWelcome() {
+  welcomeFadingOut.value = true
+  setTimeout(() => {
+    showWelcome.value = false
+  }, 500) // Match fade animation duration
+}
+
+onMounted(async () => {
+  await loadDevices()
   setupDiscoveryListeners()
+  
+  // If we already have devices, skip welcome and go straight to list
+  if (hasDevices.value) {
+    showWelcome.value = false
+    return
+  }
+  
   // Auto-start discovery on mount
   if (window.electronAPI) {
+    // Start discovery while showing welcome
     startDiscovery()
     // Start passive background scanning
     startBackgroundScanning()
+    
+    // Dismiss welcome after a short delay (unless devices found quickly)
+    setTimeout(() => {
+      if (showWelcome.value && discoveredDevices.value.length === 0) {
+        dismissWelcome()
+      }
+    }, 2500) // Show welcome for 2.5 seconds
   }
 })
 
@@ -277,7 +322,18 @@ onUnmounted(() => {
       <div class="setup-page__bg-texture" />
     </div>
     
-    <div class="setup-page__content">
+    <!-- Welcome Screen (fades out) -->
+    <Transition name="welcome-fade">
+      <div v-if="showWelcome" class="welcome-screen" :class="{ 'welcome-screen--fading': welcomeFadingOut }">
+        <div class="welcome-content">
+          <img src="/logo-studio-stacked.svg" alt="Preke Studio" class="welcome-logo" />
+          <h1 class="welcome-title">Welcome to Preke Studio</h1>
+          <p class="welcome-subtitle">Setting up your workspace...</p>
+        </div>
+      </div>
+    </Transition>
+    
+    <div v-show="!showWelcome" class="setup-page__content">
       <!-- Large centered logo -->
       <div class="logo-hero">
         <img src="/logo-studio-stacked.svg" alt="Preke Studio" class="logo-hero__img" />
@@ -304,7 +360,7 @@ onUnmounted(() => {
             </button>
             <button 
               v-else-if="(discoveredDevices.length > 0 || hasDevices)" 
-              @click="startDiscovery" 
+              @click="startDiscovery(true)" 
               :disabled="isDiscovering"
               class="btn-scan"
               :class="{ 'btn-scan--spinning': isBackgroundScan }"
@@ -414,18 +470,20 @@ onUnmounted(() => {
               <li>Finished booting up (~30 seconds)</li>
             </ul>
             
-            <!-- Scan button in empty state -->
-            <button 
-              @click="startDiscovery" 
-              :disabled="isDiscovering"
-              class="btn-scan-large"
-              :class="{ 'btn-scan-large--spinning': isBackgroundScan }"
-            >
-              <svg viewBox="0 0 20 20" fill="currentColor" class="btn-scan-large__icon">
-                <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/>
-              </svg>
-              {{ isBackgroundScan ? 'Searching...' : 'Scan for devices' }}
-            </button>
+            <!-- Scan button below text -->
+            <div class="empty-state__actions">
+              <button 
+                @click="startDiscovery(true)" 
+                :disabled="isDiscovering"
+                class="btn-scan-large"
+                :class="{ 'btn-scan-large--spinning': isBackgroundScan }"
+              >
+                <svg viewBox="0 0 20 20" fill="currentColor" class="btn-scan-large__icon">
+                  <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/>
+                </svg>
+                {{ isBackgroundScan ? 'Searching...' : 'Scan for devices' }}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -508,6 +566,71 @@ onUnmounted(() => {
   --blue: #3b82f6;
   --green: #22c55e;
   --red: #ef4444;
+}
+
+/* ═══════════════════════════════════════════
+   WELCOME SCREEN
+   ═══════════════════════════════════════════ */
+.welcome-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  transition: opacity 0.5s ease-out;
+}
+
+.welcome-screen--fading {
+  opacity: 0;
+}
+
+.welcome-content {
+  text-align: center;
+  animation: welcome-appear 0.6s ease-out;
+}
+
+.welcome-logo {
+  height: 200px;
+  width: auto;
+  margin-bottom: 2rem;
+  filter: drop-shadow(0 4px 24px rgba(0, 0, 0, 0.4));
+}
+
+.welcome-title {
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0 0 0.75rem;
+  letter-spacing: -0.02em;
+}
+
+.welcome-subtitle {
+  font-size: 1rem;
+  color: var(--text-dim);
+  margin: 0;
+}
+
+@keyframes welcome-appear {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.welcome-fade-enter-active,
+.welcome-fade-leave-active {
+  transition: opacity 0.5s ease;
+}
+
+.welcome-fade-enter-from,
+.welcome-fade-leave-to {
+  opacity: 0;
 }
 
 /* ═══════════════════════════════════════════
@@ -886,13 +1009,20 @@ onUnmounted(() => {
   color: var(--gold);
 }
 
+/* Actions container - centers button below content */
+.empty-state__actions {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  margin-top: 1.5rem;
+}
+
 /* Scan button in empty state */
 .btn-scan-large {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  margin-top: 1.25rem;
   padding: 0.625rem 1.25rem;
   font-size: 0.875rem;
   font-weight: 500;
