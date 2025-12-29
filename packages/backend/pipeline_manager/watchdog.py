@@ -146,32 +146,32 @@ class RecordingWatchdog:
         current_bytes: Dict[str, int] = {}
 
         for input_id, (last_bytes, last_change) in list(self._input_state.items()):
-            file_path = self._recording_paths.get(input_id)
-            if file_path:
-                actual_bytes = self._get_file_size(file_path)
+                file_path = self._recording_paths.get(input_id)
+                if file_path:
+                    actual_bytes = self._get_file_size(file_path)
                 current_bytes[input_id] = actual_bytes
-                
-                if actual_bytes > last_bytes:
+
+                    if actual_bytes > last_bytes:
                     # File grew - update our state
-                    self._input_state[input_id] = (actual_bytes, now)
-                    logger.debug(
-                        f"[Watchdog] {input_id} file grew to {actual_bytes} bytes"
-                    )
+                        self._input_state[input_id] = (actual_bytes, now)
+                        logger.debug(
+                            f"[Watchdog] {input_id} file grew to {actual_bytes} bytes"
+                        )
                 else:
                     # File hasn't grown, check for stall
                     time_since_change = now - last_change
                     if time_since_change > stall_threshold:
-                        # Confirmed stall
-                        logger.warning(
-                            f"[Watchdog] STALL DETECTED: {input_id} has not grown for "
-                            f"{time_since_change.total_seconds():.0f}s (session: {self._session_id})"
-                        )
+                # Confirmed stall
+                logger.warning(
+                    f"[Watchdog] STALL DETECTED: {input_id} has not grown for "
+                    f"{time_since_change.total_seconds():.0f}s (session: {self._session_id})"
+                )
 
-                        if self.on_stall:
-                            try:
-                                await self.on_stall(self._session_id, input_id)
-                            except Exception as e:
-                                logger.error(f"[Watchdog] Stall callback failed: {e}")
+                if self.on_stall:
+                    try:
+                        await self.on_stall(self._session_id, input_id)
+                    except Exception as e:
+                        logger.error(f"[Watchdog] Stall callback failed: {e}")
         
         # Emit progress update with all current file sizes
         if current_bytes and self.on_progress:

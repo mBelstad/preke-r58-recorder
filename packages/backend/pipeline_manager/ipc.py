@@ -341,7 +341,7 @@ class IPCServer:
 
         started = 0
         skipped_no_signal = 0
-        
+
         for input_id, cam_config in enabled_cameras.items():
             pipeline_id = f"preview_{input_id}"
 

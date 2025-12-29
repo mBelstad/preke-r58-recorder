@@ -37,7 +37,7 @@ async function joinAsGuest() {
     
     if (response.url) {
       vdoNinjaUrl.value = response.url
-      isConnected.value = true
+  isConnected.value = true
       
       // If not embedding, open in new tab
       if (!embedMode.value) {
@@ -50,7 +50,7 @@ async function joinAsGuest() {
     console.error('Failed to join as guest:', e)
     error.value = e instanceof Error ? e.message : 'Failed to connect'
   } finally {
-    isConnecting.value = false
+  isConnecting.value = false
   }
 }
 
@@ -166,8 +166,8 @@ function openInNewTab() {
         <div class="text-center">
           <div class="w-20 h-20 rounded-full bg-r58-accent-success/20 flex items-center justify-center mx-auto mb-6">
             <svg class="w-10 h-10 text-r58-accent-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-            </svg>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+          </svg>
           </div>
           <h2 class="text-2xl font-semibold mb-2">You're Connected!</h2>
           <p class="text-r58-text-secondary mb-6">

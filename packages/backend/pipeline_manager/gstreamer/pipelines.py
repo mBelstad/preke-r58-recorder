@@ -29,6 +29,154 @@ from . import get_gst
 logger = logging.getLogger(__name__)
 
 
+# =============================================================================
+# RKCIF Device Initialization (LT6911 HDMI-to-MIPI Bridge Support)
+# =============================================================================
+# The LT6911UXE HDMI-to-MIPI bridge devices report 0x0 resolution until
+# format is explicitly set. These functions initialize the devices by:
+# 1. Querying the V4L2 subdev for the actual detected HDMI resolution
+# 2. Setting that format on the video device using v4l2-ctl
+# =============================================================================
+
+# Mapping of rkcif video devices to their V4L2 subdevs
+# These subdevs report the actual HDMI signal resolution from LT6911 bridges
+RKCIF_SUBDEV_MAP = {
+    "/dev/video0": "/dev/v4l-subdev2",   # HDMI N0 via LT6911 7-002b
+    "/dev/video11": "/dev/v4l-subdev7",  # HDMI N11 via LT6911 4-002b
+    "/dev/video22": "/dev/v4l-subdev12", # HDMI N21 via LT6911 2-002b
+}
+
+
+def get_subdev_resolution(device_path: str) -> Optional[Tuple[int, int]]:
+    """Query subdev for current resolution without reinitializing device.
+    
+    This is a fast, read-only query that checks the current HDMI signal
+    resolution from the LT6911 bridge without modifying any device state.
+    
+    Args:
+        device_path: Path to video device (e.g., /dev/video11)
+        
+    Returns:
+        Tuple of (width, height) if signal detected, None if no signal or error
+    """
+    import re
+    
+    subdev = RKCIF_SUBDEV_MAP.get(device_path)
+    if not subdev:
+        # Not an rkcif device, return None (caller should use get_device_capabilities)
+        return None
+    
+    try:
+        # Query subdev for actual resolution detected by LT6911 bridge
+        result = subprocess.run(
+            ["v4l2-ctl", "-d", subdev, "--get-subdev-fmt", "pad=0"],
+            capture_output=True, text=True, timeout=2
+        )
+        
+        if result.returncode != 0:
+            logger.debug(f"Failed to query subdev {subdev}: {result.stderr}")
+            return None
+        
+        # Parse width/height from subdev output
+        # Format: "Width/Height      : 1920/1080"
+        width_match = re.search(r"Width/Height\s*:\s*(\d+)/(\d+)", result.stdout)
+        if width_match:
+            width = int(width_match.group(1))
+            height = int(width_match.group(2))
+            
+            # Check for valid signal (not 0x0 or very small)
+            if width >= 640 and height >= 480:
+                return (width, height)
+        
+        return None
+        
+    except subprocess.TimeoutExpired:
+        logger.debug(f"Timeout querying subdev for {device_path}")
+        return None
+    except FileNotFoundError:
+        logger.warning("v4l2-ctl not found")
+        return None
+    except Exception as e:
+        logger.debug(f"Error querying subdev resolution for {device_path}: {e}")
+        return None
+
+
+def initialize_rkcif_device(device_path: str) -> Dict[str, Any]:
+    """Initialize rkcif device by querying subdev resolution and setting format.
+    
+    The LT6911 HDMI-to-MIPI bridges report resolution via their V4L2 subdevs,
+    but the video devices start with 0x0 resolution. This function:
+    1. Queries the subdev for the actual detected HDMI resolution
+    2. Sets that format on the video device using v4l2-ctl
+    3. Returns the device capabilities
+    
+    CRITICAL: This must be called BEFORE get_device_capabilities() for rkcif devices,
+    otherwise the device will report 0x0 resolution even when HDMI signal is present.
+    
+    Args:
+        device_path: Path to video device (e.g., /dev/video11)
+        
+    Returns:
+        Device capabilities dictionary from get_device_capabilities()
+    """
+    import re
+    
+    subdev = RKCIF_SUBDEV_MAP.get(device_path)
+    if not subdev:
+        # Not an rkcif device, just return capabilities
+        logger.debug(f"{device_path}: Not an rkcif device, skipping initialization")
+        return get_device_capabilities(device_path)
+    
+    logger.info(f"{device_path}: Initializing rkcif device via subdev {subdev}")
+    
+    try:
+        # Query subdev for actual resolution detected by LT6911 bridge
+        result = subprocess.run(
+            ["v4l2-ctl", "-d", subdev, "--get-subdev-fmt", "pad=0"],
+            capture_output=True, text=True, timeout=5
+        )
+        
+        if result.returncode != 0:
+            logger.warning(f"Failed to query subdev {subdev}: {result.stderr}")
+            return get_device_capabilities(device_path)
+        
+        # Parse width/height from subdev output
+        # Format: "Width/Height      : 1920/1080"
+        width_match = re.search(r"Width/Height\s*:\s*(\d+)/(\d+)", result.stdout)
+        if width_match:
+            width = int(width_match.group(1))
+            height = int(width_match.group(2))
+            
+            if width > 0 and height > 0:
+                logger.info(f"{device_path}: Subdev reports {width}x{height}, setting format")
+                
+                # Set format on video device - use UYVY which works for all LT6911 bridges
+                set_result = subprocess.run(
+                    ["v4l2-ctl", "-d", device_path,
+                     f"--set-fmt-video=width={width},height={height},pixelformat=UYVY"],
+                    capture_output=True, text=True, timeout=5
+                )
+                
+                if set_result.returncode != 0:
+                    logger.warning(f"Failed to set format on {device_path}: {set_result.stderr}")
+                else:
+                    logger.info(f"{device_path}: Format set to {width}x{height} UYVY")
+            else:
+                logger.warning(f"{device_path}: Subdev reports invalid resolution {width}x{height}")
+        else:
+            logger.warning(f"{device_path}: Could not parse resolution from subdev output")
+            
+    except subprocess.TimeoutExpired:
+        logger.error(f"Timeout initializing {device_path}")
+    except FileNotFoundError:
+        logger.warning("v4l2-ctl not found")
+    except Exception as e:
+        logger.error(f"Error initializing {device_path}: {e}")
+    
+    # Return current device capabilities after initialization
+    return get_device_capabilities(device_path)
+
+
 def is_device_busy(device_path: str) -> Tuple[bool, List[int]]:
     """Check if a V4L2 device is currently in use by another process.
     
@@ -248,7 +396,7 @@ def get_device_capabilities(device_path: str) -> Dict[str, Any]:
                 result['has_signal'] = False
                 logger.info(f"Device {device_path}: 640x480 detected, treating as no signal")
             elif result['format'] in ['BGR3', 'BGR']:
-                result['has_signal'] = False
+                    result['has_signal'] = False
                 logger.info(f"Device {device_path}: BGR format detected, treating as no signal")
 
     except Exception as e:
@@ -278,7 +426,13 @@ def build_source_pipeline(
         GStreamer pipeline string for video source
     """
     device_type = detect_device_type(device)
-    caps = get_device_capabilities(device)
+    
+    # CRITICAL: Initialize rkcif devices BEFORE querying capabilities
+    # The LT6911 bridge devices report 0x0 resolution until format is explicitly set
+    if device in RKCIF_SUBDEV_MAP:
+        caps = initialize_rkcif_device(device)
+    else:
+        caps = get_device_capabilities(device)
 
     logger.info(f"Building source pipeline: device={device}, type={device_type}, caps={caps}")
 

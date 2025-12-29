@@ -76,7 +76,7 @@ cameras:
     output_path: /mnt/sdcard/recordings/cam0/recording_%Y%m%d_%H%M%S.mkv
     mediamtx_enabled: true
     mediamtx_path: null  # Auto-generated if null: rtsp://localhost:8554/cam0
-    enabled: false  # DISABLED: Driver bug causes wrong buffer sizes (Bytes per Line: 3840 instead of 7680)
+    enabled: true  # Re-enabled: rkcif device initialization now properly sets format via subdev
 
   cam1:
     device: /dev/video60  # HDMI N60 (hdmirx direct)

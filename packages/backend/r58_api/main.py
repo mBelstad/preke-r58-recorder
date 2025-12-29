@@ -127,7 +127,7 @@ async def lifespan(app: FastAPI):
                             await manager.broadcast(event)
                             if event_type == "recording.progress":
                                 logger.info(f"[API] Broadcasted recording.progress to {len(manager.active_connections)} clients")
-                            else:
+                else:
                                 logger.debug(f"Broadcasted pipeline event: {event_type}")
                 
             except Exception as e:
