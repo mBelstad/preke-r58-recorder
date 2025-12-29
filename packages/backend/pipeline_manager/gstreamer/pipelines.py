@@ -713,21 +713,38 @@ def build_tee_recording_pipeline(
     src_height = caps['height']
     src_format = caps.get('format', 'UYVY')  # Use device's native format
     
-    logger.info(f"{cam_id}: TEE pipeline source {src_format} {src_width}x{src_height} -> target {target_width}x{target_height}")
+    # Detect device type for proper pipeline ordering
+    device_type = detect_device_type(device)
+    is_hdmirx = (device_type == "hdmirx")
     
-    # === SOURCE ===
-    # Capture at native format (UYVY for rkcif, NV16 for hdmirx)
-    source = f"v4l2src device={device} io-mode=mmap ! video/x-raw,format={src_format}"
+    logger.info(f"{cam_id}: TEE pipeline source {src_format} {src_width}x{src_height} -> target {target_width}x{target_height} (type={device_type})")
     
-    # === SCALE + CONVERT (ONCE, shared by both branches) ===
-    # RGA handles scaling via GST_VIDEO_CONVERT_USE_RGA=1 env var
-    # Then convert source format → NV12 for encoders (also RGA-accelerated)
-    scale_convert = (
-        f"videoscale ! "
-        f"video/x-raw,width={target_width},height={target_height} ! "
-        f"videoconvert ! "
-        f"video/x-raw,format=NV12"
-    )
+    # === SOURCE + SCALE + CONVERT ===
+    # CRITICAL: Different element order for hdmirx vs rkcif devices!
+    # - hdmirx (NV16): Needs videorate first to stabilize framerate, then convert, then scale
+    # - rkcif (UYVY): Can scale first (RGA accelerated), then convert
+    
+    if is_hdmirx:
+        # hdmirx device: videorate → videoconvert → videoscale (original working order)
+        # This order is critical for stability with the RK3588 hdmirx
+        source_and_convert = (
+            f"v4l2src device={device} io-mode=mmap ! "
+            f"video/x-raw,format={src_format},width={src_width},height={src_height} ! "
+            f"videorate ! video/x-raw,framerate=30/1 ! "
+            f"videoconvert ! "
+            f"videoscale ! "
+            f"video/x-raw,width={target_width},height={target_height},format=NV12"
+        )
+    else:
+        # rkcif devices (UYVY): videoscale → videoconvert (RGA accelerated)
+        source_and_convert = (
+            f"v4l2src device={device} io-mode=mmap ! "
+            f"video/x-raw,format={src_format} ! "
+            f"videoscale ! "
+            f"video/x-raw,width={target_width},height={target_height} ! "
+            f"videoconvert ! "
+            f"video/x-raw,format=NV12"
+        )
     
     # === RECORDING BRANCH ===
     # High bitrate H.264 High profile for quality recording
@@ -764,8 +781,7 @@ def build_tee_recording_pipeline(
     
     # === COMBINED PIPELINE ===
     pipeline = (
-        f"{source} ! "
-        f"{scale_convert} ! "
+        f"{source_and_convert} ! "
         f"tee name=t ! "
         f"{recording_branch} "
         f"t. ! {preview_branch}"
