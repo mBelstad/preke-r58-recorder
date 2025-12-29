@@ -10,6 +10,7 @@
   },
   "scripts": {
     "dev": "npm run build:main && electron .",
+    "dev:hot": "cross-env VITE_DEV_SERVER_URL=http://localhost:5173 npm run build:main && electron .",
     "dev:watch": "concurrently \"npm run watch:main\" \"wait-on app/main/index.js && electron .\"",
     "build:frontend": "cd ../frontend && cross-env ELECTRON_BUILD=true npm run build",
     "build:main": "tsc -p tsconfig.json",

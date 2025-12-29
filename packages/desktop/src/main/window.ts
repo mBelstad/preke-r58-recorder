@@ -12,11 +12,16 @@ let mainWindow: BrowserWindow | null = null
 // Development mode detection
 const isDev = !app.isPackaged
 
+// Vite dev server URL (for hot reload development)
+const VITE_DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL
+
 /**
  * Allowed origins for navigation and iframe embedding
  */
 const ALLOWED_NAVIGATION_ORIGINS = [
   'file://',                          // Local UI
+  'http://localhost:5173',            // Vite dev server
+  'http://localhost:5174',            // Vite fallback port
 ]
 
 const ALLOWED_IFRAME_ORIGINS = [
@@ -84,14 +89,19 @@ export function createMainWindow(): BrowserWindow {
   // Setup navigation security
   setupNavigationSecurity(mainWindow)
 
-  // Load the renderer
-  const rendererPath = getRendererPath()
-  log.info(`Loading renderer from: ${rendererPath}`)
-  
-  mainWindow.loadFile(rendererPath).catch((error) => {
-    log.error('Failed to load renderer:', error)
-    // Show error page or retry logic could go here
-  })
+  // Load from dev server or file
+  if (VITE_DEV_SERVER_URL) {
+    log.info(`Loading from Vite dev server: ${VITE_DEV_SERVER_URL}`)
+    mainWindow.loadURL(VITE_DEV_SERVER_URL).catch((error) => {
+      log.error('Failed to load from dev server:', error)
+    })
+  } else {
+    const rendererPath = getRendererPath()
+    log.info(`Loading renderer from: ${rendererPath}`)
+    mainWindow.loadFile(rendererPath).catch((error) => {
+      log.error('Failed to load renderer:', error)
+    })
+  }
 
   // Open DevTools in development
   if (isDev) {
@@ -121,6 +131,12 @@ export function createMainWindow(): BrowserWindow {
  * Setup navigation security to prevent unauthorized navigation
  */
 function setupNavigationSecurity(win: BrowserWindow): void {
+  // Skip navigation security in dev mode with Vite (HMR needs freedom)
+  if (VITE_DEV_SERVER_URL) {
+    log.info('Dev mode: Navigation security relaxed for Vite HMR')
+    return
+  }
+
   // Block navigation to unauthorized origins
   win.webContents.on('will-navigate', (event, url) => {
     const isAllowed = ALLOWED_NAVIGATION_ORIGINS.some(origin => url.startsWith(origin))

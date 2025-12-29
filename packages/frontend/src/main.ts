@@ -31,13 +31,23 @@ async function initApp() {
     }
 
     // Listen for device changes from main process
+    // Track current device to avoid reload loops
+    let currentDeviceUrl = deviceUrl
+    
     window.electronAPI?.onDeviceChanged((device) => {
       console.log('[App] Device changed:', device)
-      setDeviceUrl(device?.url || null)
+      const newUrl = device?.url || null
       
-      // Reload the current page to use new device
-      if (device) {
+      // Only reload if device actually changed (not on initial load)
+      if (newUrl !== currentDeviceUrl && currentDeviceUrl !== null) {
+        console.log('[App] Device URL changed, reloading...')
+        setDeviceUrl(newUrl)
+        currentDeviceUrl = newUrl
         router.go(0)
+      } else {
+        // Just update without reload (initial load)
+        setDeviceUrl(newUrl)
+        currentDeviceUrl = newUrl
       }
     })
 
