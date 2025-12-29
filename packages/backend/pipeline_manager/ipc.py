@@ -143,14 +143,14 @@ class IPCServer:
             if cam_config and self.state.active_recording:
                 file_path = self.state.active_recording.inputs.get(input_id)
                 if file_path:
-                    # Restart the recording pipeline
+                    # Restart the recording pipeline (with_preview=False for stability)
                     pipeline_str = build_recording_pipeline_string(
                         cam_id=input_id,
                         device=cam_config.device,
                         output_path=file_path,
                         bitrate=cam_config.bitrate,
                         resolution=cam_config.resolution,
-                        with_preview=cam_config.mediamtx_enabled,
+                        with_preview=False,  # Disabled to prevent VPU overload
                     )
                     
                     success = await loop.run_in_executor(
@@ -571,6 +571,10 @@ class IPCServer:
                 input_paths[input_id] = str(file_path)
 
                 # Build and start GStreamer pipeline
+                # Note: with_preview=False because running 2 encoders per camera
+                # (H.265 for recording + H.264 for preview) overloads the RK3588 VPU
+                # when multiple cameras are recording. This caused RGA_BLIT crashes.
+                # Preview is disabled during recording; users see the preview overlay.
                 try:
                     pipeline_str = build_recording_pipeline_string(
                         cam_id=input_id,
@@ -578,7 +582,7 @@ class IPCServer:
                         output_path=str(file_path),
                         bitrate=cam_config.bitrate,
                         resolution=cam_config.resolution,
-                        with_preview=cam_config.mediamtx_enabled,
+                        with_preview=False,  # Disabled to prevent VPU overload with multiple cameras
                     )
 
                     pipeline_id = f"recording_{input_id}"
