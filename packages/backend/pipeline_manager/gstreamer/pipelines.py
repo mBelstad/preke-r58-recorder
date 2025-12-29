@@ -608,41 +608,29 @@ def build_ingest_pipeline_string(
             f"rtspclientsink location=rtsp://127.0.0.1:{rtsp_port}/{cam_id} protocols=tcp latency=0"
         )
     
-    src_format = caps.get('format', 'NV12')
     src_width = caps['width']
     src_height = caps['height']
     
-    logger.info(f"{cam_id}: Source {src_width}x{src_height} {src_format} -> target {target_width}x{target_height}")
+    logger.info(f"{cam_id}: Source {src_width}x{src_height} -> target {target_width}x{target_height}")
     
-    # Use stable software pipeline (RGA scaling crashes even with NV12)
+    # OPTIMIZED: Request NV12 directly from V4L2 (all our devices support it!)
+    # This skips CPU-intensive videoconvert entirely
+    # Then use software videoscale (still needed, but lighter without format conversion)
     encoder_str, caps_str, parse_str = get_h264_hardware_encoder(bitrate)
     
-    # Build source pipeline with format specification
-    if device_type == "hdmirx":
-        source_pipeline = (
-            f"v4l2src device={device} io-mode=mmap ! "
-            f"video/x-raw,width={src_width},height={src_height}"
-        )
-    elif device_type == "hdmi_rkcif":
-        source_pipeline = (
-            f"v4l2src device={device} io-mode=mmap ! "
-            f"video/x-raw,format={src_format},width={src_width},height={src_height}"
-        )
-    else:
-        source_pipeline = (
-            f"v4l2src device={device} ! "
-            f"video/x-raw,width={src_width},height={src_height}"
-        )
+    # Request NV12 directly from source - both rkcif and hdmirx support NV12!
+    source_pipeline = (
+        f"v4l2src device={device} io-mode=mmap ! "
+        f"video/x-raw,format=NV12,width={src_width},height={src_height}"
+    )
     
-    # STABLE PIPELINE: Software conversion + scaling, hardware encoding
-    # RGA hardware scaling is unstable - use software videoscale
-    # With 720p output and 2 cameras, CPU usage is acceptable (~50% per camera)
+    # OPTIMIZED PIPELINE: NV12 from source -> scale only -> encode
+    # No videoconvert needed! NV12 goes directly to videoscale and encoder
     pipeline_str = (
         f"{source_pipeline} ! "
         f"queue max-size-buffers=3 max-size-time=0 max-size-bytes=0 leaky=downstream ! "
-        f"videoconvert ! "
         f"videoscale ! "
-        f"video/x-raw,width={target_width},height={target_height},format=NV12 ! "
+        f"video/x-raw,width={target_width},height={target_height} ! "
         f"queue max-size-buffers=3 max-size-time=0 max-size-bytes=0 leaky=downstream ! "
         f"{encoder_str} ! "
         f"{caps_str} ! "
