@@ -222,11 +222,7 @@ def is_device_busy(device_path: str) -> Tuple[bool, List[int]]:
         return (False, [])
 
 
-def get_h264_hardware_encoder(
-    bitrate: int,
-    target_width: Optional[int] = None,
-    target_height: Optional[int] = None
-) -> Tuple[str, str, str]:
+def get_h264_hardware_encoder(bitrate: int) -> Tuple[str, str, str]:
     """Get H.264 hardware encoder using Rockchip MPP.
 
     USE THIS FOR: Preview/streaming to MediaMTX (browser WebRTC requires H.264)
@@ -234,34 +230,25 @@ def get_h264_hardware_encoder(
 
     Uses mpph264enc with QP-based rate control.
     Baseline profile (no B-frames) prevents DTS errors.
-    
-    The encoder accepts UYVY, NV16, NV12 directly - no videoconvert needed!
-    The encoder has width/height properties for HARDWARE scaling - no videoscale needed!
 
     Tested stable on 2025-12-28 with this exact configuration.
     Previous kernel panics were with different parameters.
+    
+    NOTE: Do NOT use mpph264enc's width/height properties for scaling - 
+    they cause RGA_BLIT crashes. Use software videoscale instead.
 
     Args:
         bitrate: Target bitrate in kbps
-        target_width: Optional target width for hardware scaling (0 = original)
-        target_height: Optional target height for hardware scaling (0 = original)
 
     Returns:
         Tuple of (encoder_str, caps_str, parse_str)
     """
     bps = bitrate * 1000  # Convert kbps to bps
-    
-    # Base encoder config
     encoder_str = (
         f"mpph264enc "
         f"qp-init=26 qp-min=10 qp-max=51 "
         f"gop=30 profile=baseline rc-mode=cbr bps={bps}"
     )
-    
-    # Add hardware scaling if target dimensions specified
-    if target_width and target_height:
-        encoder_str += f" width={target_width} height={target_height}"
-    
     caps_str = "video/x-h264,stream-format=byte-stream"
     parse_str = "h264parse"
     return encoder_str, caps_str, parse_str
@@ -628,27 +615,11 @@ def build_ingest_pipeline_string(
     src_width = caps['width']
     src_height = caps['height']
     
-    # Check if we need scaling
-    needs_scaling = (src_width != target_width or src_height != target_height)
+    logger.info(f"{cam_id}: Source {src_width}x{src_height} {src_format} -> target {target_width}x{target_height}")
     
-    # The RGA (Rockchip Graphics Accelerator) used internally by mpph264enc 
-    # does NOT support UYVY format - it needs NV12.
-    # So we MUST use videoconvert to convert to NV12 before encoding.
-    # However, we can skip videoscale and use mpph264enc's internal hardware scaling!
-    rga_compatible_formats = ['NV12', 'I420', 'NV21', 'YV12', 'RGBA', 'BGRA', 'RGB', 'BGR']
-    needs_convert = src_format not in rga_compatible_formats
-    
-    if needs_convert:
-        logger.info(f"{cam_id}: Format {src_format} needs conversion to NV12 for RGA/encoder")
-    else:
-        logger.info(f"{cam_id}: Format {src_format} is RGA-compatible (no videoconvert needed)")
-    
-    if needs_scaling:
-        logger.info(f"{cam_id}: Using mpph264enc hardware scaling {src_width}x{src_height} -> {target_width}x{target_height}")
-        encoder_str, caps_str, parse_str = get_h264_hardware_encoder(bitrate, target_width, target_height)
-    else:
-        logger.info(f"{cam_id}: No scaling needed ({src_width}x{src_height})")
-        encoder_str, caps_str, parse_str = get_h264_hardware_encoder(bitrate)
+    # Use stable software conversion pipeline
+    # NOTE: mpph264enc's width/height scaling causes RGA_BLIT crashes - use videoscale instead
+    encoder_str, caps_str, parse_str = get_h264_hardware_encoder(bitrate)
     
     # Build source pipeline with format specification
     if device_type == "hdmirx":
@@ -667,19 +638,15 @@ def build_ingest_pipeline_string(
             f"video/x-raw,width={src_width},height={src_height}"
         )
     
-    # ALWAYS convert to NV12 for the RGA/encoder (UYVY and NV16 are NOT supported by RGA)
-    # But skip videoscale - use mpph264enc's internal hardware scaling instead
-    # This is much faster than software videoscale!
-    if needs_convert:
-        conversion_pipeline = "videoconvert ! video/x-raw,format=NV12 ! "
-    else:
-        conversion_pipeline = ""
-    
-    # Full pipeline: source -> queue -> convert to NV12 -> encoder (with hw scaling) -> rtsp
+    # Stable pipeline: source -> queue -> convert -> scale -> encode -> rtsp
+    # Using software videoconvert + videoscale (stable but higher CPU)
     pipeline_str = (
         f"{source_pipeline} ! "
         f"queue max-size-buffers=3 max-size-time=0 max-size-bytes=0 leaky=downstream ! "
-        f"{conversion_pipeline}"
+        f"videoconvert ! "
+        f"videoscale ! "
+        f"video/x-raw,width={target_width},height={target_height},format=NV12 ! "
+        f"queue max-size-buffers=3 max-size-time=0 max-size-bytes=0 leaky=downstream ! "
         f"{encoder_str} ! "
         f"{caps_str} ! "
         f"queue max-size-buffers=5 max-size-time=0 max-size-bytes=0 leaky=downstream ! "

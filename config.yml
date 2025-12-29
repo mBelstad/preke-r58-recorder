@@ -70,8 +70,8 @@ mixer:
 cameras:
   cam0:
     device: /dev/video0  # HDMI N0 (rkcif via LT6911 bridge)
-    resolution: 1920x1080
-    bitrate: 4000  # 4 Mbps for stable remote viewing over Cloudflare
+    resolution: 1280x720  # 720p for lower CPU load (software conversion)
+    bitrate: 2500  # 2.5 Mbps for 720p
     codec: h264  # Hardware encoding via mpph264enc (VPU)
     output_path: /mnt/sdcard/recordings/cam0/recording_%Y%m%d_%H%M%S.mkv
     mediamtx_enabled: true
@@ -80,8 +80,8 @@ cameras:
 
   cam1:
     device: /dev/video60  # HDMI N60 (hdmirx direct)
-    resolution: 1920x1080
-    bitrate: 4000  # 4 Mbps for stable remote viewing over Cloudflare
+    resolution: 1280x720  # 720p for lower CPU load (software conversion)
+    bitrate: 2500  # 2.5 Mbps for 720p
     codec: h264  # Hardware encoding via mpph264enc (VPU)
     output_path: /mnt/sdcard/recordings/cam1/recording_%Y%m%d_%H%M%S.mkv
     mediamtx_enabled: true
@@ -90,8 +90,8 @@ cameras:
 
   cam2:
     device: /dev/video11  # HDMI N11 (rkcif via LT6911 bridge)
-    resolution: 1920x1080
-    bitrate: 4000  # 4 Mbps for stable remote viewing over Cloudflare
+    resolution: 1280x720  # 720p for lower CPU load (software conversion)
+    bitrate: 2500  # 2.5 Mbps for 720p
     codec: h264  # Hardware encoding via mpph264enc (VPU)
     output_path: /mnt/sdcard/recordings/cam2/recording_%Y%m%d_%H%M%S.mkv
     mediamtx_enabled: true
@@ -100,8 +100,8 @@ cameras:
 
   cam3:
     device: /dev/video22  # HDMI N21 (rkcif-mipi-lvds2 via LT6911 2-002b bridge)
-    resolution: 1920x1080
-    bitrate: 4000  # 4 Mbps for stable remote viewing over Cloudflare
+    resolution: 1280x720  # 720p for lower CPU load (software conversion)
+    bitrate: 2500  # 2.5 Mbps for 720p
     codec: h264  # Hardware encoding via mpph264enc (VPU)
     output_path: /mnt/sdcard/recordings/cam3/recording_%Y%m%d_%H%M%S.mkv
     mediamtx_enabled: true
