@@ -37,6 +37,7 @@ const activeDeviceId = ref<string | null>(null)
 const isDiscovering = ref(false)
 const discoveredDevices = ref<DiscoveredDevice[]>([])
 const scanningSubnet = ref<string>('')
+const backgroundScanInterval = ref<ReturnType<typeof setInterval> | null>(null)
 
 // Manual entry
 const showManualEntry = ref(false)
@@ -83,6 +84,27 @@ function startDiscovery() {
 function stopDiscovery() {
   if (!window.electronAPI) return
   window.electronAPI.stopDiscovery()
+}
+
+// Passive background scanning - rescans every 20 seconds when no devices found
+function startBackgroundScanning() {
+  stopBackgroundScanning()
+  // Wait a bit before starting the interval to avoid immediate double-scan
+  setTimeout(() => {
+    backgroundScanInterval.value = setInterval(() => {
+      // Only scan if not already scanning and no devices found yet
+      if (!isDiscovering.value && discoveredDevices.value.length === 0 && !hasDevices.value) {
+        window.electronAPI?.startDiscovery()
+      }
+    }, 20000) // Every 20 seconds
+  }, 10000) // Start interval 10 seconds after mount
+}
+
+function stopBackgroundScanning() {
+  if (backgroundScanInterval.value) {
+    clearInterval(backgroundScanInterval.value)
+    backgroundScanInterval.value = null
+  }
 }
 
 async function addDiscoveredDevice(discovered: DiscoveredDevice) {
@@ -187,6 +209,8 @@ function setupDiscoveryListeners() {
       // Avoid duplicates
       if (!discoveredDevices.value.find(d => d.id === device.id)) {
         discoveredDevices.value.push(device)
+        // Stop background scanning when we find devices
+        stopBackgroundScanning()
       }
     }),
     window.electronAPI.onScanningSubnet((subnet) => {
@@ -201,6 +225,10 @@ function setupDiscoveryListeners() {
           discoveredDevices.value.push(d)
         }
       }
+      // If devices found, stop background scanning
+      if (discoveredDevices.value.length > 0 || hasDevices.value) {
+        stopBackgroundScanning()
+      }
     })
   )
 }
@@ -211,6 +239,8 @@ onMounted(() => {
   // Auto-start discovery on mount
   if (window.electronAPI) {
     startDiscovery()
+    // Start passive background scanning
+    startBackgroundScanning()
   }
 })
 
@@ -219,6 +249,8 @@ onUnmounted(() => {
   for (const fn of cleanupFns) {
     fn()
   }
+  // Stop background scanning
+  stopBackgroundScanning()
   // Stop any ongoing discovery
   if (isDiscovering.value) {
     stopDiscovery()
@@ -244,11 +276,11 @@ onUnmounted(() => {
         <!-- Discovery Section (Primary) -->
         <div class="discovery-section">
           <div class="discovery-header">
-            <h2 class="section-title">
-              <template v-if="isDiscovering">Searching for devices...</template>
-              <template v-else-if="discoveredDevices.length > 0 || hasDevices">Devices</template>
-              <template v-else>No devices found</template>
+            <h2 v-if="isDiscovering || discoveredDevices.length > 0 || hasDevices" class="section-title">
+              <template v-if="isDiscovering">Searching...</template>
+              <template v-else>Devices</template>
             </h2>
+            <div v-else class="section-title-spacer"></div>
             
             <button 
               v-if="!isDiscovering" 
@@ -281,7 +313,18 @@ onUnmounted(() => {
 
           <!-- Discovered Devices (not yet saved) -->
           <div v-if="allDevices.discovered.length > 0" class="device-group">
-            <p class="device-group__label">Found on network</p>
+            <p class="device-group__label">
+              Found on network
+              <span v-if="allDevices.discovered.length > 1" class="device-group__count">
+                ({{ allDevices.discovered.length }} devices)
+              </span>
+            </p>
+            
+            <!-- Multiple device selection view -->
+            <div v-if="allDevices.discovered.length > 1" class="device-selection">
+              <p class="device-selection__hint">Select a device to connect:</p>
+            </div>
+            
             <div 
               v-for="device in allDevices.discovered" 
               :key="device.id" 
@@ -295,10 +338,11 @@ onUnmounted(() => {
               </div>
               <div class="device-item__info">
                 <span class="device-item__name">{{ device.name }}</span>
+                <span v-if="device.version" class="device-item__version">v{{ device.version }}</span>
                 <span class="device-item__url">{{ device.host }}:{{ device.port }}</span>
               </div>
               <button @click="addDiscoveredDevice(device)" class="btn btn--primary">
-                Add
+                Connect
               </button>
             </div>
           </div>
@@ -499,7 +543,7 @@ onUnmounted(() => {
 }
 
 .logo-hero__img {
-  height: 160px;
+  height: 192px;
   width: auto;
   filter: drop-shadow(0 4px 24px rgba(0, 0, 0, 0.3));
 }
@@ -548,6 +592,10 @@ onUnmounted(() => {
   margin: 0;
 }
 
+.section-title-spacer {
+  height: 1rem;
+}
+
 .btn-scan {
   display: flex;
   align-items: center;
@@ -592,22 +640,27 @@ onUnmounted(() => {
   --delay: calc(var(--i) * 0.08s);
   display: block;
   width: 3px;
-  height: 16px; /* Base height, animation will scale */
+  height: 20px; /* Base height, animation will scale */
   background: linear-gradient(0deg, var(--gold) 0%, var(--gold-light) 100%);
   border-radius: 2px;
-  animation: soundwave 1.2s ease-in-out infinite;
+  transform: scaleY(0.2); /* Start small */
+  animation: soundwave 1.4s ease-in-out infinite;
   animation-delay: var(--delay);
   box-shadow: 0 0 6px rgba(217, 152, 30, 0.4);
 }
 
 @keyframes soundwave {
-  0%, 100% {
-    transform: scaleY(0.3);
-    opacity: 0.5;
+  0% {
+    transform: scaleY(0.2);
+    opacity: 0.4;
   }
   50% {
     transform: scaleY(1);
     opacity: 1;
+  }
+  100% {
+    transform: scaleY(0.2);
+    opacity: 0.4;
   }
 }
 
@@ -624,12 +677,30 @@ onUnmounted(() => {
 }
 
 .device-group__label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   font-size: 0.6875rem;
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--text-muted);
   margin-bottom: 0.5rem;
+}
+
+.device-group__count {
+  font-weight: 400;
+  text-transform: none;
+  color: var(--gold);
+}
+
+.device-selection {
+  margin-bottom: 0.75rem;
+}
+
+.device-selection__hint {
+  font-size: 0.8125rem;
+  color: var(--text-dim);
 }
 
 .device-item {
@@ -701,6 +772,15 @@ onUnmounted(() => {
   border-radius: 999px;
   background: rgba(34, 197, 94, 0.15);
   color: var(--green);
+}
+
+.device-item__version {
+  font-size: 0.5625rem;
+  font-weight: 500;
+  padding: 0.125rem 0.375rem;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.15);
+  color: var(--blue);
 }
 
 .device-item__url {
@@ -973,7 +1053,7 @@ onUnmounted(() => {
    ═══════════════════════════════════════════ */
 @media (max-width: 480px) {
   .setup-page { padding: 1rem; }
-  .logo-hero__img { height: 140px; }
+  .logo-hero__img { height: 160px; }
   .setup-card { padding: 1.25rem; }
 }
 </style>
