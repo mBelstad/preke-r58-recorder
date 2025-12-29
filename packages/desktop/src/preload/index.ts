@@ -19,6 +19,20 @@ interface DeviceConfig {
 }
 
 /**
+ * Discovered device type
+ */
+interface DiscoveredDevice {
+  id: string
+  name: string
+  host: string
+  port: number
+  url: string
+  source: 'mdns' | 'probe' | 'hostname'
+  status?: string
+  version?: string
+}
+
+/**
  * App info type
  */
 interface AppInfo {
@@ -132,6 +146,74 @@ const electronAPI = {
     return () => {
       ipcRenderer.removeListener('export-support-bundle', handler)
     }
+  },
+
+  // ============================================
+  // Device Discovery
+  // ============================================
+
+  /**
+   * Start network discovery for Preke devices
+   */
+  startDiscovery: (): void => {
+    ipcRenderer.send('discovery:start')
+  },
+
+  /**
+   * Stop ongoing discovery
+   */
+  stopDiscovery: (): void => {
+    ipcRenderer.send('discovery:stop')
+  },
+
+  /**
+   * Probe a specific URL to check if it's a Preke device
+   */
+  probeDevice: (url: string): Promise<DiscoveredDevice | null> => {
+    return ipcRenderer.invoke('discovery:probe', url)
+  },
+
+  /**
+   * Check if discovery is currently running
+   */
+  isDiscovering: (): Promise<boolean> => {
+    return ipcRenderer.invoke('discovery:is-scanning')
+  },
+
+  /**
+   * Listen for discovery started
+   */
+  onDiscoveryStarted: (callback: () => void): (() => void) => {
+    const handler = () => callback()
+    ipcRenderer.on('discovery:started', handler)
+    return () => ipcRenderer.removeListener('discovery:started', handler)
+  },
+
+  /**
+   * Listen for device found during discovery
+   */
+  onDeviceDiscovered: (callback: (device: DiscoveredDevice) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, device: DiscoveredDevice) => callback(device)
+    ipcRenderer.on('discovery:device-found', handler)
+    return () => ipcRenderer.removeListener('discovery:device-found', handler)
+  },
+
+  /**
+   * Listen for subnet scanning progress
+   */
+  onScanningSubnet: (callback: (subnet: string) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, subnet: string) => callback(subnet)
+    ipcRenderer.on('discovery:scanning-subnet', handler)
+    return () => ipcRenderer.removeListener('discovery:scanning-subnet', handler)
+  },
+
+  /**
+   * Listen for discovery complete
+   */
+  onDiscoveryComplete: (callback: (devices: DiscoveredDevice[]) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, devices: DiscoveredDevice[]) => callback(devices)
+    ipcRenderer.on('discovery:complete', handler)
+    return () => ipcRenderer.removeListener('discovery:complete', handler)
   },
 
   // ============================================

@@ -11,6 +11,7 @@ import { createMainWindow, getMainWindow } from './window'
 import { createApplicationMenu } from './menu'
 import { deviceStore } from './deviceStore'
 import { initializeLogger, log, exportSupportBundle } from './logger'
+import { setupDiscoveryHandlers } from './discovery'
 
 // Prevent multiple instances
 const gotTheLock = app.requestSingleInstanceLock()
@@ -159,6 +160,9 @@ app.whenReady().then(() => {
   
   // Register IPC handlers before creating window
   registerIpcHandlers()
+  
+  // Register discovery handlers
+  setupDiscoveryHandlers(getMainWindow)
   
   // Create application menu
   createApplicationMenu()
