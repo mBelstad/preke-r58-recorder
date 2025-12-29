@@ -631,50 +631,51 @@ def build_ingest_pipeline_string(
     # Check if we need scaling
     needs_scaling = (src_width != target_width or src_height != target_height)
     
-    # mpph264enc accepts UYVY, NV16, NV12 directly - no videoconvert needed for these!
-    # Use hardware scaling via encoder width/height properties
-    mpp_compatible_formats = ['UYVY', 'NV16', 'NV12', 'I420', 'YUY2', 'NV21', 'YV12']
-    needs_convert = src_format not in mpp_compatible_formats
+    # The RGA (Rockchip Graphics Accelerator) used internally by mpph264enc 
+    # does NOT support UYVY format - it needs NV12.
+    # So we MUST use videoconvert to convert to NV12 before encoding.
+    # However, we can skip videoscale and use mpph264enc's internal hardware scaling!
+    rga_compatible_formats = ['NV12', 'I420', 'NV21', 'YV12', 'RGBA', 'BGRA', 'RGB', 'BGR']
+    needs_convert = src_format not in rga_compatible_formats
     
     if needs_convert:
-        logger.info(f"{cam_id}: Format {src_format} needs conversion to NV12 for encoder")
+        logger.info(f"{cam_id}: Format {src_format} needs conversion to NV12 for RGA/encoder")
     else:
-        logger.info(f"{cam_id}: Format {src_format} accepted directly by mpph264enc (no videoconvert needed)")
+        logger.info(f"{cam_id}: Format {src_format} is RGA-compatible (no videoconvert needed)")
     
     if needs_scaling:
-        logger.info(f"{cam_id}: Using hardware scaling {src_width}x{src_height} -> {target_width}x{target_height}")
+        logger.info(f"{cam_id}: Using mpph264enc hardware scaling {src_width}x{src_height} -> {target_width}x{target_height}")
         encoder_str, caps_str, parse_str = get_h264_hardware_encoder(bitrate, target_width, target_height)
     else:
         logger.info(f"{cam_id}: No scaling needed ({src_width}x{src_height})")
         encoder_str, caps_str, parse_str = get_h264_hardware_encoder(bitrate)
     
-    # Build optimized pipeline
+    # Build source pipeline with format specification
     if device_type == "hdmirx":
-        # hdmirx - NV16 format, direct to encoder
         source_pipeline = (
             f"v4l2src device={device} io-mode=mmap ! "
             f"video/x-raw,width={src_width},height={src_height}"
         )
     elif device_type == "hdmi_rkcif":
-        # rkcif - UYVY format, direct to encoder
         source_pipeline = (
             f"v4l2src device={device} io-mode=mmap ! "
             f"video/x-raw,format={src_format},width={src_width},height={src_height}"
         )
     else:
-        # Other devices - let GStreamer negotiate
         source_pipeline = (
             f"v4l2src device={device} ! "
             f"video/x-raw,width={src_width},height={src_height}"
         )
     
-    # Add conversion only if format not compatible with mpph264enc
+    # ALWAYS convert to NV12 for the RGA/encoder (UYVY and NV16 are NOT supported by RGA)
+    # But skip videoscale - use mpph264enc's internal hardware scaling instead
+    # This is much faster than software videoscale!
     if needs_convert:
         conversion_pipeline = "videoconvert ! video/x-raw,format=NV12 ! "
     else:
         conversion_pipeline = ""
     
-    # Full pipeline: source -> queue -> [optional convert] -> encoder (with hw scaling) -> rtsp
+    # Full pipeline: source -> queue -> convert to NV12 -> encoder (with hw scaling) -> rtsp
     pipeline_str = (
         f"{source_pipeline} ! "
         f"queue max-size-buffers=3 max-size-time=0 max-size-bytes=0 leaky=downstream ! "
