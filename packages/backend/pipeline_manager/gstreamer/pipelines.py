@@ -222,7 +222,11 @@ def is_device_busy(device_path: str) -> Tuple[bool, List[int]]:
         return (False, [])
 
 
-def get_h264_hardware_encoder(bitrate: int) -> Tuple[str, str, str]:
+def get_h264_hardware_encoder(
+    bitrate: int,
+    target_width: Optional[int] = None,
+    target_height: Optional[int] = None
+) -> Tuple[str, str, str]:
     """Get H.264 hardware encoder using Rockchip MPP.
 
     USE THIS FOR: Preview/streaming to MediaMTX (browser WebRTC requires H.264)
@@ -230,22 +234,34 @@ def get_h264_hardware_encoder(bitrate: int) -> Tuple[str, str, str]:
 
     Uses mpph264enc with QP-based rate control.
     Baseline profile (no B-frames) prevents DTS errors.
+    
+    The encoder accepts UYVY, NV16, NV12 directly - no videoconvert needed!
+    The encoder has width/height properties for HARDWARE scaling - no videoscale needed!
 
     Tested stable on 2025-12-28 with this exact configuration.
     Previous kernel panics were with different parameters.
 
     Args:
         bitrate: Target bitrate in kbps
+        target_width: Optional target width for hardware scaling (0 = original)
+        target_height: Optional target height for hardware scaling (0 = original)
 
     Returns:
         Tuple of (encoder_str, caps_str, parse_str)
     """
     bps = bitrate * 1000  # Convert kbps to bps
+    
+    # Base encoder config
     encoder_str = (
         f"mpph264enc "
         f"qp-init=26 qp-min=10 qp-max=51 "
         f"gop=30 profile=baseline rc-mode=cbr bps={bps}"
     )
+    
+    # Add hardware scaling if target dimensions specified
+    if target_width and target_height:
+        encoder_str += f" width={target_width} height={target_height}"
+    
     caps_str = "video/x-h264,stream-format=byte-stream"
     parse_str = "h264parse"
     return encoder_str, caps_str, parse_str
@@ -559,9 +575,13 @@ def build_ingest_pipeline_string(
     
     The ingest pipeline:
     - Captures from V4L2 device at native resolution
-    - Encodes to H.264 using hardware encoder
+    - Encodes to H.264 using hardware encoder with internal scaling
     - Streams to MediaMTX via RTSP
     - Runs continuously (never stops during recording)
+    
+    OPTIMIZATION: Uses mpph264enc internal hardware scaling instead of 
+    CPU-intensive videoconvert + videoscale. The MPP encoder accepts
+    UYVY/NV16 directly and has width/height properties for hardware scaling.
     
     All consumers (preview, recording, mixer) subscribe to MediaMTX.
     
@@ -575,17 +595,90 @@ def build_ingest_pipeline_string(
     Returns:
         GStreamer pipeline string
     """
-    width, height = resolution.split("x")
-    source_str = build_source_pipeline(device, int(width), int(height), 30)
+    target_width, target_height = resolution.split("x")
+    target_width = int(target_width)
+    target_height = int(target_height)
     
-    # Use H.264 hardware encoder - required for browser WebRTC
-    encoder_str, caps_str, parse_str = get_h264_hardware_encoder(bitrate)
+    device_type = detect_device_type(device)
     
-    # Stream to MediaMTX via RTSP with TCP for reliability
-    # config-interval=-1 ensures SPS/PPS sent with every keyframe
+    # CRITICAL: Initialize rkcif devices BEFORE querying capabilities
+    if device in RKCIF_SUBDEV_MAP:
+        caps = initialize_rkcif_device(device)
+    else:
+        caps = get_device_capabilities(device)
+    
+    logger.info(f"Building ingest pipeline: cam_id={cam_id}, device={device}, type={device_type}, caps={caps}, target={target_width}x{target_height}")
+    
+    if not caps['has_signal']:
+        # No signal - use test pattern
+        logger.warning(f"No signal on {device}, using black test pattern")
+        encoder_str, caps_str, parse_str = get_h264_hardware_encoder(bitrate)
+        return (
+            f"videotestsrc pattern=black is-live=true ! "
+            f"video/x-raw,width={target_width},height={target_height},framerate=30/1,format=NV12 ! "
+            f"queue max-size-buffers=5 max-size-time=0 max-size-bytes=0 leaky=downstream ! "
+            f"{encoder_str} ! "
+            f"{caps_str} ! "
+            f"queue max-size-buffers=5 max-size-time=0 max-size-bytes=0 leaky=downstream ! "
+            f"{parse_str} config-interval=-1 ! "
+            f"rtspclientsink location=rtsp://127.0.0.1:{rtsp_port}/{cam_id} protocols=tcp latency=0"
+        )
+    
+    src_format = caps.get('format', 'NV12')
+    src_width = caps['width']
+    src_height = caps['height']
+    
+    # Check if we need scaling
+    needs_scaling = (src_width != target_width or src_height != target_height)
+    
+    # mpph264enc accepts UYVY, NV16, NV12 directly - no videoconvert needed for these!
+    # Use hardware scaling via encoder width/height properties
+    mpp_compatible_formats = ['UYVY', 'NV16', 'NV12', 'I420', 'YUY2', 'NV21', 'YV12']
+    needs_convert = src_format not in mpp_compatible_formats
+    
+    if needs_convert:
+        logger.info(f"{cam_id}: Format {src_format} needs conversion to NV12 for encoder")
+    else:
+        logger.info(f"{cam_id}: Format {src_format} accepted directly by mpph264enc (no videoconvert needed)")
+    
+    if needs_scaling:
+        logger.info(f"{cam_id}: Using hardware scaling {src_width}x{src_height} -> {target_width}x{target_height}")
+        encoder_str, caps_str, parse_str = get_h264_hardware_encoder(bitrate, target_width, target_height)
+    else:
+        logger.info(f"{cam_id}: No scaling needed ({src_width}x{src_height})")
+        encoder_str, caps_str, parse_str = get_h264_hardware_encoder(bitrate)
+    
+    # Build optimized pipeline
+    if device_type == "hdmirx":
+        # hdmirx - NV16 format, direct to encoder
+        source_pipeline = (
+            f"v4l2src device={device} io-mode=mmap ! "
+            f"video/x-raw,width={src_width},height={src_height}"
+        )
+    elif device_type == "hdmi_rkcif":
+        # rkcif - UYVY format, direct to encoder
+        source_pipeline = (
+            f"v4l2src device={device} io-mode=mmap ! "
+            f"video/x-raw,format={src_format},width={src_width},height={src_height}"
+        )
+    else:
+        # Other devices - let GStreamer negotiate
+        source_pipeline = (
+            f"v4l2src device={device} ! "
+            f"video/x-raw,width={src_width},height={src_height}"
+        )
+    
+    # Add conversion only if format not compatible with mpph264enc
+    if needs_convert:
+        conversion_pipeline = "videoconvert ! video/x-raw,format=NV12 ! "
+    else:
+        conversion_pipeline = ""
+    
+    # Full pipeline: source -> queue -> [optional convert] -> encoder (with hw scaling) -> rtsp
     pipeline_str = (
-        f"{source_str} ! "
-        f"queue max-size-buffers=5 max-size-time=0 max-size-bytes=0 leaky=downstream ! "
+        f"{source_pipeline} ! "
+        f"queue max-size-buffers=3 max-size-time=0 max-size-bytes=0 leaky=downstream ! "
+        f"{conversion_pipeline}"
         f"{encoder_str} ! "
         f"{caps_str} ! "
         f"queue max-size-buffers=5 max-size-time=0 max-size-bytes=0 leaky=downstream ! "
