@@ -94,7 +94,7 @@ cameras:
     output_path: /mnt/sdcard/recordings/cam1/recording_%Y%m%d_%H%M%S.mkv
     mediamtx_enabled: true
     mediamtx_path: null
-    enabled: false  # DISABLED: Causes crashes with 4 TEE pipelines - investigate separately
+    enabled: true  # Re-enabled: All devices now use unified NV16 pipeline
 
   cam2:
     device: /dev/video11  # HDMI N11 (rkcif via LT6911 bridge)

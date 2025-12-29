@@ -150,17 +150,18 @@ def initialize_rkcif_device(device_path: str) -> Dict[str, Any]:
             if width > 0 and height > 0:
                 logger.info(f"{device_path}: Subdev reports {width}x{height}, setting format")
                 
-                # Set format on video device - use UYVY which works for all LT6911 bridges
+                # Set format on video device - use NV16 for consistency with hdmirx
+                # All devices (rkcif and hdmirx) support NV16, enabling unified pipeline
                 set_result = subprocess.run(
                     ["v4l2-ctl", "-d", device_path,
-                     f"--set-fmt-video=width={width},height={height},pixelformat=UYVY"],
+                     f"--set-fmt-video=width={width},height={height},pixelformat=NV16"],
                     capture_output=True, text=True, timeout=5
                 )
                 
                 if set_result.returncode != 0:
                     logger.warning(f"Failed to set format on {device_path}: {set_result.stderr}")
                 else:
-                    logger.info(f"{device_path}: Format set to {width}x{height} UYVY")
+                    logger.info(f"{device_path}: Format set to {width}x{height} NV16")
             else:
                 logger.warning(f"{device_path}: Subdev reports invalid resolution {width}x{height}")
         else:
@@ -711,40 +712,26 @@ def build_tee_recording_pipeline(
     
     src_width = caps['width']
     src_height = caps['height']
-    src_format = caps.get('format', 'UYVY')  # Use device's native format
+    # All devices now use NV16 (rkcif initialized with NV16, hdmirx native NV16)
+    src_format = 'NV16'
     
-    # Detect device type for proper pipeline ordering
-    device_type = detect_device_type(device)
-    is_hdmirx = (device_type == "hdmirx")
+    logger.info(f"{cam_id}: TEE pipeline source NV16 {src_width}x{src_height} -> target {target_width}x{target_height}")
     
-    logger.info(f"{cam_id}: TEE pipeline source {src_format} {src_width}x{src_height} -> target {target_width}x{target_height} (type={device_type})")
-    
-    # === SOURCE + SCALE + CONVERT ===
-    # CRITICAL: Different element order for hdmirx vs rkcif devices!
-    # - hdmirx (NV16): Needs videorate first to stabilize framerate, then convert, then scale
-    # - rkcif (UYVY): Can scale first (RGA accelerated), then convert
-    
-    if is_hdmirx:
-        # hdmirx device: videorate → videoconvert → videoscale (original working order)
-        # This order is critical for stability with the RK3588 hdmirx
-        source_and_convert = (
-            f"v4l2src device={device} io-mode=mmap ! "
-            f"video/x-raw,format={src_format},width={src_width},height={src_height} ! "
-            f"videorate ! video/x-raw,framerate=30/1 ! "
-            f"videoconvert ! "
-            f"videoscale ! "
-            f"video/x-raw,width={target_width},height={target_height},format=NV12"
-        )
-    else:
-        # rkcif devices (UYVY): videoscale → videoconvert (RGA accelerated)
-        source_and_convert = (
-            f"v4l2src device={device} io-mode=mmap ! "
-            f"video/x-raw,format={src_format} ! "
-            f"videoscale ! "
-            f"video/x-raw,width={target_width},height={target_height} ! "
-            f"videoconvert ! "
-            f"video/x-raw,format=NV12"
-        )
+    # === UNIFIED SOURCE + SCALE + CONVERT ===
+    # All devices now use NV16 format, enabling a single pipeline structure:
+    # NV16 → videorate (30fps) → videoscale (RGA) → videoconvert (RGA) → NV12
+    # 
+    # The videorate element stabilizes framerate from variable sources
+    # RGA accelerates both videoscale and videoconvert (GST_VIDEO_CONVERT_USE_RGA=1)
+    source_and_convert = (
+        f"v4l2src device={device} io-mode=mmap ! "
+        f"video/x-raw,format={src_format},width={src_width},height={src_height} ! "
+        f"videorate ! video/x-raw,framerate=30/1 ! "
+        f"videoscale ! "
+        f"video/x-raw,width={target_width},height={target_height} ! "
+        f"videoconvert ! "
+        f"video/x-raw,format=NV12"
+    )
     
     # === RECORDING BRANCH ===
     # High bitrate H.264 High profile for quality recording
