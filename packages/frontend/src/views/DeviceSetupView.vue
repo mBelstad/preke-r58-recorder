@@ -35,9 +35,11 @@ const activeDeviceId = ref<string | null>(null)
 
 // Discovery state
 const isDiscovering = ref(false)
+const isBackgroundScan = ref(false) // True when scanning in background (no UI)
 const discoveredDevices = ref<DiscoveredDevice[]>([])
 const scanningSubnet = ref<string>('')
 const backgroundScanInterval = ref<ReturnType<typeof setInterval> | null>(null)
+const backgroundScanTimeout = ref<ReturnType<typeof setTimeout> | null>(null)
 
 // Manual entry
 const showManualEntry = ref(false)
@@ -86,21 +88,26 @@ function stopDiscovery() {
   window.electronAPI.stopDiscovery()
 }
 
-// Passive background scanning - rescans every 20 seconds when no devices found
+// Passive background scanning - rescans every 45 seconds when no devices found
 function startBackgroundScanning() {
   stopBackgroundScanning()
-  // Wait a bit before starting the interval to avoid immediate double-scan
-  setTimeout(() => {
+  // Wait before starting the interval
+  backgroundScanTimeout.value = setTimeout(() => {
     backgroundScanInterval.value = setInterval(() => {
       // Only scan if not already scanning and no devices found yet
       if (!isDiscovering.value && discoveredDevices.value.length === 0 && !hasDevices.value) {
+        isBackgroundScan.value = true
         window.electronAPI?.startDiscovery()
       }
-    }, 20000) // Every 20 seconds
-  }, 10000) // Start interval 10 seconds after mount
+    }, 45000) // Every 45 seconds - not aggressive
+  }, 30000) // Wait 30 seconds after initial scan before starting background scans
 }
 
 function stopBackgroundScanning() {
+  if (backgroundScanTimeout.value) {
+    clearTimeout(backgroundScanTimeout.value)
+    backgroundScanTimeout.value = null
+  }
   if (backgroundScanInterval.value) {
     clearInterval(backgroundScanInterval.value)
     backgroundScanInterval.value = null
@@ -211,13 +218,18 @@ function setupDiscoveryListeners() {
         discoveredDevices.value.push(device)
         // Stop background scanning when we find devices
         stopBackgroundScanning()
+        isBackgroundScan.value = false
       }
     }),
     window.electronAPI.onScanningSubnet((subnet) => {
-      scanningSubnet.value = subnet
+      // Only show subnet during foreground scans
+      if (!isBackgroundScan.value) {
+        scanningSubnet.value = subnet
+      }
     }),
     window.electronAPI.onDiscoveryComplete((devices) => {
       isDiscovering.value = false
+      isBackgroundScan.value = false
       scanningSubnet.value = ''
       // Merge any we might have missed
       for (const d of devices) {
@@ -276,35 +288,37 @@ onUnmounted(() => {
         <!-- Discovery Section (Primary) -->
         <div class="discovery-section">
           <div class="discovery-header">
-            <h2 v-if="isDiscovering || discoveredDevices.length > 0 || hasDevices" class="section-title">
-              <template v-if="isDiscovering">Searching...</template>
+            <h2 v-if="(isDiscovering && !isBackgroundScan) || discoveredDevices.length > 0 || hasDevices" class="section-title">
+              <template v-if="isDiscovering && !isBackgroundScan">Searching...</template>
               <template v-else>Devices</template>
             </h2>
             <div v-else class="section-title-spacer"></div>
             
+            <!-- Scan/Stop buttons -->
             <button 
-              v-if="!isDiscovering" 
-              @click="startDiscovery" 
-              class="btn-scan"
-              title="Scan again"
-            >
-              <svg viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/>
-              </svg>
-              Scan
-            </button>
-            
-            <button 
-              v-else 
+              v-if="isDiscovering && !isBackgroundScan" 
               @click="stopDiscovery" 
               class="btn-scan btn-scan--stop"
             >
               Stop
             </button>
+            <button 
+              v-else-if="(discoveredDevices.length > 0 || hasDevices)" 
+              @click="startDiscovery" 
+              :disabled="isDiscovering"
+              class="btn-scan"
+              :class="{ 'btn-scan--spinning': isBackgroundScan }"
+              title="Scan again"
+            >
+              <svg viewBox="0 0 20 20" fill="currentColor" class="btn-scan__icon">
+                <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/>
+              </svg>
+              Scan
+            </button>
           </div>
 
-          <!-- Scanning Animation (Soundwave) -->
-          <div v-if="isDiscovering" class="scan-indicator">
+          <!-- Scanning Animation (Soundwave) - only for foreground scans -->
+          <div v-if="isDiscovering && !isBackgroundScan" class="scan-indicator">
             <div class="soundwave">
               <span v-for="i in 24" :key="i" class="soundwave__bar" :style="{ '--i': i }" />
             </div>
@@ -383,8 +397,8 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <!-- Empty state when not discovering and nothing found -->
-          <div v-if="!isDiscovering && discoveredDevices.length === 0 && !hasDevices" class="empty-state">
+          <!-- Empty state when not discovering (foreground) and nothing found -->
+          <div v-if="(!isDiscovering || isBackgroundScan) && discoveredDevices.length === 0 && !hasDevices" class="empty-state">
             <div class="empty-state__icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                 <rect x="2" y="3" width="20" height="14" rx="2"/>
@@ -399,6 +413,19 @@ onUnmounted(() => {
               <li>Connected to the same network</li>
               <li>Finished booting up (~30 seconds)</li>
             </ul>
+            
+            <!-- Scan button in empty state -->
+            <button 
+              @click="startDiscovery" 
+              :disabled="isDiscovering"
+              class="btn-scan-large"
+              :class="{ 'btn-scan-large--spinning': isBackgroundScan }"
+            >
+              <svg viewBox="0 0 20 20" fill="currentColor" class="btn-scan-large__icon">
+                <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/>
+              </svg>
+              {{ isBackgroundScan ? 'Searching...' : 'Scan for devices' }}
+            </button>
           </div>
         </div>
 
@@ -543,7 +570,7 @@ onUnmounted(() => {
 }
 
 .logo-hero__img {
-  height: 192px;
+  height: 240px;
   width: auto;
   filter: drop-shadow(0 4px 24px rgba(0, 0, 0, 0.3));
 }
@@ -615,6 +642,9 @@ onUnmounted(() => {
 .btn-scan--stop { color: var(--red); border-color: rgba(239, 68, 68, 0.3); }
 .btn-scan--stop:hover { background: rgba(239, 68, 68, 0.1); }
 .btn-scan svg { width: 14px; height: 14px; }
+.btn-scan__icon { transition: transform 0.3s ease; }
+.btn-scan--spinning .btn-scan__icon { animation: spin-slow 2s linear infinite; }
+.btn-scan:disabled { opacity: 0.7; cursor: default; }
 
 /* ═══════════════════════════════════════════
    SOUNDWAVE ANIMATION (Searching Indicator)
@@ -856,6 +886,49 @@ onUnmounted(() => {
   color: var(--gold);
 }
 
+/* Scan button in empty state */
+.btn-scan-large {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+  padding: 0.625rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-scan-large:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--gold);
+}
+
+.btn-scan-large:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.btn-scan-large__icon {
+  width: 16px;
+  height: 16px;
+  transition: transform 0.3s ease;
+}
+
+.btn-scan-large--spinning .btn-scan-large__icon {
+  animation: spin-slow 2s linear infinite;
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 /* ═══════════════════════════════════════════
    DIVIDER
    ═══════════════════════════════════════════ */
@@ -1053,7 +1126,8 @@ onUnmounted(() => {
    ═══════════════════════════════════════════ */
 @media (max-width: 480px) {
   .setup-page { padding: 1rem; }
-  .logo-hero__img { height: 160px; }
+  .logo-hero__img { height: 180px; }
   .setup-card { padding: 1.25rem; }
+  .btn-scan-large { width: 100%; }
 }
 </style>

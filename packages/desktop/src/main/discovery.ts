@@ -130,7 +130,7 @@ async function tryKnownHostnames(): Promise<DiscoveredDevice[]> {
 async function probeDevice(
   ip: string, 
   port: number, 
-  timeout: number = 800  // Fast timeout for LAN
+  timeout: number = 1200  // Reasonable timeout for reliable LAN discovery
 ): Promise<DiscoveredDevice | null> {
   // Only probe the primary port first for speed
   const urls = [
@@ -200,16 +200,16 @@ function probeUrl(url: string, timeout: number): Promise<any | null> {
 
 /**
  * Scan local subnet for devices
- * Optimized: larger batches, shorter timeouts, skip broadcast addresses
+ * Uses reasonable batch sizes and timeouts for reliable LAN discovery
  */
 async function scanSubnet(
   subnet: string,
   onDeviceFound: (device: DiscoveredDevice) => void,
   abortSignal?: AbortSignal
 ): Promise<void> {
-  const batchSize = 50 // Probe 50 IPs at a time for speed
+  const batchSize = 25 // Smaller batches for more reliable scanning
   const port = 8000
-  const timeout = 600 // 600ms is plenty for LAN
+  const timeout = 1200 // 1.2 seconds - gives slower devices time to respond
 
   for (let i = 1; i <= 254; i += batchSize) {
     if (abortSignal?.aborted) break
@@ -225,6 +225,11 @@ async function scanSubnet(
       if (device) {
         onDeviceFound(device)
       }
+    }
+
+    // Small delay between batches to avoid overwhelming the network
+    if (i + batchSize <= 254) {
+      await new Promise(resolve => setTimeout(resolve, 100))
     }
   }
 }
