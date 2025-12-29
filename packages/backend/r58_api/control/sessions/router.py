@@ -4,7 +4,7 @@ import json
 import logging
 import re
 import shutil
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -280,7 +280,7 @@ async def _start_recording_impl(
             "session_id": result["session_id"],
             "name": request.name,
             "inputs": list(result.get("inputs", {}).keys()),
-            "started_at": datetime.now().isoformat(),
+            "started_at": datetime.now(timezone.utc).isoformat(),
         }
     )
     asyncio.create_task(manager.broadcast(started_event))
@@ -288,7 +288,7 @@ async def _start_recording_impl(
     return StartRecordingResponse(
         session_id=result["session_id"],
         name=request.name,
-        started_at=datetime.now(),
+        started_at=datetime.now(timezone.utc),
         inputs=list(result.get("inputs", {}).keys()),
         status="recording",
     )

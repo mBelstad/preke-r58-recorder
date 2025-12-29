@@ -1,6 +1,6 @@
 """Pipeline state persistence"""
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Optional
 
@@ -45,7 +45,7 @@ class PipelineState(BaseModel):
         self.current_mode = "recording"
         self.active_recording = RecordingState(
             session_id=session_id,
-            started_at=datetime.now(),
+            started_at=datetime.now(timezone.utc),
             inputs=inputs,
             bytes_written={input_id: 0 for input_id in inputs},
         )

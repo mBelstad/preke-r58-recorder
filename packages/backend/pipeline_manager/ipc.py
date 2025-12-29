@@ -6,7 +6,7 @@ import json
 import logging
 import uuid
 from collections import deque
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Deque, Dict, List, Optional
 
@@ -59,7 +59,7 @@ class IPCServer:
         event = {
             "seq": self._event_seq,
             "type": event_type,
-            "ts": datetime.now().isoformat(),
+            "ts": datetime.now(timezone.utc).isoformat(),
             "payload": payload,
         }
         self._event_queue.append(event)
@@ -222,7 +222,7 @@ class IPCServer:
             self.state.update_bytes(input_id, bytes_val)
         
         # Calculate duration from recording start
-        duration_ms = int((datetime.now() - self.state.active_recording.started_at).total_seconds() * 1000)
+        duration_ms = int((datetime.now(timezone.utc) - self.state.active_recording.started_at).total_seconds() * 1000)
         
         # Queue progress event for API to broadcast
         self._queue_event("recording.progress", {
@@ -508,7 +508,7 @@ class IPCServer:
 
             return {
                 "session_id": final_state.session_id if final_state else None,
-                "duration_ms": int((datetime.now() - final_state.started_at).total_seconds() * 1000) if final_state else 0,
+                "duration_ms": int((datetime.now(timezone.utc) - final_state.started_at).total_seconds() * 1000) if final_state else 0,
                 "files": final_state.inputs if final_state else {},
                 "stopped_pipelines": stopped_pipelines,
                 "restarted_previews": restarted_previews,
@@ -522,7 +522,7 @@ class IPCServer:
             return {
                 "recording": True,
                 "session_id": self.state.active_recording.session_id,
-                "duration_ms": int((datetime.now() - self.state.active_recording.started_at).total_seconds() * 1000),
+                "duration_ms": int((datetime.now(timezone.utc) - self.state.active_recording.started_at).total_seconds() * 1000),
                 "bytes_written": self.state.active_recording.bytes_written,
             }
 

@@ -7,7 +7,7 @@ import logging
 import threading
 import time
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional
@@ -155,7 +155,7 @@ class PipelineRunner:
 
                 if new_state == Gst.State.PLAYING and info.state == PipelineState.STARTING:
                     info.state = PipelineState.RUNNING
-                    info.started_at = datetime.now()
+                    info.started_at = datetime.now(timezone.utc)
                     self._notify_state_change(pipeline_id, PipelineState.RUNNING)
 
         elif message.type == Gst.MessageType.WARNING:
