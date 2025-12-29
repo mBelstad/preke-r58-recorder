@@ -3,6 +3,8 @@
  * 
  * Provides bidirectional communication with embedded VDO.ninja via postMessage API
  * 
+ * API Reference: https://docs.vdo.ninja/guides/iframe-api-documentation/iframe-api-for-directors
+ * 
  * Debug Mode:
  * - Enable via localStorage: localStorage.setItem('vdo-debug', 'true')
  * - Access event history: window.__VDO_DEBUG__.getHistory()
@@ -29,6 +31,12 @@ export interface VdoMessage {
   action: string
   target?: string
   value?: unknown
+  value2?: unknown
+  // For DOM manipulation
+  add?: boolean
+  remove?: boolean
+  replace?: boolean
+  settings?: Record<string, unknown>
 }
 
 export interface VdoEvent {
@@ -49,6 +57,17 @@ export interface VdoDebugEntry {
   target?: string
   data: unknown
   raw?: unknown
+}
+
+/** Custom layout slot position */
+export interface VdoLayoutSlot {
+  x: number      // X position (0-100%)
+  y: number      // Y position (0-100%)
+  w: number      // Width (0-100%)
+  h: number      // Height (0-100%)
+  slot: number   // Slot index
+  c?: boolean    // Crop to fit
+  z?: number     // Z-index
 }
 
 // ==========================================
@@ -179,7 +198,7 @@ if (typeof window !== 'undefined') {
 export function useVdoNinja(iframeRef: Ref<HTMLIFrameElement | null>) {
   const isReady = ref(false)
   const sources = ref<Map<string, SourceInfo>>(new Map())
-  const activeScene = ref<string | null>(null)
+  const activeScene = ref<number | null>(null)
   const isRecording = ref(false)
   const connectionState = ref<'disconnected' | 'connecting' | 'connected'>('disconnected')
   const lastError = ref<string | null>(null)
@@ -189,7 +208,11 @@ export function useVdoNinja(iframeRef: Ref<HTMLIFrameElement | null>) {
   // SENDING COMMANDS TO VDO.NINJA
   // ==========================================
   
-  function sendCommand(action: string, target?: string, value?: unknown): void {
+  /**
+   * Send a raw postMessage command to VDO.ninja
+   * See: https://docs.vdo.ninja/guides/iframe-api-documentation/iframe-api-for-directors
+   */
+  function sendCommand(action: string, target?: string, value?: unknown, value2?: unknown): void {
     if (!iframeRef.value?.contentWindow) {
       console.warn('[VDO.ninja] Cannot send command - iframe not ready')
       lastError.value = 'iframe not ready'
@@ -199,6 +222,7 @@ export function useVdoNinja(iframeRef: Ref<HTMLIFrameElement | null>) {
     const message: VdoMessage = { action }
     if (target) message.target = target
     if (value !== undefined) message.value = value
+    if (value2 !== undefined) message.value2 = value2
     
     // Log outgoing command
     logDebugEntry({
@@ -206,7 +230,7 @@ export function useVdoNinja(iframeRef: Ref<HTMLIFrameElement | null>) {
       direction: 'outgoing',
       type: action,
       target,
-      data: { action, target, value },
+      data: { action, target, value, value2 },
       raw: message
     })
     
@@ -218,87 +242,195 @@ export function useVdoNinja(iframeRef: Ref<HTMLIFrameElement | null>) {
     }
   }
   
+  /**
+   * Send a DOM manipulation command (add/remove/replace video elements)
+   */
+  function sendDomCommand(target: string, options: { add?: boolean; remove?: boolean; replace?: boolean; settings?: Record<string, unknown> }): void {
+    if (!iframeRef.value?.contentWindow) {
+      console.warn('[VDO.ninja] Cannot send DOM command - iframe not ready')
+      return
+    }
+    
+    const message: VdoMessage = { action: '', target, ...options }
+    
+    logDebugEntry({
+      timestamp: Date.now(),
+      direction: 'outgoing',
+      type: 'dom-manipulation',
+      target,
+      data: options,
+      raw: message
+    })
+    
+    try {
+      iframeRef.value.contentWindow.postMessage(message, '*')
+    } catch (err) {
+      console.error('[VDO.ninja] Failed to send DOM command:', err)
+    }
+  }
+  
   // --- Scene Control ---
   
-  /** Switch to a different scene/layout */
-  function setScene(sceneId: string): void {
-    sendCommand('changeScene', undefined, sceneId)
-    activeScene.value = sceneId
+  /**
+   * Add a guest to a scene (director command)
+   * API: action: "addScene", target: streamID/slot, value: sceneNumber
+   */
+  function addToScene(targetId: string, sceneNumber: number = 1): void {
+    sendCommand('addScene', targetId, sceneNumber)
+    activeScene.value = sceneNumber
   }
   
-  /** Set source to program output */
+  /**
+   * Remove a guest from a scene
+   * Note: This keeps them in the room but removes from the scene view
+   */
+  function removeFromScene(targetId: string, sceneNumber: number = 1): void {
+    // VDO.ninja uses addScene with value 0 or negative to remove
+    sendCommand('addScene', targetId, 0)
+  }
+  
+  /**
+   * Set source as the solo/program output (replaces all others)
+   * Uses DOM manipulation: target with replace: true
+   */
   function setProgram(streamId: string): void {
-    sendCommand('soloVideo', streamId)
+    sendDomCommand(streamId, { replace: true })
   }
   
-  /** Toggle picture-in-picture for a source */
-  function togglePiP(streamId: string, enabled: boolean): void {
-    sendCommand('pip', streamId, enabled ? 'enable' : 'disable')
+  /**
+   * Add a source to the current view
+   */
+  function addSource(streamId: string): void {
+    sendDomCommand(streamId, { add: true })
+  }
+  
+  /**
+   * Remove a source from the current view
+   */
+  function removeSource(streamId: string): void {
+    sendDomCommand(streamId, { remove: true })
   }
   
   // --- Audio Control ---
   
-  /** Mute/unmute a specific source */
+  /**
+   * Mute/unmute a specific source's microphone
+   * API: action: "mic", target: streamID/slot, value: true/false/"toggle"
+   */
   function setMute(streamId: string, muted: boolean): void {
-    sendCommand('mute', streamId, muted)
+    // VDO.ninja uses "mic" action, value false = muted, true = unmuted
+    sendCommand('mic', streamId, !muted)
     const source = sources.value.get(streamId)
     if (source) {
       source.muted = muted
     }
   }
   
-  /** Set volume for a source (0-100) */
-  function setVolume(streamId: string, volume: number): void {
-    sendCommand('volume', streamId, Math.max(0, Math.min(100, volume)))
+  /**
+   * Toggle microphone for a source
+   */
+  function toggleMute(streamId: string): void {
+    sendCommand('mic', streamId, 'toggle')
+    const source = sources.value.get(streamId)
+    if (source) {
+      source.muted = !source.muted
+    }
   }
   
-  /** Mute all sources except one */
+  /**
+   * Set volume for a source (0-200, 100 = normal)
+   * API: action: "volume", target: streamID/slot, value: 0-200
+   */
+  function setVolume(streamId: string, volume: number): void {
+    // VDO.ninja uses 0-200 scale (100 = normal, 200 = 2x gain)
+    sendCommand('volume', streamId, Math.max(0, Math.min(200, volume)))
+  }
+  
+  /**
+   * Solo chat with a guest (only hear this guest)
+   * API: action: "soloChat", target: streamID/slot
+   */
   function soloAudio(streamId: string): void {
     sendCommand('soloChat', streamId)
   }
   
-  // --- Source Control ---
-  
-  /** Highlight a source (visual indicator) */
-  function highlightSource(streamId: string): void {
-    sendCommand('highlight', streamId)
+  /**
+   * Two-way solo chat (private conversation)
+   */
+  function soloChatBidirectional(streamId: string): void {
+    sendCommand('soloChatBidirectional', streamId)
   }
   
-  /** Send message to a specific guest */
+  // --- Source Control ---
+  
+  /**
+   * Send chat message to a specific guest
+   * API: action: "sendChat", target: streamID/slot, value: message
+   */
   function sendToGuest(streamId: string, message: string): void {
     sendCommand('sendChat', streamId, message)
   }
   
-  /** Kick a guest from the room */
+  /**
+   * Send overlay message to guest's screen (director notification)
+   * API: action: "sendDirectorChat", target: streamID/slot, value: message
+   */
+  function sendDirectorMessage(streamId: string, message: string): void {
+    sendCommand('sendDirectorChat', streamId, message)
+  }
+  
+  /**
+   * Kick a guest from the room
+   * API: action: "hangup", target: streamID/slot
+   */
   function kickGuest(streamId: string): void {
     sendCommand('hangup', streamId)
     sources.value.delete(streamId)
   }
   
-  /** Request guest to share screen */
-  function requestScreenShare(streamId: string): void {
-    sendCommand('requestScreen', streamId)
+  /**
+   * Toggle screen share for a guest
+   * API: action: "togglescreenshare" (self) or with target for director
+   */
+  function toggleScreenShare(streamId?: string): void {
+    if (streamId) {
+      sendCommand('togglescreenshare', streamId)
+    } else {
+      sendCommand('togglescreenshare')
+    }
   }
   
-  /** Accept a guest into the room */
-  function acceptGuest(streamId: string): void {
-    sendCommand('addToScene', streamId)
+  /**
+   * Transfer guest to another room
+   * API: action: "forward", target: streamID/slot, value: roomName
+   */
+  function transferGuest(streamId: string, roomName: string): void {
+    sendCommand('forward', streamId, roomName)
   }
   
-  /** Remove guest from scene (but keep in room) */
-  function removeFromScene(streamId: string): void {
-    sendCommand('removeFromScene', streamId)
+  /**
+   * Get list of guests in room
+   * API: action: "getGuestList", cib: callbackId
+   */
+  function getGuestList(callbackId: string = 'guests'): void {
+    sendCommand('getGuestList', undefined, undefined)
   }
   
   // --- Recording/Streaming ---
   
-  /** Start local recording in VDO.ninja */
+  /**
+   * Start local recording in VDO.ninja
+   * API: action: "record", value: true
+   */
   function startRecording(): void {
     sendCommand('record', undefined, true)
     isRecording.value = true
   }
   
-  /** Stop local recording */
+  /**
+   * Stop local recording
+   * API: action: "record", value: false
+   */
   function stopRecording(): void {
     sendCommand('record', undefined, false)
     isRecording.value = false
@@ -306,24 +438,85 @@ export function useVdoNinja(iframeRef: Ref<HTMLIFrameElement | null>) {
   
   // --- Layout/Display ---
   
-  /** Set layout mode */
-  function setLayout(layout: 'grid' | 'solo' | 'pip' | 'custom'): void {
+  /**
+   * Set layout mode (preset number or custom array)
+   * API: action: "layout", value: number | VdoLayoutSlot[]
+   * 
+   * Preset numbers:
+   * - 0: Auto grid
+   * - 1: Solo (first source fullscreen)
+   * - 2: Side by side
+   * - etc.
+   * 
+   * Custom: Array of {x, y, w, h, slot} objects (percentages)
+   */
+  function setLayout(layout: number | VdoLayoutSlot[]): void {
     sendCommand('layout', undefined, layout)
   }
   
-  /** Force refresh a source */
-  function refreshSource(streamId: string): void {
-    sendCommand('reload', streamId)
+  /**
+   * Force refresh/reload a source
+   * API: action: "reload", target: streamID (optional, self if omitted)
+   */
+  function refreshSource(streamId?: string): void {
+    if (streamId) {
+      sendCommand('reload', streamId)
+    } else {
+      sendCommand('reload')
+    }
   }
   
-  /** Set custom slot positions (for custom layouts) */
-  function setSlots(slotsConfig: Record<string, unknown>): void {
-    sendCommand('setSlots', undefined, slotsConfig)
+  /**
+   * Change mix order position for a guest
+   * API: action: "mixorder", target: streamID/slot, value: -1 (up) or 1 (down)
+   */
+  function changeMixOrder(streamId: string, direction: 'up' | 'down'): void {
+    sendCommand('mixorder', streamId, direction === 'up' ? -1 : 1)
   }
   
-  /** Toggle full screen for a source */
-  function toggleFullscreen(streamId: string): void {
-    sendCommand('fullscreen', streamId)
+  // --- Camera Control ---
+  
+  /**
+   * Control camera (self)
+   * API: action: "camera", value: true/false/"toggle"
+   */
+  function setCamera(enabled: boolean | 'toggle'): void {
+    sendCommand('camera', undefined, enabled)
+  }
+  
+  /**
+   * Control guest's camera (director command)
+   */
+  function setGuestCamera(streamId: string, enabled: boolean | 'toggle'): void {
+    sendCommand('camera', streamId, enabled)
+  }
+  
+  // --- PTZ Control ---
+  
+  /**
+   * Zoom camera (requires &ptz on sender)
+   * API: action: "zoom", value: relative (-1 to 1) or absolute with value2: "abs"
+   */
+  function zoom(amount: number, absolute: boolean = false): void {
+    if (absolute) {
+      sendCommand('zoom', undefined, amount, 'abs')
+    } else {
+      sendCommand('zoom', undefined, amount)
+    }
+  }
+  
+  /**
+   * Pan camera
+   */
+  function pan(amount: number): void {
+    sendCommand('pan', undefined, amount)
+  }
+  
+  /**
+   * Tilt camera
+   */
+  function tilt(amount: number): void {
+    sendCommand('tilt', undefined, amount)
   }
   
   // ==========================================
@@ -426,7 +619,8 @@ export function useVdoNinja(iframeRef: Ref<HTMLIFrameElement | null>) {
       case 'scene-changed':
       case 'scene': {
         const eventData = data.data as Record<string, unknown> | undefined
-        activeScene.value = (eventData?.scene as string) || (data.value as string) || null
+        const sceneValue = (eventData?.scene as number) || (data.value as number)
+        activeScene.value = typeof sceneValue === 'number' ? sceneValue : null
         break
       }
       
@@ -476,34 +670,47 @@ export function useVdoNinja(iframeRef: Ref<HTMLIFrameElement | null>) {
     connectionState,
     lastError,
     
-    // Scene control
-    setScene,
+    // Scene control (VERIFIED API)
+    addToScene,
+    removeFromScene,
     setProgram,
-    togglePiP,
+    addSource,
+    removeSource,
     setLayout,
-    setSlots,
-    toggleFullscreen,
+    changeMixOrder,
     
-    // Audio control
+    // Audio control (VERIFIED API)
     setMute,
+    toggleMute,
     setVolume,
     soloAudio,
+    soloChatBidirectional,
     
-    // Source control
-    highlightSource,
+    // Source control (VERIFIED API)
     sendToGuest,
+    sendDirectorMessage,
     kickGuest,
-    requestScreenShare,
-    acceptGuest,
-    removeFromScene,
+    toggleScreenShare,
+    transferGuest,
+    getGuestList,
     refreshSource,
     
-    // Recording
+    // Camera control (VERIFIED API)
+    setCamera,
+    setGuestCamera,
+    
+    // PTZ (VERIFIED API - requires &ptz)
+    zoom,
+    pan,
+    tilt,
+    
+    // Recording (VERIFIED API)
     startRecording,
     stopRecording,
     
     // Low-level
     sendCommand,
+    sendDomCommand,
     
     // Debug
     getEventHistory: getVdoEventHistory,

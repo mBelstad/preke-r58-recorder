@@ -1,0 +1,210 @@
+/**
+ * BrowserWindow management with security defaults
+ */
+
+import { BrowserWindow, shell, app } from 'electron'
+import * as path from 'path'
+import { log } from './logger'
+import { deviceStore } from './deviceStore'
+
+let mainWindow: BrowserWindow | null = null
+
+// Development mode detection
+const isDev = !app.isPackaged
+
+/**
+ * Allowed origins for navigation and iframe embedding
+ */
+const ALLOWED_NAVIGATION_ORIGINS = [
+  'file://',                          // Local UI
+]
+
+const ALLOWED_IFRAME_ORIGINS = [
+  'https://r58-vdo.itagenten.no',     // Self-hosted VDO.ninja
+  'https://vdo.itagenten.no',         // Alternate VDO.ninja
+  'https://vdo.ninja',                // Public VDO.ninja (fallback)
+]
+
+/**
+ * Get the path to the renderer (Vue frontend)
+ */
+function getRendererPath(): string {
+  if (isDev) {
+    // In development, load from the frontend dev server or built files
+    return path.join(__dirname, '../../app/renderer/index.html')
+  }
+  // In production, load from extraResources
+  return path.join(process.resourcesPath, 'renderer', 'index.html')
+}
+
+/**
+ * Create the main application window
+ */
+export function createMainWindow(): BrowserWindow {
+  log.info('Creating main window...')
+  
+  mainWindow = new BrowserWindow({
+    width: 1400,
+    height: 900,
+    minWidth: 1024,
+    minHeight: 768,
+    title: 'R58 Studio',
+    backgroundColor: '#0f172a', // Match app theme
+    
+    webPreferences: {
+      // SECURITY: Mandatory settings
+      contextIsolation: true,
+      sandbox: true,
+      nodeIntegration: false,
+      
+      // Preload script for IPC
+      preload: path.join(__dirname, '../preload/index.js'),
+      
+      // Additional security
+      webSecurity: true,
+      allowRunningInsecureContent: false,
+      
+      // Performance
+      spellcheck: false,
+    },
+    
+    // macOS specific
+    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
+    trafficLightPosition: { x: 16, y: 16 },
+    
+    show: false, // Show when ready to prevent flash
+  })
+
+  // Show window when ready
+  mainWindow.once('ready-to-show', () => {
+    mainWindow?.show()
+    log.info('Main window shown')
+  })
+
+  // Setup navigation security
+  setupNavigationSecurity(mainWindow)
+
+  // Load the renderer
+  const rendererPath = getRendererPath()
+  log.info(`Loading renderer from: ${rendererPath}`)
+  
+  mainWindow.loadFile(rendererPath).catch((error) => {
+    log.error('Failed to load renderer:', error)
+    // Show error page or retry logic could go here
+  })
+
+  // Open DevTools in development
+  if (isDev) {
+    mainWindow.webContents.openDevTools({ mode: 'detach' })
+  }
+
+  // Handle window close
+  mainWindow.on('closed', () => {
+    mainWindow = null
+  })
+
+  // Log when page finishes loading
+  mainWindow.webContents.on('did-finish-load', () => {
+    log.info('Renderer loaded successfully')
+    
+    // Send initial device info to renderer
+    const activeDevice = deviceStore.getActiveDevice()
+    if (activeDevice) {
+      mainWindow?.webContents.send('device-changed', activeDevice)
+    }
+  })
+
+  return mainWindow
+}
+
+/**
+ * Setup navigation security to prevent unauthorized navigation
+ */
+function setupNavigationSecurity(win: BrowserWindow): void {
+  // Block navigation to unauthorized origins
+  win.webContents.on('will-navigate', (event, url) => {
+    const isAllowed = ALLOWED_NAVIGATION_ORIGINS.some(origin => url.startsWith(origin))
+    
+    if (!isAllowed) {
+      log.warn(`Blocked navigation to: ${url}`)
+      event.preventDefault()
+    }
+  })
+
+  // Handle new window requests (e.g., target="_blank" links)
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    log.info(`New window requested for: ${url}`)
+    
+    // Check if it's a VDO.ninja related URL - open in external browser
+    const isVdoUrl = ALLOWED_IFRAME_ORIGINS.some(origin => url.startsWith(origin))
+    
+    if (isVdoUrl || url.startsWith('https://')) {
+      shell.openExternal(url)
+    }
+    
+    // Always deny opening new Electron windows
+    return { action: 'deny' }
+  })
+
+  // Block loading of unauthorized iframes (except allowed ones)
+  win.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+    // Allow device API requests (configured device URLs)
+    const activeDevice = deviceStore.getActiveDevice()
+    if (activeDevice && details.url.startsWith(activeDevice.url)) {
+      callback({ responseHeaders: details.responseHeaders })
+      return
+    }
+
+    // Allow VDO.ninja iframes
+    const isAllowedIframe = ALLOWED_IFRAME_ORIGINS.some(origin => 
+      details.url.startsWith(origin)
+    )
+    
+    if (isAllowedIframe && details.responseHeaders) {
+      // Remove X-Frame-Options to allow embedding
+      delete details.responseHeaders['x-frame-options']
+      delete details.responseHeaders['X-Frame-Options']
+    }
+
+    callback({ responseHeaders: details.responseHeaders })
+  })
+}
+
+/**
+ * Get the main window instance
+ */
+export function getMainWindow(): BrowserWindow | null {
+  return mainWindow
+}
+
+/**
+ * Focus the main window
+ */
+export function focusMainWindow(): void {
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) mainWindow.restore()
+    mainWindow.focus()
+  }
+}
+
+/**
+ * Reload the main window
+ */
+export function reloadMainWindow(): void {
+  mainWindow?.reload()
+}
+
+/**
+ * Toggle DevTools
+ */
+export function toggleDevTools(): void {
+  mainWindow?.webContents.toggleDevTools()
+}
+
+/**
+ * Navigate to device setup page
+ */
+export function showDeviceSetup(): void {
+  mainWindow?.webContents.send('navigate', '/device-setup')
+}
+

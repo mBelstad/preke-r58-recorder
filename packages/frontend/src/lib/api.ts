@@ -2,6 +2,109 @@
  * API client with retry logic and error handling for R58
  */
 
+// ============================================
+// Electron Integration Types
+// ============================================
+
+declare global {
+  interface Window {
+    electronAPI?: {
+      getDeviceUrl: () => Promise<string | null>
+      getDevices: () => Promise<DeviceConfig[]>
+      getActiveDevice: () => Promise<DeviceConfig | null>
+      addDevice: (name: string, url: string) => Promise<DeviceConfig>
+      removeDevice: (deviceId: string) => Promise<boolean>
+      setActiveDevice: (deviceId: string) => Promise<boolean>
+      updateDevice: (deviceId: string, updates: { name?: string; url?: string }) => Promise<DeviceConfig | null>
+      onDeviceChanged: (callback: (device: DeviceConfig | null) => void) => () => void
+      onNavigate: (callback: (path: string) => void) => () => void
+      onExportSupportBundle: (callback: () => void) => () => void
+      getAppInfo: () => Promise<AppInfo>
+      exportSupportBundle: () => Promise<string | null>
+      openExternal: (url: string) => Promise<boolean>
+      log: {
+        debug: (...args: unknown[]) => void
+        info: (...args: unknown[]) => void
+        warn: (...args: unknown[]) => void
+        error: (...args: unknown[]) => void
+      }
+      isElectron: boolean
+      platform: string
+    }
+    /** Runtime device URL set by Electron preload */
+    __R58_DEVICE_URL__?: string
+  }
+}
+
+interface DeviceConfig {
+  id: string
+  name: string
+  url: string
+  lastConnected?: string
+  createdAt: string
+}
+
+interface AppInfo {
+  version: string
+  electron: string
+  chrome: string
+  node: string
+  platform: string
+  arch: string
+}
+
+// ============================================
+// Device URL Management
+// ============================================
+
+/** Cached device URL for synchronous access */
+let cachedDeviceUrl: string | null = null
+
+/**
+ * Initialize the device URL from Electron
+ * Should be called early in app startup
+ */
+export async function initializeDeviceUrl(): Promise<string | null> {
+  if (window.electronAPI) {
+    try {
+      cachedDeviceUrl = await window.electronAPI.getDeviceUrl()
+      window.__R58_DEVICE_URL__ = cachedDeviceUrl || undefined
+      console.log('[API] Device URL initialized:', cachedDeviceUrl)
+      return cachedDeviceUrl
+    } catch (error) {
+      console.error('[API] Failed to get device URL:', error)
+    }
+  }
+  return null
+}
+
+/**
+ * Set the device URL (called when user switches devices)
+ */
+export function setDeviceUrl(url: string | null): void {
+  cachedDeviceUrl = url
+  window.__R58_DEVICE_URL__ = url || undefined
+  console.log('[API] Device URL set:', url)
+}
+
+/**
+ * Get the current device URL
+ */
+export function getDeviceUrl(): string | null {
+  return cachedDeviceUrl || window.__R58_DEVICE_URL__ || null
+}
+
+/**
+ * Check if running in Electron
+ */
+export function isElectron(): boolean {
+  return !!window.electronAPI?.isElectron
+}
+
+// ============================================
+// API Client
+// ============================================
+
 export interface ApiOptions extends RequestInit {
   /** Number of retry attempts (default: 3) */
   retries?: number
@@ -269,10 +372,21 @@ export async function apiDelete<T>(url: string, options?: Omit<ApiOptions, 'meth
 /**
  * Build API URL from base path
  * 
- * When accessed via reverse proxy (standard ports 80/443), use same-origin API.
- * When accessed directly (e.g., localhost:5173 for dev), connect to API port 8000.
+ * Priority:
+ * 1. Electron: Use configured device URL
+ * 2. Web (reverse proxy on 80/443): Use same-origin API
+ * 3. Dev mode (localhost:5173): Connect to API on port 8000
  */
 export function buildApiUrl(path: string): string {
+  // Priority 1: Electron with configured device URL
+  const deviceUrl = getDeviceUrl()
+  if (deviceUrl) {
+    // Remove trailing slash from device URL if present
+    const baseUrl = deviceUrl.replace(/\/+$/, '')
+    return `${baseUrl}${path}`
+  }
+
+  // Priority 2 & 3: Web browser access
   const host = window.location.hostname
   const currentPort = window.location.port
   const protocol = window.location.protocol
@@ -285,6 +399,35 @@ export function buildApiUrl(path: string): string {
   // Dev mode: connect to API on port 8000
   const apiPort = 8000
   return `${protocol}//${host}:${apiPort}${path}`
+}
+
+/**
+ * Build WebSocket URL from device configuration
+ */
+export function buildWsUrl(path: string): string {
+  const deviceUrl = getDeviceUrl()
+  
+  if (deviceUrl) {
+    // Convert HTTP(S) to WS(S)
+    const wsUrl = deviceUrl
+      .replace(/^https:/, 'wss:')
+      .replace(/^http:/, 'ws:')
+      .replace(/\/+$/, '')
+    return `${wsUrl}${path}`
+  }
+
+  // Fall back to browser-based URL construction
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  const host = window.location.hostname
+  const currentPort = window.location.port
+  
+  // If on standard ports, use same host
+  if (!currentPort || currentPort === '80' || currentPort === '443') {
+    return `${protocol}//${host}${path}`
+  }
+  
+  // Dev mode: API on port 8000
+  return `${protocol}//${host}:8000${path}`
 }
 
 /**

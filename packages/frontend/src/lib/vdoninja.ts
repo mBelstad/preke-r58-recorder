@@ -22,6 +22,7 @@ export const VDO_ROOM = 'studio'
 export const embedProfiles = {
   // DIRECTOR VIEW - Full control panel for operator
   director: {
+    base: '/',
     params: {
       director: VDO_ROOM,
       hidesolo: true,
@@ -32,8 +33,24 @@ export const embedProfiles = {
     }
   },
   
+  // MIXER VIEW - VDO.ninja's built-in mixer with real controls
+  // Embeds mixer.html with custom CSS for R58 branding
+  // This gives us REAL: transitions, layouts, guest management, scene control
+  mixer: {
+    base: '/mixer.html',
+    params: {
+      room: VDO_ROOM,
+      password: '',           // Can be overridden
+      cleanish: true,         // Cleaner UI mode
+      transparent: true,      // Transparent background for blending
+      api: 'r58api',          // API key for postMessage control
+      darkmode: true,
+    }
+  },
+  
   // SCENE OUTPUT - Clean program output for OBS/streaming
   scene: {
+    base: '/',
     params: {
       scene: true,
       room: VDO_ROOM,
@@ -49,6 +66,7 @@ export const embedProfiles = {
   
   // MULTIVIEW - Grid of all sources
   multiview: {
+    base: '/',
     params: {
       room: VDO_ROOM,
       scene: true,
@@ -62,6 +80,7 @@ export const embedProfiles = {
   
   // WHEP SHARE - Add R58 camera to VDO.ninja room via WHEP
   cameraContribution: {
+    base: '/',
     params: {
       room: VDO_ROOM,
       videodevice: 0,
@@ -73,6 +92,7 @@ export const embedProfiles = {
   
   // GUEST INVITE - Link for remote guests to join
   guestInvite: {
+    base: '/',
     params: {
       room: VDO_ROOM,
       webcam: true,
@@ -84,6 +104,7 @@ export const embedProfiles = {
   
   // SOLO VIEW - View single source fullscreen
   soloView: {
+    base: '/',
     params: {
       room: VDO_ROOM,
       cover: true,
@@ -93,6 +114,7 @@ export const embedProfiles = {
   
   // PROGRAM OUTPUT - Push mixed output via WHIP to MediaMTX
   programOutput: {
+    base: '/',
     params: {
       scene: true,
       room: VDO_ROOM,
@@ -124,7 +146,8 @@ export function buildVdoUrl(
   const VDO_HOST = getVdoHost()
   const VDO_PROTOCOL = getVdoProtocol()
   const config = embedProfiles[profile]
-  const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/`)
+  const basePath = config.base || '/'
+  const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}${basePath}`)
   
   // Always add custom CSS for reskin
   url.searchParams.set('css', getVdoCssUrl())

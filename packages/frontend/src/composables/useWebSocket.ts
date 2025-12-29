@@ -4,6 +4,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRecorderStore } from '@/stores/recorder'
 import { useMixerStore } from '@/stores/mixer'
+import { buildWsUrl, getDeviceUrl } from '@/lib/api'
 
 interface BaseEvent {
   v: number
@@ -26,10 +27,8 @@ export function useR58WebSocket() {
   const mixerStore = useMixerStore()
   
   function getWsUrl(): string {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const host = window.location.hostname
-    const port = 8000 // API port
-    return `${protocol}//${host}:${port}/api/v1/ws`
+    // Use the centralized URL builder that supports Electron device configuration
+    return buildWsUrl('/api/v1/ws')
   }
   
   function connect() {

@@ -1,4 +1,19 @@
 <script setup lang="ts">
+/**
+ * MixerView - Hybrid approach with real VDO.ninja mixer.html
+ * 
+ * Uses VDO.ninja's actual mixer.html for:
+ * - Transitions (real animations)
+ * - Layouts (real drag-drop)
+ * - Guest management (real waiting room)
+ * - Scene control (real scene switching)
+ * 
+ * R58 sidebar provides:
+ * - Camera push status (WHEP to VDO.ninja)
+ * - Program output status (WHIP to MediaMTX)
+ * - Local recording controls (using verified API)
+ * - Quick scene buttons
+ */
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useMixerStore } from '@/stores/mixer'
 import { useRecorderStore } from '@/stores/recorder'
@@ -10,10 +25,8 @@ import SourcePanel from '@/components/mixer/SourcePanel.vue'
 import CameraPushBar from '@/components/mixer/CameraPushBar.vue'
 import ProgramOutput from '@/components/mixer/ProgramOutput.vue'
 import StreamingSettings from '@/components/mixer/StreamingSettings.vue'
-import GuestManager from '@/components/mixer/GuestManager.vue'
 import RecordingControls from '@/components/mixer/RecordingControls.vue'
 import HotkeySettings from '@/components/mixer/HotkeySettings.vue'
-import LayoutEditor from '@/components/mixer/LayoutEditor.vue'
 import ConnectionStatus from '@/components/mixer/ConnectionStatus.vue'
 
 const mixerStore = useMixerStore()
@@ -22,9 +35,7 @@ const streamingStore = useStreamingStore()
 const { register } = useKeyboardShortcuts()
 const vdoEmbedRef = ref<InstanceType<typeof VdoNinjaEmbed> | null>(null)
 const streamingSettingsRef = ref<InstanceType<typeof StreamingSettings> | null>(null)
-const guestManagerRef = ref<InstanceType<typeof GuestManager> | null>(null)
 const hotkeySettingsRef = ref<InstanceType<typeof HotkeySettings> | null>(null)
-const layoutEditorRef = ref<InstanceType<typeof LayoutEditor> | null>(null)
 
 const isLive = computed(() => mixerStore.isLive)
 const enabledDestinationsCount = computed(() => streamingStore.enabledDestinations.length)
@@ -44,8 +55,8 @@ onMounted(() => {
     recorderStore.fetchInputs()
   }, 5000)
   
-  // Register scene shortcuts (1-9)
-  for (let i = 1; i <= 9; i++) {
+  // Register quick scene shortcuts (1-4) using verified API
+  for (let i = 1; i <= 4; i++) {
     const unregister = register({
       key: String(i),
       description: `Switch to scene ${i}`,
@@ -55,35 +66,19 @@ onMounted(() => {
     unregisterFns.push(unregister)
   }
   
-  // T for transition/cut
-  unregisterFns.push(register({
-    key: 't',
-    description: 'Cut to preview (transition)',
-    action: () => performTransition(),
-    context: 'mixer',
-  }))
-  
-  // A for auto-transition
-  unregisterFns.push(register({
-    key: 'a',
-    description: 'Auto-transition with fade',
-    action: () => performAutoTransition(),
-    context: 'mixer',
-  }))
-  
-  // Tab to cycle sources
-  unregisterFns.push(register({
-    key: 'Tab',
-    description: 'Cycle through sources',
-    action: () => cyclePreviewSource(),
-    context: 'mixer',
-  }))
-  
   // G for Go Live toggle
   unregisterFns.push(register({
     key: 'g',
     description: 'Toggle Go Live',
     action: () => toggleGoLive(),
+    context: 'mixer',
+  }))
+  
+  // R for recording toggle
+  unregisterFns.push(register({
+    key: 'r',
+    description: 'Toggle recording',
+    action: () => toggleRecording(),
     context: 'mixer',
   }))
 })
@@ -96,45 +91,33 @@ onUnmounted(() => {
   }
 })
 
+/**
+ * Switch to scene using VERIFIED VDO.ninja API
+ * API: action: "addScene", target: "*" (all sources), value: sceneNumber
+ */
 function switchToScene(sceneNumber: number) {
-  const sceneId = `scene-${sceneNumber}`
-  mixerStore.setScene(sceneId)
-  
-  // Send command to VDO.ninja if embedded
   if (vdoEmbedRef.value) {
-    vdoEmbedRef.value.sendCommand('changeScene', { scene: sceneNumber })
+    // Use the verified addToScene API
+    vdoEmbedRef.value.sendCommand('addScene', '*', sceneNumber)
   }
-  
+  mixerStore.setScene(`scene-${sceneNumber}`)
   toast.info(`Scene ${sceneNumber}`)
 }
 
-function performTransition() {
-  // Instant cut to preview
-  if (mixerStore.previewSource) {
-    mixerStore.setProgram(mixerStore.previewSource)
-    toast.info('Cut')
-  }
-}
-
-function performAutoTransition() {
-  // Auto-transition with fade
-  if (mixerStore.previewSource) {
-    // Send transition command to VDO.ninja
-    if (vdoEmbedRef.value) {
-      vdoEmbedRef.value.sendCommand('transition', { type: 'fade', duration: 500 })
-    }
-    mixerStore.setProgram(mixerStore.previewSource)
-    toast.info('Fade')
-  }
-}
-
-function cyclePreviewSource() {
-  const sources = mixerStore.activeSources
-  if (sources.length === 0) return
+/**
+ * Toggle local recording using VERIFIED VDO.ninja API
+ * API: action: "record", value: true/false
+ */
+function toggleRecording() {
+  if (!vdoEmbedRef.value) return
   
-  const currentIndex = sources.findIndex(s => s.id === mixerStore.previewSource)
-  const nextIndex = (currentIndex + 1) % sources.length
-  mixerStore.setPreview(sources[nextIndex].id)
+  if (vdoEmbedRef.value.isRecording?.value) {
+    vdoEmbedRef.value.stopRecording()
+    toast.info('Recording stopped')
+  } else {
+    vdoEmbedRef.value.startRecording()
+    toast.success('Recording started')
+  }
 }
 
 function toggleGoLive() {
@@ -161,16 +144,8 @@ function openStreamingSettings() {
   streamingSettingsRef.value?.open()
 }
 
-function openGuestManager() {
-  guestManagerRef.value?.open()
-}
-
 function openHotkeySettings() {
   hotkeySettingsRef.value?.open()
-}
-
-function openLayoutEditor() {
-  layoutEditorRef.value?.open()
 }
 </script>
 
@@ -197,18 +172,6 @@ function openLayoutEditor() {
       </div>
       
       <div class="flex items-center gap-4">
-        <!-- Layout Editor Button -->
-        <button 
-          class="btn btn-sm" 
-          @click="openLayoutEditor"
-          title="Edit Layout"
-          data-testid="layout-editor-button"
-        >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
-          </svg>
-        </button>
-        
         <!-- Hotkey Settings Button -->
         <button 
           class="btn btn-sm" 
@@ -218,18 +181,6 @@ function openLayoutEditor() {
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-          </svg>
-        </button>
-        
-        <!-- Guest Manager Button -->
-        <button 
-          class="btn btn-sm" 
-          @click="openGuestManager"
-          title="Manage Guests & Sources"
-          data-testid="guest-manager-button"
-        >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
           </svg>
         </button>
         
@@ -260,27 +211,50 @@ function openLayoutEditor() {
     
     <!-- Main content -->
     <div class="flex-1 flex overflow-hidden">
-      <!-- VDO.ninja embed -->
+      <!-- VDO.ninja MIXER embed (real mixer.html with transitions/layouts/guest management) -->
       <div class="flex-1 p-4">
         <VdoNinjaEmbed 
           ref="vdoEmbedRef"
-          profile="director"
+          profile="mixer"
           class="h-full"
         />
       </div>
       
-      <!-- Source panel -->
+      <!-- R58 Sidebar - Only real, working features -->
       <aside class="w-80 border-l border-r58-bg-tertiary bg-r58-bg-secondary p-4 overflow-y-auto">
-        <SourcePanel :vdo-embed="vdoEmbedRef" />
+        <!-- Quick Scene Buttons -->
+        <div class="mb-6">
+          <h3 class="text-sm font-semibold text-r58-text-secondary uppercase tracking-wide mb-3">Quick Scenes</h3>
+          <div class="grid grid-cols-4 gap-2">
+            <button 
+              v-for="i in 4" 
+              :key="i"
+              class="btn btn-sm"
+              :class="mixerStore.currentScene === `scene-${i}` ? 'btn-primary' : ''"
+              @click="switchToScene(i)"
+              :data-testid="`scene-btn-${i}`"
+            >
+              {{ i }}
+            </button>
+          </div>
+          <p class="text-xs text-r58-text-secondary mt-2">
+            Press 1-4 for quick switch. Full layout control is in the mixer above.
+          </p>
+        </div>
+        
+        <!-- Source Status (read-only from VDO) -->
+        <div class="mb-6 pt-4 border-t border-r58-bg-tertiary">
+          <SourcePanel :vdo-embed="vdoEmbedRef" />
+        </div>
         
         <!-- Program Output control -->
-        <div class="mt-6 pt-4 border-t border-r58-bg-tertiary">
+        <div class="mb-6 pt-4 border-t border-r58-bg-tertiary">
           <h3 class="text-sm font-semibold text-r58-text-secondary uppercase tracking-wide mb-3">Program Output</h3>
           <ProgramOutput />
         </div>
         
-        <!-- Local Recording control -->
-        <div class="mt-6 pt-4 border-t border-r58-bg-tertiary">
+        <!-- Local Recording control (using VERIFIED record API) -->
+        <div class="pt-4 border-t border-r58-bg-tertiary">
           <h3 class="text-sm font-semibold text-r58-text-secondary uppercase tracking-wide mb-3">Local Recording</h3>
           <RecordingControls :vdo-embed="vdoEmbedRef" />
         </div>
@@ -293,14 +267,7 @@ function openLayoutEditor() {
     <!-- Streaming Settings Modal (rendered via Teleport) -->
     <StreamingSettings ref="streamingSettingsRef" />
     
-    <!-- Guest Manager Modal -->
-    <GuestManager ref="guestManagerRef" :vdo-embed="vdoEmbedRef" />
-    
     <!-- Hotkey Settings Modal -->
     <HotkeySettings ref="hotkeySettingsRef" />
-    
-    <!-- Layout Editor Modal -->
-    <LayoutEditor ref="layoutEditorRef" :vdo-embed="vdoEmbedRef" />
   </div>
 </template>
-

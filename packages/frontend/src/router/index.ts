@@ -1,13 +1,32 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHistory, createWebHashHistory } from 'vue-router'
+import { isElectron } from '@/lib/api'
+
+// Use hash history for Electron (file:// protocol), web history for browser
+const createHistory = () => {
+  // Check if we're in Electron via the global flag set at build time
+  // or by checking window.electronAPI at runtime
+  const inElectron = typeof window !== 'undefined' && !!window.electronAPI
+  
+  if (inElectron) {
+    return createWebHashHistory()
+  }
+  return createWebHistory(import.meta.env.BASE_URL)
+}
 
 const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
+  history: createHistory(),
   routes: [
     {
       path: '/',
       name: 'studio',
       component: () => import('@/views/StudioView.vue'),
       meta: { title: 'Studio' }
+    },
+    {
+      path: '/device-setup',
+      name: 'device-setup',
+      component: () => import('@/views/DeviceSetupView.vue'),
+      meta: { title: 'Device Setup', layout: 'minimal' }
     },
     {
       path: '/recorder',

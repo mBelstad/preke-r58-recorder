@@ -1,0 +1,71 @@
+appId: no.itagenten.r58studio
+productName: R58 Studio
+copyright: Copyright © 2024 Itagenten
+
+directories:
+  output: dist
+  buildResources: resources
+
+files:
+  - "app/**/*"
+  - "node_modules/**/*"
+  - "!node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}"
+  - "!node_modules/*/{test,__tests__,tests,powered-test,example,examples}"
+  - "!node_modules/.bin"
+
+extraResources:
+  - from: "app/renderer"
+    to: "renderer"
+    filter:
+      - "**/*"
+
+mac:
+  category: public.app-category.video
+  icon: resources/icon.png
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: resources/entitlements.mac.plist
+  entitlementsInherit: resources/entitlements.mac.plist
+  # Notarization is handled via environment variables:
+  # - APPLE_ID
+  # - APPLE_APP_SPECIFIC_PASSWORD  
+  # - APPLE_TEAM_ID
+  notarize: false
+  target:
+    - target: dmg
+      arch:
+        - universal
+    - target: dir
+      arch:
+        - universal
+
+dmg:
+  sign: false
+  contents:
+    - x: 130
+      y: 220
+    - x: 410
+      y: 220
+      type: link
+      path: /Applications
+
+# Windows config (for future)
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: resources/icon.png
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+
+# Linux config (for future)
+linux:
+  target:
+    - target: AppImage
+      arch:
+        - x64
+  category: AudioVideo
+  icon: resources/icon.png
