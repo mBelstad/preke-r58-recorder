@@ -153,62 +153,95 @@ export function useVdoNinja(iframeRef: Ref<HTMLIFrameElement | null>) {
     const data = event.data as VdoEvent
     if (!data || typeof data !== 'object') return
     
-    switch (data.type) {
+    // Debug logging for all VDO.ninja messages
+    console.log('[VDO.ninja] Message received:', {
+      type: data.type,
+      streamID: data.streamID,
+      data: data.data,
+      action: (data as any).action,
+      value: (data as any).value,
+      raw: data
+    })
+    
+    // Handle various message formats (VDO.ninja has inconsistent API)
+    const messageType = data.type || (data as any).action
+    const streamId = data.streamID || (data as any).UUID || (data as any).streamId
+    
+    switch (messageType) {
       case 'director-ready':
       case 'loaded':
       case 'ready':
+      case 'started':
         isReady.value = true
+        console.log('[VDO.ninja] Ready state detected')
         break
         
       case 'new-guest':
       case 'guest-connected':
+      case 'push':
+      case 'view':
+      case 'joined':
         // New source joined
-        if (data.streamID) {
-          sources.value.set(data.streamID, {
-            id: data.streamID,
-            label: data.data?.label || data.streamID,
-            type: data.data?.type || 'guest',
-            hasVideo: true,
-            hasAudio: true,
+        if (streamId) {
+          const sourceInfo: SourceInfo = {
+            id: streamId,
+            label: data.data?.label || (data as any).label || streamId,
+            type: data.data?.type || (data as any).type || 'guest',
+            hasVideo: data.data?.video !== false,
+            hasAudio: data.data?.audio !== false,
             muted: false,
             audioLevel: 0,
-          })
+          }
+          sources.value.set(streamId, sourceInfo)
+          console.log('[VDO.ninja] Source added:', sourceInfo)
         }
         break
         
       case 'guest-left':
       case 'guest-disconnected':
-        if (data.streamID) {
-          sources.value.delete(data.streamID)
+      case 'left':
+      case 'disconnect':
+        if (streamId) {
+          sources.value.delete(streamId)
+          console.log('[VDO.ninja] Source removed:', streamId)
         }
         break
         
       case 'audio-level':
+      case 'loudness':
         // Audio meter update
-        if (data.streamID) {
-          const source = sources.value.get(data.streamID)
+        if (streamId) {
+          const source = sources.value.get(streamId)
           if (source) {
-            source.audioLevel = data.data?.level || 0
+            source.audioLevel = data.data?.level || (data as any).value || 0
           }
         }
         break
         
       case 'mute-state':
-        if (data.streamID) {
-          const src = sources.value.get(data.streamID)
+      case 'muted':
+        if (streamId) {
+          const src = sources.value.get(streamId)
           if (src) {
-            src.muted = data.data?.muted || false
+            src.muted = data.data?.muted ?? (data as any).value ?? false
           }
         }
         break
         
       case 'scene-changed':
-        activeScene.value = data.data?.scene || null
+      case 'scene':
+        activeScene.value = data.data?.scene || (data as any).value || null
         break
         
       case 'error':
         console.error('[VDO.ninja Error]', data.data)
         break
+        
+      default:
+        // Log unhandled message types for debugging
+        if (messageType) {
+          console.log('[VDO.ninja] Unhandled message type:', messageType)
+        }
     }
   }
   

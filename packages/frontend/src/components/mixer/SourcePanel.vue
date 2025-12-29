@@ -1,10 +1,41 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useMixerStore } from '@/stores/mixer'
+import { useMixerStore, type MixerSource } from '@/stores/mixer'
+import { useRecorderStore } from '@/stores/recorder'
 
 const mixerStore = useMixerStore()
-const sources = computed(() => mixerStore.sources)
-const activeSources = computed(() => mixerStore.activeSources)
+const recorderStore = useRecorderStore()
+
+// VDO.ninja sources from the mixer store
+const vdoSources = computed(() => mixerStore.sources)
+
+// HDMI camera sources from the recorder store (as fallback)
+const hdmiSources = computed((): MixerSource[] => {
+  return recorderStore.inputs
+    .filter(input => input.hasSignal)
+    .map(input => ({
+      id: input.id,
+      label: input.label,
+      type: 'camera' as const,
+      hasVideo: true,
+      hasAudio: true,
+      muted: false,
+      audioLevel: 0,
+    }))
+})
+
+// Combine sources: use VDO.ninja sources if available, otherwise show HDMI cameras
+const sources = computed(() => {
+  if (vdoSources.value.length > 0) {
+    return vdoSources.value
+  }
+  return hdmiSources.value
+})
+
+const activeSources = computed(() => sources.value.filter(s => s.hasVideo || s.hasAudio))
+
+// Show hint when using HDMI fallback
+const usingHdmiFallback = computed(() => vdoSources.value.length === 0 && hdmiSources.value.length > 0)
 </script>
 
 <template>
@@ -13,9 +44,14 @@ const activeSources = computed(() => mixerStore.activeSources)
     <div class="card">
       <h3 class="text-sm font-semibold text-r58-text-secondary uppercase tracking-wide mb-3">Sources</h3>
       
+      <!-- HDMI fallback hint -->
+      <div v-if="usingHdmiFallback" class="mb-3 px-3 py-2 bg-amber-500/10 border border-amber-500/30 rounded-lg text-xs text-amber-400">
+        Showing HDMI cameras. VDO.ninja sources will appear when guests join.
+      </div>
+      
       <div v-if="sources.length === 0" class="text-center py-8 text-r58-text-secondary">
         <p>No sources connected</p>
-        <p class="text-sm mt-1">Sources will appear when they join the room</p>
+        <p class="text-sm mt-1">Connect HDMI sources or have guests join the room</p>
       </div>
       
       <div v-else class="space-y-2">
