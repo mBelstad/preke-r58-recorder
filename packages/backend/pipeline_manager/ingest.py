@@ -28,6 +28,7 @@ from .gstreamer.pipelines import (
     RKCIF_SUBDEV_MAP,
     get_subdev_resolution,
 )
+from .device_monitor import get_device_monitor
 
 logger = logging.getLogger(__name__)
 
@@ -287,6 +288,13 @@ class IngestManager:
                 pipeline_info.retry_count = 0
                 pipeline_info.resolution = (caps.get('width', 0), caps.get('height', 0))
                 pipeline_info.framerate = caps.get('framerate', 30)
+            
+            # Notify device monitor that this device has an active pipeline
+            # This prevents the monitor from trying to reinitialize the device
+            try:
+                get_device_monitor().mark_pipeline_active(cam_id)
+            except Exception as e:
+                logger.debug(f"Could not notify device monitor: {e}")
                 # TEE pipeline state
                 pipeline_info.is_tee_pipeline = is_tee
                 pipeline_info.recording_path = recording_path if is_tee else None
@@ -342,6 +350,12 @@ class IngestManager:
                 pipeline_info.pipeline = None
                 pipeline_info.state = "idle"
                 pipeline_info.start_time = None
+            
+            # Notify device monitor that this device no longer has an active pipeline
+            try:
+                get_device_monitor().mark_pipeline_inactive(cam_id)
+            except Exception as e:
+                logger.debug(f"Could not notify device monitor: {e}")
             
             logger.info(f"Stopped ingest for {cam_id}")
             self._notify_status_change(cam_id)

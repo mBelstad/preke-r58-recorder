@@ -2,12 +2,23 @@
 
 Periodically polls configured devices to detect signal changes
 (camera connected/disconnected) and emits events.
+
+IMPORTANT: This monitor uses READ-ONLY queries for ongoing monitoring.
+It does NOT reinitialize devices that already have active pipelines.
+Device initialization only happens:
+1. At startup (before pipelines start)
+2. When a device transitions from no-signal to signal (hot-plug)
+
+The `rkcif_s_fmt_vid_cap_mplane queue busy` kernel error and crashes
+occur when trying to set format on a device with an active pipeline.
 """
 import asyncio
 import logging
+import subprocess
+import re
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Awaitable, Callable, Dict, Optional
+from typing import Any, Awaitable, Callable, Dict, Optional, Set
 
 from .config import CameraConfig, get_config, get_enabled_cameras
 from .gstreamer.pipelines import get_device_capabilities, initialize_rkcif_device, RKCIF_SUBDEV_MAP
@@ -16,6 +27,35 @@ logger = logging.getLogger(__name__)
 
 # Polling interval for device state checks
 POLL_INTERVAL_SECONDS = 10
+
+# Map of subdevs for read-only signal detection (no format setting!)
+RKCIF_SUBDEV_MAP_READONLY = {
+    "/dev/video0": "/dev/v4l-subdev2",   # HDMI IN0 (LT6911 7-002b)
+    "/dev/video11": "/dev/v4l-subdev7",  # HDMI IN11 (LT6911 4-002b)
+    "/dev/video22": "/dev/v4l-subdev12", # HDMI IN21 (LT6911 2-002b)
+}
+
+
+def _get_subdev_resolution_readonly(subdev_path: str) -> tuple[int, int]:
+    """Query subdev for resolution WITHOUT setting format on video device.
+    
+    This is safe to call while a pipeline is running.
+    
+    Returns:
+        (width, height) tuple, or (0, 0) if no signal
+    """
+    try:
+        result = subprocess.run(
+            ["v4l2-ctl", "-d", subdev_path, "--get-subdev-fmt", "pad=0"],
+            capture_output=True, text=True, timeout=5
+        )
+        if result.returncode == 0:
+            match = re.search(r"Width/Height\s*:\s*(\d+)/(\d+)", result.stdout)
+            if match:
+                return int(match.group(1)), int(match.group(2))
+    except Exception as e:
+        logger.debug(f"Error querying subdev {subdev_path}: {e}")
+    return 0, 0
 
 
 @dataclass
@@ -38,6 +78,9 @@ class DeviceMonitor:
     - Camera disconnections (signal goes from True to False)
     
     Emits callbacks when changes are detected.
+    
+    CRITICAL: Uses READ-ONLY queries for devices with active pipelines
+    to avoid `rkcif_s_fmt_vid_cap_mplane queue busy` errors and crashes.
     """
     
     def __init__(
@@ -57,6 +100,21 @@ class DeviceMonitor:
         self._running = False
         self._task: Optional[asyncio.Task] = None
         self._device_states: Dict[str, DeviceState] = {}
+        self._active_pipelines: Set[str] = set()  # Track devices with active pipelines
+    
+    def mark_pipeline_active(self, input_id: str) -> None:
+        """Mark a device as having an active pipeline.
+        
+        When a pipeline is active, we use read-only queries to avoid
+        interfering with the running stream.
+        """
+        self._active_pipelines.add(input_id)
+        logger.debug(f"Marked {input_id} as having active pipeline")
+    
+    def mark_pipeline_inactive(self, input_id: str) -> None:
+        """Mark a device as no longer having an active pipeline."""
+        self._active_pipelines.discard(input_id)
+        logger.debug(f"Marked {input_id} as inactive")
         
     def start(self) -> None:
         """Start the device monitor."""
@@ -137,21 +195,52 @@ class DeviceMonitor:
             input_id: Camera/input identifier
             cam_config: Camera configuration
             initial: If True, don't emit events
+            
+        CRITICAL: For devices with active pipelines, we use READ-ONLY queries
+        to avoid interfering with the running stream and causing crashes.
         """
-        # Get current capabilities (runs in executor to avoid blocking)
-        # For rkcif devices, use initialize_rkcif_device which queries subdev and sets format
         loop = asyncio.get_event_loop()
         device = cam_config.device
-        if device in RKCIF_SUBDEV_MAP:
-            caps = await loop.run_in_executor(
-                None,
-                lambda: initialize_rkcif_device(device)
-            )
+        
+        # Check if this device has an active pipeline
+        has_active_pipeline = input_id in self._active_pipelines
+        
+        if has_active_pipeline:
+            # USE READ-ONLY QUERY - don't reinitialize or set format!
+            # This prevents "queue busy" errors and kernel crashes
+            subdev = RKCIF_SUBDEV_MAP_READONLY.get(device)
+            if subdev:
+                # Query subdev directly without setting format
+                width, height = await loop.run_in_executor(
+                    None,
+                    lambda: _get_subdev_resolution_readonly(subdev)
+                )
+                has_signal = width > 640 and height > 480
+                caps = {
+                    'has_signal': has_signal,
+                    'width': width,
+                    'height': height,
+                    'format': 'NV16',  # Assume NV16 since pipeline is running
+                }
+            else:
+                # hdmirx or other device - just get capabilities without init
+                caps = await loop.run_in_executor(
+                    None,
+                    lambda: get_device_capabilities(device)
+                )
+            logger.debug(f"Read-only check for {input_id} (pipeline active): {caps.get('width')}x{caps.get('height')}")
         else:
-            caps = await loop.run_in_executor(
-                None,
-                lambda: get_device_capabilities(device)
-            )
+            # No active pipeline - safe to initialize if needed
+            if device in RKCIF_SUBDEV_MAP:
+                caps = await loop.run_in_executor(
+                    None,
+                    lambda: initialize_rkcif_device(device)
+                )
+            else:
+                caps = await loop.run_in_executor(
+                    None,
+                    lambda: get_device_capabilities(device)
+                )
         
         now = datetime.now()
         has_signal = caps.get('has_signal', False)
