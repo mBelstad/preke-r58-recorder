@@ -341,8 +341,26 @@ onUnmounted(() => {
 
           <!-- Empty state when not discovering and nothing found -->
           <div v-if="!isDiscovering && discoveredDevices.length === 0 && !hasDevices" class="empty-state">
-            <p>No Preke devices found on your network.</p>
-            <p class="empty-state__hint">Make sure your device is powered on and connected to the same network.</p>
+            <div class="empty-state__icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <rect x="2" y="3" width="20" height="14" rx="2"/>
+                <path d="M8 21h8M12 17v4"/>
+                <path d="M9 9l6 6M15 9l-6 6" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <p class="empty-state__title">No devices found</p>
+            <p class="empty-state__hint">Make sure your Preke device is:</p>
+            <ul class="empty-state__checklist">
+              <li>Powered on</li>
+              <li>Connected to the same network</li>
+              <li>Finished booting up (~30 seconds)</li>
+            </ul>
+            <button @click="startDiscovery" class="btn btn--primary empty-state__btn">
+              <svg viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/>
+              </svg>
+              Try Again
+            </button>
           </div>
         </div>
 
@@ -723,15 +741,66 @@ onUnmounted(() => {
    ═══════════════════════════════════════════ */
 .empty-state {
   text-align: center;
-  padding: 1.5rem;
+  padding: 1.5rem 1rem;
+}
+
+.empty-state__icon {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 1rem;
+  opacity: 0.4;
+}
+
+.empty-state__icon svg {
+  width: 100%;
+  height: 100%;
+  color: var(--text-muted);
+}
+
+.empty-state__title {
+  font-size: 0.9375rem;
+  font-weight: 500;
   color: var(--text-dim);
-  font-size: 0.875rem;
+  margin-bottom: 0.5rem;
 }
 
 .empty-state__hint {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+}
+
+.empty-state__checklist {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+}
+
+.empty-state__checklist li {
   font-size: 0.75rem;
   color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.empty-state__checklist li::before {
+  content: '○';
+  font-size: 0.5rem;
+  color: var(--gold);
+}
+
+.empty-state__btn {
   margin-top: 0.5rem;
+}
+
+.empty-state__btn svg {
+  width: 14px;
+  height: 14px;
 }
 
 /* ═══════════════════════════════════════════

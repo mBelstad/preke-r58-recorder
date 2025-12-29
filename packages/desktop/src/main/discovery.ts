@@ -30,20 +30,50 @@ let scanAbortController: AbortController | null = null
 
 /**
  * Get local IP address(es) to determine network to scan
+ * Filters out virtual/VPN interfaces for faster scanning
  */
 function getLocalNetworks(): { ip: string; subnet: string }[] {
   const networks: { ip: string; subnet: string }[] = []
   const interfaces = os.networkInterfaces()
 
+  // Skip virtual/VPN/container interfaces
+  const skipPatterns = [
+    /^feth/i,      // macOS sharing
+    /^vmnet/i,     // VMware
+    /^vboxnet/i,   // VirtualBox
+    /^docker/i,    // Docker
+    /^br-/i,       // Docker bridges
+    /^veth/i,      // Container veth
+    /^utun/i,      // macOS VPN tunnels
+    /^tun/i,       // VPN tunnels
+    /^tap/i,       // VPN taps
+    /^tailscale/i, // Tailscale VPN
+    /^wg/i,        // WireGuard
+  ]
+
   for (const [name, addrs] of Object.entries(interfaces)) {
     if (!addrs) continue
+    
+    // Skip virtual interfaces
+    if (skipPatterns.some(p => p.test(name))) {
+      log.debug(`Skipping virtual interface: ${name}`)
+      continue
+    }
+
     for (const addr of addrs) {
       // Only IPv4, non-internal addresses
       if (addr.family === 'IPv4' && !addr.internal) {
         const parts = addr.address.split('.')
         const subnet = parts.slice(0, 3).join('.')
+        
+        // Skip link-local addresses (169.254.x.x)
+        if (parts[0] === '169' && parts[1] === '254') {
+          log.debug(`Skipping link-local address: ${addr.address}`)
+          continue
+        }
+
         networks.push({ ip: addr.address, subnet })
-        log.debug(`Found network interface ${name}: ${addr.address} (subnet ${subnet}.x)`)
+        log.info(`Found scannable network: ${name} (${addr.address})`)
       }
     }
   }
@@ -100,12 +130,11 @@ async function tryKnownHostnames(): Promise<DiscoveredDevice[]> {
 async function probeDevice(
   ip: string, 
   port: number, 
-  timeout: number = 2000
+  timeout: number = 800  // Fast timeout for LAN
 ): Promise<DiscoveredDevice | null> {
+  // Only probe the primary port first for speed
   const urls = [
     `http://${ip}:${port}`,
-    `https://${ip}:${port}`,
-    `http://${ip}:5000`, // Alternative port
   ]
 
   for (const baseUrl of urls) {
@@ -171,14 +200,16 @@ function probeUrl(url: string, timeout: number): Promise<any | null> {
 
 /**
  * Scan local subnet for devices
+ * Optimized: larger batches, shorter timeouts, skip broadcast addresses
  */
 async function scanSubnet(
   subnet: string,
   onDeviceFound: (device: DiscoveredDevice) => void,
   abortSignal?: AbortSignal
 ): Promise<void> {
-  const batchSize = 20 // Probe 20 IPs at a time
+  const batchSize = 50 // Probe 50 IPs at a time for speed
   const port = 8000
+  const timeout = 600 // 600ms is plenty for LAN
 
   for (let i = 1; i <= 254; i += batchSize) {
     if (abortSignal?.aborted) break
@@ -186,7 +217,7 @@ async function scanSubnet(
     const batch: Promise<DiscoveredDevice | null>[] = []
     for (let j = i; j < Math.min(i + batchSize, 255); j++) {
       const ip = `${subnet}.${j}`
-      batch.push(probeDevice(ip, port, 1500))
+      batch.push(probeDevice(ip, port, timeout))
     }
 
     const results = await Promise.all(batch)
