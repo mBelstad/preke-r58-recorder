@@ -761,6 +761,12 @@ class IPCServer:
             if not cam_config:
                 return {"error": f"Input {input_id} not found or not enabled"}
 
+            # Check for signal before starting preview
+            caps = get_device_capabilities(cam_config.device)
+            if not caps.get('has_signal', False):
+                logger.info(f"Skipping preview for {input_id}: no signal on {cam_config.device}")
+                return {"status": "no_signal", "input_id": input_id}
+
             pipeline_id = f"preview_{input_id}"
 
             # Check if already running

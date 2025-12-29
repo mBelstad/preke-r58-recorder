@@ -63,20 +63,9 @@ async def lifespan(app: FastAPI):
     )
     openapi_path.write_text(json.dumps(schema, indent=2))
     
-    # Auto-start preview pipelines for enabled inputs
-    try:
-        client = get_pipeline_client()
-        for input_id in settings.enabled_inputs:
-            try:
-                result = await client.start_preview(input_id)
-                if result.get("error"):
-                    logger.warning(f"Failed to start preview for {input_id}: {result['error']}")
-                else:
-                    logger.info(f"Started preview pipeline for {input_id}")
-            except Exception as e:
-                logger.warning(f"Error starting preview for {input_id}: {e}")
-    except Exception as e:
-        logger.warning(f"Could not auto-start previews: {e}")
+    # Note: Preview auto-start is handled by the pipeline manager
+    # The pipeline manager has better signal detection and avoids starting
+    # pipelines for devices without a valid signal
 
     # Background task to poll for pipeline events and broadcast them
     _event_poll_task = None
