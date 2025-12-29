@@ -175,6 +175,8 @@ class RecordingWatchdog:
         
         # Emit progress update with all current file sizes
         if current_bytes and self.on_progress:
+            total_bytes = sum(current_bytes.values())
+            logger.info(f"[Watchdog] Emitting progress: session={self._session_id}, total_bytes={total_bytes}, inputs={list(current_bytes.keys())}")
             try:
                 await self.on_progress(self._session_id, current_bytes)
             except Exception as e:

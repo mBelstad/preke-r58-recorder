@@ -123,6 +123,7 @@ export function useR58WebSocket() {
         break
         
       case 'recorder.progress':
+        console.log('[WebSocket] Received recorder.progress:', event.payload)
         recorderStore.updateFromEvent(event.payload)
         break
         

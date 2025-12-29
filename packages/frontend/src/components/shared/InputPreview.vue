@@ -105,12 +105,22 @@ watch(() => props.inputId, () => {
   initWhepPlayback()
 })
 
-// Auto-reconnect when recording stops (if there was an error)
+// Auto-reconnect when recording state changes
 watch(isRecording, (recording, wasRecording) => {
   if (wasRecording && !recording && error.value) {
     // Recording just stopped and we had an error - try to reconnect
     console.log('[InputPreview] Recording stopped, reconnecting preview...')
     initWhepPlayback()
+  } else if (!wasRecording && recording) {
+    // Recording just started - the preview pipeline was stopped, but the recording
+    // pipeline uses a tee to stream to MediaMTX. Wait a bit then try to reconnect.
+    console.log('[InputPreview] Recording started, will try to reconnect preview after delay...')
+    setTimeout(() => {
+      if (isRecording.value) {
+        console.log('[InputPreview] Attempting to reconnect preview during recording...')
+        initWhepPlayback()
+      }
+    }, 2000) // 2 second delay for pipeline to initialize
   }
 })
 </script>

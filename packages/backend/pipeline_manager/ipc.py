@@ -231,7 +231,7 @@ class IPCServer:
             "bytes_written": bytes_written,
         })
         
-        logger.debug(f"Recording progress: duration={duration_ms}ms, bytes={bytes_written}")
+        logger.info(f"[IPC] Queued recording.progress event: duration={duration_ms}ms, bytes={bytes_written}")
 
     async def _auto_start_previews(self) -> None:
         """Start preview pipelines for all enabled cameras on startup.

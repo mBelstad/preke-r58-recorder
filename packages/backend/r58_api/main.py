@@ -127,6 +127,7 @@ async def lifespan(app: FastAPI):
                             ws_event_type = EventType.HEALTH_CHANGED
                         elif event_type == "recording.progress":
                             ws_event_type = EventType.RECORDING_PROGRESS
+                            logger.info(f"[API] Received recording.progress event: {payload}")
                         
                         if ws_event_type:
                             event = BaseEvent(
@@ -134,7 +135,10 @@ async def lifespan(app: FastAPI):
                                 payload=payload,
                             )
                             await manager.broadcast(event)
-                            logger.debug(f"Broadcasted pipeline event: {event_type}")
+                            if event_type == "recording.progress":
+                                logger.info(f"[API] Broadcasted recording.progress to {len(manager.active_connections)} clients")
+                            else:
+                                logger.debug(f"Broadcasted pipeline event: {event_type}")
                 
             except Exception as e:
                 logger.debug(f"Event polling error (retrying): {e}")
