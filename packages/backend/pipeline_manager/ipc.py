@@ -90,12 +90,12 @@ class IPCServer:
         
         # Queue preview started/stopped events
         if pipeline_id.startswith("preview_"):
-            if new_state == GstPipelineState.PLAYING:
+            if new_state == GstPipelineState.RUNNING:
                 self._queue_event("preview.started", {
                     "input_id": input_id,
                     "pipeline_id": pipeline_id,
                 })
-            elif new_state == GstPipelineState.NULL:
+            elif new_state == GstPipelineState.IDLE:
                 self._queue_event("preview.stopped", {
                     "input_id": input_id,
                     "pipeline_id": pipeline_id,
