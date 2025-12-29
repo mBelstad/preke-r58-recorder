@@ -34,15 +34,14 @@ export const embedProfiles = {
   },
   
   // MIXER VIEW - Director view with video previews enabled
-  // Uses the main VDO.ninja director interface with showpreview
+  // Uses the main VDO.ninja director interface with previewmode
   // This gives us: controls + video previews for each source
   mixer: {
     base: '/',
     params: {
       director: VDO_ROOM,
-      showpreview: true,      // Show video previews in director view
+      previewmode: true,      // Activates preview layout with video thumbnails
       hidesolo: true,
-      hideheader: true,
       darkmode: true,
       nologo: true,
       api: 'r58api',          // API key for postMessage control
