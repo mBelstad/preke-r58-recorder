@@ -355,12 +355,6 @@ onUnmounted(() => {
               <li>Connected to the same network</li>
               <li>Finished booting up (~30 seconds)</li>
             </ul>
-            <button @click="startDiscovery" class="btn btn--primary empty-state__btn">
-              <svg viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/>
-              </svg>
-              Try Again
-            </button>
           </div>
         </div>
 
@@ -587,41 +581,29 @@ onUnmounted(() => {
 
 .soundwave {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
   gap: 3px;
   height: 32px;
 }
 
 .soundwave__bar {
-  --delay: calc(var(--i) * 0.06s);
+  /* Left-to-right wave: delay increases from left to right */
+  --delay: calc(var(--i) * 0.08s);
   display: block;
   width: 3px;
+  height: 16px; /* Base height, animation will scale */
   background: linear-gradient(0deg, var(--gold) 0%, var(--gold-light) 100%);
   border-radius: 2px;
-  animation: soundwave 1.4s ease-in-out infinite;
+  animation: soundwave 1.2s ease-in-out infinite;
   animation-delay: var(--delay);
   box-shadow: 0 0 6px rgba(217, 152, 30, 0.4);
 }
 
-/* Smooth wave heights */
-.soundwave__bar:nth-child(1), .soundwave__bar:nth-child(24) { height: 6px; }
-.soundwave__bar:nth-child(2), .soundwave__bar:nth-child(23) { height: 8px; }
-.soundwave__bar:nth-child(3), .soundwave__bar:nth-child(22) { height: 10px; }
-.soundwave__bar:nth-child(4), .soundwave__bar:nth-child(21) { height: 14px; }
-.soundwave__bar:nth-child(5), .soundwave__bar:nth-child(20) { height: 18px; }
-.soundwave__bar:nth-child(6), .soundwave__bar:nth-child(19) { height: 22px; }
-.soundwave__bar:nth-child(7), .soundwave__bar:nth-child(18) { height: 26px; }
-.soundwave__bar:nth-child(8), .soundwave__bar:nth-child(17) { height: 28px; }
-.soundwave__bar:nth-child(9), .soundwave__bar:nth-child(16) { height: 30px; }
-.soundwave__bar:nth-child(10), .soundwave__bar:nth-child(15) { height: 32px; }
-.soundwave__bar:nth-child(11), .soundwave__bar:nth-child(14) { height: 30px; }
-.soundwave__bar:nth-child(12), .soundwave__bar:nth-child(13) { height: 28px; }
-
 @keyframes soundwave {
   0%, 100% {
-    transform: scaleY(0.4);
-    opacity: 0.6;
+    transform: scaleY(0.3);
+    opacity: 0.5;
   }
   50% {
     transform: scaleY(1);
@@ -792,15 +774,6 @@ onUnmounted(() => {
   content: '○';
   font-size: 0.5rem;
   color: var(--gold);
-}
-
-.empty-state__btn {
-  margin-top: 0.5rem;
-}
-
-.empty-state__btn svg {
-  width: 14px;
-  height: 14px;
 }
 
 /* ═══════════════════════════════════════════
