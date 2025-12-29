@@ -249,10 +249,11 @@ class PipelineClient:
         Returns:
             Dict with events list and latest_seq
         """
+        # Use shorter timeout for poll - it's a fast read-only operation
         return await self._send_command({
             "cmd": "events.poll",
             "last_seq": last_seq,
-        })
+        }, timeout=2.0, retries=0)  # Fast fail, don't retry
 
 
 # Singleton instance
