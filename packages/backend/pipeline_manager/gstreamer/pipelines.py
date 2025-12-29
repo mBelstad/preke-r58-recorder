@@ -393,12 +393,29 @@ def get_device_capabilities(device_path: str) -> Dict[str, Any]:
             # Check for no signal indicators:
             # - 640x480 is the default fallback resolution when no HDMI is connected
             # - BGR3/BGR format often indicates test pattern (no real signal)
-            if result['width'] == 640 and result['height'] == 480:
+            # - 0x0 resolution means device not initialized or no signal
+            if result['width'] == 0 or result['height'] == 0:
+                result['has_signal'] = False
+                logger.info(f"Device {device_path}: 0x0 resolution, treating as no signal")
+            elif result['width'] == 640 and result['height'] == 480:
                 result['has_signal'] = False
                 logger.info(f"Device {device_path}: 640x480 detected, treating as no signal")
             elif result['format'] in ['BGR3', 'BGR']:
                 result['has_signal'] = False
                 logger.info(f"Device {device_path}: BGR format detected, treating as no signal")
+            
+            # For hdmirx devices, also check DV timings for signal presence
+            if "video60" in device_path:
+                try:
+                    dv_proc = subprocess.run(
+                        ["v4l2-ctl", "-d", device_path, "--query-dv-timings"],
+                        capture_output=True, text=True, timeout=5
+                    )
+                    if dv_proc.returncode != 0 or "fail" in dv_proc.stderr.lower() or "no signal" in dv_proc.stdout.lower():
+                        result['has_signal'] = False
+                        logger.info(f"Device {device_path}: hdmirx DV timings check failed, treating as no signal")
+                except Exception as e:
+                    logger.debug(f"DV timings check failed for {device_path}: {e}")
 
     except Exception as e:
         logger.warning(f"Error getting device capabilities for {device_path}: {e}")
