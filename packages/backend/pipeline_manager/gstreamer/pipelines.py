@@ -19,12 +19,59 @@ Encoder Architecture:
 DO NOT use H.265 for preview - browsers cannot decode H.265 via WebRTC!
 """
 import logging
+import os
+import subprocess
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from . import get_gst
 
 logger = logging.getLogger(__name__)
+
+
+def is_device_busy(device_path: str) -> Tuple[bool, List[int]]:
+    """Check if a V4L2 device is currently in use by another process.
+    
+    Uses fuser command to check for processes holding the device open.
+    
+    Args:
+        device_path: Path to the device (e.g., /dev/video11)
+        
+    Returns:
+        Tuple of (is_busy, list_of_pids_using_device)
+    """
+    try:
+        # fuser returns 0 if processes are using the file, 1 if not
+        result = subprocess.run(
+            ["fuser", device_path],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        
+        if result.returncode == 0:
+            # Parse PIDs from output (format: "/dev/video11:  1234  5678")
+            output = result.stdout.strip() + result.stderr.strip()
+            pids = []
+            for part in output.split():
+                # Skip the device path and extract just numbers
+                part = part.rstrip('m')  # Remove 'm' suffix (memory mapped)
+                if part.isdigit():
+                    pids.append(int(part))
+            return (len(pids) > 0, pids)
+        else:
+            return (False, [])
+            
+    except subprocess.TimeoutExpired:
+        logger.warning(f"Timeout checking if {device_path} is busy")
+        return (False, [])
+    except FileNotFoundError:
+        # fuser not available
+        logger.debug("fuser command not available, skipping device busy check")
+        return (False, [])
+    except Exception as e:
+        logger.warning(f"Error checking device busy status for {device_path}: {e}")
+        return (False, [])
 
 
 def get_h264_hardware_encoder(bitrate: int) -> Tuple[str, str, str]:
@@ -194,13 +241,19 @@ def get_device_capabilities(device_path: str) -> Dict[str, Any]:
                             fmt = fmt_part.split()[0]  # Fallback: get first word
                         result['format'] = fmt
 
-            # Check for no signal (640x480 BGR typically means no signal)
+            # Check for no signal indicators:
+            # - 640x480 is the default fallback resolution when no HDMI is connected
+            # - BGR3/BGR format often indicates test pattern (no real signal)
             if result['width'] == 640 and result['height'] == 480:
-                if result['format'] in ['BGR3', 'BGR']:
-                    result['has_signal'] = False
+                result['has_signal'] = False
+                logger.info(f"Device {device_path}: 640x480 detected, treating as no signal")
+            elif result['format'] in ['BGR3', 'BGR']:
+                result['has_signal'] = False
+                logger.info(f"Device {device_path}: BGR format detected, treating as no signal")
 
     except Exception as e:
         logger.warning(f"Error getting device capabilities for {device_path}: {e}")
+        result['has_signal'] = False  # Assume no signal on error
 
     return result
 

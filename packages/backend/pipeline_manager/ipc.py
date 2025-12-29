@@ -10,11 +10,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Deque, Dict, List, Optional
 
-from .config import get_config, get_enabled_cameras
+from .config import check_resource_limits, get_config, get_enabled_cameras
+from .device_monitor import DeviceMonitor, get_device_monitor
 from .gstreamer.pipelines import (
     build_preview_pipeline_string,
     build_recording_pipeline_string,
     get_device_capabilities,
+    is_device_busy,
 )
 from .gstreamer.runner import PipelineState as GstPipelineState
 from .gstreamer.runner import get_runner
@@ -43,6 +45,11 @@ class IPCServer:
         self.watchdog = get_watchdog()
         self.config = get_config()
         self.gst_runner = get_runner(on_state_change=self._on_pipeline_state_change)
+        
+        # Device monitor for hot-plug detection
+        self.device_monitor = get_device_monitor()
+        self.device_monitor.on_connected = self._handle_device_connected
+        self.device_monitor.on_disconnected = self._handle_device_disconnected
 
         # Event queue for async events that need to be sent to the API
         self._event_queue: Deque[Dict[str, Any]] = deque(maxlen=EVENT_BUFFER_SIZE)
@@ -233,17 +240,108 @@ class IPCServer:
         
         logger.info(f"[IPC] Queued recording.progress event: duration={duration_ms}ms, bytes={bytes_written}")
 
+    async def _handle_device_connected(self, input_id: str, capabilities: Dict[str, Any]) -> None:
+        """Handle a device being connected (signal detected).
+        
+        Auto-starts preview pipeline for the newly connected device.
+        """
+        logger.info(f"Device connected: {input_id} ({capabilities.get('width')}x{capabilities.get('height')})")
+        
+        # Queue event for API to broadcast to WebSocket clients
+        self._queue_event("input.connected", {
+            "input_id": input_id,
+            "width": capabilities.get('width', 0),
+            "height": capabilities.get('height', 0),
+            "format": capabilities.get('format', ''),
+        })
+        
+        # Auto-start preview if not recording
+        if self.state.current_mode != "recording":
+            enabled_cameras = get_enabled_cameras(self.config)
+            cam_config = enabled_cameras.get(input_id)
+            
+            if cam_config:
+                pipeline_id = f"preview_{input_id}"
+                
+                if not self.gst_runner.is_running(pipeline_id):
+                    try:
+                        pipeline_str = build_preview_pipeline_string(
+                            cam_id=input_id,
+                            device=cam_config.device,
+                            bitrate=cam_config.bitrate,
+                            resolution=cam_config.resolution,
+                        )
+                        
+                        loop = asyncio.get_event_loop()
+                        success = await loop.run_in_executor(
+                            _executor,
+                            functools.partial(
+                                self.gst_runner.start_pipeline,
+                                pipeline_id=pipeline_id,
+                                pipeline_string=pipeline_str,
+                                pipeline_type="preview",
+                                device=cam_config.device,
+                            )
+                        )
+                        
+                        if success:
+                            logger.info(f"Auto-started preview for newly connected {input_id}")
+                        else:
+                            logger.warning(f"Failed to auto-start preview for {input_id}")
+                            
+                    except Exception as e:
+                        logger.error(f"Error auto-starting preview for connected device {input_id}: {e}")
+
+    async def _handle_device_disconnected(self, input_id: str) -> None:
+        """Handle a device being disconnected (signal lost).
+        
+        Stops any running pipelines for the disconnected device.
+        """
+        logger.info(f"Device disconnected: {input_id}")
+        
+        # Queue event for API to broadcast to WebSocket clients
+        self._queue_event("input.disconnected", {
+            "input_id": input_id,
+        })
+        
+        # Stop preview pipeline if running
+        preview_pipeline_id = f"preview_{input_id}"
+        if self.gst_runner.is_running(preview_pipeline_id):
+            try:
+                loop = asyncio.get_event_loop()
+                await loop.run_in_executor(
+                    _executor,
+                    lambda: self.gst_runner.stop_pipeline(preview_pipeline_id)
+                )
+                logger.info(f"Stopped preview pipeline for disconnected {input_id}")
+            except Exception as e:
+                logger.error(f"Error stopping preview for disconnected device {input_id}: {e}")
+        
+        # If recording, mark this input as having an issue
+        if self.state.current_mode == "recording":
+            recording_pipeline_id = f"recording_{input_id}"
+            if self.gst_runner.is_running(recording_pipeline_id):
+                logger.warning(f"Device {input_id} disconnected during recording!")
+                self._queue_event("recording.input_lost", {
+                    "session_id": self.state.active_recording.session_id if self.state.active_recording else None,
+                    "input_id": input_id,
+                })
+
     async def _auto_start_previews(self) -> None:
         """Start preview pipelines for all enabled cameras on startup.
 
         This ensures WHEP preview streams are immediately available
-        when the pipeline manager starts.
+        when the pipeline manager starts. Only starts previews for
+        cameras that have an active signal.
         """
         enabled_cameras = get_enabled_cameras(self.config)
         loop = asyncio.get_event_loop()
 
         logger.info(f"Auto-starting previews for {len(enabled_cameras)} enabled cameras")
 
+        started = 0
+        skipped_no_signal = 0
+        
         for input_id, cam_config in enabled_cameras.items():
             pipeline_id = f"preview_{input_id}"
 
@@ -251,6 +349,16 @@ class IPCServer:
             if self.gst_runner.is_running(pipeline_id):
                 logger.info(f"Preview for {input_id} already running, skipping")
                 continue
+
+            # Check for signal before starting preview
+            try:
+                caps = get_device_capabilities(cam_config.device)
+                if not caps.get('has_signal', False):
+                    logger.info(f"Skipping preview for {input_id}: no signal detected on {cam_config.device}")
+                    skipped_no_signal += 1
+                    continue
+            except Exception as e:
+                logger.warning(f"Could not check signal for {input_id}: {e}, will attempt preview anyway")
 
             try:
                 pipeline_str = build_preview_pipeline_string(
@@ -273,15 +381,46 @@ class IPCServer:
 
                 if success:
                     logger.info(f"Auto-started preview for {input_id}")
+                    started += 1
                 else:
                     logger.warning(f"Failed to auto-start preview for {input_id}")
 
             except Exception as e:
                 logger.error(f"Error auto-starting preview for {input_id}: {e}")
                 # Continue with other cameras even if one fails
+        
+        logger.info(f"Auto-start complete: {started} started, {skipped_no_signal} skipped (no signal)")
+
+    def _reconcile_state(self) -> None:
+        """Reconcile persisted state with actual pipeline state on startup.
+        
+        If the persisted state shows recording but no recording pipelines are
+        actually running (e.g., after crash/reboot), reset to idle.
+        """
+        if self.state.current_mode == "recording":
+            # Check if any recording pipelines are actually running
+            all_pipelines = self.gst_runner.get_all_pipelines()
+            recording_pipelines = [
+                pid for pid in all_pipelines.keys()
+                if pid.startswith("recording_")
+            ]
+            
+            if not recording_pipelines:
+                logger.warning(
+                    f"Stale recording state detected (session: {self.state.active_recording.session_id if self.state.active_recording else 'unknown'}), "
+                    "resetting to idle"
+                )
+                self.state.current_mode = "idle"
+                self.state.active_recording = None
+                self.state.save()
+            else:
+                logger.info(f"Resuming recording with {len(recording_pipelines)} active pipelines")
 
     async def start(self):
         """Start the IPC server"""
+        # Reconcile state with actual pipelines before starting
+        self._reconcile_state()
+        
         # Ensure socket directory exists
         SOCKET_PATH.parent.mkdir(parents=True, exist_ok=True)
 
@@ -302,10 +441,18 @@ class IPCServer:
 
         # Auto-start preview pipelines for all enabled cameras
         await self._auto_start_previews()
+        
+        # Start device monitor for hot-plug detection
+        self.device_monitor.start()
+        logger.info("Device monitor started for hot-plug detection")
 
     def stop(self):
         """Stop the IPC server"""
         self.running = False
+        
+        # Stop device monitor
+        self.device_monitor.stop()
+        
         if self.server:
             self.server.close()
         if SOCKET_PATH.exists():
@@ -349,6 +496,12 @@ class IPCServer:
             if self.state.current_mode == "recording":
                 return {"error": "Already recording"}
 
+            # Check resource limits before starting
+            resources_ok, resource_reason = check_resource_limits(self.config)
+            if not resources_ok:
+                logger.warning(f"Recording blocked by resource limits: {resource_reason}")
+                return {"error": f"Cannot start recording: {resource_reason}"}
+
             # Create file paths for each input
             RECORDINGS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -356,13 +509,38 @@ class IPCServer:
             input_paths = {}
             started_pipelines = []
             stopped_previews = []
+            skipped_inputs = []  # Inputs skipped due to no signal or config issues
 
             enabled_cameras = get_enabled_cameras(self.config)
+            
+            # Filter inputs to only those with valid signal
+            valid_inputs = []
+            for input_id in inputs:
+                cam_config = enabled_cameras.get(input_id)
+                if not cam_config:
+                    logger.warning(f"Input {input_id} not found in config, skipping")
+                    skipped_inputs.append({"id": input_id, "reason": "not in config"})
+                    continue
+                    
+                # Check for signal
+                try:
+                    caps = get_device_capabilities(cam_config.device)
+                    if not caps.get('has_signal', False):
+                        logger.info(f"Skipping {input_id}: no signal detected on {cam_config.device}")
+                        skipped_inputs.append({"id": input_id, "reason": "no signal"})
+                        continue
+                except Exception as e:
+                    logger.warning(f"Could not check signal for {input_id}: {e}, will attempt anyway")
+                
+                valid_inputs.append(input_id)
+            
+            if not valid_inputs:
+                return {"error": "No inputs with signal available for recording", "skipped": skipped_inputs}
 
             # First, stop preview pipelines for cameras we want to record
             # V4L2 doesn't allow multiple processes to open the same device
             loop = asyncio.get_event_loop()
-            for input_id in inputs:
+            for input_id in valid_inputs:
                 preview_pipeline_id = f"preview_{input_id}"
                 if self.gst_runner.is_running(preview_pipeline_id):
                     logger.info(f"Stopping preview pipeline for {input_id} before recording")
@@ -372,14 +550,20 @@ class IPCServer:
                             lambda pid=preview_pipeline_id: self.gst_runner.stop_pipeline(pid)
                         )
                         stopped_previews.append(input_id)
+                        # Small delay to ensure device is released
+                        await asyncio.sleep(0.1)
                     except Exception as e:
                         logger.warning(f"Failed to stop preview {input_id}: {e}")
 
-            for input_id in inputs:
-                # Get camera config if available
-                cam_config = enabled_cameras.get(input_id)
-                if not cam_config:
-                    logger.warning(f"Input {input_id} not found in config, skipping")
+            for input_id in valid_inputs:
+                # Get camera config (already validated in filtering step)
+                cam_config = enabled_cameras[input_id]
+                
+                # Check if device is busy (another process still holding it)
+                busy, pids = is_device_busy(cam_config.device)
+                if busy:
+                    logger.warning(f"Device {cam_config.device} for {input_id} is busy (PIDs: {pids}), skipping")
+                    skipped_inputs.append({"id": input_id, "reason": f"device busy (PIDs: {pids})"})
                     continue
 
                 # Create output file path
@@ -399,7 +583,6 @@ class IPCServer:
 
                     pipeline_id = f"recording_{input_id}"
                     # Run GStreamer operation in thread pool to avoid blocking
-                    loop = asyncio.get_event_loop()
                     success = await loop.run_in_executor(
                         _executor,
                         lambda pid=pipeline_id, pstr=pipeline_str, fp=str(file_path), dev=cam_config.device: self.gst_runner.start_pipeline(
@@ -416,12 +599,14 @@ class IPCServer:
                         logger.info(f"Started recording pipeline for {input_id}")
                     else:
                         logger.error(f"Failed to start recording pipeline for {input_id}")
+                        skipped_inputs.append({"id": input_id, "reason": "pipeline start failed"})
 
                 except Exception as e:
                     logger.error(f"Error starting pipeline for {input_id}: {e}")
+                    skipped_inputs.append({"id": input_id, "reason": str(e)})
 
             if not started_pipelines:
-                return {"error": "Failed to start any recording pipelines"}
+                return {"error": "Failed to start any recording pipelines", "skipped": skipped_inputs}
 
             # Start recording state
             self.state.start_recording(session_id, input_paths)
@@ -429,12 +614,13 @@ class IPCServer:
             # Start watchdog
             self.watchdog.start_watching(session_id, input_paths)
 
-            logger.info(f"Recording started: session={session_id}, inputs={started_pipelines}")
+            logger.info(f"Recording started: session={session_id}, inputs={started_pipelines}, skipped={len(skipped_inputs)}")
 
             return {
                 "session_id": session_id,
                 "inputs": input_paths,
                 "started_pipelines": started_pipelines,
+                "skipped_inputs": skipped_inputs,
                 "status": "started",
             }
 
@@ -701,6 +887,33 @@ class IPCServer:
                 "latest_seq": self._event_seq,
                 "count": len(events),
             }
+
+        elif cmd == "pipelines.list":
+            # Return information about all running pipelines
+            all_pipelines = self.gst_runner.get_all_pipelines()
+            return {"pipelines": all_pipelines}
+
+        elif cmd == "pipeline.stop":
+            # Stop a specific pipeline
+            pipeline_id = command.get("pipeline_id")
+            if not pipeline_id:
+                return {"error": "Missing pipeline_id"}
+            
+            try:
+                loop = asyncio.get_event_loop()
+                success = await loop.run_in_executor(
+                    _executor,
+                    lambda pid=pipeline_id: self.gst_runner.stop_pipeline(pid)
+                )
+                
+                if success:
+                    logger.info(f"Stopped pipeline: {pipeline_id}")
+                    return {"success": True, "pipeline_id": pipeline_id}
+                else:
+                    return {"error": f"Failed to stop pipeline: {pipeline_id}"}
+            except Exception as e:
+                logger.error(f"Error stopping pipeline {pipeline_id}: {e}")
+                return {"error": str(e)}
 
         else:
             return {"error": f"Unknown command: {cmd}"}

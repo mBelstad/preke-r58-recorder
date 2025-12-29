@@ -86,7 +86,7 @@ cameras:
     output_path: /mnt/sdcard/recordings/cam1/recording_%Y%m%d_%H%M%S.mkv
     mediamtx_enabled: true
     mediamtx_path: null
-    enabled: false  # No HDMI signal detected
+    enabled: true  # HDMI 1 - 1080p input via hdmirx direct
 
   cam2:
     device: /dev/video11  # HDMI N11 (rkcif via LT6911 bridge)
@@ -96,7 +96,7 @@ cameras:
     output_path: /mnt/sdcard/recordings/cam2/recording_%Y%m%d_%H%M%S.mkv
     mediamtx_enabled: true
     mediamtx_path: null
-    enabled: true  # HDMI 2 - 1080p camera connected
+    enabled: true  # HDMI 2 - signal auto-detected at runtime
 
   cam3:
     device: /dev/video22  # HDMI N21 (rkcif-mipi-lvds2 via LT6911 2-002b bridge)

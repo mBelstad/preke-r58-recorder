@@ -4,11 +4,13 @@ import { useRoute } from 'vue-router'
 import DeviceStatus from '@/components/admin/DeviceStatus.vue'
 import LogViewer from '@/components/admin/LogViewer.vue'
 import FleetOverview from '@/components/admin/FleetOverview.vue'
+import SystemMonitor from '@/components/admin/SystemMonitor.vue'
 
 const route = useRoute()
-const activeTab = ref('status')
+const activeTab = ref('system')
 
 const tabs = [
+  { id: 'system', label: 'System' },
   { id: 'status', label: 'Device Status' },
   { id: 'logs', label: 'Logs' },
   { id: 'fleet', label: 'Fleet' },
@@ -65,7 +67,9 @@ async function downloadSupportBundle() {
     
     <!-- Content -->
     <div class="flex-1 p-6 overflow-y-auto">
-      <DeviceStatus v-if="activeTab === 'status'" />
+      <SystemMonitor v-if="activeTab === 'system'" />
+      
+      <DeviceStatus v-else-if="activeTab === 'status'" />
       
       <div v-else-if="activeTab === 'logs'" class="card">
         <h2 class="text-lg font-semibold mb-4">System Logs</h2>

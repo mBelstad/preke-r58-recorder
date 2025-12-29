@@ -255,6 +255,30 @@ class PipelineClient:
             "last_seq": last_seq,
         }, timeout=2.0, retries=0)  # Fast fail, don't retry
 
+    async def get_pipelines(self) -> Dict[str, Any]:
+        """
+        Get information about all running pipelines.
+
+        Returns:
+            Dict with pipelines information including id, type, state, etc.
+        """
+        return await self._send_command({"cmd": "pipelines.list"})
+
+    async def stop_pipeline(self, pipeline_id: str) -> Dict[str, Any]:
+        """
+        Stop a specific pipeline.
+
+        Args:
+            pipeline_id: The pipeline ID to stop (e.g., "preview_cam1")
+
+        Returns:
+            Dict with success status
+        """
+        return await self._send_command({
+            "cmd": "pipeline.stop",
+            "pipeline_id": pipeline_id,
+        })
+
 
 # Singleton instance
 _client: Optional[PipelineClient] = None

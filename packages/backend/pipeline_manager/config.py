@@ -32,6 +32,16 @@ class CameraConfig:
 
 
 @dataclass
+class ResourceLimits:
+    """Resource limits for pipeline management."""
+    max_concurrent_4k_streams: int = 2  # Maximum 4K streams (encode is expensive)
+    max_concurrent_1080p_streams: int = 4  # Maximum 1080p streams
+    max_cpu_percent: int = 80  # Don't start new pipelines if CPU > this
+    max_memory_percent: int = 85  # Don't start new pipelines if memory > this
+    min_disk_space_gb: float = 5.0  # Don't start recording if disk < this
+
+
+@dataclass
 class PipelineConfig:
     """Configuration for the pipeline manager."""
     cameras: Dict[str, CameraConfig] = field(default_factory=dict)
@@ -40,6 +50,7 @@ class PipelineConfig:
     warning_disk_space_gb: float = 5.0
     mediamtx_rtsp_port: int = 8554
     mediamtx_rtmp_port: int = 1935
+    resource_limits: ResourceLimits = field(default_factory=ResourceLimits)
 
 
 def load_config(config_path: Optional[Path] = None) -> PipelineConfig:
@@ -136,6 +147,52 @@ def get_enabled_cameras(config: PipelineConfig) -> Dict[str, CameraConfig]:
         for cam_id, cam_config in config.cameras.items()
         if cam_config.enabled
     }
+
+
+def check_resource_limits(config: PipelineConfig, is_4k: bool = False) -> tuple[bool, str]:
+    """Check if system resources allow starting a new pipeline.
+    
+    Args:
+        config: Pipeline configuration with resource limits
+        is_4k: Whether the new pipeline is 4K (more resource intensive)
+        
+    Returns:
+        Tuple of (allowed, reason). If allowed is False, reason explains why.
+    """
+    try:
+        import psutil
+        
+        limits = config.resource_limits
+        
+        # Check CPU usage
+        cpu_percent = psutil.cpu_percent(interval=0.1)
+        if cpu_percent > limits.max_cpu_percent:
+            return (False, f"CPU usage too high: {cpu_percent:.1f}% > {limits.max_cpu_percent}%")
+        
+        # Check memory usage
+        memory = psutil.virtual_memory()
+        if memory.percent > limits.max_memory_percent:
+            return (False, f"Memory usage too high: {memory.percent:.1f}% > {limits.max_memory_percent}%")
+        
+        # Check disk space for recordings
+        try:
+            disk = psutil.disk_usage("/mnt/sdcard")
+            free_gb = disk.free / (1024 ** 3)
+            if free_gb < limits.min_disk_space_gb:
+                return (False, f"Disk space too low: {free_gb:.1f}GB < {limits.min_disk_space_gb}GB")
+        except (FileNotFoundError, OSError):
+            # Check root filesystem if sdcard not mounted
+            pass
+        
+        return (True, "Resources available")
+        
+    except ImportError:
+        # psutil not available
+        logger.debug("psutil not available for resource checking")
+        return (True, "Resource check skipped (psutil not available)")
+    except Exception as e:
+        logger.warning(f"Error checking resources: {e}")
+        return (True, f"Resource check failed: {e}")
 
 
 # Singleton config instance
