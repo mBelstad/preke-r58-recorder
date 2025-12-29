@@ -91,7 +91,7 @@ const displayStatusLabel = computed(() => {
         <span 
           :class="['w-2 h-2 rounded-full transition-colors', connectionDotClass]"
         ></span>
-        <img src="/favicon.svg" alt="Preke" class="w-4 h-4" />
+        <img src="/favicon.svg" alt="Preke" class="w-4 h-4 drop-shadow-[0_0_4px_rgba(255,255,255,0.4)]" />
         <span 
           :class="[
             'text-xs px-1.5 py-0.5 rounded',
