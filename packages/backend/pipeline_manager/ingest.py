@@ -101,12 +101,19 @@ class IngestManager:
             return True
         
         try:
+            import os
+            # Enable RGA hardware acceleration for videoscale/videoconvert
+            # This MUST be set before GStreamer is initialized!
+            os.environ['GST_VIDEO_CONVERT_USE_RGA'] = '1'
+            
             import gi
             gi.require_version('Gst', '1.0')
             from gi.repository import Gst
             
             if not Gst.is_initialized():
                 Gst.init(None)
+            
+            logger.info(f"GStreamer initialized with RGA enabled (GST_VIDEO_CONVERT_USE_RGA={os.environ.get('GST_VIDEO_CONVERT_USE_RGA')})")
             
             self._gst = Gst
             self._gst_ready = True

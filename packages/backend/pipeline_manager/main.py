@@ -1,4 +1,11 @@
 """R58 Pipeline Manager - Entry point"""
+import os
+
+# CRITICAL: Enable RGA hardware acceleration BEFORE any GStreamer imports!
+# This allows videoscale to use Rockchip RGA for hardware-accelerated scaling.
+# Without this, 4K->720p scaling uses CPU (~30%), with it uses RGA (~5%)
+os.environ['GST_VIDEO_CONVERT_USE_RGA'] = '1'
+
 import asyncio
 import logging
 import signal
