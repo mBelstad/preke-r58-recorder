@@ -396,7 +396,7 @@ def get_device_capabilities(device_path: str) -> Dict[str, Any]:
                 result['has_signal'] = False
                 logger.info(f"Device {device_path}: 640x480 detected, treating as no signal")
             elif result['format'] in ['BGR3', 'BGR']:
-                    result['has_signal'] = False
+                result['has_signal'] = False
                 logger.info(f"Device {device_path}: BGR format detected, treating as no signal")
 
     except Exception as e:
