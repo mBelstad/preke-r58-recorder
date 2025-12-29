@@ -448,18 +448,17 @@ def build_source_pipeline(
     if device_type == "hdmirx":
         src_width = caps['width']
         src_height = caps['height']
-        src_fps = caps['framerate'] or 30
         
-        # Capture at native framerate - with H.264-only encoding we can handle 4K@30fps
+        # Don't force framerate in source caps - let v4l2src negotiate natively
+        # hdmirx provides whatever the HDMI source sends
         is_4k = src_width > 1920 or src_height > 1080
-        capture_fps = min(src_fps, 30)  # Cap at 30fps max
         
         if is_4k:
-            logger.info(f"4K hdmirx source {device}: capturing at {capture_fps}fps, downscaling to {target_width}x{target_height}")
+            logger.info(f"4K hdmirx source {device}: native capture, downscaling to {target_width}x{target_height}")
         
         return (
             f"v4l2src device={device} io-mode=mmap ! "
-            f"video/x-raw,width={src_width},height={src_height},framerate={capture_fps}/1 ! "
+            f"video/x-raw,width={src_width},height={src_height} ! "
             f"queue max-size-buffers=3 max-size-time=0 max-size-bytes=0 leaky=downstream ! "
             f"videorate ! video/x-raw,framerate={target_fps}/1 ! "
             f"videoconvert ! "
@@ -468,22 +467,20 @@ def build_source_pipeline(
         )
 
     elif device_type == "hdmi_rkcif":
-        src_format = caps['format'] or 'NV16'
+        src_format = caps['format'] or 'UYVY'
         src_width = caps['width']
         src_height = caps['height']
-        src_fps = caps['framerate'] or 60
         
-        # Capture at native framerate - with H.264-only encoding we can handle 4K@30fps
-        # The VPU is stable with 4 simultaneous H.264 encoders
+        # Don't force framerate in source caps - let v4l2src negotiate natively
+        # LT6911 bridges may provide various framerates depending on the HDMI source
         is_4k = src_width > 1920 or src_height > 1080
-        capture_fps = min(src_fps, 30)  # Cap at 30fps max
         
         if is_4k:
-            logger.info(f"4K source {device}: capturing at {capture_fps}fps, downscaling to {target_width}x{target_height}")
+            logger.info(f"4K rkcif source {device}: native capture, downscaling to {target_width}x{target_height}")
         
         return (
             f"v4l2src device={device} io-mode=mmap ! "
-            f"video/x-raw,format={src_format},width={src_width},height={src_height},framerate={capture_fps}/1 ! "
+            f"video/x-raw,format={src_format},width={src_width},height={src_height} ! "
             f"queue max-size-buffers=3 max-size-time=0 max-size-bytes=0 leaky=downstream ! "
             f"videorate ! video/x-raw,framerate={target_fps}/1 ! "
             f"videoconvert ! "
