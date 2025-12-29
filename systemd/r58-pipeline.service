@@ -6,8 +6,10 @@ Before=r58-api.service
 [Service]
 Type=simple
 User=linaro
-WorkingDirectory=/opt/r58-app/current
-ExecStart=/opt/r58-app/current/venv/bin/python -m pipeline_manager.main
+# IMPORTANT: Use /opt/preke-r58-recorder directly, NOT the symlink
+# The symlink /opt/r58-app/current caused deployment issues where old code kept running
+WorkingDirectory=/opt/preke-r58-recorder
+ExecStart=/opt/preke-r58-recorder/venv/bin/python -m pipeline_manager.main
 Restart=always
 RestartSec=3
 StandardOutput=journal
@@ -18,12 +20,12 @@ RuntimeDirectory=r58
 RuntimeDirectoryMode=0755
 
 # Environment
-Environment="PATH=/opt/r58-app/current/venv/bin:/usr/local/bin:/usr/bin:/bin"
-Environment="PYTHONPATH=/opt/r58-app/current/packages/backend"
+Environment="PATH=/opt/preke-r58-recorder/venv/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="PYTHONPATH=/opt/preke-r58-recorder/packages/backend"
 Environment="PYTHONUNBUFFERED=1"
 
 # Security (relaxed for linaro user)
-ReadWritePaths=/opt/r58-app/current/recordings /run/r58
+ReadWritePaths=/opt/preke-r58-recorder/recordings /run/r58
 
 [Install]
 WantedBy=multi-user.target

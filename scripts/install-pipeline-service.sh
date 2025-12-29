@@ -15,12 +15,19 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
-# Create required directories
+# IMPORTANT: Service now uses /opt/preke-r58-recorder directly
+# This avoids the symlink confusion that caused stale code issues
 echo "Creating directories..."
-mkdir -p /opt/r58-app/current/recordings
+mkdir -p /opt/preke-r58-recorder/recordings
 mkdir -p /run/r58
-chown -R linaro:linaro /opt/r58-app/current/recordings
+chown -R linaro:linaro /opt/preke-r58-recorder/recordings
 chown -R linaro:linaro /run/r58
+
+# Update symlink for backwards compatibility
+echo "Updating symlink for backwards compatibility..."
+rm -f /opt/r58-app/current 2>/dev/null || true
+mkdir -p /opt/r58-app
+ln -sf /opt/preke-r58-recorder /opt/r58-app/current
 
 # Copy service file
 echo "Installing systemd service..."
