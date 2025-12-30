@@ -21,6 +21,7 @@ from .preview import PreviewManager
 from .database import Database
 from .files import FileManager
 from .camera_control import CameraControlManager
+from .fps_monitor import get_fps_monitor, FpsMonitor
 
 # Configure logging
 logging.basicConfig(
@@ -151,6 +152,12 @@ except Exception as e:
 async def lifespan(app: FastAPI):
     """Manage application lifecycle."""
     # Startup
+    
+    # Start FPS monitor (logs framerate every 5 seconds)
+    fps_monitor = get_fps_monitor()
+    fps_monitor.start()
+    logger.info("FPS Monitor started - will log framerates every 5 seconds")
+    
     logger.info("Starting ingest pipelines for all cameras...")
     results = ingest_manager.start_all()
     for cam_id, success in results.items():
@@ -163,6 +170,9 @@ async def lifespan(app: FastAPI):
     
     # Shutdown
     logger.info("Application shutting down...")
+    
+    # Stop FPS monitor
+    fps_monitor.stop()
     
     # Cleanup Cloudflare Calls relays
     # Cloudflare Calls cleanup removed (no longer used)
@@ -1122,6 +1132,54 @@ async def get_mediamtx_status() -> Dict[str, Any]:
     return status
 
 
+@app.get("/api/fps")
+async def get_fps_stats() -> Dict[str, Any]:
+    """Get real-time framerate statistics for all cameras.
+    
+    Returns FPS data measured by counting actual frames in the GStreamer pipelines.
+    This is the most accurate way to verify the actual framerate.
+    
+    Returns:
+        Dictionary with FPS stats per camera:
+        - current_fps: Frames per second in the last interval
+        - avg_fps: Average FPS since pipeline started
+        - min_fps: Minimum FPS observed
+        - max_fps: Maximum FPS observed
+        - total_frames: Total frames processed
+        - uptime_seconds: Time since monitoring started
+    """
+    fps_monitor = get_fps_monitor()
+    stats = fps_monitor.get_all_stats()
+    
+    # Add summary
+    if stats:
+        current_fps_values = [s["current_fps"] for s in stats.values() if s["current_fps"] > 0]
+        avg_current = sum(current_fps_values) / len(current_fps_values) if current_fps_values else 0
+        all_at_30 = all(s["current_fps"] >= 28 for s in stats.values() if s["current_fps"] > 0)
+        
+        return {
+            "cameras": stats,
+            "summary": {
+                "active_cameras": len(current_fps_values),
+                "average_fps": round(avg_current, 1),
+                "all_at_target": all_at_30,
+                "target_fps": 30,
+                "status": "✓ All cameras at 30fps" if all_at_30 else "⚠ Some cameras below target"
+            }
+        }
+    
+    return {
+        "cameras": {},
+        "summary": {
+            "active_cameras": 0,
+            "average_fps": 0,
+            "all_at_target": False,
+            "target_fps": 30,
+            "status": "No cameras streaming"
+        }
+    }
+
+
 @app.get("/status")
 async def get_status() -> Dict[str, Dict[str, Any]]:
     """Get status of all cameras."""
@@ -1236,6 +1294,20 @@ async def get_camera_signal(cam_id: str) -> Dict[str, Any]:
     if not caps['has_signal']:
         pipeline_error = "No HDMI signal detected"
     
+    # Get FPS stats from monitor if available
+    fps_monitor = get_fps_monitor()
+    fps_stats = fps_monitor.get_stats(cam_id)
+    fps_info = None
+    if fps_stats:
+        fps_stats.update()  # Calculate current FPS
+        fps_info = {
+            "current_fps": round(fps_stats.current_fps, 1),
+            "avg_fps": round(fps_stats.avg_fps, 1),
+            "min_fps": round(fps_stats.min_fps, 1) if fps_stats.min_fps != float('inf') else 0,
+            "max_fps": round(fps_stats.max_fps, 1),
+            "total_frames": fps_stats.total_frames
+        }
+    
     return {
         "cam_id": cam_id,
         "device": device,
@@ -1248,10 +1320,11 @@ async def get_camera_signal(cam_id: str) -> Dict[str, Any]:
         },
         "pipeline": {
             "state": pipeline_state,
-            "frames_received": 0,  # TODO: Add frame counter to pipelines
+            "frames_received": fps_stats.total_frames if fps_stats else 0,
             "frames_dropped": 0,  # TODO: Add drop counter to pipelines
             "last_frame_timestamp": None,  # TODO: Add timestamp tracking
-            "error": pipeline_error
+            "error": pipeline_error,
+            "fps": fps_info  # Real-time FPS from monitor
         },
         "recording": recording_info,
         "preview": preview_info,

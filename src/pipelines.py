@@ -1,10 +1,54 @@
 """GStreamer pipeline builders for macOS and R58."""
 import logging
-from typing import Optional
+from typing import Optional, Tuple
 
 from .gst_utils import get_gst, ensure_gst_initialized
 
 logger = logging.getLogger(__name__)
+
+# FPS monitoring flag - set to True to enable frame counting
+FPS_MONITORING_ENABLED = True
+
+
+def get_fps_identity_element(cam_id: str) -> str:
+    """
+    Get the identity element string for FPS monitoring.
+    
+    Args:
+        cam_id: Camera identifier
+        
+    Returns:
+        GStreamer element string for identity element with handoff signals
+    """
+    if not FPS_MONITORING_ENABLED:
+        return ""
+    return f"identity name=fps_{cam_id} signal-handoffs=true ! "
+
+
+def connect_fps_monitor(pipeline, cam_id: str) -> bool:
+    """
+    Connect FPS monitor to a pipeline after it's created.
+    
+    This should be called after Gst.parse_launch() to connect
+    the handoff signal for frame counting.
+    
+    Args:
+        pipeline: GStreamer pipeline object
+        cam_id: Camera identifier
+        
+    Returns:
+        True if successfully connected
+    """
+    if not FPS_MONITORING_ENABLED:
+        return False
+    
+    try:
+        from .fps_monitor import get_fps_monitor
+        monitor = get_fps_monitor()
+        return monitor.connect_to_pipeline(pipeline, cam_id)
+    except Exception as e:
+        logger.warning(f"Could not connect FPS monitor for {cam_id}: {e}")
+        return False
 
 # Note: Previously used RTP_PORT_MAP for raw UDP streaming
 # Now using rtspclientsink which handles RTSP publishing automatically
@@ -300,16 +344,20 @@ def build_ingest_pipeline(
     if platform == "macos":
         # Mock ingest pipeline for development
         width, height = resolution.split("x")
+        fps_element = get_fps_identity_element(cam_id)
         pipeline_str = (
             f"videotestsrc pattern=ball is-live=true ! "
             f"video/x-raw,width={width},height={height},framerate=30/1 ! "
+            f"{fps_element}"  # FPS monitoring
             f"x264enc bitrate={bitrate} speed-preset=ultrafast tune=zerolatency ! "
             f"video/x-h264,profile=baseline ! "
             f"flvmux streamable=true ! "
             f"rtmpsink location={mediamtx_path or f'rtmp://127.0.0.1:1935/{cam_id}'}"
         )
         Gst = get_gst()
-        return Gst.parse_launch(pipeline_str)
+        pipeline = Gst.parse_launch(pipeline_str)
+        connect_fps_monitor(pipeline, cam_id)
+        return pipeline
     else:  # r58
         return build_r58_ingest_pipeline(
             cam_id=cam_id,
@@ -428,11 +476,16 @@ def build_r58_ingest_pipeline(
     # TCP transport + config-interval=-1 fixes MediaMTX HLS DTS extraction errors
     encoder_str, caps_str, parse_str = get_h264_hardware_encoder(bitrate)
     
+    # Get FPS monitoring element (identity with handoff signal)
+    fps_element = get_fps_identity_element(cam_id)
+    
     # Stream to MediaMTX via RTSP with TCP for reliability
     # config-interval=-1 ensures SPS/PPS sent with every keyframe
     # TCP transport prevents packet loss that causes DTS errors
+    # FPS monitor identity element placed after videorate for accurate output fps
     pipeline_str = (
         f"{source_str} ! "
+        f"{fps_element}"  # FPS monitoring after source/videorate
         f"queue max-size-buffers=5 max-size-time=0 max-size-bytes=0 leaky=downstream ! "
         f"{encoder_str} ! "
         f"{caps_str} ! "
@@ -444,6 +497,10 @@ def build_r58_ingest_pipeline(
     logger.info(f"Building ingest pipeline for {cam_id}: {pipeline_str}")
     Gst = get_gst()
     pipeline = Gst.parse_launch(pipeline_str)
+    
+    # Connect FPS monitor to the pipeline
+    connect_fps_monitor(pipeline, cam_id)
+    
     return pipeline
 
 
