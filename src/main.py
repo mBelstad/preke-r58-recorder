@@ -264,10 +264,12 @@ async def cairo_control():
 
 
 @app.get("/cameras")
+@app.get("/api/camera-preview")  # Alternative path to bypass Vue PWA cache
 async def camera_preview():
     """Serve the standalone camera preview with WHEP support.
     
     Includes no-cache headers to prevent PWA service worker from intercepting.
+    Use /api/camera-preview to bypass cached Vue PWA routes.
     """
     preview_path = Path(__file__).parent / "static" / "camera-preview.html"
     if preview_path.exists():
