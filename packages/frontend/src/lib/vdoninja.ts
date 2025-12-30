@@ -182,7 +182,8 @@ export function buildVdoUrl(
     url.searchParams.set('autoadd', vars.source_ids)
   }
   if (vars.whep_url) {
-    url.searchParams.set('whepshare', encodeURIComponent(vars.whep_url))
+    // Don't double-encode: searchParams.set() already encodes the value
+    url.searchParams.set('whepshare', vars.whep_url)
   }
   if (vars.label) {
     url.searchParams.set('label', vars.label)

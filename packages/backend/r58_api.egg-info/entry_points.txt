@@ -1,0 +1,2 @@
+[console_scripts]
+r58-api = r58_api.main:app
