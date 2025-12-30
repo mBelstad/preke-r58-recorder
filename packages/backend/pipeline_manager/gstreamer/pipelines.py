@@ -771,19 +771,17 @@ def build_tee_recording_pipeline(
     )
     
     # === PREVIEW BRANCH (Always On) ===
-    # Use SOFTWARE encoder (x264enc) for preview to reduce VPU load
-    # The RK3588 VPU can only handle 4-6 concurrent encode sessions safely
-    # With 4 cameras × 2 hardware encoders = 8 sessions = VPU overload/crashes
-    # By using x264enc for preview, we reduce hardware encoders to 4 (recording only)
-    # Trade-off: ~15-20% more CPU usage, +50ms latency, but stable!
+    # TESTING: Using HARDWARE encoder (mpph264enc) for preview
+    # Testing if VPU overload was real issue, or if device monitor/format fixes resolved it
+    # If crashes occur: switch to x264enc (software) as fallback
     preview_branch = (
-        f"queue name=preview_queue max-size-buffers=10 max-size-time=0 "
+        f"queue name=preview_queue max-size-buffers=30 max-size-time=0 "
         f"max-size-bytes=0 leaky=downstream ! "
-        f"x264enc "
-        f"tune=zerolatency speed-preset=ultrafast "
-        f"bitrate={preview_bitrate} "
-        f"key-int-max=30 ! "
-        f"video/x-h264,stream-format=byte-stream,profile=baseline ! "
+        f"mpph264enc "
+        f"qp-init=26 qp-min=10 qp-max=51 "
+        f"gop=30 profile=baseline rc-mode=cbr "
+        f"bps={preview_bitrate * 1000} ! "
+        f"video/x-h264,stream-format=byte-stream ! "
         f"h264parse config-interval=-1 ! "
         f"rtspclientsink location=rtsp://127.0.0.1:{rtsp_port}/{cam_id} "
         f"protocols=tcp latency=0"
@@ -825,10 +823,10 @@ def _build_tee_test_pattern_pipeline(
         f"h264parse config-interval=1 ! "
         f"matroskamux streamable=true ! "
         f"filesink location={recording_path} sync=false "
-        # Preview branch (software encoder to reduce VPU load)
-        f"t. ! queue max-size-buffers=10 leaky=downstream ! "
-        f"x264enc tune=zerolatency speed-preset=ultrafast bitrate={preview_bitrate} key-int-max=30 ! "
-        f"video/x-h264,stream-format=byte-stream,profile=baseline ! "
+        # Preview branch (hardware encoder - testing VPU capacity)
+        f"t. ! queue max-size-buffers=30 leaky=downstream ! "
+        f"mpph264enc qp-init=26 gop=30 profile=baseline bps={preview_bitrate * 1000} ! "
+        f"video/x-h264,stream-format=byte-stream ! "
         f"h264parse config-interval=-1 ! "
         f"rtspclientsink location=rtsp://127.0.0.1:{rtsp_port}/{cam_id} protocols=tcp latency=0"
     )
