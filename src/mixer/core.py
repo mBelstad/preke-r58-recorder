@@ -1208,9 +1208,23 @@ class MixerCore:
 
         # Encoder - use hardware encoders for low CPU usage
         # NOTE: MediaMTX RTMP requires H.264 (FLV doesn't support H.265)
-        # So we always encode with H.264 for simplicity
-        encoder_str = f"x264enc tune=zerolatency bitrate={self.output_bitrate} speed-preset=superfast"
-        caps_str = "video/x-h264"
+        # Try hardware encoder first (mpph264enc on Rockchip), fall back to x264enc
+        try:
+            # Check if mpph264enc is available
+            from .._gst_lazy import get_gst
+            Gst = get_gst()
+            if Gst.ElementFactory.find("mpph264enc"):
+                # Use Rockchip MPP hardware encoder
+                encoder_str = f"mpph264enc qp-init=26 qp-min=10 qp-max=51 gop=30 profile=baseline rc-mode=cbr bps={self.output_bitrate * 1000}"
+                logger.info("Mixer using mpph264enc hardware encoder")
+            else:
+                encoder_str = f"x264enc tune=zerolatency bitrate={self.output_bitrate} speed-preset=superfast"
+                logger.info("Mixer using x264enc software encoder")
+        except Exception:
+            encoder_str = f"x264enc tune=zerolatency bitrate={self.output_bitrate} speed-preset=superfast"
+            logger.info("Mixer using x264enc software encoder (fallback)")
+        
+        caps_str = "video/x-h264,stream-format=byte-stream"
         parse_str = "h264parse"
         
         # Mux format depends on output codec config (for recording)
@@ -1275,12 +1289,16 @@ class MixerCore:
 
         # Build complete pipeline with Cairo overlay
         # Cairo overlay is inserted after compositor for broadcast graphics
+        # videoconvert is needed after timeoverlay because overlay elements output RGBA
+        # but hardware/software encoders need NV12/I420
         pipeline_str = (
             " ".join(source_parts) + " "
             f"compositor name=compositor {' '.join(compositor_pad_props)} ! "
             f"video/x-raw,width={width},height={height} ! "
             f"cairooverlay name=graphics_overlay ! "
             f"timeoverlay ! "
+            f"videoconvert ! "
+            f"video/x-raw,format=NV12 ! "
             f"{encoder_str} ! "
             f"{caps_str} ! "
             f"tee name=t"
