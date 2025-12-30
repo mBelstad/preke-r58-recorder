@@ -755,9 +755,10 @@ def build_tee_recording_pipeline(
     # === RECORDING BRANCH ===
     # High bitrate H.264 High profile for quality recording
     # matroskamux for edit-while-record capability (DaVinci Resolve compatible)
+    # REDUCED buffer from 60 to 20 to prevent memory pressure
     valve_element = "valve name=rec_valve drop=true ! " if use_valve else ""
     recording_branch = (
-        f"queue name=rec_queue max-size-buffers=60 max-size-time=0 "
+        f"queue name=rec_queue max-size-buffers=20 max-size-time=0 "
         f"max-size-bytes=0 leaky=downstream ! "
         f"{valve_element}"
         f"mpph264enc "
@@ -771,15 +772,16 @@ def build_tee_recording_pipeline(
     )
     
     # === PREVIEW BRANCH (Always On) ===
-    # Lower bitrate H.264 Baseline for streaming efficiency (browser compatible)
+    # SOFTWARE encoder to avoid VPU overload (browser compatible)
+    # Using x264enc instead of mpph264enc to prevent kernel crashes
+    # when multiple cameras are recording simultaneously
     preview_branch = (
-        f"queue name=preview_queue max-size-buffers=30 max-size-time=0 "
+        f"queue name=preview_queue max-size-buffers=10 max-size-time=0 "
         f"max-size-bytes=0 leaky=downstream ! "
-        f"mpph264enc "
-        f"qp-init=26 qp-min=10 qp-max=51 "
-        f"gop=30 profile=baseline rc-mode=cbr "
-        f"bps={preview_bitrate * 1000} ! "
-        f"video/x-h264,stream-format=byte-stream ! "
+        f"x264enc tune=zerolatency bitrate={int(preview_bitrate)} "
+        f"speed-preset=superfast key-int-max=30 bframes=0 "
+        f"threads=2 sliced-threads=true ! "
+        f"video/x-h264,profile=baseline,stream-format=byte-stream ! "
         f"h264parse config-interval=-1 ! "
         f"rtspclientsink location=rtsp://127.0.0.1:{rtsp_port}/{cam_id} "
         f"protocols=tcp latency=0"
@@ -806,25 +808,29 @@ def _build_tee_test_pattern_pipeline(
     rtsp_port: int,
     use_valve: bool
 ) -> str:
-    """Build TEE pipeline with test pattern when no signal is available."""
+    """Build TEE pipeline with test pattern when no signal is available.
+    
+    Uses hardware encoder for recording, software for preview to avoid VPU overload.
+    """
     valve_element = "valve name=rec_valve drop=true ! " if use_valve else ""
     
     return (
         f"videotestsrc pattern=black is-live=true ! "
         f"video/x-raw,format=NV12,width={width},height={height},framerate=30/1 ! "
         f"tee name=t ! "
-        # Recording branch
-        f"queue max-size-buffers=30 leaky=downstream ! "
+        # Recording branch - hardware encoder (reduced buffer)
+        f"queue max-size-buffers=15 leaky=downstream ! "
         f"{valve_element}"
         f"mpph264enc qp-init=20 gop=30 profile=high bps={recording_bitrate * 1000} ! "
         f"video/x-h264,stream-format=byte-stream ! "
         f"h264parse config-interval=1 ! "
         f"matroskamux streamable=true ! "
         f"filesink location={recording_path} sync=false "
-        # Preview branch
-        f"t. ! queue max-size-buffers=30 leaky=downstream ! "
-        f"mpph264enc qp-init=26 gop=30 profile=baseline bps={preview_bitrate * 1000} ! "
-        f"video/x-h264,stream-format=byte-stream ! "
+        # Preview branch - SOFTWARE encoder to prevent crashes
+        f"t. ! queue max-size-buffers=10 leaky=downstream ! "
+        f"x264enc tune=zerolatency bitrate={int(preview_bitrate)} speed-preset=superfast "
+        f"key-int-max=30 bframes=0 threads=2 ! "
+        f"video/x-h264,profile=baseline,stream-format=byte-stream ! "
         f"h264parse config-interval=-1 ! "
         f"rtspclientsink location=rtsp://127.0.0.1:{rtsp_port}/{cam_id} protocols=tcp latency=0"
     )
