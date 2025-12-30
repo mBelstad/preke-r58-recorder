@@ -386,9 +386,9 @@ async function initializeStudio() {
         // Start camera previews with delay
         setTimeout(() => startPreviews(), 3000);
 
-        // Update stats
+        // Update stats (every 15s to reduce CPU load)
         updateStats();
-        setInterval(updateStats, 5000);
+        setInterval(updateStats, 15000);
 
         // Restore stream mode
         const modeSelect = document.getElementById('streamModeSelect');

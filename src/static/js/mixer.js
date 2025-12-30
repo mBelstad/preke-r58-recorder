@@ -361,11 +361,11 @@ async function initializeMixer() {
         loadSceneUrl()
     ]);
     
-    // Auto-refresh every 5 seconds
+    // Auto-refresh every 15 seconds (reduced from 5s to lower CPU load)
     if (mixerState.refreshInterval) {
         clearInterval(mixerState.refreshInterval);
     }
-    mixerState.refreshInterval = setInterval(refreshSources, 5000);
+    mixerState.refreshInterval = setInterval(refreshSources, 15000);
 }
 
 /**
