@@ -263,12 +263,25 @@ async def cairo_control():
     return "<h1>Switcher Interface</h1><p>Switcher interface not found.</p>"
 
 
-@app.get("/cameras", response_class=HTMLResponse)
+@app.get("/cameras")
 async def camera_preview():
-    """Serve the standalone camera preview with WHEP support."""
+    """Serve the standalone camera preview with WHEP support.
+    
+    Includes no-cache headers to prevent PWA service worker from intercepting.
+    """
     preview_path = Path(__file__).parent / "static" / "camera-preview.html"
     if preview_path.exists():
-        return preview_path.read_text()
+        content = preview_path.read_text()
+        return Response(
+            content=content,
+            media_type="text/html",
+            headers={
+                "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+                "Pragma": "no-cache",
+                "Expires": "0",
+                "X-Content-Type-Options": "nosniff"
+            }
+        )
     raise HTTPException(status_code=404, detail="Camera preview not found")
 
 
