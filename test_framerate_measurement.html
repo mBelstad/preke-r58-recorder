@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>R58 Preview Framerate Measurement</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #0f0f0f;
+            color: #e0e0e0;
+        }
+        h1 {
+            text-align: center;
+            color: #4CAF50;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #888;
+            margin-bottom: 30px;
+        }
+        .controls {
+            background: #1a1a1a;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .controls label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .controls input[type="text"] {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 6px;
+            width: 400px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button.stop {
+            background: #f44336;
+        }
+        button.stop:hover {
+            background: #d32f2f;
+        }
+        .cameras {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 20px;
+        }
+        .camera {
+            background: #1a1a1a;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        .camera-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .camera h2 {
+            margin: 0;
+            color: #4CAF50;
+        }
+        .fps-display {
+            font-size: 24px;
+            font-weight: bold;
+            padding: 5px 15px;
+            border-radius: 8px;
+            background: #2a2a2a;
+        }
+        .fps-good { color: #4CAF50; }
+        .fps-ok { color: #FFA500; }
+        .fps-bad { color: #f44336; }
+        video {
+            width: 100%;
+            height: auto;
+            background: #000;
+            border-radius: 8px;
+            aspect-ratio: 16/9;
+        }
+        .stats {
+            margin-top: 15px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+        .stat {
+            background: #2a2a2a;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-label {
+            font-size: 11px;
+            color: #888;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+        .stat-value {
+            font-size: 18px;
+            font-weight: 600;
+            font-family: 'SF Mono', Monaco, monospace;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-connecting { background: #FFA500; animation: pulse 1s infinite; }
+        .status-connected { background: #4CAF50; }
+        .status-error { background: #f44336; }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .connection-status {
+            display: flex;
+            align-items: center;
+            font-size: 14px;
+            color: #888;
+        }
+        .summary {
+            background: #1a1a1a;
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 20px;
+        }
+        .summary h3 {
+            margin-top: 0;
+            color: #4CAF50;
+        }
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        .summary-item {
+            background: #2a2a2a;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        .summary-item h4 {
+            margin: 0 0 10px 0;
+            color: #888;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+        .summary-item .value {
+            font-size: 28px;
+            font-weight: bold;
+        }
+        pre {
+            background: #0a0a0a;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-size: 12px;
+            color: #888;
+        }
+    </style>
+</head>
+<body>
+    <h1>📊 R58 Preview Framerate Measurement</h1>
+    <p class="subtitle">Real-time FPS measurement using requestVideoFrameCallback</p>
+
+    <div class="controls">
+        <label>
+            MediaMTX URL:
+            <input type="text" id="mediamtxUrl" value="https://r58-mediamtx.itagenten.no">
+        </label>
+        <button onclick="startAllStreams()">▶️ Start All Streams</button>
+        <button onclick="stopAllStreams()" class="stop">⏹️ Stop All</button>
+    </div>
+
+    <div class="cameras" id="camerasContainer">
+        <!-- Camera cards will be generated here -->
+    </div>
+
+    <div class="summary" id="summary" style="display: none;">
+        <h3>📈 Measurement Summary</h3>
+        <div class="summary-grid" id="summaryGrid"></div>
+        <pre id="summaryLog"></pre>
+    </div>
+
+    <script>
+        const CAMERAS = ['cam0', 'cam2', 'cam3'];
+        const FPS_HISTORY_SIZE = 30; // Average over last 30 measurements
+        const FPS_UPDATE_INTERVAL = 500; // Update display every 500ms
+        
+        // Per-camera state
+        const cameraState = {};
+        
+        // Initialize camera UI
+        function initializeCameras() {
+            const container = document.getElementById('camerasContainer');
+            container.innerHTML = '';
+            
+            CAMERAS.forEach(cam => {
+                cameraState[cam] = {
+                    pc: null,
+                    frameCount: 0,
+                    lastFrameTime: 0,
+                    fpsHistory: [],
+                    currentFps: 0,
+                    avgFps: 0,
+                    minFps: Infinity,
+                    maxFps: 0,
+                    totalFrames: 0,
+                    startTime: null,
+                    connected: false
+                };
+                
+                const card = document.createElement('div');
+                card.className = 'camera';
+                card.id = `camera-${cam}`;
+                card.innerHTML = `
+                    <div class="camera-header">
+                        <h2>${cam.toUpperCase()}</h2>
+                        <div class="fps-display" id="fps-${cam}">-- fps</div>
+                    </div>
+                    <video id="video-${cam}" autoplay playsinline muted></video>
+                    <div class="connection-status">
+                        <span class="status-indicator" id="status-${cam}"></span>
+                        <span id="status-text-${cam}">Not connected</span>
+                    </div>
+                    <div class="stats">
+                        <div class="stat">
+                            <div class="stat-label">Avg FPS</div>
+                            <div class="stat-value" id="avg-fps-${cam}">--</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-label">Min / Max</div>
+                            <div class="stat-value" id="minmax-${cam}">-- / --</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-label">Total Frames</div>
+                            <div class="stat-value" id="frames-${cam}">0</div>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+        
+        // Measure FPS using requestVideoFrameCallback (most accurate method)
+        function startFpsMeasurement(cam, video) {
+            const state = cameraState[cam];
+            state.startTime = performance.now();
+            state.frameCount = 0;
+            state.lastFrameTime = performance.now();
+            
+            // Use requestVideoFrameCallback if available (Chrome 83+, Edge 83+)
+            if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
+                console.log(`${cam}: Using requestVideoFrameCallback for accurate FPS`);
+                
+                function onFrame(now, metadata) {
+                    if (!state.connected) return;
+                    
+                    state.totalFrames++;
+                    state.frameCount++;
+                    
+                    // Calculate instantaneous FPS every few frames
+                    const elapsed = now - state.lastFrameTime;
+                    if (elapsed >= FPS_UPDATE_INTERVAL) {
+                        const fps = (state.frameCount / elapsed) * 1000;
+                        state.fpsHistory.push(fps);
+                        if (state.fpsHistory.length > FPS_HISTORY_SIZE) {
+                            state.fpsHistory.shift();
+                        }
+                        
+                        state.currentFps = fps;
+                        state.avgFps = state.fpsHistory.reduce((a, b) => a + b, 0) / state.fpsHistory.length;
+                        state.minFps = Math.min(state.minFps, fps);
+                        state.maxFps = Math.max(state.maxFps, fps);
+                        
+                        updateFpsDisplay(cam);
+                        
+                        state.frameCount = 0;
+                        state.lastFrameTime = now;
+                    }
+                    
+                    video.requestVideoFrameCallback(onFrame);
+                }
+                
+                video.requestVideoFrameCallback(onFrame);
+            } else {
+                // Fallback: estimate from video metadata (less accurate)
+                console.log(`${cam}: Fallback - requestVideoFrameCallback not available`);
+                
+                setInterval(() => {
+                    if (!state.connected) return;
+                    
+                    // Try to get FPS from video metadata
+                    const track = video.srcObject?.getVideoTracks()[0];
+                    if (track) {
+                        const settings = track.getSettings();
+                        if (settings.frameRate) {
+                            state.currentFps = settings.frameRate;
+                            state.avgFps = settings.frameRate;
+                            updateFpsDisplay(cam);
+                        }
+                    }
+                }, 1000);
+            }
+        }
+        
+        function updateFpsDisplay(cam) {
+            const state = cameraState[cam];
+            
+            // Update main FPS display
+            const fpsEl = document.getElementById(`fps-${cam}`);
+            const fps = state.currentFps.toFixed(1);
+            fpsEl.textContent = `${fps} fps`;
+            fpsEl.className = 'fps-display ' + (
+                state.currentFps >= 28 ? 'fps-good' :
+                state.currentFps >= 20 ? 'fps-ok' : 'fps-bad'
+            );
+            
+            // Update stats
+            document.getElementById(`avg-fps-${cam}`).textContent = state.avgFps.toFixed(1);
+            document.getElementById(`minmax-${cam}`).textContent = 
+                `${state.minFps === Infinity ? '--' : state.minFps.toFixed(0)} / ${state.maxFps === 0 ? '--' : state.maxFps.toFixed(0)}`;
+            document.getElementById(`frames-${cam}`).textContent = state.totalFrames.toLocaleString();
+        }
+        
+        function setConnectionStatus(cam, status, text) {
+            const indicator = document.getElementById(`status-${cam}`);
+            const textEl = document.getElementById(`status-text-${cam}`);
+            
+            indicator.className = `status-indicator status-${status}`;
+            textEl.textContent = text;
+        }
+        
+        async function startStream(cam) {
+            const state = cameraState[cam];
+            const video = document.getElementById(`video-${cam}`);
+            const mediamtxUrl = document.getElementById('mediamtxUrl').value;
+            const whepUrl = `${mediamtxUrl}/${cam}/whep`;
+            
+            setConnectionStatus(cam, 'connecting', 'Connecting...');
+            
+            try {
+                // Create peer connection
+                const pc = new RTCPeerConnection({
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:stun1.l.google.com:19302' }
+                    ]
+                });
+                state.pc = pc;
+                
+                // Handle incoming tracks
+                pc.ontrack = (event) => {
+                    console.log(`${cam}: Received ${event.track.kind} track`);
+                    if (event.track.kind === 'video') {
+                        video.srcObject = event.streams[0];
+                        state.connected = true;
+                        setConnectionStatus(cam, 'connected', 'Connected - Measuring FPS');
+                        
+                        // Start FPS measurement
+                        video.onloadedmetadata = () => {
+                            console.log(`${cam}: Video dimensions: ${video.videoWidth}x${video.videoHeight}`);
+                            startFpsMeasurement(cam, video);
+                        };
+                    }
+                };
+                
+                pc.onconnectionstatechange = () => {
+                    console.log(`${cam}: Connection state: ${pc.connectionState}`);
+                    if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
+                        state.connected = false;
+                        setConnectionStatus(cam, 'error', `Connection ${pc.connectionState}`);
+                    }
+                };
+                
+                // Add transceivers
+                pc.addTransceiver('video', { direction: 'recvonly' });
+                pc.addTransceiver('audio', { direction: 'recvonly' });
+                
+                // Create and send offer
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+                
+                const response = await fetch(whepUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/sdp' },
+                    body: offer.sdp
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`WHEP failed: ${response.status}`);
+                }
+                
+                const answerSdp = await response.text();
+                await pc.setRemoteDescription({ type: 'answer', sdp: answerSdp });
+                
+            } catch (error) {
+                console.error(`${cam}: Error:`, error);
+                state.connected = false;
+                setConnectionStatus(cam, 'error', `Error: ${error.message}`);
+            }
+        }
+        
+        function stopStream(cam) {
+            const state = cameraState[cam];
+            if (state.pc) {
+                state.pc.close();
+                state.pc = null;
+            }
+            state.connected = false;
+            setConnectionStatus(cam, '', 'Not connected');
+            
+            const video = document.getElementById(`video-${cam}`);
+            video.srcObject = null;
+        }
+        
+        async function startAllStreams() {
+            for (const cam of CAMERAS) {
+                await startStream(cam);
+            }
+            
+            // Show summary after 10 seconds
+            setTimeout(showSummary, 10000);
+        }
+        
+        function stopAllStreams() {
+            CAMERAS.forEach(stopStream);
+        }
+        
+        function showSummary() {
+            const summary = document.getElementById('summary');
+            const grid = document.getElementById('summaryGrid');
+            const log = document.getElementById('summaryLog');
+            
+            summary.style.display = 'block';
+            
+            let totalAvgFps = 0;
+            let activeStreams = 0;
+            let logLines = ['Framerate Measurement Results', '=' .repeat(40), ''];
+            
+            CAMERAS.forEach(cam => {
+                const state = cameraState[cam];
+                if (state.connected && state.avgFps > 0) {
+                    activeStreams++;
+                    totalAvgFps += state.avgFps;
+                    
+                    const result = state.avgFps >= 28 ? '✅ PASS' : state.avgFps >= 20 ? '⚠️ WARN' : '❌ FAIL';
+                    logLines.push(`${cam}: ${state.avgFps.toFixed(1)} fps (${result})`);
+                    logLines.push(`  Min: ${state.minFps.toFixed(1)}, Max: ${state.maxFps.toFixed(1)}, Total Frames: ${state.totalFrames}`);
+                    logLines.push('');
+                }
+            });
+            
+            const overallAvg = activeStreams > 0 ? totalAvgFps / activeStreams : 0;
+            const overallResult = overallAvg >= 28 ? '✅ PASS (30fps target met)' : 
+                                  overallAvg >= 20 ? '⚠️ WARN (below 30fps)' : '❌ FAIL (poor framerate)';
+            
+            grid.innerHTML = `
+                <div class="summary-item">
+                    <h4>Active Streams</h4>
+                    <div class="value">${activeStreams} / ${CAMERAS.length}</div>
+                </div>
+                <div class="summary-item">
+                    <h4>Overall Avg FPS</h4>
+                    <div class="value ${overallAvg >= 28 ? 'fps-good' : overallAvg >= 20 ? 'fps-ok' : 'fps-bad'}">${overallAvg.toFixed(1)}</div>
+                </div>
+                <div class="summary-item">
+                    <h4>Result</h4>
+                    <div class="value" style="font-size: 16px;">${overallResult}</div>
+                </div>
+            `;
+            
+            logLines.push('Summary', '-'.repeat(40));
+            logLines.push(`Overall Average: ${overallAvg.toFixed(1)} fps`);
+            logLines.push(`Expected: 30 fps (from GStreamer pipelines)`);
+            logLines.push(`Result: ${overallResult}`);
+            
+            log.textContent = logLines.join('\n');
+        }
+        
+        // Initialize on load
+        window.addEventListener('load', initializeCameras);
+    </script>
+</body>
+</html>
