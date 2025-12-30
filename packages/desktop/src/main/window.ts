@@ -25,8 +25,7 @@ const ALLOWED_NAVIGATION_ORIGINS = [
 ]
 
 const ALLOWED_IFRAME_ORIGINS = [
-  'https://r58-vdo.itagenten.no',     // Self-hosted VDO.ninja
-  'https://vdo.itagenten.no',         // Alternate VDO.ninja
+  'https://vdo.itagenten.no',         // Self-hosted VDO.ninja
   'https://vdo.ninja',                // Public VDO.ninja (fallback)
 ]
 

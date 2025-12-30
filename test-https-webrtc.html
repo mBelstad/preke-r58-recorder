@@ -147,8 +147,8 @@
         <h3>6. Quick Links</h3>
         <p>
             <a href="https://r58-api.itagenten.no/v3/paths/list" target="_blank" class="link">📊 MediaMTX API</a><br>
-            <a href="https://r58-vdo.itagenten.no/" target="_blank" class="link">🎥 VDO.ninja Home</a><br>
-            <a href="https://r58-vdo.itagenten.no/?director=r58studio&wss=r58-vdo.itagenten.no" target="_blank" class="link">🎬 VDO.ninja Director</a><br>
+            <a href="https://vdo.itagenten.no/" target="_blank" class="link">🎥 VDO.ninja Home</a><br>
+            <a href="https://vdo.itagenten.no/?director=r58studio&wss=vdo.itagenten.no" target="_blank" class="link">🎬 VDO.ninja Director</a><br>
             <a href="https://r58-mediamtx.itagenten.no/cam0" target="_blank" class="link">📹 MediaMTX cam0</a>
         </p>
     </div>
@@ -182,7 +182,7 @@
             
             const urls = [
                 'https://r58-api.itagenten.no/v3/paths/list',
-                'https://r58-vdo.itagenten.no/',
+                'https://vdo.itagenten.no/',
                 'https://r58-mediamtx.itagenten.no/cam0'
             ];
             
@@ -241,7 +241,7 @@
             result.style.display = 'block';
             
             try {
-                const response = await fetch('https://r58-vdo.itagenten.no/');
+                const response = await fetch('https://vdo.itagenten.no/');
                 const text = await response.text();
                 
                 status.textContent = '✅ Success';

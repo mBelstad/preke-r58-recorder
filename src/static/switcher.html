@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>R58 Professional Switcher</title>
+    <title>R58 Studio Mixer</title>
     <style>
         :root {
-            /* Colors */
+            /* === R58 Custom Skin - Dark Theme (Default) === */
             --bg-dark: #0a0a0a;
             --bg-panel: #141414;
             --bg-element: #1f1f1f;
@@ -32,14 +32,17 @@
             --spacing-lg: 16px;
             
             /* UI Elements */
-            --radius-sm: 4px;
-            --radius-md: 6px;
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 16px;
             --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
             --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+            --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.6);
             
             /* Transitions */
             --transition-fast: 0.15s ease;
             --transition-panel: 0.3s ease-out;
+            --transition-theme: 0.25s ease;
             
             /* Responsive & Touch */
             --touch-target-min: 48px;
@@ -47,6 +50,50 @@
             --bottom-bar-height: 64px;
             --sidebar-width: 180px;
             --header-height: 56px;
+            
+            /* Scene Button */
+            --scene-btn-bg: var(--bg-element);
+            --scene-btn-border: var(--border-light);
+            --scene-btn-text: var(--text-primary);
+        }
+        
+        /* === Light Theme === */
+        [data-theme="light"] {
+            --bg-dark: #f5f5f7;
+            --bg-panel: #ffffff;
+            --bg-element: #f0f0f5;
+            --bg-hover: #e8e8ed;
+            
+            --text-primary: #1d1d1f;
+            --text-secondary: rgba(0, 0, 0, 0.6);
+            --text-muted: rgba(0, 0, 0, 0.35);
+            
+            --accent-primary: #007AFF;
+            --accent-primary-hover: #0056b3;
+            --accent-danger: #FF3B30;
+            --accent-success: #34C759;
+            --accent-warning: #FF9500;
+            
+            --border-light: rgba(0, 0, 0, 0.1);
+            --border-focus: rgba(0, 0, 0, 0.2);
+            
+            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+            --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.12);
+            --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.15);
+            
+            --scene-btn-bg: #ffffff;
+            --scene-btn-border: rgba(0, 0, 0, 0.15);
+            --scene-btn-text: #1d1d1f;
+        }
+        
+        /* Light theme specific overrides */
+        [data-theme="light"] .program-output,
+        [data-theme="light"] .preview-output {
+            background: #1a1a1a;
+        }
+        
+        [data-theme="light"] .compact-input {
+            background: #1a1a1a;
         }
 
         html {
@@ -513,29 +560,58 @@
         }
 
         .take-button {
-            width: 80px;
-            height: 60px;
-            background: var(--accent-danger);
+            width: 90px;
+            height: 70px;
+            background: linear-gradient(145deg, #ef4444, #dc2626);
             border: none;
-            border-radius: var(--radius-md);
+            border-radius: var(--radius-lg);
             color: #fff;
             font-size: 16px;
-            font-weight: 700;
+            font-weight: 800;
             text-transform: uppercase;
             letter-spacing: 2px;
             cursor: pointer;
             transition: all var(--transition-fast);
-            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+            box-shadow: 0 6px 20px rgba(239, 68, 68, 0.5);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .take-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.4s ease;
         }
 
         .take-button:hover {
-            background: #dc2626;
+            background: linear-gradient(145deg, #dc2626, #b91c1c);
             transform: scale(1.05);
-            box-shadow: 0 6px 16px rgba(239, 68, 68, 0.6);
+            box-shadow: 0 8px 25px rgba(239, 68, 68, 0.65);
+        }
+        
+        .take-button:hover::before {
+            left: 100%;
         }
 
         .take-button:active {
             transform: scale(0.95);
+            box-shadow: 0 3px 10px rgba(239, 68, 68, 0.4);
+        }
+        
+        .take-button:disabled {
+            background: linear-gradient(145deg, #6b7280, #4b5563);
+            box-shadow: none;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        
+        .take-button:disabled:hover {
+            transform: none;
         }
 
         .scene-buttons-section {
@@ -553,14 +629,14 @@
 
         .scene-button-large {
             padding: var(--spacing-lg);
-            border: 2px solid var(--border-light);
-            background: var(--bg-element);
-            color: var(--text-primary);
+            border: 2px solid var(--scene-btn-border);
+            background: var(--scene-btn-bg);
+            color: var(--scene-btn-text);
             border-radius: var(--radius-md);
             font-size: 14px;
             font-weight: 700;
             cursor: pointer;
-            transition: all var(--transition-fast);
+            transition: all var(--transition-fast), background var(--transition-theme), border-color var(--transition-theme);
             text-align: center;
             text-transform: uppercase;
             letter-spacing: 1px;
@@ -569,6 +645,7 @@
             align-items: center;
             justify-content: center;
             position: relative;
+            box-shadow: var(--shadow-sm);
         }
 
         .scene-button-large:hover {
@@ -582,16 +659,56 @@
             transform: translateY(0) scale(0.98);
         }
 
-        .scene-button-large.active {
+        /* Scene in program (LIVE) - Red border */
+        .scene-button-large.program {
+            background: rgba(239, 68, 68, 0.12);
+            border-color: var(--accent-danger);
+            color: var(--accent-danger);
+            box-shadow: 0 0 0 2px var(--accent-danger), var(--shadow-md);
+        }
+        
+        .scene-button-large.program::before {
+            content: 'LIVE';
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            font-size: 8px;
+            font-weight: 800;
+            background: var(--accent-danger);
+            color: white;
+            padding: 2px 5px;
+            border-radius: 3px;
+            letter-spacing: 0.5px;
+        }
+        
+        /* Scene in preview (NEXT) - Green border */
+        .scene-button-large.preview {
+            background: rgba(16, 185, 129, 0.12);
+            border-color: var(--accent-success);
+            color: var(--accent-success);
+            box-shadow: 0 0 0 2px var(--accent-success), var(--shadow-md);
+        }
+        
+        .scene-button-large.preview::before {
+            content: 'PVW';
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            font-size: 8px;
+            font-weight: 800;
+            background: var(--accent-success);
+            color: white;
+            padding: 2px 5px;
+            border-radius: 3px;
+            letter-spacing: 0.5px;
+        }
+
+        /* Legacy .active support (maps to preview for backwards compat) */
+        .scene-button-large.active:not(.program) {
             background: rgba(59, 130, 246, 0.15);
             border-color: var(--accent-primary);
             color: var(--accent-primary);
             box-shadow: 0 0 0 2px var(--accent-primary);
-        }
-
-        .scene-button-large.preview {
-            opacity: 0.7;
-            border-color: var(--accent-success);
         }
 
         /* Right Sidebar */
@@ -1645,9 +1762,12 @@
     <!-- Mobile Header -->
     <div class="mobile-header" id="mobileHeader">
         <button class="hamburger-btn" id="hamburgerBtn">☰</button>
-        <div class="mobile-header-title">R58 Switcher</div>
-        <div class="status-compact">
-            <div class="status-dot" id="statusDotMobile"></div>
+        <div class="mobile-header-title">R58 Mixer</div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <button class="hamburger-btn" id="mobileThemeBtn" onclick="toggleTheme()" style="font-size: 18px;">🌓</button>
+            <div class="status-compact">
+                <div class="status-dot" id="statusDotMobile"></div>
+            </div>
         </div>
     </div>
     
@@ -1665,6 +1785,7 @@
                 <button class="toolbar-btn" id="mediaBtn" title="Media Library (M)">🎬</button>
                 <button class="toolbar-btn" id="graphicsBtn" title="Graphics (G)">🎨</button>
                 <button class="toolbar-btn" id="audioBtn" title="Audio Mixer (A)">🔊</button>
+                <button class="toolbar-btn" id="themeBtn" title="Toggle Theme (T)">🌓</button>
                 <button class="toolbar-btn" id="settingsBtn" title="Settings">⚙️</button>
                 <button class="toolbar-btn" id="refreshBtn" title="Refresh Streams (R)">🔄</button>
             </div>
@@ -1675,6 +1796,9 @@
                 </div>
                 <div class="status-compact remote-indicator" id="remoteIndicator" style="display: none;">
                     <span class="remote-badge">🌐 REMOTE</span>
+                </div>
+                <div class="status-compact" id="localIndicator" style="display: none;">
+                    <span class="remote-badge" style="background: rgba(16, 185, 129, 0.2); border-color: var(--accent-success); color: var(--accent-success);">🏠 LOCAL</span>
                 </div>
             </div>
             <div class="compact-input-grid" id="compactInputGrid">
@@ -1898,29 +2022,65 @@
             <button class="close-panel-btn" onclick="closePanel()">×</button>
                 </div>
         <div class="panel-content">
+            <!-- Theme Toggle -->
             <div style="margin-bottom: var(--spacing-md);">
+                <div style="font-size: 11px; font-weight: 600; margin-bottom: var(--spacing-sm); text-transform: uppercase;">Appearance</div>
+                <div style="display: flex; gap: var(--spacing-sm);">
+                    <button class="theme-toggle-btn" id="themeDarkBtn" data-theme="dark" onclick="setTheme('dark')" style="flex: 1; padding: 12px; border: 2px solid var(--border-light); background: var(--bg-element); color: var(--text-primary); border-radius: var(--radius-md); cursor: pointer; font-size: 12px; font-weight: 600; transition: all var(--transition-fast);">
+                        🌙 Dark
+                    </button>
+                    <button class="theme-toggle-btn" id="themeLightBtn" data-theme="light" onclick="setTheme('light')" style="flex: 1; padding: 12px; border: 2px solid var(--border-light); background: var(--bg-element); color: var(--text-primary); border-radius: var(--radius-md); cursor: pointer; font-size: 12px; font-weight: 600; transition: all var(--transition-fast);">
+                        ☀️ Light
+                    </button>
+                    <button class="theme-toggle-btn" id="themeAutoBtn" data-theme="auto" onclick="setTheme('auto')" style="flex: 1; padding: 12px; border: 2px solid var(--border-light); background: var(--bg-element); color: var(--text-primary); border-radius: var(--radius-md); cursor: pointer; font-size: 12px; font-weight: 600; transition: all var(--transition-fast);">
+                        🌓 Auto
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Connection Mode -->
+            <div style="margin-bottom: var(--spacing-md); padding-top: var(--spacing-md); border-top: 1px solid var(--border-light);">
+                <div style="font-size: 11px; font-weight: 600; margin-bottom: var(--spacing-sm); text-transform: uppercase;">Connection</div>
+                <div id="connectionModeInfo" style="font-size: 11px; color: var(--text-secondary); padding: 8px; background: var(--bg-element); border-radius: var(--radius-sm); margin-bottom: var(--spacing-sm);">
+                    <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+                        <span id="connectionModeIcon">🏠</span>
+                        <span id="connectionModeText" style="font-weight: 600;">Local Network</span>
+                    </div>
+                    <div id="connectionModeDesc" style="opacity: 0.8;">WebRTC enabled for ultra-low latency</div>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: var(--spacing-md); padding-top: var(--spacing-md); border-top: 1px solid var(--border-light);">
                 <div style="font-size: 11px; font-weight: 600; margin-bottom: var(--spacing-sm); text-transform: uppercase;">Keyboard Shortcuts</div>
-                <div style="font-size: 11px; color: var(--text-secondary); line-height: 1.6;">
-                    <div>1-8: Select scenes</div>
-                    <div>Space: Take (preview to program)</div>
-                    <div>Q: Queue panel</div>
-                    <div>M: Media library</div>
-                    <div>G: Graphics panel</div>
-                    <div>A: Audio mixer</div>
-                    <div>R: Refresh streams</div>
-                    <div>Esc: Close panels</div>
+                <div style="font-size: 11px; color: var(--text-secondary); line-height: 1.8;">
+                    <div><kbd style="background: var(--bg-element); padding: 2px 6px; border-radius: 3px; font-family: monospace;">1-8</kbd> Select scenes</div>
+                    <div><kbd style="background: var(--bg-element); padding: 2px 6px; border-radius: 3px; font-family: monospace;">Space</kbd> Take (preview to program)</div>
+                    <div><kbd style="background: var(--bg-element); padding: 2px 6px; border-radius: 3px; font-family: monospace;">T</kbd> Toggle theme</div>
+                    <div><kbd style="background: var(--bg-element); padding: 2px 6px; border-radius: 3px; font-family: monospace;">Q</kbd> Queue panel</div>
+                    <div><kbd style="background: var(--bg-element); padding: 2px 6px; border-radius: 3px; font-family: monospace;">M</kbd> Media library</div>
+                    <div><kbd style="background: var(--bg-element); padding: 2px 6px; border-radius: 3px; font-family: monospace;">G</kbd> Graphics panel</div>
+                    <div><kbd style="background: var(--bg-element); padding: 2px 6px; border-radius: 3px; font-family: monospace;">A</kbd> Audio mixer</div>
+                    <div><kbd style="background: var(--bg-element); padding: 2px 6px; border-radius: 3px; font-family: monospace;">R</kbd> Refresh streams</div>
+                    <div><kbd style="background: var(--bg-element); padding: 2px 6px; border-radius: 3px; font-family: monospace;">Esc</kbd> Close panels</div>
                 </div>
             </div>
             <div style="margin-bottom: var(--spacing-md); padding-top: var(--spacing-md); border-top: 1px solid var(--border-light);">
                 <div style="font-size: 11px; font-weight: 600; margin-bottom: var(--spacing-sm); text-transform: uppercase;">Display Preferences</div>
-                <label style="display: flex; align-items: center; gap: var(--spacing-sm); cursor: pointer; margin-bottom: var(--spacing-sm);">
-                    <input type="checkbox" id="showTallyLights" checked>
-                    <span style="font-size: 12px;">Show Tally Lights</span>
+                <label style="display: flex; align-items: center; gap: var(--spacing-sm); cursor: pointer; margin-bottom: var(--spacing-sm); min-height: var(--touch-target-min);">
+                    <input type="checkbox" id="showTallyLights" checked style="width: 20px; height: 20px;">
+                    <span style="font-size: 13px;">Show Tally Lights</span>
                 </label>
-                <label style="display: flex; align-items: center; gap: var(--spacing-sm); cursor: pointer;">
-                    <input type="checkbox" id="showBoxOverlays" checked>
-                    <span style="font-size: 12px;">Show Box Overlays</span>
+                <label style="display: flex; align-items: center; gap: var(--spacing-sm); cursor: pointer; min-height: var(--touch-target-min);">
+                    <input type="checkbox" id="showBoxOverlays" checked style="width: 20px; height: 20px;">
+                    <span style="font-size: 13px;">Show Box Overlays</span>
                 </label>
+            </div>
+            
+            <!-- VDO.ninja Host -->
+            <div style="padding-top: var(--spacing-md); border-top: 1px solid var(--border-light);">
+                <div style="font-size: 11px; font-weight: 600; margin-bottom: var(--spacing-sm); text-transform: uppercase;">VDO.ninja</div>
+                <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 8px;">Host for remote guests</div>
+                <input type="text" id="vdoNinjaHost" value="vdo.itagenten.no" style="width: 100%; padding: 10px; background: var(--bg-element); border: 1px solid var(--border-light); border-radius: var(--radius-sm); color: var(--text-primary); font-size: 13px;">
             </div>
         </div>
     </div>
@@ -1960,6 +2120,121 @@
             }
         } else {
             console.log('Local access detected - WebRTC enabled for ultra-low latency');
+        }
+        
+        // === Theme Management ===
+        let currentTheme = localStorage.getItem('r58-theme') || 'auto';
+        
+        function initTheme() {
+            const savedTheme = localStorage.getItem('r58-theme') || 'auto';
+            applyTheme(savedTheme);
+            updateThemeButtons(savedTheme);
+            updateConnectionModeUI();
+        }
+        
+        function setTheme(theme) {
+            currentTheme = theme;
+            localStorage.setItem('r58-theme', theme);
+            applyTheme(theme);
+            updateThemeButtons(theme);
+        }
+        
+        function toggleTheme() {
+            // Cycle through: dark -> light -> auto -> dark
+            const themeOrder = ['dark', 'light', 'auto'];
+            const currentIndex = themeOrder.indexOf(currentTheme);
+            const nextTheme = themeOrder[(currentIndex + 1) % themeOrder.length];
+            setTheme(nextTheme);
+            showToast(`Theme: ${nextTheme.charAt(0).toUpperCase() + nextTheme.slice(1)}`, 'info', 1500);
+        }
+        
+        function applyTheme(theme) {
+            const html = document.documentElement;
+            
+            if (theme === 'auto') {
+                // Use system preference
+                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                html.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+            } else {
+                html.setAttribute('data-theme', theme);
+            }
+        }
+        
+        function updateThemeButtons(activeTheme) {
+            document.querySelectorAll('.theme-toggle-btn').forEach(btn => {
+                const btnTheme = btn.dataset.theme;
+                if (btnTheme === activeTheme) {
+                    btn.style.borderColor = 'var(--accent-primary)';
+                    btn.style.background = 'rgba(59, 130, 246, 0.15)';
+                    btn.style.color = 'var(--accent-primary)';
+                } else {
+                    btn.style.borderColor = 'var(--border-light)';
+                    btn.style.background = 'var(--bg-element)';
+                    btn.style.color = 'var(--text-primary)';
+                }
+            });
+        }
+        
+        function updateConnectionModeUI() {
+            const icon = document.getElementById('connectionModeIcon');
+            const text = document.getElementById('connectionModeText');
+            const desc = document.getElementById('connectionModeDesc');
+            const remoteIndicator = document.getElementById('remoteIndicator');
+            const localIndicator = document.getElementById('localIndicator');
+            
+            if (IS_REMOTE) {
+                if (icon) icon.textContent = '🌐';
+                if (text) text.textContent = 'Remote (Cloud)';
+                if (desc) desc.textContent = 'Using HLS streaming via Cloudflare';
+                if (remoteIndicator) remoteIndicator.style.display = 'block';
+                if (localIndicator) localIndicator.style.display = 'none';
+            } else {
+                if (icon) icon.textContent = '🏠';
+                if (text) text.textContent = 'Local Network';
+                if (desc) desc.textContent = 'WebRTC enabled for ultra-low latency';
+                if (remoteIndicator) remoteIndicator.style.display = 'none';
+                if (localIndicator) localIndicator.style.display = 'block';
+            }
+        }
+        
+        // Listen for system theme changes when in auto mode
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+            if (currentTheme === 'auto') {
+                applyTheme('auto');
+            }
+        });
+        
+        // === VDO.ninja Host Configuration ===
+        function initVdoNinjaHost() {
+            const input = document.getElementById('vdoNinjaHost');
+            if (!input) return;
+            
+            // Load saved value
+            const savedHost = localStorage.getItem('r58-vdoninja-host');
+            if (savedHost) {
+                input.value = savedHost;
+            }
+            
+            // Save on change
+            input.addEventListener('change', () => {
+                localStorage.setItem('r58-vdoninja-host', input.value);
+                showToast('VDO.ninja host saved', 'success', 1500);
+            });
+        }
+        
+        function getVdoNinjaHost() {
+            return localStorage.getItem('r58-vdoninja-host') || 'vdo.itagenten.no';
+        }
+        
+        // === Local Mode Detection ===
+        function isLocalNetwork() {
+            const hostname = window.location.hostname;
+            return hostname === 'localhost' || 
+                   hostname === '127.0.0.1' ||
+                   hostname.startsWith('192.168.') ||
+                   hostname.startsWith('10.') ||
+                   hostname.startsWith('172.') ||
+                   hostname.endsWith('.local');
         }
         
         // WebRTC client instances
@@ -2143,6 +2418,12 @@
 
         // Initialize
         async function init() {
+            // Initialize theme first (instant, no flicker)
+            initTheme();
+            
+            // Initialize VDO.ninja host setting
+            initVdoNinjaHost();
+            
             // Start preloading manifests immediately (in background)
             await preloadHLSManifests();
 
@@ -2248,6 +2529,12 @@
                     resetAllStreams();
                 }
                 
+                // T to toggle theme
+                if (e.key === 't' || e.key === 'T') {
+                    e.preventDefault();
+                    toggleTheme();
+                }
+                
                 // Escape to close panels
                 if (e.key === 'Escape') {
                     closePanel();
@@ -2287,6 +2574,7 @@
             document.getElementById('mediaBtn')?.addEventListener('click', () => openPanel('mediaPanel'));
             document.getElementById('graphicsBtn')?.addEventListener('click', () => openPanel('graphicsPanel'));
             document.getElementById('audioBtn')?.addEventListener('click', () => openPanel('audioPanel'));
+            document.getElementById('themeBtn')?.addEventListener('click', toggleTheme);
             document.getElementById('settingsBtn')?.addEventListener('click', () => openPanel('settingsPanel'));
             document.getElementById('refreshBtn')?.addEventListener('click', resetAllStreams);
             
@@ -2405,25 +2693,53 @@
         // Update scene button states (REFACTORED for proper A/B bus)
         function updateSceneButtons() {
             document.querySelectorAll('.scene-button-large').forEach(btn => {
-                btn.classList.remove('active', 'preview');
+                btn.classList.remove('active', 'preview', 'program');
                 
                 const sceneId = btn.dataset.sceneId;
                 const isInProgram = sceneId === programSceneId;
                 const isInPreview = sceneId === previewSceneId;
                 
-                // Red border if in program (live)
+                // Red border if in program (LIVE)
                 if (isInProgram) {
-                    btn.classList.add('active');
+                    btn.classList.add('program');
                 }
                 
-                // Green border if in preview (queued)
-                if (isInPreview) {
+                // Green border if in preview (PVW/queued)
+                if (isInPreview && !isInProgram) {
                     btn.classList.add('preview');
                 }
-                
-                // If same scene is in both preview and program, show both styles
-                // (CSS will handle this with both classes applied)
             });
+            
+            // Update TAKE button state
+            updateTakeButtonState();
+        }
+        
+        // Update TAKE button enabled/disabled state
+        function updateTakeButtonState() {
+            const takeBtn = document.getElementById('takeButton');
+            const bottomTakeBtn = document.getElementById('bottomTakeBtn');
+            
+            const isDisabled = mixerState !== 'PLAYING' || !previewSceneId || previewSceneId === programSceneId;
+            
+            if (takeBtn) {
+                takeBtn.disabled = isDisabled;
+                if (isDisabled) {
+                    if (mixerState !== 'PLAYING') {
+                        takeBtn.title = 'Start mixer first';
+                    } else if (!previewSceneId) {
+                        takeBtn.title = 'Select a scene first';
+                    } else {
+                        takeBtn.title = 'Preview = Program';
+                    }
+                } else {
+                    takeBtn.title = 'Take preview to program (Space)';
+                }
+            }
+            
+            if (bottomTakeBtn) {
+                bottomTakeBtn.disabled = isDisabled;
+                bottomTakeBtn.style.opacity = isDisabled ? '0.5' : '1';
+            }
         }
 
         // Select scene for preview (NEW - does NOT apply to mixer)
