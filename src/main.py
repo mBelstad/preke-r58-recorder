@@ -263,6 +263,15 @@ async def cairo_control():
     return "<h1>Switcher Interface</h1><p>Switcher interface not found.</p>"
 
 
+@app.get("/cameras", response_class=HTMLResponse)
+async def camera_preview():
+    """Serve the standalone camera preview with WHEP support."""
+    preview_path = Path(__file__).parent / "static" / "camera-preview.html"
+    if preview_path.exists():
+        return preview_path.read_text()
+    raise HTTPException(status_code=404, detail="Camera preview not found")
+
+
 @app.get("/editor", response_class=HTMLResponse)
 async def scene_editor():
     """Serve the scene editor interface."""
