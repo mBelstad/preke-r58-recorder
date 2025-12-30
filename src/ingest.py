@@ -102,7 +102,7 @@ class IngestManager:
                 cam_id=cam_id,
                 device=cam_config.device,
                 resolution=cam_config.resolution,
-                bitrate=8000,  # High bitrate for quality preservation
+                bitrate=18000,  # 18Mbps for high-quality recording via subscriber
                 codec=cam_config.codec,
                 mediamtx_path=mediamtx_path,
             )
