@@ -771,15 +771,19 @@ def build_tee_recording_pipeline(
     )
     
     # === PREVIEW BRANCH (Always On) ===
-    # Lower bitrate H.264 Baseline for streaming efficiency (browser compatible)
+    # Use SOFTWARE encoder (x264enc) for preview to reduce VPU load
+    # The RK3588 VPU can only handle 4-6 concurrent encode sessions safely
+    # With 4 cameras × 2 hardware encoders = 8 sessions = VPU overload/crashes
+    # By using x264enc for preview, we reduce hardware encoders to 4 (recording only)
+    # Trade-off: ~15-20% more CPU usage, +50ms latency, but stable!
     preview_branch = (
-        f"queue name=preview_queue max-size-buffers=30 max-size-time=0 "
+        f"queue name=preview_queue max-size-buffers=10 max-size-time=0 "
         f"max-size-bytes=0 leaky=downstream ! "
-        f"mpph264enc "
-        f"qp-init=26 qp-min=10 qp-max=51 "
-        f"gop=30 profile=baseline rc-mode=cbr "
-        f"bps={preview_bitrate * 1000} ! "
-        f"video/x-h264,stream-format=byte-stream ! "
+        f"x264enc "
+        f"tune=zerolatency speed-preset=ultrafast "
+        f"bitrate={preview_bitrate} "
+        f"key-int-max=30 ! "
+        f"video/x-h264,stream-format=byte-stream,profile=baseline ! "
         f"h264parse config-interval=-1 ! "
         f"rtspclientsink location=rtsp://127.0.0.1:{rtsp_port}/{cam_id} "
         f"protocols=tcp latency=0"
@@ -813,7 +817,7 @@ def _build_tee_test_pattern_pipeline(
         f"videotestsrc pattern=black is-live=true ! "
         f"video/x-raw,format=NV12,width={width},height={height},framerate=30/1 ! "
         f"tee name=t ! "
-        # Recording branch
+        # Recording branch (hardware encoder for quality)
         f"queue max-size-buffers=30 leaky=downstream ! "
         f"{valve_element}"
         f"mpph264enc qp-init=20 gop=30 profile=high bps={recording_bitrate * 1000} ! "
@@ -821,10 +825,10 @@ def _build_tee_test_pattern_pipeline(
         f"h264parse config-interval=1 ! "
         f"matroskamux streamable=true ! "
         f"filesink location={recording_path} sync=false "
-        # Preview branch
-        f"t. ! queue max-size-buffers=30 leaky=downstream ! "
-        f"mpph264enc qp-init=26 gop=30 profile=baseline bps={preview_bitrate * 1000} ! "
-        f"video/x-h264,stream-format=byte-stream ! "
+        # Preview branch (software encoder to reduce VPU load)
+        f"t. ! queue max-size-buffers=10 leaky=downstream ! "
+        f"x264enc tune=zerolatency speed-preset=ultrafast bitrate={preview_bitrate} key-int-max=30 ! "
+        f"video/x-h264,stream-format=byte-stream,profile=baseline ! "
         f"h264parse config-interval=-1 ! "
         f"rtspclientsink location=rtsp://127.0.0.1:{rtsp_port}/{cam_id} protocols=tcp latency=0"
     )
