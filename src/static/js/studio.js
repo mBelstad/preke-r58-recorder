@@ -22,11 +22,9 @@ const HOSTNAME = window.location.hostname;
 
 // Get streaming URLs
 function getWebRTCUrl(streamPath) {
-    if (studioState.isRemote) {
-        return `https://r58-mediamtx.itagenten.no/${streamPath}/whep`;
-    } else {
-        return `${API_BASE}/whep/${streamPath}`;
-    }
+    // Always use the proxy endpoint (handles HTTPS/TLS internally)
+    // Direct MediaMTX access causes CORS issues
+    return `${API_BASE}/${streamPath}/whep`;
 }
 
 function getHLSUrl(streamPath) {
@@ -552,7 +550,7 @@ async function toggleRecording() {
 
 async function startRecording() {
     try {
-        const response = await fetch(`${API_BASE}/recording/start`, { method: 'POST' });
+        const response = await fetch(`${API_BASE}/record/start-all`, { method: 'POST' });
         const data = await response.json();
         
         if (data.status === 'recording') {
@@ -577,7 +575,7 @@ async function startRecording() {
 
 async function stopRecording() {
     try {
-        await fetch(`${API_BASE}/recording/stop`, { method: 'POST' });
+        await fetch(`${API_BASE}/record/stop-all`, { method: 'POST' });
         
         studioState.recordingState = false;
         studioState.recordingStartTime = null;
