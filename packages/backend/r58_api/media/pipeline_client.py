@@ -239,6 +239,25 @@ class PipelineClient:
             cmd["device"] = device
         return await self._send_command(cmd)
 
+    async def get_ingest_status(self, input_id: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Get ingest pipeline status.
+
+        When ingest pipelines are running, they have the accurate signal status
+        since they own the V4L2 devices. Use this instead of device.check when
+        ingest is active.
+
+        Args:
+            input_id: Optional specific input ID. If None, returns all ingests.
+
+        Returns:
+            Dict with ingest status including has_signal, resolution, etc.
+        """
+        cmd = {"cmd": "ingest.status"}
+        if input_id:
+            cmd["input_id"] = input_id
+        return await self._send_command(cmd)
+
     async def poll_events(self, last_seq: int = 0) -> Dict[str, Any]:
         """
         Poll for pending events from the pipeline manager.
