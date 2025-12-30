@@ -200,8 +200,7 @@ def build_r58_pipeline(
             # HDMI input: RK hdmirx currently exposes NV16 (4:2:2); convert to NV12 for encoders
             # Must use io-mode=mmap for hdmirx
             # Use actual detected resolution, not configured resolution
-            # IMPORTANT: Don't force framerate - let v4l2src negotiate natively
-            # OPTIMIZATION: Scale FIRST, then convert color space
+            # RGA OPTIMIZATION: Convert to NV12 FIRST, then scale with RGA hardware
             src_width = caps.get('width') or int(width)
             src_height = caps.get('height') or int(height)
             logger.info(f"{cam_id}: hdmirx recording using detected resolution {src_width}x{src_height} (native framerate)")
@@ -209,10 +208,9 @@ def build_r58_pipeline(
                 f"v4l2src device={device} io-mode=mmap ! "
                 f"video/x-raw,format=NV16,width={src_width},height={src_height} ! "
                 f"videorate ! video/x-raw,framerate=30/1 ! "
+                f"videoconvert ! video/x-raw,format=NV12 ! "
                 f"videoscale ! "
-                f"video/x-raw,width={width},height={height} ! "
-                f"videoconvert ! "
-                f"video/x-raw,format=NV12"
+                f"video/x-raw,width={width},height={height},format=NV12"
             )
     elif device_type == "hdmi_rkcif":
         # HDMI input via rkcif (LT6911 bridge): Use explicit format like hdmirx
@@ -226,7 +224,7 @@ def build_r58_pipeline(
             )
         elif caps['is_bayer']:
             # Bayer format (video21) - needs bayer2rgb conversion
-            # OPTIMIZATION: Scale FIRST, then convert color space
+            # RGA OPTIMIZATION: Convert to NV12 FIRST, then scale with RGA hardware
             bayer_fmt = caps['bayer_format'] or 'rggb'
             src_width = caps['width']
             src_height = caps['height']
@@ -235,14 +233,13 @@ def build_r58_pipeline(
                 f"v4l2src device={device} io-mode=mmap ! "
                 f"video/x-bayer,format={bayer_fmt},width={src_width},height={src_height} ! "
                 f"bayer2rgb ! "
+                f"videoconvert ! video/x-raw,format=NV12 ! "
                 f"videoscale ! "
-                f"video/x-raw,width={width},height={height} ! "
-                f"videoconvert ! "
-                f"video/x-raw,format=NV12"
+                f"video/x-raw,width={width},height={height},format=NV12"
             )
         else:
             # NV16/YVYU format - use explicit format specification like hdmirx
-            # OPTIMIZATION: Scale FIRST, then convert color space
+            # RGA OPTIMIZATION: Convert to NV12 FIRST, then scale with RGA hardware
             src_format = caps['format'] or 'NV16'
             src_width = caps['width']
             src_height = caps['height']
@@ -252,35 +249,30 @@ def build_r58_pipeline(
                 f"v4l2src device={device} io-mode=mmap ! "
                 f"video/x-raw,format={src_format},width={src_width},height={src_height},framerate={src_fps}/1 ! "
                 f"videorate ! video/x-raw,framerate=30/1 ! "
+                f"videoconvert ! video/x-raw,format=NV12 ! "
                 f"videoscale ! "
-                f"video/x-raw,width={width},height={height} ! "
-                f"videoconvert ! "
-                f"video/x-raw,format=NV12"
+                f"video/x-raw,width={width},height={height},format=NV12"
             )
     elif device_type == "usb":
         # USB capture devices: typically use different formats, let v4l2src negotiate
-        # USB devices may have different framerates, so we use videorate to normalize
-        # OPTIMIZATION: Scale FIRST, then convert color space
+        # RGA OPTIMIZATION: Convert to NV12 FIRST, then scale with RGA hardware
         source_str = (
             f"v4l2src device={device} ! "
             f"video/x-raw ! "
             f"videorate ! video/x-raw,framerate=30/1 ! "
+            f"videoconvert ! video/x-raw,format=NV12 ! "
             f"videoscale ! "
-            f"video/x-raw,width={width},height={height} ! "
-            f"videoconvert ! "
-            f"video/x-raw,format=NV12"
+            f"video/x-raw,width={width},height={height},format=NV12"
         )
     else:
         # For other video devices (MIPI cameras, etc.)
-        # Let v4l2src negotiate format, then convert and scale
-        # OPTIMIZATION: Scale FIRST, then convert color space
+        # RGA OPTIMIZATION: Convert to NV12 FIRST, then scale with RGA hardware
         source_str = (
             f"v4l2src device={device} ! "
             f"video/x-raw ! "
+            f"videoconvert ! video/x-raw,format=NV12 ! "
             f"videoscale ! "
-            f"video/x-raw,width={width},height={height} ! "
-            f"videoconvert ! "
-            f"video/x-raw,format=NV12"
+            f"video/x-raw,width={width},height={height},format=NV12"
         )
 
     # Use H.265 hardware encoder for recording (tested stable 2025-12-19)
@@ -422,16 +414,15 @@ def build_r58_ingest_pipeline(
             src_width = caps.get('width') or int(width)
             src_height = caps.get('height') or int(height)
             logger.info(f"{cam_id}: hdmirx using detected resolution {src_width}x{src_height} (native format/framerate)")
-            # OPTIMIZATION: Scale FIRST, then convert color space
-            # This reduces videoconvert workload from 4K to output resolution
+            # RGA OPTIMIZATION: Convert to NV12 FIRST, then scale with RGA hardware
+            # GST_VIDEO_CONVERT_USE_RGA=1 enables hardware scaling but only for NV12
             source_str = (
                 f"v4l2src device={device} io-mode=mmap ! "
                 f"video/x-raw,width={src_width},height={src_height} ! "
                 f"videorate ! video/x-raw,framerate=30/1 ! "
+                f"videoconvert ! video/x-raw,format=NV12 ! "
                 f"videoscale ! "
-                f"video/x-raw,width={width},height={height} ! "
-                f"videoconvert ! "
-                f"video/x-raw,format=NV12"
+                f"video/x-raw,width={width},height={height},format=NV12"
             )
     elif device_type == "hdmi_rkcif":
         if not caps['has_signal']:
@@ -445,15 +436,14 @@ def build_r58_ingest_pipeline(
             src_width = caps['width']
             src_height = caps['height']
             logger.info(f"{cam_id}: Using Bayer format {bayer_fmt} at {src_width}x{src_height}")
-            # OPTIMIZATION: Scale FIRST, then convert color space
+            # RGA OPTIMIZATION: Convert to NV12 FIRST, then scale with RGA hardware
             source_str = (
                 f"v4l2src device={device} io-mode=mmap ! "
                 f"video/x-bayer,format={bayer_fmt},width={src_width},height={src_height} ! "
                 f"bayer2rgb ! "
+                f"videoconvert ! video/x-raw,format=NV12 ! "
                 f"videoscale ! "
-                f"video/x-raw,width={width},height={height} ! "
-                f"videoconvert ! "
-                f"video/x-raw,format=NV12"
+                f"video/x-raw,width={width},height={height},format=NV12"
             )
         else:
             src_format = caps['format'] or 'NV16'
@@ -461,37 +451,34 @@ def build_r58_ingest_pipeline(
             src_height = caps['height']
             src_fps = caps['framerate'] or 60
             logger.info(f"{cam_id}: Using explicit format {src_format} at {src_width}x{src_height}@{src_fps}fps")
-            # OPTIMIZATION: Scale FIRST, then convert color space
-            # This reduces videoconvert workload from 4K to output resolution
+            # RGA OPTIMIZATION: Convert to NV12 FIRST, then scale with RGA hardware
+            # GST_VIDEO_CONVERT_USE_RGA=1 enables hardware scaling but only for NV12
             source_str = (
                 f"v4l2src device={device} io-mode=mmap ! "
                 f"video/x-raw,format={src_format},width={src_width},height={src_height},framerate={src_fps}/1 ! "
                 f"videorate ! video/x-raw,framerate=30/1 ! "
+                f"videoconvert ! video/x-raw,format=NV12 ! "
                 f"videoscale ! "
-                f"video/x-raw,width={width},height={height} ! "
-                f"videoconvert ! "
-                f"video/x-raw,format=NV12"
+                f"video/x-raw,width={width},height={height},format=NV12"
             )
     elif device_type == "usb":
-        # OPTIMIZATION: Scale FIRST, then convert color space
+        # RGA OPTIMIZATION: Convert to NV12 FIRST, then scale with RGA hardware
         source_str = (
             f"v4l2src device={device} ! "
             f"video/x-raw ! "
             f"videorate ! video/x-raw,framerate=30/1 ! "
+            f"videoconvert ! video/x-raw,format=NV12 ! "
             f"videoscale ! "
-            f"video/x-raw,width={width},height={height} ! "
-            f"videoconvert ! "
-            f"video/x-raw,format=NV12"
+            f"video/x-raw,width={width},height={height},format=NV12"
         )
     else:
-        # OPTIMIZATION: Scale FIRST, then convert color space
+        # RGA OPTIMIZATION: Convert to NV12 FIRST, then scale with RGA hardware
         source_str = (
             f"v4l2src device={device} ! "
             f"video/x-raw ! "
+            f"videoconvert ! video/x-raw,format=NV12 ! "
             f"videoscale ! "
-            f"video/x-raw,width={width},height={height} ! "
-            f"videoconvert ! "
-            f"video/x-raw,framerate=30/1,format=NV12"
+            f"video/x-raw,width={width},height={height},framerate=30/1,format=NV12"
         )
 
     # Use H.264 hardware encoder with baseline profile (no B-frames)
