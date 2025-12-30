@@ -1024,12 +1024,10 @@ class MixerCore:
                 
                 logger.info(f"Using RTSP source for Reveal.js slides from MediaMTX: {rtsp_url}")
                 
-                # Source from MediaMTX RTSP stream (H.265 via RTP)
+                # Source from MediaMTX RTSP stream - use decodebin for automatic codec detection
                 source_str = (
-                    f"rtspsrc location={rtsp_url} latency=50 protocols=udp buffer-mode=auto ! "
-                    f"rtph265depay ! "
-                    f"h265parse ! "
-                    f"mppvideodec ! "
+                    f"rtspsrc location={rtsp_url} latency=50 protocols=tcp buffer-mode=auto ! "
+                    f"decodebin ! "
                     f"videoconvert ! "
                     f"videoscale ! "
                     f"video/x-raw,width={width},height={height} ! "
@@ -1107,12 +1105,10 @@ class MixerCore:
                 # Build decoder string with hardware acceleration if available
                 decoder_str = _build_decoder_string(self._hardware_decoder)
                 
-                # Source from MediaMTX RTSP stream (H.265 via RTP)
+                # Source from MediaMTX RTSP stream - use decodebin for automatic codec detection
                 source_str = (
-                    f"rtspsrc location={rtsp_url} latency=50 protocols=udp buffer-mode=auto ! "
-                    f"rtph265depay ! "
-                    f"h265parse ! "
-                    f"mppvideodec ! "
+                    f"rtspsrc location={rtsp_url} latency=50 protocols=tcp buffer-mode=auto ! "
+                    f"decodebin ! "
                     f"videoconvert ! "
                     f"videoscale ! "
                     f"video/x-raw,width={width},height={height} ! "
@@ -1168,13 +1164,11 @@ class MixerCore:
             decoder_str = _build_decoder_string(self._hardware_decoder)
             
             # Source from MediaMTX RTSP stream with optimized low latency settings
-            # UDP is faster than TCP for local connections, 50ms latency for mixer
-            # Now using H.265 via RTP with hardware decoder (mppvideodec)
+            # Ingest pipelines output H.264 baseline profile (mpph264enc)
+            # Use decodebin for automatic codec detection and hardware decoder selection
             source_str = (
-                f"rtspsrc location={rtsp_url} latency=50 protocols=udp buffer-mode=auto ! "
-                f"rtph265depay ! "
-                f"h265parse ! "
-                f"mppvideodec ! "
+                f"rtspsrc location={rtsp_url} latency=50 protocols=tcp buffer-mode=auto ! "
+                f"decodebin ! "
                 f"videoconvert ! "
                 f"videoscale ! "
                 f"video/x-raw,width={width},height={height} ! "
