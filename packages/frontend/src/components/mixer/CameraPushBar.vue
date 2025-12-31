@@ -8,6 +8,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRecorderStore } from '@/stores/recorder'
 import { buildCameraContributionUrl } from '@/lib/vdoninja'
+import { buildApiUrl } from '@/lib/api'
 
 const recorderStore = useRecorderStore()
 
@@ -27,11 +28,10 @@ const camerasWithSignal = computed(() =>
   recorderStore.inputs.filter(i => i.hasSignal)
 )
 
-// Build WHEP URL for a camera
-// MediaMTX WHEP endpoint is at /{streamName}/whep
+// Build WHEP URL for a camera using the device's actual URL
 function getWhepUrl(cameraId: string): string {
-  const origin = window.location.origin
-  return `${origin}/${cameraId}/whep`
+  // Use buildApiUrl to get the correct device URL
+  return buildApiUrl(`/${cameraId}/whep`)
 }
 
 // Initialize or update camera push states when cameras change

@@ -172,15 +172,22 @@ export const useRecorderStore = defineStore('recorder', () => {
       }
       
       // Map API response (cameras object) to InputStatus array
-      inputs.value = Object.entries(response.cameras).map(([id, cam]: [string, any]) => ({
-        id,
-        label: cameraLabels[id] || id,
-        hasSignal: cam.has_signal || cam.status === 'streaming' || cam.status === 'preview',
-        isRecording: false,
-        bytesWritten: 0,
-        resolution: cam.resolution?.formatted || '',
-        framerate: 0,
-      }))
+      inputs.value = Object.entries(response.cameras).map(([id, cam]: [string, any]) => {
+        // Estimate framerate based on resolution (API doesn't provide it)
+        // 4K (3840x2160) typically 30fps, 1080p and below typically 60fps
+        const height = cam.resolution?.height || 0
+        const estimatedFps = height >= 2160 ? 30 : height > 0 ? 60 : 0
+        
+        return {
+          id,
+          label: cameraLabels[id] || id,
+          hasSignal: cam.has_signal || cam.status === 'streaming' || cam.status === 'preview',
+          isRecording: false,
+          bytesWritten: 0,
+          resolution: cam.resolution?.formatted || '',
+          framerate: estimatedFps,
+        }
+      })
       
       inputsLoaded.value = true
       console.log(`[Recorder] Loaded ${inputs.value.length} inputs, ${inputs.value.filter(i => i.hasSignal).length} with signal`)

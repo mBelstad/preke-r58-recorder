@@ -130,8 +130,15 @@ export const embedProfiles = {
  * Get the CSS URL for VDO.ninja reskin
  */
 export function getVdoCssUrl(): string {
-  // Use same origin as the page (works for both local dev and production)
-  return `${window.location.origin}/static/css/vdo-theme.css`
+  // In Electron, window.location.origin is file:// which won't work
+  // Use the VDO.ninja host for CSS or skip if in Electron
+  const origin = window.location.origin
+  if (origin.startsWith('file://')) {
+    // Skip custom CSS in Electron - VDO.ninja will use its default theme
+    return ''
+  }
+  // Use same origin as the page (works for web browser access)
+  return `${origin}/static/css/vdo-theme.css`
 }
 
 /**
@@ -147,8 +154,11 @@ export function buildVdoUrl(
   const basePath = config.base || '/'
   const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}${basePath}`)
   
-  // Always add custom CSS for reskin
-  url.searchParams.set('css', getVdoCssUrl())
+  // Add custom CSS for reskin if available
+  const cssUrl = getVdoCssUrl()
+  if (cssUrl) {
+    url.searchParams.set('css', cssUrl)
+  }
   
   // Add profile-specific params
   for (const [key, value] of Object.entries(config.params)) {
