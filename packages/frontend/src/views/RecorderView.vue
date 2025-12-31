@@ -17,10 +17,6 @@ const duration = computed(() => recorderStore.formattedDuration)
 
 // Loading state
 const isLoading = ref(true)
-const camerasReady = computed(() => {
-  return recorderStore.inputs.filter(input => input.hasSignal).length
-})
-const totalCameras = computed(() => recorderStore.inputs.length || 4)
 
 function handleLoadingReady() {
   isLoading.value = false
@@ -51,8 +47,6 @@ watch(showLeaveConfirmation, (show) => {
     <ModeLoadingScreen
       v-if="isLoading"
       mode="recorder"
-      :cameras-ready="camerasReady"
-      :total-cameras="totalCameras"
       @ready="handleLoadingReady"
     />
   </Transition>

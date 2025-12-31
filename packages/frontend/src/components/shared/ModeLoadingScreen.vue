@@ -1,11 +1,8 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 
 const props = defineProps<{
   mode: 'recorder' | 'mixer'
-  camerasReady?: number
-  totalCameras?: number
-  isLoading?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -13,129 +10,127 @@ const emit = defineEmits<{
 }>()
 
 // Auto-dismiss after timeout
-const autoTimeout = 3000 // 3 seconds max
+const autoTimeout = 2500 // 2.5 seconds
 let timeoutId: ReturnType<typeof setTimeout> | null = null
 
-// Animation state
-const animationPhase = ref(0)
-const progressWidth = computed(() => {
-  if (props.totalCameras && props.totalCameras > 0) {
-    return Math.min(100, (props.camerasReady || 0) / props.totalCameras * 100)
-  }
-  return animationPhase.value * 25 // Animated progress when no camera data
-})
-
 // Mode-specific styling
-const modeColor = computed(() => props.mode === 'recorder' ? 'r58-recorder' : 'r58-mixer')
+const modeColor = computed(() => props.mode === 'recorder' ? '#ef4444' : '#3b82f6')
 const modeName = computed(() => props.mode === 'recorder' ? 'Recorder' : 'Mixer')
+const modeTagline = computed(() => props.mode === 'recorder' ? 'Multi-cam ISO Recording' : 'Live Switching & Streaming')
 
-// Animate the progress bar if no camera data
-let animationInterval: ReturnType<typeof setInterval> | null = null
+// Soundwave animation
+const bars = ref([0.3, 0.5, 0.8, 1, 0.8, 0.5, 0.3])
+
+let animationFrame: number | null = null
+const animationStart = ref(Date.now())
+
+function animateBars() {
+  const elapsed = (Date.now() - animationStart.value) / 1000
+  bars.value = bars.value.map((_, i) => {
+    const phase = (i / bars.value.length) * Math.PI * 2
+    const wave = Math.sin(elapsed * 3 + phase) * 0.4 + 0.6
+    return Math.max(0.2, Math.min(1, wave))
+  })
+  animationFrame = requestAnimationFrame(animateBars)
+}
 
 onMounted(() => {
+  // Start animation
+  animateBars()
+  
   // Auto-dismiss after timeout
   timeoutId = setTimeout(() => {
     emit('ready')
   }, autoTimeout)
-  
-  // Animate progress if no camera data
-  if (!props.camerasReady) {
-    animationInterval = setInterval(() => {
-      animationPhase.value = (animationPhase.value + 1) % 5
-    }, 600)
-  }
 })
 
 onUnmounted(() => {
   if (timeoutId) clearTimeout(timeoutId)
-  if (animationInterval) clearInterval(animationInterval)
-})
-
-// Emit ready when first camera loads
-watch(() => props.camerasReady, (ready) => {
-  if (ready && ready > 0) {
-    // Give a brief moment to show the progress, then emit ready
-    setTimeout(() => emit('ready'), 500)
-  }
+  if (animationFrame) cancelAnimationFrame(animationFrame)
 })
 </script>
 
 <template>
-  <div class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-r58-bg-primary">
-    <!-- Animated background gradient -->
-    <div 
-      class="absolute inset-0 opacity-20"
-      :class="mode === 'recorder' ? 'bg-gradient-radial-red' : 'bg-gradient-radial-blue'"
-    ></div>
+  <div class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-r58-bg-primary overflow-hidden">
+    <!-- Animated background -->
+    <div class="absolute inset-0">
+      <!-- Gradient orbs -->
+      <div 
+        class="absolute w-[600px] h-[600px] rounded-full blur-3xl opacity-20 animate-float-slow"
+        :style="{ background: `radial-gradient(circle, ${modeColor} 0%, transparent 70%)`, left: '10%', top: '10%' }"
+      ></div>
+      <div 
+        class="absolute w-[400px] h-[400px] rounded-full blur-3xl opacity-15 animate-float-medium"
+        :style="{ background: `radial-gradient(circle, ${modeColor} 0%, transparent 70%)`, right: '15%', bottom: '20%' }"
+      ></div>
+      
+      <!-- Subtle grid pattern -->
+      <div class="absolute inset-0 opacity-5" style="background-image: linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px); background-size: 50px 50px;"></div>
+    </div>
     
     <!-- Content -->
-    <div class="relative z-10 flex flex-col items-center gap-8">
-      <!-- Animated Logo/Icon -->
-      <div class="relative">
-        <!-- Pulse rings -->
+    <div class="relative z-10 flex flex-col items-center gap-10">
+      <!-- Mode Icon with Soundwave -->
+      <div class="relative flex items-center justify-center">
+        <!-- Outer ring pulse -->
         <div 
-          class="absolute inset-0 rounded-full animate-ping opacity-20"
-          :class="`bg-${modeColor}`"
-          style="animation-duration: 1.5s;"
-        ></div>
-        <div 
-          class="absolute inset-0 rounded-full animate-ping opacity-10"
-          :class="`bg-${modeColor}`"
-          style="animation-duration: 2s; animation-delay: 0.5s;"
+          class="absolute w-40 h-40 rounded-full animate-ping-slow opacity-20"
+          :style="{ backgroundColor: modeColor }"
         ></div>
         
         <!-- Icon container -->
         <div 
-          class="relative w-24 h-24 rounded-full flex items-center justify-center"
-          :class="`bg-${modeColor}/20`"
+          class="relative w-32 h-32 rounded-full flex items-center justify-center backdrop-blur-sm"
+          :style="{ backgroundColor: `${modeColor}15`, border: `2px solid ${modeColor}40` }"
         >
           <!-- Recorder icon -->
-          <svg v-if="mode === 'recorder'" class="w-12 h-12 text-r58-recorder animate-pulse" fill="currentColor" viewBox="0 0 24 24">
-            <circle cx="12" cy="12" r="8"/>
-          </svg>
-          <!-- Mixer icon -->
-          <svg v-else class="w-12 h-12 text-r58-mixer" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16m-7 6h7"/>
-            <circle cx="8" cy="6" r="2" fill="currentColor" class="animate-pulse"/>
-            <circle cx="16" cy="12" r="2" fill="currentColor" class="animate-pulse" style="animation-delay: 0.2s;"/>
-            <circle cx="12" cy="18" r="2" fill="currentColor" class="animate-pulse" style="animation-delay: 0.4s;"/>
-          </svg>
+          <div v-if="mode === 'recorder'" class="relative">
+            <svg class="w-16 h-16" :style="{ color: modeColor }" fill="currentColor" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="8" class="animate-pulse-glow"/>
+            </svg>
+            <!-- Recording ring -->
+            <div 
+              class="absolute inset-0 rounded-full animate-spin-slow"
+              :style="{ border: `3px solid ${modeColor}`, borderTopColor: 'transparent' }"
+            ></div>
+          </div>
+          
+          <!-- Mixer icon with animated soundwave bars -->
+          <div v-else class="flex items-end gap-1.5 h-14">
+            <div 
+              v-for="(height, i) in bars" 
+              :key="i"
+              class="w-2 rounded-full transition-all duration-75"
+              :style="{ 
+                height: `${height * 100}%`, 
+                backgroundColor: modeColor,
+                opacity: 0.6 + height * 0.4
+              }"
+            ></div>
+          </div>
         </div>
       </div>
       
       <!-- Mode title -->
       <div class="text-center">
-        <h2 class="text-3xl font-bold mb-2">{{ modeName }}</h2>
-        <p class="text-r58-text-secondary">
-          <span v-if="camerasReady !== undefined && totalCameras">
-            Loading cameras... {{ camerasReady }}/{{ totalCameras }}
-          </span>
-          <span v-else>
-            Initializing cameras...
-          </span>
+        <h2 class="text-4xl font-bold mb-3 tracking-tight" :style="{ color: modeColor }">
+          {{ modeName }}
+        </h2>
+        <p class="text-r58-text-secondary text-lg">
+          {{ modeTagline }}
         </p>
       </div>
       
-      <!-- Progress bar -->
-      <div class="w-64 h-1.5 bg-r58-bg-tertiary rounded-full overflow-hidden">
+      <!-- Animated loading dots -->
+      <div class="flex items-center gap-2">
         <div 
-          class="h-full rounded-full transition-all duration-300"
-          :class="`bg-${modeColor}`"
-          :style="{ width: `${progressWidth}%` }"
-        ></div>
-      </div>
-      
-      <!-- Camera indicators -->
-      <div v-if="totalCameras" class="flex gap-3">
-        <div 
-          v-for="i in totalCameras" 
+          v-for="i in 3"
           :key="i"
-          class="w-3 h-3 rounded-full transition-all duration-300"
-          :class="[
-            i <= (camerasReady || 0) 
-              ? `bg-${modeColor}` 
-              : 'bg-r58-bg-tertiary'
-          ]"
+          class="w-2 h-2 rounded-full animate-bounce-dot"
+          :style="{ 
+            backgroundColor: modeColor,
+            animationDelay: `${(i - 1) * 0.15}s`
+          }"
         ></div>
       </div>
     </div>
@@ -143,12 +138,57 @@ watch(() => props.camerasReady, (ready) => {
 </template>
 
 <style scoped>
-.bg-gradient-radial-red {
-  background: radial-gradient(circle at center, rgba(239, 68, 68, 0.3) 0%, transparent 70%);
+@keyframes float-slow {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(30px, -20px) scale(1.1); }
 }
 
-.bg-gradient-radial-blue {
-  background: radial-gradient(circle at center, rgba(59, 130, 246, 0.3) 0%, transparent 70%);
+@keyframes float-medium {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-20px, 15px) scale(1.05); }
+}
+
+@keyframes ping-slow {
+  0% { transform: scale(1); opacity: 0.2; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { filter: drop-shadow(0 0 8px currentColor); }
+  50% { filter: drop-shadow(0 0 20px currentColor); }
+}
+
+@keyframes bounce-dot {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.5; }
+  40% { transform: translateY(-8px); opacity: 1; }
+}
+
+.animate-float-slow {
+  animation: float-slow 8s ease-in-out infinite;
+}
+
+.animate-float-medium {
+  animation: float-medium 6s ease-in-out infinite;
+}
+
+.animate-ping-slow {
+  animation: ping-slow 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+.animate-spin-slow {
+  animation: spin-slow 3s linear infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.animate-bounce-dot {
+  animation: bounce-dot 1.2s ease-in-out infinite;
 }
 </style>
-

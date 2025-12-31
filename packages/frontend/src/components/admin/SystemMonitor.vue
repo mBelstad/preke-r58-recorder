@@ -50,26 +50,31 @@ const pipelines = computed(() => systemStatus.value?.pipelines ?? [])
 // Actions
 async function fetchStatus() {
   try {
-    // Use the health endpoint which exists on the device
     const { buildApiUrl } = await import('@/lib/api')
-    const response = await fetch(buildApiUrl('/health'))
-    if (!response.ok) throw new Error('Failed to fetch status')
-    const health = await response.json()
     
-    // Also get ingest status for pipeline info
-    const ingestResponse = await fetch(buildApiUrl('/api/ingest/status'))
-    const ingest = ingestResponse.ok ? await ingestResponse.json() : { cameras: {} }
+    // Fetch all data in parallel
+    const [healthRes, ingestRes, systemInfoRes] = await Promise.all([
+      fetch(buildApiUrl('/health')),
+      fetch(buildApiUrl('/api/ingest/status')),
+      fetch(buildApiUrl('/api/system/info'))
+    ])
     
-    // Build a compatible systemStatus object from available data
+    const health = healthRes.ok ? await healthRes.json() : { status: 'unknown' }
+    const ingest = ingestRes.ok ? await ingestRes.json() : { cameras: {} }
+    const systemInfo = systemInfoRes.ok ? await systemInfoRes.json() : null
+    
+    // Build a compatible systemStatus object
     systemStatus.value = {
       info: {
-        hostname: 'R58 Device',
+        hostname: systemInfo?.hostname || 'R58 Device',
         platform: health.platform || 'R58',
         gstreamer: health.gstreamer,
-        load_average: [0, 0, 0], // Not available
-        memory_percent: 0, // Not available
-        uptime_seconds: 0, // Not available
-        temperatures: [], // Not available
+        load_average: systemInfo?.load_average || [0, 0, 0],
+        memory_percent: systemInfo?.memory_percent || 0,
+        memory_total_mb: systemInfo?.memory_total_mb || 0,
+        memory_used_mb: systemInfo?.memory_used_mb || 0,
+        uptime_seconds: systemInfo?.uptime_seconds || 0,
+        temperatures: systemInfo?.temperatures || [],
       },
       services: [
         { name: 'r58-recorder', active: health.status === 'healthy', status: health.status },
@@ -93,13 +98,45 @@ async function fetchStatus() {
 }
 
 async function restartServices(service: string) {
-  // Note: This endpoint may not exist on the device
-  toast.info('Service restart not available in this version')
+  try {
+    const { buildApiUrl } = await import('@/lib/api')
+    const response = await fetch(buildApiUrl(`/api/system/restart-service/${service}`), {
+      method: 'POST'
+    })
+    const data = await response.json()
+    
+    if (data.success) {
+      toast.success(data.message || `Service ${service} restarted`)
+      // Refresh status after a short delay
+      setTimeout(fetchStatus, 2000)
+    } else {
+      toast.error(data.message || `Failed to restart ${service}`)
+    }
+  } catch (e: any) {
+    toast.error(`Restart failed: ${e.message}`)
+  }
 }
 
 async function rebootDevice() {
-  // Note: This endpoint may not exist on the device
-  toast.info('Device reboot not available in this version')
+  if (!confirm('Are you sure you want to reboot the device? This will interrupt all recordings and streams.')) {
+    return
+  }
+  
+  try {
+    const { buildApiUrl } = await import('@/lib/api')
+    const response = await fetch(buildApiUrl('/api/system/reboot'), {
+      method: 'POST'
+    })
+    const data = await response.json()
+    
+    if (data.success) {
+      toast.success('Device is rebooting...')
+    } else {
+      toast.error(data.message || 'Failed to reboot device')
+    }
+  } catch (e: any) {
+    toast.error(`Reboot failed: ${e.message}`)
+  }
 }
 
 async function stopPipeline(pipelineId: string) {
@@ -259,18 +296,16 @@ onUnmounted(() => {
           <h3 class="text-sm font-semibold text-r58-text-secondary uppercase tracking-wide">Services</h3>
           <div class="flex gap-2">
             <button 
-              @click="restartServices('all')"
-              class="btn btn-sm btn-secondary opacity-50 cursor-not-allowed"
-              disabled
-              title="Requires SSH access to device"
+              @click="restartServices('preke-recorder')"
+              class="btn btn-sm btn-secondary"
+              title="Restart the main service"
             >
-              Restart All
+              Restart Service
             </button>
             <button 
               @click="rebootDevice"
-              class="btn btn-sm btn-danger opacity-50 cursor-not-allowed"
-              disabled
-              title="Requires SSH access to device"
+              class="btn btn-sm btn-danger"
+              title="Reboot the device"
             >
               Reboot Device
             </button>
@@ -297,14 +332,16 @@ onUnmounted(() => {
               </div>
             </div>
             <button 
-              class="text-r58-text-secondary opacity-50 cursor-not-allowed"
-              disabled
-              title="Requires SSH access"
+              v-if="service.name !== 'vdo.ninja'"
+              @click="restartServices(service.name)"
+              class="text-r58-text-secondary hover:text-r58-text-primary transition-colors"
+              title="Restart service"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
             </button>
+            <span v-else class="text-xs text-r58-text-secondary">External</span>
           </div>
         </div>
       </div>

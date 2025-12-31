@@ -473,6 +473,181 @@ async def health() -> Dict[str, Any]:
     }
 
 
+@app.get("/api/system/info")
+async def get_system_info() -> Dict[str, Any]:
+    """Get detailed system information including CPU, memory, temperature, and uptime."""
+    import subprocess
+    
+    result = {
+        "hostname": "R58 Device",
+        "platform": config.platform,
+        "load_average": [0.0, 0.0, 0.0],
+        "memory_percent": 0.0,
+        "memory_total_mb": 0,
+        "memory_used_mb": 0,
+        "uptime_seconds": 0,
+        "temperatures": []
+    }
+    
+    try:
+        # Get load average from /proc/loadavg
+        try:
+            with open("/proc/loadavg", "r") as f:
+                loadavg = f.read().strip().split()
+                result["load_average"] = [float(loadavg[0]), float(loadavg[1]), float(loadavg[2])]
+        except Exception as e:
+            logger.debug(f"Could not read load average: {e}")
+        
+        # Get memory info from /proc/meminfo
+        try:
+            with open("/proc/meminfo", "r") as f:
+                meminfo = {}
+                for line in f:
+                    parts = line.split(":")
+                    if len(parts) == 2:
+                        key = parts[0].strip()
+                        # Extract numeric value (in kB)
+                        value = parts[1].strip().split()[0]
+                        meminfo[key] = int(value)
+                
+                total = meminfo.get("MemTotal", 0)
+                available = meminfo.get("MemAvailable", meminfo.get("MemFree", 0))
+                used = total - available
+                
+                result["memory_total_mb"] = total // 1024
+                result["memory_used_mb"] = used // 1024
+                if total > 0:
+                    result["memory_percent"] = (used / total) * 100
+        except Exception as e:
+            logger.debug(f"Could not read memory info: {e}")
+        
+        # Get uptime from /proc/uptime
+        try:
+            with open("/proc/uptime", "r") as f:
+                uptime = f.read().strip().split()[0]
+                result["uptime_seconds"] = int(float(uptime))
+        except Exception as e:
+            logger.debug(f"Could not read uptime: {e}")
+        
+        # Get hostname
+        try:
+            with open("/etc/hostname", "r") as f:
+                result["hostname"] = f.read().strip()
+        except Exception as e:
+            logger.debug(f"Could not read hostname: {e}")
+        
+        # Get temperatures from thermal zones
+        try:
+            thermal_zones = Path("/sys/class/thermal")
+            if thermal_zones.exists():
+                for zone in thermal_zones.iterdir():
+                    if zone.name.startswith("thermal_zone"):
+                        temp_file = zone / "temp"
+                        type_file = zone / "type"
+                        if temp_file.exists():
+                            temp_celsius = int(temp_file.read_text().strip()) / 1000
+                            zone_type = type_file.read_text().strip() if type_file.exists() else zone.name
+                            result["temperatures"].append({
+                                "type": zone_type,
+                                "temp_celsius": temp_celsius
+                            })
+        except Exception as e:
+            logger.debug(f"Could not read temperatures: {e}")
+            
+    except Exception as e:
+        logger.error(f"Error getting system info: {e}")
+    
+    return result
+
+
+@app.get("/api/system/logs")
+async def get_system_logs(service: str = "preke-recorder", lines: int = 100) -> Dict[str, Any]:
+    """Get system logs from journalctl."""
+    import subprocess
+    
+    # Map service names to systemd unit names
+    service_map = {
+        "r58-api": "preke-recorder",
+        "r58-pipeline": "preke-recorder",
+        "preke-recorder": "preke-recorder",
+        "mediamtx": "mediamtx",
+    }
+    
+    unit_name = service_map.get(service, "preke-recorder")
+    
+    try:
+        # Get logs from journalctl
+        result = subprocess.run(
+            ["journalctl", "-u", unit_name, "-n", str(lines), "--no-pager", "-o", "short-iso"],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        
+        if result.returncode == 0:
+            return {"logs": result.stdout, "service": unit_name, "lines": lines}
+        else:
+            # Try reading from /var/log as fallback
+            log_path = Path(f"/var/log/{unit_name}.log")
+            if log_path.exists():
+                with open(log_path, "r") as f:
+                    log_lines = f.readlines()
+                    return {"logs": "".join(log_lines[-lines:]), "service": unit_name, "lines": lines}
+            return {"logs": f"No logs available for {unit_name}", "service": unit_name, "lines": 0}
+    except subprocess.TimeoutExpired:
+        return {"logs": "Timeout reading logs", "service": unit_name, "lines": 0}
+    except Exception as e:
+        return {"logs": f"Error reading logs: {str(e)}", "service": unit_name, "lines": 0}
+
+
+@app.post("/api/system/restart-service/{service}")
+async def restart_service(service: str) -> Dict[str, Any]:
+    """Restart a system service."""
+    import subprocess
+    
+    # Map service names to systemd unit names
+    service_map = {
+        "r58-recorder": "preke-recorder",
+        "preke-recorder": "preke-recorder",
+        "mediamtx": "mediamtx",
+    }
+    
+    unit_name = service_map.get(service)
+    if not unit_name:
+        raise HTTPException(status_code=400, detail=f"Unknown service: {service}")
+    
+    try:
+        # Use systemctl to restart
+        result = subprocess.run(
+            ["sudo", "systemctl", "restart", unit_name],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        
+        if result.returncode == 0:
+            return {"success": True, "message": f"Service {unit_name} restarted successfully"}
+        else:
+            return {"success": False, "message": f"Failed to restart {unit_name}: {result.stderr}"}
+    except subprocess.TimeoutExpired:
+        return {"success": False, "message": "Timeout restarting service"}
+    except Exception as e:
+        return {"success": False, "message": f"Error: {str(e)}"}
+
+
+@app.post("/api/system/reboot")
+async def reboot_device() -> Dict[str, Any]:
+    """Reboot the device."""
+    import subprocess
+    
+    try:
+        # Schedule reboot in 2 seconds to allow response to be sent
+        subprocess.Popen(["sudo", "shutdown", "-r", "+0"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return {"success": True, "message": "Device will reboot shortly"}
+    except Exception as e:
+        return {"success": False, "message": f"Error: {str(e)}"}
+
+
 @app.post("/record/start/{cam_id}")
 async def start_recording(cam_id: str) -> Dict[str, str]:
     """Start recording for a specific camera."""

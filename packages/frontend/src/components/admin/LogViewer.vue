@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { buildApiUrl } from '@/lib/api'
 
 const props = defineProps<{
   service?: string
@@ -7,13 +8,12 @@ const props = defineProps<{
 
 const logs = ref('')
 const loading = ref(false)
-const selectedService = ref(props.service || 'r58-api')
+const selectedService = ref(props.service || 'preke-recorder')
 const lineCount = ref(100)
 const autoRefresh = ref(false)
 
 const services = [
-  { id: 'r58-api', label: 'R58 API' },
-  { id: 'r58-pipeline', label: 'Pipeline Manager' },
+  { id: 'preke-recorder', label: 'Preke Recorder' },
   { id: 'mediamtx', label: 'MediaMTX' },
 ]
 
@@ -22,9 +22,9 @@ let refreshInterval: number | null = null
 async function fetchLogs() {
   loading.value = true
   try {
-    const response = await fetch(`/api/v1/support/logs?service=${selectedService.value}&lines=${lineCount.value}`)
+    const response = await fetch(buildApiUrl(`/api/system/logs?service=${selectedService.value}&lines=${lineCount.value}`))
     const data = await response.json()
-    logs.value = data.logs || ''
+    logs.value = data.logs || 'No logs available'
   } catch (e) {
     logs.value = `Error fetching logs: ${e}`
   } finally {
@@ -60,6 +60,10 @@ watch([selectedService, lineCount], () => {
 
 onMounted(() => {
   fetchLogs()
+})
+
+onUnmounted(() => {
+  stopAutoRefresh()
 })
 </script>
 
