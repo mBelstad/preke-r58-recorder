@@ -191,7 +191,13 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Mount static files for frontend
+# Mount Vue frontend from packages/frontend/dist
+vue_dist_path = Path(__file__).parent.parent / "packages" / "frontend" / "dist"
+if vue_dist_path.exists():
+    app.mount("/vue", StaticFiles(directory=str(vue_dist_path), html=True), name="vue")
+    logger.info(f"Mounted Vue frontend at /vue from {vue_dist_path}")
+
+# Mount static files for legacy frontend and other static assets
 static_path = Path(__file__).parent / "static"
 if static_path.exists():
     app.mount("/static", StaticFiles(directory=str(static_path)), name="static")
@@ -217,7 +223,12 @@ app.mount("/uploads", StaticFiles(directory=str(uploads_dir)), name="uploads")
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
-    """Serve the new R58 Studio app."""
+    """Serve the Vue frontend app."""
+    # Try Vue frontend first
+    vue_index = Path(__file__).parent.parent / "packages" / "frontend" / "dist" / "index.html"
+    if vue_index.exists():
+        return vue_index.read_text()
+    # Fallback to legacy app.html
     app_path = Path(__file__).parent / "static" / "app.html"
     if app_path.exists():
         return app_path.read_text()
@@ -245,8 +256,21 @@ async def remote_mixer_redirect():
 
 @app.get("/app")
 async def app_redirect():
-    """Redirect /app to /static/app.html"""
-    return RedirectResponse(url="/static/app.html")
+    """Redirect /app to Vue frontend"""
+    return RedirectResponse(url="/")
+
+
+@app.get("/static/app.html", response_class=HTMLResponse)
+async def vue_app():
+    """Serve Vue frontend at legacy app.html path for compatibility."""
+    vue_index = Path(__file__).parent.parent / "packages" / "frontend" / "dist" / "index.html"
+    if vue_index.exists():
+        return vue_index.read_text()
+    # Fallback to legacy
+    legacy_path = Path(__file__).parent / "static" / "legacy" / "app.html"
+    if legacy_path.exists():
+        return legacy_path.read_text()
+    raise HTTPException(status_code=404, detail="App not found")
 
 @app.get("/guest")
 async def guest_redirect():

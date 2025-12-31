@@ -5,10 +5,12 @@ import { fileURLToPath, URL } from 'node:url'
 
 // Check if building for Electron
 const isElectronBuild = process.env.ELECTRON_BUILD === 'true'
+// Check if building for R58 static serving (relative paths)
+const isStaticBuild = process.env.STATIC_BUILD === 'true'
 
 export default defineConfig({
-  // Use relative paths for Electron (file:// protocol)
-  base: isElectronBuild ? './' : '/',
+  // Use relative paths for Electron (file:// protocol) and static serving
+  base: isElectronBuild || isStaticBuild ? './' : '/',
   
   // Output to desktop package for Electron builds
   build: {

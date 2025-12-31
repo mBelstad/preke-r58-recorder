@@ -1,16 +1,12 @@
 import { createRouter, createWebHistory, createWebHashHistory } from 'vue-router'
 import { isElectron } from '@/lib/api'
 
-// Use hash history for Electron (file:// protocol), web history for browser
+// Use hash history for both Electron and web (works with static file serving)
+// This avoids needing server-side SPA routing configuration
 const createHistory = () => {
-  // Check if we're in Electron via the global flag set at build time
-  // or by checking window.electronAPI at runtime
-  const inElectron = typeof window !== 'undefined' && !!window.electronAPI
-  
-  if (inElectron) {
-    return createWebHashHistory()
-  }
-  return createWebHistory(import.meta.env.BASE_URL)
+  // Always use hash history for compatibility with static file serving
+  // This works in both Electron (file:// protocol) and web (https://)
+  return createWebHashHistory()
 }
 
 const router = createRouter({
