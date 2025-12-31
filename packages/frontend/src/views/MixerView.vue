@@ -49,10 +49,14 @@ function handleLoadingReady() {
   isLoading.value = false
 }
 
-// Mark content ready when inputs are loaded OR iframe is ready
-function markContentReady() {
-  contentReady.value = true
-}
+// Watch for VDO.ninja iframe to be ready
+// isReady is a Ref exposed from the component, so we access .value
+watch(() => vdoEmbedRef.value?.isReady?.value, (ready) => {
+  if (ready) {
+    console.log('[Mixer] VDO.ninja iframe ready, dismissing loading screen')
+    contentReady.value = true
+  }
+}, { immediate: true })
 
 // Refresh inputs interval - adaptive based on recording state
 let inputsRefreshInterval: number | null = null
@@ -81,11 +85,8 @@ watch(() => recorderStore.isRecording, () => {
 })
 
 onMounted(async () => {
-  // Fetch initial HDMI inputs status
+  // Fetch initial HDMI inputs status (runs in parallel with iframe loading)
   await recorderStore.fetchInputs()
-  
-  // Mark content as ready once inputs are fetched
-  markContentReady()
   
   // Set up interval to refresh inputs (adaptive rate)
   startInputsPolling()
@@ -191,8 +192,8 @@ function openHotkeySettings() {
       v-if="isLoading"
       mode="mixer"
       :content-ready="contentReady"
-      :min-time="1500"
-      :max-time="8000"
+      :min-time="2000"
+      :max-time="15000"
       @ready="handleLoadingReady"
     />
   </Transition>
