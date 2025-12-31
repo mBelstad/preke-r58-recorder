@@ -304,6 +304,28 @@
         }
       }
     },
+    "/api/v1/vdoninja/sources": {
+      "get": {
+        "tags": [
+          "VDO.ninja"
+        ],
+        "summary": "Get Sources",
+        "description": "Get all available video sources (cameras + speakers) for VDO.ninja mixer.\n\nReturns a list of all sources with their status and WHEP URLs.\nChecks both pipeline manager state AND MediaMTX stream availability.",
+        "operationId": "get_sources_api_v1_vdoninja_sources_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourcesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/vdoninja/room-status": {
       "get": {
         "tags": [
@@ -1082,6 +1104,137 @@
         }
       }
     },
+    "/api/v1/system/status": {
+      "get": {
+        "tags": [
+          "System"
+        ],
+        "summary": "Get System Status",
+        "description": "Get complete system status.\n\nIncludes system info, service status, and pipeline information.",
+        "operationId": "get_system_status_api_v1_system_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/system/restart": {
+      "post": {
+        "tags": [
+          "System"
+        ],
+        "summary": "Restart Services",
+        "description": "Restart R58 services.\n\nArgs:\n    request: Which service(s) to restart (\"api\", \"pipeline\", \"all\")\n\nNote: Restarting \"api\" will cause this request to not receive a response.",
+        "operationId": "restart_services_api_v1_system_restart_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RestartRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RestartResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/system/reboot": {
+      "post": {
+        "tags": [
+          "System"
+        ],
+        "summary": "Reboot System",
+        "description": "Reboot the R58 device.\n\nThe reboot will be scheduled after a 5 second delay to allow\nthis response to be sent to the client.\n\nWarning: This will cause all connections to be lost.",
+        "operationId": "reboot_system_api_v1_system_reboot_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RebootResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/system/pipeline/{pipeline_id}/stop": {
+      "post": {
+        "tags": [
+          "System"
+        ],
+        "summary": "Stop Pipeline",
+        "description": "Stop a specific pipeline.\n\nArgs:\n    pipeline_id: The pipeline ID to stop (e.g., \"preview_cam1\", \"recording_cam2\")",
+        "operationId": "stop_pipeline_api_v1_system_pipeline__pipeline_id__stop_post",
+        "parameters": [
+          {
+            "name": "pipeline_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Pipeline Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Stop Pipeline Api V1 System Pipeline  Pipeline Id  Stop Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/degradation": {
       "get": {
         "tags": [
@@ -1125,91 +1278,13 @@
       }
     },
     "/api/v1/whep/{stream_id}/whep": {
-      "delete": {
-        "tags": [
-          "WebRTC Proxy"
-        ],
-        "summary": "Whep Proxy",
-        "description": "Proxy WHEP requests to local MediaMTX (for viewing streams).\n\nSupports all WHEP operations:\n- POST: Create WHEP session (send SDP offer, receive answer)\n- PATCH: ICE trickle candidates\n- DELETE: Close session\n- GET: Check stream availability",
-        "operationId": "whep_proxy_api_v1_whep__stream_id__whep_delete",
-        "parameters": [
-          {
-            "name": "stream_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Stream Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "WebRTC Proxy"
-        ],
-        "summary": "Whep Proxy",
-        "description": "Proxy WHEP requests to local MediaMTX (for viewing streams).\n\nSupports all WHEP operations:\n- POST: Create WHEP session (send SDP offer, receive answer)\n- PATCH: ICE trickle candidates\n- DELETE: Close session\n- GET: Check stream availability",
-        "operationId": "whep_proxy_api_v1_whep__stream_id__whep_delete",
-        "parameters": [
-          {
-            "name": "stream_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Stream Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
       "options": {
         "tags": [
           "WebRTC Proxy"
         ],
         "summary": "Whep Proxy",
         "description": "Proxy WHEP requests to local MediaMTX (for viewing streams).\n\nSupports all WHEP operations:\n- POST: Create WHEP session (send SDP offer, receive answer)\n- PATCH: ICE trickle candidates\n- DELETE: Close session\n- GET: Check stream availability",
-        "operationId": "whep_proxy_api_v1_whep__stream_id__whep_delete",
+        "operationId": "whep_proxy_api_v1_whep__stream_id__whep_options",
         "parameters": [
           {
             "name": "stream_id",
@@ -1248,7 +1323,85 @@
         ],
         "summary": "Whep Proxy",
         "description": "Proxy WHEP requests to local MediaMTX (for viewing streams).\n\nSupports all WHEP operations:\n- POST: Create WHEP session (send SDP offer, receive answer)\n- PATCH: ICE trickle candidates\n- DELETE: Close session\n- GET: Check stream availability",
-        "operationId": "whep_proxy_api_v1_whep__stream_id__whep_delete",
+        "operationId": "whep_proxy_api_v1_whep__stream_id__whep_options",
+        "parameters": [
+          {
+            "name": "stream_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Stream Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "WebRTC Proxy"
+        ],
+        "summary": "Whep Proxy",
+        "description": "Proxy WHEP requests to local MediaMTX (for viewing streams).\n\nSupports all WHEP operations:\n- POST: Create WHEP session (send SDP offer, receive answer)\n- PATCH: ICE trickle candidates\n- DELETE: Close session\n- GET: Check stream availability",
+        "operationId": "whep_proxy_api_v1_whep__stream_id__whep_options",
+        "parameters": [
+          {
+            "name": "stream_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Stream Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "WebRTC Proxy"
+        ],
+        "summary": "Whep Proxy",
+        "description": "Proxy WHEP requests to local MediaMTX (for viewing streams).\n\nSupports all WHEP operations:\n- POST: Create WHEP session (send SDP offer, receive answer)\n- PATCH: ICE trickle candidates\n- DELETE: Close session\n- GET: Check stream availability",
+        "operationId": "whep_proxy_api_v1_whep__stream_id__whep_options",
         "parameters": [
           {
             "name": "stream_id",
@@ -1287,7 +1440,7 @@
         ],
         "summary": "Whep Proxy",
         "description": "Proxy WHEP requests to local MediaMTX (for viewing streams).\n\nSupports all WHEP operations:\n- POST: Create WHEP session (send SDP offer, receive answer)\n- PATCH: ICE trickle candidates\n- DELETE: Close session\n- GET: Check stream availability",
-        "operationId": "whep_proxy_api_v1_whep__stream_id__whep_delete",
+        "operationId": "whep_proxy_api_v1_whep__stream_id__whep_options",
         "parameters": [
           {
             "name": "stream_id",
@@ -1322,91 +1475,13 @@
       }
     },
     "/api/v1/whip/{stream_id}/whip": {
-      "delete": {
-        "tags": [
-          "WebRTC Proxy"
-        ],
-        "summary": "Whip Proxy",
-        "description": "Proxy WHIP requests to local MediaMTX (for publishing streams).\n\nUsed by VDO.ninja to push the program output to MediaMTX.\n\nSupports all WHIP operations:\n- POST: Create WHIP session (send SDP offer, receive answer)\n- PATCH: ICE trickle candidates\n- DELETE: Close session",
-        "operationId": "whip_proxy_api_v1_whip__stream_id__whip_delete",
-        "parameters": [
-          {
-            "name": "stream_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Stream Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "WebRTC Proxy"
-        ],
-        "summary": "Whip Proxy",
-        "description": "Proxy WHIP requests to local MediaMTX (for publishing streams).\n\nUsed by VDO.ninja to push the program output to MediaMTX.\n\nSupports all WHIP operations:\n- POST: Create WHIP session (send SDP offer, receive answer)\n- PATCH: ICE trickle candidates\n- DELETE: Close session",
-        "operationId": "whip_proxy_api_v1_whip__stream_id__whip_delete",
-        "parameters": [
-          {
-            "name": "stream_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Stream Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
       "options": {
         "tags": [
           "WebRTC Proxy"
         ],
         "summary": "Whip Proxy",
         "description": "Proxy WHIP requests to local MediaMTX (for publishing streams).\n\nUsed by VDO.ninja to push the program output to MediaMTX.\n\nSupports all WHIP operations:\n- POST: Create WHIP session (send SDP offer, receive answer)\n- PATCH: ICE trickle candidates\n- DELETE: Close session",
-        "operationId": "whip_proxy_api_v1_whip__stream_id__whip_delete",
+        "operationId": "whip_proxy_api_v1_whip__stream_id__whip_options",
         "parameters": [
           {
             "name": "stream_id",
@@ -1445,7 +1520,85 @@
         ],
         "summary": "Whip Proxy",
         "description": "Proxy WHIP requests to local MediaMTX (for publishing streams).\n\nUsed by VDO.ninja to push the program output to MediaMTX.\n\nSupports all WHIP operations:\n- POST: Create WHIP session (send SDP offer, receive answer)\n- PATCH: ICE trickle candidates\n- DELETE: Close session",
-        "operationId": "whip_proxy_api_v1_whip__stream_id__whip_delete",
+        "operationId": "whip_proxy_api_v1_whip__stream_id__whip_options",
+        "parameters": [
+          {
+            "name": "stream_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Stream Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "WebRTC Proxy"
+        ],
+        "summary": "Whip Proxy",
+        "description": "Proxy WHIP requests to local MediaMTX (for publishing streams).\n\nUsed by VDO.ninja to push the program output to MediaMTX.\n\nSupports all WHIP operations:\n- POST: Create WHIP session (send SDP offer, receive answer)\n- PATCH: ICE trickle candidates\n- DELETE: Close session",
+        "operationId": "whip_proxy_api_v1_whip__stream_id__whip_options",
+        "parameters": [
+          {
+            "name": "stream_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Stream Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "WebRTC Proxy"
+        ],
+        "summary": "Whip Proxy",
+        "description": "Proxy WHIP requests to local MediaMTX (for publishing streams).\n\nUsed by VDO.ninja to push the program output to MediaMTX.\n\nSupports all WHIP operations:\n- POST: Create WHIP session (send SDP offer, receive answer)\n- PATCH: ICE trickle candidates\n- DELETE: Close session",
+        "operationId": "whip_proxy_api_v1_whip__stream_id__whip_options",
         "parameters": [
           {
             "name": "stream_id",
@@ -1484,7 +1637,7 @@
         ],
         "summary": "Whip Proxy",
         "description": "Proxy WHIP requests to local MediaMTX (for publishing streams).\n\nUsed by VDO.ninja to push the program output to MediaMTX.\n\nSupports all WHIP operations:\n- POST: Create WHIP session (send SDP offer, receive answer)\n- PATCH: ICE trickle candidates\n- DELETE: Close session",
-        "operationId": "whip_proxy_api_v1_whip__stream_id__whip_delete",
+        "operationId": "whip_proxy_api_v1_whip__stream_id__whip_options",
         "parameters": [
           {
             "name": "stream_id",
@@ -1493,6 +1646,131 @@
             "schema": {
               "type": "string",
               "title": "Stream Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api": {
+      "get": {
+        "summary": "Api Info",
+        "description": "API info endpoint",
+        "operationId": "api_info_api_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/": {
+      "get": {
+        "summary": "Serve Frontend",
+        "description": "Serve frontend SPA",
+        "operationId": "serve_frontend__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sw.js": {
+      "get": {
+        "summary": "Serve Sw",
+        "description": "Serve service worker",
+        "operationId": "serve_sw_sw_js_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/manifest.webmanifest": {
+      "get": {
+        "summary": "Serve Manifest",
+        "description": "Serve PWA manifest",
+        "operationId": "serve_manifest_manifest_webmanifest_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/registerSW.js": {
+      "get": {
+        "summary": "Serve Register Sw",
+        "description": "Serve SW registration script",
+        "operationId": "serve_register_sw_registerSW_js_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/{full_path}": {
+      "get": {
+        "summary": "Serve Spa",
+        "description": "SPA fallback - serve index.html for Vue Router history mode",
+        "operationId": "serve_spa__full_path__get",
+        "parameters": [
+          {
+            "name": "full_path",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Full Path"
             }
           }
         ],
@@ -1763,7 +2041,7 @@
           },
           "services": {
             "items": {
-              "$ref": "#/components/schemas/ServiceStatus"
+              "$ref": "#/components/schemas/r58_api__observability__health__ServiceStatus"
             },
             "type": "array",
             "title": "Services"
@@ -2237,6 +2515,52 @@
         "title": "NetworkMetrics",
         "description": "Network metrics"
       },
+      "PipelineInfo": {
+        "properties": {
+          "pipeline_id": {
+            "type": "string",
+            "title": "Pipeline Id"
+          },
+          "pipeline_type": {
+            "type": "string",
+            "title": "Pipeline Type"
+          },
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "device": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device"
+          }
+        },
+        "type": "object",
+        "required": [
+          "pipeline_id",
+          "pipeline_type",
+          "state"
+        ],
+        "title": "PipelineInfo",
+        "description": "Information about a running pipeline."
+      },
       "PreviewMode": {
         "properties": {
           "id": {
@@ -2299,6 +2623,30 @@
         ],
         "title": "ProcessMetrics",
         "description": "Process-specific metrics"
+      },
+      "RebootResponse": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "delay_seconds": {
+            "type": "integer",
+            "title": "Delay Seconds"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message",
+          "delay_seconds"
+        ],
+        "title": "RebootResponse",
+        "description": "Response from reboot operation."
       },
       "RecorderStatus": {
         "properties": {
@@ -2387,6 +2735,47 @@
         "title": "RenameSessionRequest",
         "description": "Request to rename a session"
       },
+      "RestartRequest": {
+        "properties": {
+          "service": {
+            "type": "string",
+            "title": "Service"
+          }
+        },
+        "type": "object",
+        "required": [
+          "service"
+        ],
+        "title": "RestartRequest",
+        "description": "Request to restart a service."
+      },
+      "RestartResponse": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "restarted_services": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Restarted Services"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message",
+          "restarted_services"
+        ],
+        "title": "RestartResponse",
+        "description": "Response from restart operation."
+      },
       "RoomStatus": {
         "properties": {
           "room": {
@@ -2420,29 +2809,45 @@
             "type": "string",
             "title": "Name"
           },
+          "active": {
+            "type": "boolean",
+            "title": "Active"
+          },
           "status": {
             "type": "string",
             "title": "Status"
           },
-          "message": {
+          "pid": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "integer"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Message"
+            "title": "Pid"
+          },
+          "memory_mb": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Memory Mb"
           }
         },
         "type": "object",
         "required": [
           "name",
+          "active",
           "status"
         ],
         "title": "ServiceStatus",
-        "description": "Individual service status"
+        "description": "Status of a systemd service."
       },
       "SessionWithFiles": {
         "properties": {
@@ -2497,6 +2902,133 @@
         ],
         "title": "SessionWithFiles",
         "description": "Session with all its files for library view"
+      },
+      "SourceInfo": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "stream": {
+            "type": "string",
+            "title": "Stream"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "whep_url": {
+            "type": "string",
+            "title": "Whep Url"
+          },
+          "active": {
+            "type": "boolean",
+            "title": "Active"
+          },
+          "has_signal": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Has Signal"
+          },
+          "resolution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution"
+          },
+          "ingest_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ingest Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "stream",
+          "type",
+          "whep_url",
+          "active"
+        ],
+        "title": "SourceInfo",
+        "description": "Information about a video source"
+      },
+      "SourcesResponse": {
+        "properties": {
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/SourceInfo"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/SourcesSummary"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sources",
+          "summary"
+        ],
+        "title": "SourcesResponse",
+        "description": "Response containing all available sources"
+      },
+      "SourcesSummary": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "active": {
+            "type": "integer",
+            "title": "Active"
+          },
+          "cameras": {
+            "type": "integer",
+            "title": "Cameras"
+          },
+          "speakers": {
+            "type": "integer",
+            "title": "Speakers"
+          },
+          "active_cameras": {
+            "type": "integer",
+            "title": "Active Cameras"
+          },
+          "active_speakers": {
+            "type": "integer",
+            "title": "Active Speakers"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "active",
+          "cameras",
+          "speakers",
+          "active_cameras",
+          "active_speakers"
+        ],
+        "title": "SourcesSummary",
+        "description": "Summary of available sources"
       },
       "StartRecordingRequest": {
         "properties": {
@@ -2628,6 +3160,110 @@
         ],
         "title": "StorageStatus",
         "description": "Storage status information"
+      },
+      "SystemInfo": {
+        "properties": {
+          "hostname": {
+            "type": "string",
+            "title": "Hostname"
+          },
+          "uptime_seconds": {
+            "type": "number",
+            "title": "Uptime Seconds"
+          },
+          "load_average": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Load Average"
+          },
+          "temperatures": {
+            "items": {
+              "$ref": "#/components/schemas/TemperatureInfo"
+            },
+            "type": "array",
+            "title": "Temperatures"
+          },
+          "platform": {
+            "type": "string",
+            "title": "Platform"
+          }
+        },
+        "type": "object",
+        "required": [
+          "hostname",
+          "uptime_seconds",
+          "load_average",
+          "temperatures",
+          "platform"
+        ],
+        "title": "SystemInfo",
+        "description": "System information and status."
+      },
+      "SystemStatus": {
+        "properties": {
+          "info": {
+            "$ref": "#/components/schemas/SystemInfo"
+          },
+          "services": {
+            "items": {
+              "$ref": "#/components/schemas/ServiceStatus"
+            },
+            "type": "array",
+            "title": "Services"
+          },
+          "pipelines": {
+            "items": {
+              "$ref": "#/components/schemas/PipelineInfo"
+            },
+            "type": "array",
+            "title": "Pipelines"
+          },
+          "timestamp": {
+            "type": "string",
+            "title": "Timestamp"
+          }
+        },
+        "type": "object",
+        "required": [
+          "info",
+          "services",
+          "pipelines",
+          "timestamp"
+        ],
+        "title": "SystemStatus",
+        "description": "Complete system status."
+      },
+      "TemperatureInfo": {
+        "properties": {
+          "zone": {
+            "type": "string",
+            "title": "Zone"
+          },
+          "temp_celsius": {
+            "type": "number",
+            "title": "Temp Celsius"
+          },
+          "type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "zone",
+          "temp_celsius"
+        ],
+        "title": "TemperatureInfo",
+        "description": "Temperature sensor reading."
       },
       "Token": {
         "properties": {
@@ -2812,6 +3448,36 @@
         ],
         "title": "VdoUrlResponse",
         "description": "Generated VDO.ninja URL response"
+      },
+      "r58_api__observability__health__ServiceStatus": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "status"
+        ],
+        "title": "ServiceStatus",
+        "description": "Individual service status"
       }
     },
     "securitySchemes": {
