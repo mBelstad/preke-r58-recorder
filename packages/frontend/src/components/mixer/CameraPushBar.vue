@@ -7,8 +7,7 @@
  */
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRecorderStore } from '@/stores/recorder'
-import { buildCameraContributionUrl } from '@/lib/vdoninja'
-import { buildApiUrl } from '@/lib/api'
+import { buildCameraContributionUrl, getPublicWhepUrl } from '@/lib/vdoninja'
 
 const recorderStore = useRecorderStore()
 
@@ -28,10 +27,10 @@ const camerasWithSignal = computed(() =>
   recorderStore.inputs.filter(i => i.hasSignal)
 )
 
-// Build WHEP URL for a camera using the device's actual URL
+// Build WHEP URL for a camera using the PUBLIC URL
+// VDO.ninja (running remotely) needs a publicly accessible URL
 function getWhepUrl(cameraId: string): string {
-  // Use buildApiUrl to get the correct device URL
-  return buildApiUrl(`/${cameraId}/whep`)
+  return getPublicWhepUrl(cameraId)
 }
 
 // Initialize or update camera push states when cameras change

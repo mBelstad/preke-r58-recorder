@@ -238,7 +238,12 @@ export function buildCameraContributionUrl(
   url.searchParams.set('videodevice', '0')
   url.searchParams.set('audiodevice', '0')
   url.searchParams.set('autostart', '')
-  url.searchParams.set('css', getVdoCssUrl())
+  
+  // Add custom CSS only if available
+  const cssUrl = getVdoCssUrl()
+  if (cssUrl) {
+    url.searchParams.set('css', cssUrl)
+  }
   
   return url.toString()
 }
@@ -316,5 +321,21 @@ export function buildMixerUrl(options: {
 export function getMediaMtxHost(): string {
   // Use the public MediaMTX endpoint
   return 'r58-mediamtx.itagenten.no'
+}
+
+/**
+ * Get the public R58 API host for external services (like VDO.ninja)
+ * This is the URL that external services can use to reach the R58 device
+ */
+export function getPublicR58Host(): string {
+  return 'https://r58-api.itagenten.no'
+}
+
+/**
+ * Build a public WHEP URL for a camera
+ * VDO.ninja needs this public URL to fetch the stream
+ */
+export function getPublicWhepUrl(cameraId: string): string {
+  return `${getPublicR58Host()}/${cameraId}/whep`
 }
 
