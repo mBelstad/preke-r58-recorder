@@ -500,31 +500,48 @@ export const r58Api = {
     }
   },
 
-  async startRecording(options?: { name?: string; inputs?: string[] }) {
-    return apiPost<{
-      session_id: string
-      name?: string
-      started_at: string
-      inputs: string[]
+  async startRecording(_options?: { name?: string; inputs?: string[] }) {
+    // Device uses /record/start-all to start all cameras
+    const response = await apiPost<{
       status: string
+      cameras: Record<string, string>
     }>(
-      buildApiUrl('/api/recorder/start'),
-      options,
+      buildApiUrl('/record/start-all'),
+      undefined,
       { idempotent: true }
     )
+    
+    // Convert to expected format
+    const startedCameras = Object.entries(response.cameras)
+      .filter(([_, status]) => status === 'started')
+      .map(([id]) => id)
+    
+    return {
+      session_id: `session-${Date.now()}`,
+      started_at: new Date().toISOString(),
+      inputs: startedCameras,
+      status: response.status
+    }
   },
 
-  async stopRecording(sessionId?: string) {
-    return apiPost<{
-      session_id: string
-      duration_ms: number
-      files: Record<string, string>
+  async stopRecording(_sessionId?: string) {
+    // Device uses /record/stop-all to stop all cameras
+    const response = await apiPost<{
       status: string
+      cameras: Record<string, string>
     }>(
-      buildApiUrl('/api/recorder/stop'),
-      sessionId ? { session_id: sessionId } : undefined,
+      buildApiUrl('/record/stop-all'),
+      undefined,
       { idempotent: true }
     )
+    
+    // Convert to expected format
+    return {
+      session_id: `session-${Date.now()}`,
+      duration_ms: 0,
+      files: response.cameras,
+      status: response.status
+    }
   },
 
   // Capabilities - construct from /status
