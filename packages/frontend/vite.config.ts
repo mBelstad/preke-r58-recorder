@@ -32,7 +32,7 @@ export default defineConfig({
     ...(!isElectronBuild ? [
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['favicon.ico', 'robots.txt', 'apple-touch-icon.png'],
+        includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png'],
         manifest: {
           name: 'Preke Studio',
           short_name: 'Preke',
@@ -61,19 +61,24 @@ export default defineConfig({
           ]
         },
         workbox: {
-          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+          // Only cache static assets, not dynamic content
+          globPatterns: ['**/*.{js,css,html,svg,woff,woff2}'],
+          // Exclude API calls and video streams from caching
+          navigateFallbackDenylist: [/^\/api/, /^\/cam/, /\/whep$/],
           runtimeCaching: [
             {
-              urlPattern: /^https?:\/\/.*\/api\/.*/i,
-              handler: 'NetworkFirst',
+              // Cache static images only
+              urlPattern: /\.(?:png|jpg|jpeg|gif|webp|ico)$/i,
+              handler: 'CacheFirst',
               options: {
-                cacheName: 'api-cache',
+                cacheName: 'image-cache',
                 expiration: {
-                  maxEntries: 100,
-                  maxAgeSeconds: 60 * 60 // 1 hour
+                  maxEntries: 50,
+                  maxAgeSeconds: 60 * 60 * 24 // 24 hours
                 }
               }
             }
+            // Removed API caching - real-time data should always be fresh
           ]
         }
       })

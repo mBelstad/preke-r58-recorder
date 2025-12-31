@@ -321,6 +321,33 @@ async def vue_apple_icon():
     raise HTTPException(status_code=404)
 
 
+@app.get("/pwa-192x192.png")
+async def vue_pwa_192():
+    """Serve PWA 192x192 icon."""
+    path = Path(__file__).parent.parent / "packages" / "frontend" / "dist" / "pwa-192x192.png"
+    if path.exists():
+        return Response(content=path.read_bytes(), media_type="image/png")
+    raise HTTPException(status_code=404)
+
+
+@app.get("/pwa-512x512.png")
+async def vue_pwa_512():
+    """Serve PWA 512x512 icon."""
+    path = Path(__file__).parent.parent / "packages" / "frontend" / "dist" / "pwa-512x512.png"
+    if path.exists():
+        return Response(content=path.read_bytes(), media_type="image/png")
+    raise HTTPException(status_code=404)
+
+
+@app.get("/logo.png")
+async def vue_logo_png():
+    """Serve Vue logo PNG."""
+    path = Path(__file__).parent.parent / "packages" / "frontend" / "dist" / "logo.png"
+    if path.exists():
+        return Response(content=path.read_bytes(), media_type="image/png")
+    raise HTTPException(status_code=404)
+
+
 @app.get("/static/app.html", response_class=HTMLResponse)
 async def vue_app():
     """Serve Vue frontend at legacy app.html path for compatibility."""
