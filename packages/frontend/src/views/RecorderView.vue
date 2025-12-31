@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRecorderStore } from '@/stores/recorder'
 import { useRecordingGuard } from '@/composables/useRecordingGuard'
 import RecorderControls from '@/components/recorder/RecorderControls.vue'
@@ -7,12 +7,24 @@ import RecordingHealth from '@/components/recorder/RecordingHealth.vue'
 import InputGrid from '@/components/recorder/InputGrid.vue'
 import SessionInfo from '@/components/recorder/SessionInfo.vue'
 import ConfirmDialog from '@/components/shared/ConfirmDialog.vue'
+import ModeLoadingScreen from '@/components/shared/ModeLoadingScreen.vue'
 
 const recorderStore = useRecorderStore()
 const { showLeaveConfirmation, confirmLeave, cancelLeave } = useRecordingGuard()
 
 const isRecording = computed(() => recorderStore.status === 'recording')
 const duration = computed(() => recorderStore.formattedDuration)
+
+// Loading state
+const isLoading = ref(true)
+const camerasReady = computed(() => {
+  return recorderStore.inputs.filter(input => input.hasSignal).length
+})
+const totalCameras = computed(() => recorderStore.inputs.length || 4)
+
+function handleLoadingReady() {
+  isLoading.value = false
+}
 
 // Fetch real input status on mount
 onMounted(async () => {
@@ -24,7 +36,6 @@ onMounted(async () => {
 const leaveDialog = ref<InstanceType<typeof ConfirmDialog> | null>(null)
 
 // Watch for leave confirmation request
-import { watch } from 'vue'
 watch(showLeaveConfirmation, (show) => {
   if (show) {
     leaveDialog.value?.open()
@@ -35,6 +46,17 @@ watch(showLeaveConfirmation, (show) => {
 </script>
 
 <template>
+  <!-- Loading Screen -->
+  <Transition name="fade">
+    <ModeLoadingScreen
+      v-if="isLoading"
+      mode="recorder"
+      :cameras-ready="camerasReady"
+      :total-cameras="totalCameras"
+      @ready="handleLoadingReady"
+    />
+  </Transition>
+  
   <div class="h-full flex flex-col">
     <!-- Header -->
     <header class="flex items-center justify-between px-6 py-4 border-b border-r58-bg-tertiary bg-r58-bg-secondary">
@@ -81,4 +103,16 @@ watch(showLeaveConfirmation, (show) => {
     />
   </div>
 </template>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+</style>
 

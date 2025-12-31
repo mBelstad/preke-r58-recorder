@@ -28,6 +28,7 @@ import StreamingSettings from '@/components/mixer/StreamingSettings.vue'
 import RecordingControls from '@/components/mixer/RecordingControls.vue'
 import HotkeySettings from '@/components/mixer/HotkeySettings.vue'
 import ConnectionStatus from '@/components/mixer/ConnectionStatus.vue'
+import ModeLoadingScreen from '@/components/shared/ModeLoadingScreen.vue'
 
 const mixerStore = useMixerStore()
 const recorderStore = useRecorderStore()
@@ -39,6 +40,17 @@ const hotkeySettingsRef = ref<InstanceType<typeof HotkeySettings> | null>(null)
 
 const isLive = computed(() => mixerStore.isLive)
 const enabledDestinationsCount = computed(() => streamingStore.enabledDestinations.length)
+
+// Loading state
+const isLoading = ref(true)
+const camerasReady = computed(() => {
+  return recorderStore.inputs.filter(input => input.hasSignal).length
+})
+const totalCameras = computed(() => recorderStore.inputs.length || 4)
+
+function handleLoadingReady() {
+  isLoading.value = false
+}
 
 // Refresh inputs interval - adaptive based on recording state
 let inputsRefreshInterval: number | null = null
@@ -167,6 +179,17 @@ function openHotkeySettings() {
 </script>
 
 <template>
+  <!-- Loading Screen -->
+  <Transition name="fade">
+    <ModeLoadingScreen
+      v-if="isLoading"
+      mode="mixer"
+      :cameras-ready="camerasReady"
+      :total-cameras="totalCameras"
+      @ready="handleLoadingReady"
+    />
+  </Transition>
+  
   <div class="h-full flex flex-col">
     <!-- Header -->
     <header class="flex items-center justify-between px-6 py-4 border-b border-r58-bg-tertiary bg-r58-bg-secondary" data-testid="mixer-header">
@@ -288,3 +311,15 @@ function openHotkeySettings() {
     <HotkeySettings ref="hotkeySettingsRef" />
   </div>
 </template>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+</style>

@@ -1,13 +1,40 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { buildApiUrl } from '@/lib/api'
+import { toast } from '@/composables/useToast'
 
 const router = useRouter()
 const selectedMode = ref<'recorder' | 'mixer'>('recorder')
+const switching = ref(false)
+const switchError = ref<string | null>(null)
 
-function selectMode(mode: 'recorder' | 'mixer') {
+async function selectMode(mode: 'recorder' | 'mixer') {
+  if (switching.value) return
+  
   selectedMode.value = mode
-  router.push(`/${mode}`)
+  switching.value = true
+  switchError.value = null
+  
+  try {
+    // Call mode switch API to prepare device resources
+    const response = await fetch(buildApiUrl(`/api/mode/${mode}`), { method: 'POST' })
+    
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}))
+      throw new Error(data.detail || `Failed to switch to ${mode} mode`)
+    }
+    
+    // Navigate to the mode view
+    router.push(`/${mode}`)
+  } catch (e) {
+    const message = e instanceof Error ? e.message : 'Failed to switch mode'
+    switchError.value = message
+    toast.error(message)
+    console.error('Mode switch error:', e)
+  } finally {
+    switching.value = false
+  }
 }
 </script>
 
@@ -20,7 +47,8 @@ function selectMode(mode: 'recorder' | 'mixer') {
       <!-- Recorder Mode -->
       <button
         @click="selectMode('recorder')"
-        class="group relative w-64 h-48 rounded-2xl border-2 transition-all duration-300"
+        :disabled="switching"
+        class="group relative w-64 h-48 rounded-2xl border-2 transition-all duration-300 disabled:opacity-60 disabled:cursor-wait"
         :class="[
           selectedMode === 'recorder' 
             ? 'border-r58-recorder bg-r58-recorder/10' 
@@ -28,15 +56,21 @@ function selectMode(mode: 'recorder' | 'mixer') {
         ]"
       >
         <div class="h-full flex flex-col items-center justify-center gap-4">
-          <!-- Recording icon -->
+          <!-- Recording icon / Loading spinner -->
           <div class="w-16 h-16 rounded-full bg-r58-recorder/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-            <svg class="w-8 h-8 text-r58-recorder" fill="currentColor" viewBox="0 0 24 24">
+            <svg v-if="switching && selectedMode === 'recorder'" class="w-8 h-8 text-r58-recorder animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <svg v-else class="w-8 h-8 text-r58-recorder" fill="currentColor" viewBox="0 0 24 24">
               <circle cx="12" cy="12" r="8"/>
             </svg>
           </div>
           <div class="text-center">
             <h3 class="text-xl font-semibold">Recorder</h3>
-            <p class="text-sm text-r58-text-secondary">Multi-cam ISO recording</p>
+            <p class="text-sm text-r58-text-secondary">
+              {{ switching && selectedMode === 'recorder' ? 'Switching mode...' : 'Multi-cam ISO recording' }}
+            </p>
           </div>
         </div>
       </button>
@@ -44,7 +78,8 @@ function selectMode(mode: 'recorder' | 'mixer') {
       <!-- Mixer Mode -->
       <button
         @click="selectMode('mixer')"
-        class="group relative w-64 h-48 rounded-2xl border-2 transition-all duration-300"
+        :disabled="switching"
+        class="group relative w-64 h-48 rounded-2xl border-2 transition-all duration-300 disabled:opacity-60 disabled:cursor-wait"
         :class="[
           selectedMode === 'mixer' 
             ? 'border-r58-mixer bg-r58-mixer/10' 
@@ -52,9 +87,13 @@ function selectMode(mode: 'recorder' | 'mixer') {
         ]"
       >
         <div class="h-full flex flex-col items-center justify-center gap-4">
-          <!-- Mixer icon -->
+          <!-- Mixer icon / Loading spinner -->
           <div class="w-16 h-16 rounded-full bg-r58-mixer/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-            <svg class="w-8 h-8 text-r58-mixer" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+            <svg v-if="switching && selectedMode === 'mixer'" class="w-8 h-8 text-r58-mixer animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <svg v-else class="w-8 h-8 text-r58-mixer" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16m-7 6h7"/>
               <circle cx="8" cy="6" r="2" fill="currentColor"/>
               <circle cx="16" cy="12" r="2" fill="currentColor"/>
@@ -63,10 +102,17 @@ function selectMode(mode: 'recorder' | 'mixer') {
           </div>
           <div class="text-center">
             <h3 class="text-xl font-semibold">Mixer</h3>
-            <p class="text-sm text-r58-text-secondary">Live switching & streaming</p>
+            <p class="text-sm text-r58-text-secondary">
+              {{ switching && selectedMode === 'mixer' ? 'Switching mode...' : 'Live switching & streaming' }}
+            </p>
           </div>
         </div>
       </button>
+    </div>
+    
+    <!-- Error message -->
+    <div v-if="switchError" class="mt-4 text-r58-accent-danger text-sm">
+      {{ switchError }}
     </div>
     
     <!-- Quick status -->
