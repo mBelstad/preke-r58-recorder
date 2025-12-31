@@ -191,8 +191,14 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Mount Vue frontend from packages/frontend/dist
+# Mount Vue frontend assets (js, css) at /assets
 vue_dist_path = Path(__file__).parent.parent / "packages" / "frontend" / "dist"
+vue_assets_path = vue_dist_path / "assets"
+if vue_assets_path.exists():
+    app.mount("/assets", StaticFiles(directory=str(vue_assets_path)), name="vue-assets")
+    logger.info(f"Mounted Vue assets at /assets from {vue_assets_path}")
+
+# Mount Vue frontend at /vue for direct access
 if vue_dist_path.exists():
     app.mount("/vue", StaticFiles(directory=str(vue_dist_path), html=True), name="vue")
     logger.info(f"Mounted Vue frontend at /vue from {vue_dist_path}")
@@ -258,6 +264,61 @@ async def remote_mixer_redirect():
 async def app_redirect():
     """Redirect /app to Vue frontend"""
     return RedirectResponse(url="/")
+
+
+# Vue static files (favicon, manifest, etc.)
+@app.get("/favicon.svg")
+async def vue_favicon():
+    """Serve Vue favicon."""
+    path = Path(__file__).parent.parent / "packages" / "frontend" / "dist" / "favicon.svg"
+    if path.exists():
+        return Response(content=path.read_text(), media_type="image/svg+xml")
+    raise HTTPException(status_code=404)
+
+
+@app.get("/manifest.webmanifest")
+async def vue_manifest():
+    """Serve Vue PWA manifest."""
+    path = Path(__file__).parent.parent / "packages" / "frontend" / "dist" / "manifest.webmanifest"
+    if path.exists():
+        return Response(content=path.read_text(), media_type="application/manifest+json")
+    raise HTTPException(status_code=404)
+
+
+@app.get("/registerSW.js")
+async def vue_sw_register():
+    """Serve Vue service worker registration."""
+    path = Path(__file__).parent.parent / "packages" / "frontend" / "dist" / "registerSW.js"
+    if path.exists():
+        return Response(content=path.read_text(), media_type="application/javascript")
+    raise HTTPException(status_code=404)
+
+
+@app.get("/sw.js")
+async def vue_sw():
+    """Serve Vue service worker."""
+    path = Path(__file__).parent.parent / "packages" / "frontend" / "dist" / "sw.js"
+    if path.exists():
+        return Response(content=path.read_text(), media_type="application/javascript")
+    raise HTTPException(status_code=404)
+
+
+@app.get("/workbox-{path:path}")
+async def vue_workbox(path: str):
+    """Serve Vue workbox files."""
+    file_path = Path(__file__).parent.parent / "packages" / "frontend" / "dist" / f"workbox-{path}"
+    if file_path.exists():
+        return Response(content=file_path.read_text(), media_type="application/javascript")
+    raise HTTPException(status_code=404)
+
+
+@app.get("/apple-touch-icon.png")
+async def vue_apple_icon():
+    """Serve Vue apple touch icon."""
+    path = Path(__file__).parent.parent / "packages" / "frontend" / "dist" / "apple-touch-icon.png"
+    if path.exists():
+        return Response(content=path.read_bytes(), media_type="image/png")
+    raise HTTPException(status_code=404)
 
 
 @app.get("/static/app.html", response_class=HTMLResponse)
