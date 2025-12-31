@@ -479,6 +479,7 @@ export const r58Api = {
           status: string
           resolution?: { width: number; height: number; formatted: string }
           config: boolean
+          has_signal?: boolean
         }>
         summary: {
           streaming: number
@@ -498,6 +499,27 @@ export const r58Api = {
         }
       }
     }
+  },
+
+  async getFps() {
+    // Get real FPS data from /api/fps endpoint
+    return apiGet<{
+      cameras: Record<string, {
+        current_fps: number
+        avg_fps: number
+        min_fps: number
+        max_fps: number
+        total_frames: number
+        uptime_seconds: number
+      }>
+      summary: {
+        active_cameras: number
+        average_fps: number
+        all_at_target: boolean
+        target_fps: number
+        status: string
+      }
+    }>(buildApiUrl('/api/fps'))
   },
 
   async startRecording(_options?: { name?: string; inputs?: string[] }) {

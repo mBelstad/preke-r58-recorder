@@ -40,6 +40,35 @@ export const useRecorderStore = defineStore('recorder', () => {
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
   })
   const activeInputs = computed(() => inputs.value.filter(i => i.hasSignal))
+  
+  /**
+   * Check if framerates are mismatched across active inputs.
+   * Considers 2x multiples as compatible (e.g., 30fps and 60fps are OK).
+   * Returns null if no mismatch, otherwise returns a warning message.
+   */
+  const framerateMismatch = computed(() => {
+    const active = activeInputs.value
+    if (active.length < 2) return null
+    
+    const framerates = active.map(i => i.framerate).filter(f => f > 0)
+    if (framerates.length < 2) return null
+    
+    // Find the base framerate (lowest non-zero)
+    const baseFps = Math.min(...framerates)
+    
+    // Check if all framerates are compatible (same or 2x multiple)
+    const allCompatible = framerates.every(fps => {
+      const ratio = fps / baseFps
+      // Allow 1x or 2x (with 10% tolerance for real-world variance)
+      return Math.abs(ratio - 1) < 0.1 || Math.abs(ratio - 2) < 0.1
+    })
+    
+    if (allCompatible) return null
+    
+    // Build warning message
+    const uniqueFps = [...new Set(framerates)].sort((a, b) => b - a)
+    return `Mixed framerates: ${uniqueFps.map(f => `${Math.round(f)}fps`).join(', ')}`
+  })
 
   // Error state
   const lastError = ref<string | null>(null)
@@ -158,10 +187,14 @@ export const useRecorderStore = defineStore('recorder', () => {
   async function fetchInputs() {
     /**
      * Fetch real input status from pipeline manager via API.
-     * This includes signal detection and resolution info.
+     * This includes signal detection, resolution, and real FPS data.
      */
     try {
-      const response = await r58Api.getInputsStatus()
+      // Fetch both ingest status and FPS data in parallel
+      const [ingestResponse, fpsResponse] = await Promise.all([
+        r58Api.getInputsStatus(),
+        r58Api.getFps().catch(() => null) // FPS endpoint is optional
+      ])
       
       // Camera labels mapping
       const cameraLabels: Record<string, string> = {
@@ -171,12 +204,23 @@ export const useRecorderStore = defineStore('recorder', () => {
         'cam3': 'HDMI IN21'
       }
       
+      // Build FPS lookup from real data
+      const fpsData: Record<string, number> = {}
+      if (fpsResponse?.cameras) {
+        for (const [id, fps] of Object.entries(fpsResponse.cameras)) {
+          fpsData[id] = fps.current_fps
+        }
+      }
+      
       // Map API response (cameras object) to InputStatus array
-      inputs.value = Object.entries(response.cameras).map(([id, cam]: [string, any]) => {
-        // Estimate framerate based on resolution (API doesn't provide it)
-        // 4K (3840x2160) typically 30fps, 1080p and below typically 60fps
-        const height = cam.resolution?.height || 0
-        const estimatedFps = height >= 2160 ? 30 : height > 0 ? 60 : 0
+      inputs.value = Object.entries(ingestResponse.cameras).map(([id, cam]: [string, any]) => {
+        // Use real FPS if available, otherwise estimate from resolution
+        let framerate = fpsData[id]
+        if (framerate === undefined || framerate === 0) {
+          // Fallback: estimate based on resolution
+          const height = cam.resolution?.height || 0
+          framerate = height >= 2160 ? 30 : height > 0 ? 60 : 0
+        }
         
         return {
           id,
@@ -185,7 +229,7 @@ export const useRecorderStore = defineStore('recorder', () => {
           isRecording: false,
           bytesWritten: 0,
           resolution: cam.resolution?.formatted || '',
-          framerate: estimatedFps,
+          framerate: Math.round(framerate * 10) / 10, // Round to 1 decimal
         }
       })
       
@@ -262,6 +306,7 @@ export const useRecorderStore = defineStore('recorder', () => {
     isRecording,
     formattedDuration,
     activeInputs,
+    framerateMismatch,
     
     // Actions
     startRecording,
