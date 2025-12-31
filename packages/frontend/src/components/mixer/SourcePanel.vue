@@ -5,9 +5,31 @@
  * This is a read-only status panel. Full source/guest management
  * is handled by the embedded mixer.html (VDO.ninja's real mixer).
  */
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useMixerStore, type MixerSource } from '@/stores/mixer'
 import { useRecorderStore } from '@/stores/recorder'
+
+// Custom names stored in localStorage
+const CUSTOM_NAMES_KEY = 'preke-source-names'
+
+function getCustomNames(): Record<string, string> {
+  try {
+    const stored = localStorage.getItem(CUSTOM_NAMES_KEY)
+    return stored ? JSON.parse(stored) : {}
+  } catch {
+    return {}
+  }
+}
+
+function setCustomName(sourceId: string, name: string): void {
+  const names = getCustomNames()
+  names[sourceId] = name
+  localStorage.setItem(CUSTOM_NAMES_KEY, JSON.stringify(names))
+}
+
+const customNames = ref<Record<string, string>>(getCustomNames())
+const editingSource = ref<string | null>(null)
+const editName = ref('')
 
 // Props from parent
 const props = defineProps<{
@@ -21,22 +43,58 @@ const props = defineProps<{
 const mixerStore = useMixerStore()
 const recorderStore = useRecorderStore()
 
-// VDO.ninja sources from the mixer store
-const vdoSources = computed(() => mixerStore.sources)
+// VDO.ninja sources from the mixer store with proper names and subtitles
+const vdoSources = computed(() => {
+  return mixerStore.sources.map(source => {
+    let displayLabel = source.label
+    let subtitle = 'VDO.ninja'
+    
+    // Check if this is an HDMI camera pushed via VDO (e.g., cam0, cam1, hdmi-1, etc.)
+    const hdmiMatch = source.id.match(/cam(\d+)/i) || source.id.match(/hdmi[_-]?(\d+)/i)
+    if (hdmiMatch) {
+      const camNum = parseInt(hdmiMatch[1]) + 1
+      displayLabel = `HDMI ${camNum}`
+      subtitle = 'Connected to device'
+    } else if (source.type === 'guest') {
+      // Guest: use their actual name (from VDO.ninja label) with "Remote guest" subtitle
+      subtitle = 'Remote guest'
+      // If label looks like a stream ID (random chars), use a friendly default
+      if (!source.label || source.label.length > 20 || source.label.match(/^[a-z0-9]{8,}$/i)) {
+        displayLabel = 'Guest'
+      }
+    } else if (source.type === 'screen') {
+      subtitle = 'Screen share'
+    }
+    
+    return { ...source, label: displayLabel, subtitle }
+  })
+})
+
+// Camera ID to friendly name mapping
+const cameraLabels: Record<string, { name: string; subtitle: string }> = {
+  'cam0': { name: 'HDMI 1', subtitle: 'Connected to device' },
+  'cam1': { name: 'HDMI 2', subtitle: 'Connected to device' },
+  'cam2': { name: 'HDMI 3', subtitle: 'Connected to device' },
+  'cam3': { name: 'HDMI 4', subtitle: 'Connected to device' },
+}
 
 // HDMI camera sources from the recorder store (as fallback)
-const hdmiSources = computed((): MixerSource[] => {
+const hdmiSources = computed((): (MixerSource & { subtitle?: string })[] => {
   return recorderStore.inputs
     .filter(input => input.hasSignal)
-    .map(input => ({
-      id: input.id,
-      label: input.label,
-      type: 'camera' as const,
-      hasVideo: true,
-      hasAudio: true,
-      muted: false,
-      audioLevel: 0,
-    }))
+    .map(input => {
+      const labelInfo = cameraLabels[input.id] || { name: input.label, subtitle: 'HDMI Input' }
+      return {
+        id: input.id,
+        label: labelInfo.name,
+        subtitle: labelInfo.subtitle,
+        type: 'camera' as const,
+        hasVideo: true,
+        hasAudio: true,
+        muted: false,
+        audioLevel: 0,
+      }
+    })
 })
 
 // Combine sources: use VDO.ninja sources if available, otherwise show HDMI cameras
@@ -60,6 +118,40 @@ function toggleMute(source: MixerSource) {
   }
   // Also update local state
   mixerStore.setSourceMute(source.id, !source.muted)
+}
+
+/**
+ * Get display name for a source (custom name or default)
+ */
+function getDisplayName(source: MixerSource & { subtitle?: string }): string {
+  return customNames.value[source.id] || source.label
+}
+
+/**
+ * Start editing a source name (double-click)
+ */
+function startRename(source: MixerSource) {
+  editingSource.value = source.id
+  editName.value = customNames.value[source.id] || source.label
+}
+
+/**
+ * Save the renamed source
+ */
+function saveRename() {
+  if (editingSource.value && editName.value.trim()) {
+    setCustomName(editingSource.value, editName.value.trim())
+    customNames.value = getCustomNames()
+  }
+  editingSource.value = null
+}
+
+/**
+ * Cancel renaming
+ */
+function cancelRename() {
+  editingSource.value = null
+  editName.value = ''
 }
 </script>
 
@@ -114,8 +206,27 @@ function toggleMute(source: MixerSource) {
           
           <!-- Source info -->
           <div class="min-w-0">
-            <p class="font-medium text-sm truncate">{{ source.label }}</p>
-            <p class="text-xs text-r58-text-secondary capitalize">{{ source.type }}</p>
+            <!-- Editing mode -->
+            <div v-if="editingSource === source.id" class="flex items-center gap-1">
+              <input 
+                v-model="editName"
+                @keyup.enter="saveRename"
+                @keyup.escape="cancelRename"
+                @blur="saveRename"
+                class="input text-sm py-0.5 px-1 w-24"
+                autofocus
+              />
+            </div>
+            <!-- Display mode -->
+            <p 
+              v-else
+              @dblclick="startRename(source)"
+              class="font-medium text-sm truncate cursor-pointer hover:text-r58-accent-primary"
+              title="Double-click to rename"
+            >
+              {{ getDisplayName(source) }}
+            </p>
+            <p class="text-xs text-r58-text-secondary">{{ source.subtitle || source.type }}</p>
           </div>
         </div>
         

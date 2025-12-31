@@ -14,7 +14,7 @@
  * - Local recording controls (using verified API)
  * - Quick scene buttons
  */
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useMixerStore } from '@/stores/mixer'
 import { useRecorderStore } from '@/stores/recorder'
 import { useStreamingStore } from '@/stores/streaming'
@@ -40,20 +40,37 @@ const hotkeySettingsRef = ref<InstanceType<typeof HotkeySettings> | null>(null)
 const isLive = computed(() => mixerStore.isLive)
 const enabledDestinationsCount = computed(() => streamingStore.enabledDestinations.length)
 
-// Refresh inputs interval
+// Refresh inputs interval - adaptive based on recording state
 let inputsRefreshInterval: number | null = null
+
+// Polling interval: 5s when recording, 15s when idle (saves resources)
+function getPollingInterval(): number {
+  return recorderStore.isRecording ? 5000 : 15000
+}
+
+function startInputsPolling() {
+  if (inputsRefreshInterval) {
+    clearInterval(inputsRefreshInterval)
+  }
+  inputsRefreshInterval = window.setInterval(() => {
+    recorderStore.fetchInputs()
+  }, getPollingInterval())
+}
 
 // Track registered shortcuts for cleanup
 const unregisterFns: (() => void)[] = []
+
+// Watch for recording state changes to adjust polling rate
+watch(() => recorderStore.isRecording, () => {
+  startInputsPolling()
+})
 
 onMounted(() => {
   // Fetch initial HDMI inputs status
   recorderStore.fetchInputs()
   
-  // Set up interval to refresh inputs every 5 seconds
-  inputsRefreshInterval = window.setInterval(() => {
-    recorderStore.fetchInputs()
-  }, 5000)
+  // Set up interval to refresh inputs (adaptive rate)
+  startInputsPolling()
   
   // Register quick scene shortcuts (1-4) using verified API
   for (let i = 1; i <= 4; i++) {

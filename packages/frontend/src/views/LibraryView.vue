@@ -1,6 +1,24 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { buildApiUrl } from '@/lib/api'
+import { buildApiUrl, isElectron } from '@/lib/api'
+
+// Local storage key for session names (since device API doesn't support renaming)
+const SESSION_NAMES_KEY = 'preke-session-names'
+
+function getLocalSessionNames(): Record<string, string> {
+  try {
+    const stored = localStorage.getItem(SESSION_NAMES_KEY)
+    return stored ? JSON.parse(stored) : {}
+  } catch {
+    return {}
+  }
+}
+
+function setLocalSessionName(sessionId: string, name: string): void {
+  const names = getLocalSessionNames()
+  names[sessionId] = name
+  localStorage.setItem(SESSION_NAMES_KEY, JSON.stringify(names))
+}
 
 interface RecordingFile {
   filename: string
@@ -44,6 +62,38 @@ const error = ref<string | null>(null)
 const selectedSession = ref<Session | null>(null)
 const editingName = ref<string | null>(null)
 const newName = ref('')
+const playingVideo = ref<{ url: string; label: string } | null>(null)
+
+// Camera ID to friendly name mapping
+const cameraLabels: Record<string, string> = {
+  'cam0': 'HDMI 1',
+  'cam1': 'HDMI 2',
+  'cam2': 'HDMI 3',
+  'cam3': 'HDMI 4',
+}
+
+function getCameraLabel(camId: string): string {
+  return cameraLabels[camId] || camId.toUpperCase()
+}
+
+function getCameraColor(camId: string): string {
+  const colors: Record<string, string> = {
+    'cam0': 'bg-blue-500/20 text-blue-400',
+    'cam1': 'bg-green-500/20 text-green-400',
+    'cam2': 'bg-purple-500/20 text-purple-400',
+    'cam3': 'bg-amber-500/20 text-amber-400',
+  }
+  return colors[camId] || 'bg-r58-bg-tertiary text-r58-text-secondary'
+}
+
+function playVideo(file: RecordingFile) {
+  const url = buildApiUrl(file.url)
+  playingVideo.value = { url, label: `${getCameraLabel(file.cam_id)} - ${file.filename}` }
+}
+
+function closeVideoPlayer() {
+  playingVideo.value = null
+}
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return '0 B'
@@ -72,12 +122,15 @@ async function fetchSessions() {
     
     // Transform the API response to our Session format
     const transformedSessions: Session[] = []
+    const localNames = getLocalSessionNames()
     
     for (const dateGroup of (data.sessions || []) as DateGroup[]) {
       for (const session of dateGroup.date_sessions) {
+        // Use local name if available, otherwise use API name
+        const displayName = localNames[session.session_id] || session.name
         transformedSessions.push({
           id: session.session_id,
-          name: session.name,
+          name: displayName,
           date: dateGroup.date,
           duration: formatDuration(session.start_time, session.end_time),
           file_count: session.count,
@@ -110,9 +163,24 @@ function closeSession() {
 }
 
 async function downloadFile(session: Session, file: RecordingFile) {
-  // Use the file's URL directly from the API response
-  const url = buildApiUrl(file.url)
-  window.open(url, '_blank')
+  // Use fetch + blob for proper download with correct filename
+  const fullUrl = buildApiUrl(file.url)
+  try {
+    const response = await fetch(fullUrl)
+    if (!response.ok) {
+      throw new Error(`Download failed: ${response.status}`)
+    }
+    const blob = await response.blob()
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = file.filename
+    link.click()
+    URL.revokeObjectURL(link.href)
+  } catch (e) {
+    console.error('Failed to download file:', e)
+    // Fallback to opening in new tab
+    window.open(fullUrl, '_blank')
+  }
 }
 
 function startRename(session: Session) {
@@ -126,22 +194,11 @@ async function saveRename(session: Session) {
     return
   }
   
-  try {
-    const url = buildApiUrl(`/api/sessions/${session.id}`)
-    const response = await fetch(url, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: newName.value.trim() }),
-    })
-    
-    if (response.ok) {
-      session.name = newName.value.trim()
-    }
-  } catch (e) {
-    console.error('Failed to rename session:', e)
-  } finally {
-    editingName.value = null
-  }
+  // Store name locally since device API doesn't support renaming
+  const trimmedName = newName.value.trim()
+  setLocalSessionName(session.id, trimmedName)
+  session.name = trimmedName
+  editingName.value = null
 }
 
 function cancelRename() {
@@ -224,10 +281,23 @@ onMounted(() => {
           class="card flex items-center justify-between hover:border-r58-accent-primary/50 transition-colors"
         >
           <div class="flex items-center gap-4">
-            <div class="w-12 h-12 rounded-lg bg-r58-bg-tertiary flex items-center justify-center">
-              <svg class="w-6 h-6 text-r58-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-              </svg>
+            <!-- Thumbnail: show camera icons for files in session -->
+            <div class="flex -space-x-2">
+              <div 
+                v-for="(file, index) in session.files.slice(0, 3)" 
+                :key="file.filename"
+                class="w-10 h-10 rounded-lg flex items-center justify-center text-xs font-bold border-2 border-r58-bg-secondary"
+                :class="getCameraColor(file.cam_id)"
+                :style="{ zIndex: 3 - index }"
+              >
+                {{ getCameraLabel(file.cam_id).replace('HDMI ', '') }}
+              </div>
+              <div 
+                v-if="session.files.length > 3" 
+                class="w-10 h-10 rounded-lg bg-r58-bg-tertiary flex items-center justify-center text-xs font-medium text-r58-text-secondary border-2 border-r58-bg-secondary"
+              >
+                +{{ session.files.length - 3 }}
+              </div>
             </div>
             <div class="flex-1">
               <!-- Editable name -->
@@ -308,26 +378,75 @@ onMounted(() => {
                 class="flex items-center justify-between p-3 bg-r58-bg-tertiary rounded-lg"
               >
                 <div class="flex items-center gap-3">
-                  <svg class="w-8 h-8 text-r58-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-                  </svg>
+                  <div 
+                    class="w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold"
+                    :class="getCameraColor(file.cam_id)"
+                  >
+                    {{ getCameraLabel(file.cam_id).replace('HDMI ', '') }}
+                  </div>
                   <div>
-                    <p class="font-medium text-sm">{{ file.camera_id.toUpperCase() }}</p>
+                    <p class="font-medium text-sm">{{ getCameraLabel(file.cam_id) }}</p>
                     <p class="text-xs text-r58-text-secondary">{{ file.filename }}</p>
                   </div>
                 </div>
-                <div class="flex items-center gap-4">
+                <div class="flex items-center gap-3">
                   <span class="text-sm text-r58-text-secondary">{{ (file.size_bytes / (1024 * 1024 * 1024)).toFixed(2) }} GB</span>
+                  <button 
+                    @click="playVideo(file)"
+                    class="btn btn-primary text-sm"
+                    title="Play video"
+                  >
+                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M8 5v14l11-7z"/>
+                    </svg>
+                  </button>
                   <button 
                     @click="downloadFile(selectedSession, file)"
                     class="btn text-sm"
+                    title="Download"
                   >
-                    Download
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                    </svg>
                   </button>
                 </div>
               </div>
             </div>
           </div>
+        </div>
+      </div>
+    </Teleport>
+    
+    <!-- Video Player Modal -->
+    <Teleport to="body">
+      <div 
+        v-if="playingVideo"
+        class="fixed inset-0 bg-black/90 flex items-center justify-center z-[60] p-4"
+        @click.self="closeVideoPlayer"
+      >
+        <div class="relative max-w-5xl w-full">
+          <!-- Close button -->
+          <button 
+            @click="closeVideoPlayer" 
+            class="absolute -top-12 right-0 text-white/80 hover:text-white"
+          >
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          
+          <!-- Video title -->
+          <p class="absolute -top-12 left-0 text-white/80 font-medium">{{ playingVideo.label }}</p>
+          
+          <!-- Video player -->
+          <video 
+            :src="playingVideo.url" 
+            controls 
+            autoplay 
+            class="w-full rounded-lg shadow-2xl bg-black"
+          >
+            Your browser does not support video playback.
+          </video>
         </div>
       </div>
     </Teleport>

@@ -226,7 +226,7 @@ export const useRecorderStore = defineStore('recorder', () => {
           id,
           label: cameraLabels[id] || id,
           hasSignal: cam.has_signal || cam.status === 'streaming' || cam.status === 'preview',
-          isRecording: false,
+          isRecording: cam.status === 'recording',
           bytesWritten: 0,
           resolution: cam.resolution?.formatted || '',
           framerate: Math.round(framerate * 10) / 10, // Round to 1 decimal

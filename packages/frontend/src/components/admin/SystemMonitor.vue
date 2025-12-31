@@ -74,6 +74,7 @@ async function fetchStatus() {
       services: [
         { name: 'r58-recorder', active: health.status === 'healthy', status: health.status },
         { name: 'mediamtx', active: true, status: 'running' },
+        { name: 'vdo-mixer', active: true, status: 'embedded', note: 'Browser-based' },
       ],
       pipelines: Object.entries(ingest.cameras || {}).map(([id, cam]: [string, any]) => ({
         pipeline_id: id,
@@ -149,8 +150,8 @@ function getTempColor(celsius: number) {
 // Lifecycle
 onMounted(() => {
   fetchStatus()
-  // Refresh every 5 seconds
-  refreshInterval.value = window.setInterval(fetchStatus, 5000)
+  // Refresh every 10 seconds (reduced from 5s to save resources)
+  refreshInterval.value = window.setInterval(fetchStatus, 10000)
 })
 
 onUnmounted(() => {
@@ -178,7 +179,7 @@ onUnmounted(() => {
         <!-- CPU Load -->
         <div class="card">
           <h3 class="text-sm font-semibold text-r58-text-secondary uppercase tracking-wide mb-4">CPU Load</h3>
-          <div class="space-y-3">
+          <div v-if="systemStatus?.info?.load_average?.some((l: number) => l > 0)" class="space-y-3">
             <div class="relative w-full h-4 bg-r58-bg-tertiary rounded-full overflow-hidden">
               <div 
                 class="absolute left-0 top-0 h-full rounded-full transition-all duration-500"
@@ -189,16 +190,19 @@ onUnmounted(() => {
             <div class="flex justify-between text-sm">
               <span class="text-r58-text-secondary">Load Average</span>
               <span class="font-mono">
-                {{ systemStatus?.info?.load_average?.map((l: number) => l.toFixed(2)).join(' / ') || '-' }}
+                {{ systemStatus?.info?.load_average?.map((l: number) => l.toFixed(2)).join(' / ') }}
               </span>
             </div>
+          </div>
+          <div v-else class="flex items-center justify-center py-4">
+            <span class="text-r58-text-secondary">N/A</span>
           </div>
         </div>
         
         <!-- Memory -->
         <div class="card">
           <h3 class="text-sm font-semibold text-r58-text-secondary uppercase tracking-wide mb-4">Memory</h3>
-          <div class="space-y-3">
+          <div v-if="memoryPercent > 0" class="space-y-3">
             <div class="relative w-full h-4 bg-r58-bg-tertiary rounded-full overflow-hidden">
               <div 
                 class="absolute left-0 top-0 h-full rounded-full transition-all duration-500"
@@ -210,6 +214,9 @@ onUnmounted(() => {
               <span class="text-r58-text-secondary">Used</span>
               <span>{{ memoryPercent.toFixed(1) }}%</span>
             </div>
+          </div>
+          <div v-else class="flex items-center justify-center py-4">
+            <span class="text-r58-text-secondary">N/A</span>
           </div>
         </div>
         
@@ -235,12 +242,13 @@ onUnmounted(() => {
         <div class="card">
           <h3 class="text-sm font-semibold text-r58-text-secondary uppercase tracking-wide mb-4">Uptime</h3>
           <div class="flex items-center justify-center py-2">
-            <span class="text-3xl font-bold text-r58-accent-primary">
+            <span v-if="systemStatus?.info?.uptime_seconds > 0" class="text-3xl font-bold text-r58-accent-primary">
               {{ uptimeFormatted }}
             </span>
+            <span v-else class="text-r58-text-secondary">N/A</span>
           </div>
           <p class="text-center text-xs text-r58-text-secondary">
-            {{ systemStatus?.info?.hostname || 'R58' }}
+            {{ systemStatus?.info?.hostname || 'R58 Device' }}
           </p>
         </div>
       </div>
@@ -252,13 +260,17 @@ onUnmounted(() => {
           <div class="flex gap-2">
             <button 
               @click="restartServices('all')"
-              class="btn btn-sm btn-secondary"
+              class="btn btn-sm btn-secondary opacity-50 cursor-not-allowed"
+              disabled
+              title="Requires SSH access to device"
             >
               Restart All
             </button>
             <button 
               @click="rebootDevice"
-              class="btn btn-sm btn-danger"
+              class="btn btn-sm btn-danger opacity-50 cursor-not-allowed"
+              disabled
+              title="Requires SSH access to device"
             >
               Reboot Device
             </button>
@@ -285,9 +297,9 @@ onUnmounted(() => {
               </div>
             </div>
             <button 
-              @click="restartServices(service.name.replace('r58-', ''))"
-              class="text-r58-text-secondary hover:text-r58-text-primary transition-colors"
-              title="Restart service"
+              class="text-r58-text-secondary opacity-50 cursor-not-allowed"
+              disabled
+              title="Requires SSH access"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -331,6 +343,7 @@ onUnmounted(() => {
                 {{ pipeline.state }}
               </span>
               <button 
+                v-if="pipeline.state === 'running'"
                 @click="stopPipeline(pipeline.pipeline_id)"
                 class="btn btn-sm btn-danger"
                 title="Stop pipeline"

@@ -5,6 +5,7 @@ import DeviceStatus from '@/components/admin/DeviceStatus.vue'
 import LogViewer from '@/components/admin/LogViewer.vue'
 import FleetOverview from '@/components/admin/FleetOverview.vue'
 import SystemMonitor from '@/components/admin/SystemMonitor.vue'
+import SettingsPanel from '@/components/admin/SettingsPanel.vue'
 
 const route = useRoute()
 const activeTab = ref('system')
@@ -71,22 +72,7 @@ async function downloadSupportBundle() {
         <FleetOverview />
       </div>
       
-      <div v-else-if="activeTab === 'settings'" class="card space-y-6">
-        <div>
-          <h2 class="text-lg font-semibold mb-4">Settings</h2>
-          <p class="text-r58-text-secondary">Settings configuration coming soon.</p>
-        </div>
-        
-        <div class="pt-4 border-t border-r58-bg-tertiary">
-          <h3 class="font-medium mb-3">Support</h3>
-          <button @click="downloadSupportBundle" class="btn">
-            Download Support Bundle
-          </button>
-          <p class="text-sm text-r58-text-secondary mt-2">
-            Downloads a ZIP file containing logs, configuration, and diagnostic information.
-          </p>
-        </div>
-      </div>
+      <SettingsPanel v-else-if="activeTab === 'settings'" />
     </div>
   </div>
 </template>

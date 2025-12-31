@@ -180,11 +180,11 @@ function getStatusText() {
     </div>
     
     <!-- Control buttons -->
-    <div class="flex gap-2">
+    <div>
       <button
         @click="toggleRecording"
         :disabled="isProcessing"
-        class="btn flex-1 justify-center"
+        class="btn w-full justify-center"
         :class="isRecording ? 'btn-danger' : 'btn-primary'"
         data-testid="recording-toggle-button"
       >
