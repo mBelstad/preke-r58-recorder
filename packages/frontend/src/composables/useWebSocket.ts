@@ -82,11 +82,19 @@ export function useR58WebSocket() {
       clearTimeout(reconnectTimeout)
     }
     
-    // Exponential backoff: 1s, 2s, 4s, 8s, 16s, max 30s
-    const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.value), 30000)
+    // Stop trying after 10 attempts to avoid wasting resources
+    // The WebSocket endpoint may not exist on this device
+    const MAX_RECONNECT_ATTEMPTS = 10
+    if (reconnectAttempts.value >= MAX_RECONNECT_ATTEMPTS) {
+      console.log('[WebSocket] Max reconnect attempts reached, giving up. WebSocket may not be available on this device.')
+      return
+    }
+    
+    // Exponential backoff: 1s, 2s, 4s, 8s, 16s, max 60s
+    const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.value), 60000)
     reconnectAttempts.value++
     
-    console.log(`[WebSocket] Reconnecting in ${delay}ms (attempt ${reconnectAttempts.value})`)
+    console.log(`[WebSocket] Reconnecting in ${delay}ms (attempt ${reconnectAttempts.value}/${MAX_RECONNECT_ATTEMPTS})`)
     
     reconnectTimeout = window.setTimeout(() => {
       connect()

@@ -17,7 +17,7 @@ const reconnectAttempts = ref(0)
 const isChecking = ref(false)
 const lastError = ref<string | null>(null)
 
-const PING_INTERVAL = 5000 // 5 seconds
+const PING_INTERVAL = 10000 // 10 seconds (reduced from 5s to lower resource usage)
 const DEGRADED_THRESHOLD = 500 // 500ms
 const MAX_FAILURES_BEFORE_DISCONNECT = 3
 

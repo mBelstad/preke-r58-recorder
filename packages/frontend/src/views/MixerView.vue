@@ -57,9 +57,10 @@ function markContentReady() {
 // Refresh inputs interval - adaptive based on recording state
 let inputsRefreshInterval: number | null = null
 
-// Polling interval: 5s when recording, 15s when idle (saves resources)
+// Polling interval: 10s when recording, 30s when idle (saves resources)
+// Mixer doesn't need frequent updates - VDO.ninja handles real-time
 function getPollingInterval(): number {
-  return recorderStore.isRecording ? 5000 : 15000
+  return recorderStore.isRecording ? 10000 : 30000
 }
 
 function startInputsPolling() {
