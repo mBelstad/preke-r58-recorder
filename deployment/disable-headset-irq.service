@@ -7,7 +7,10 @@ After=multi-user.target
 Type=oneshot
 # Disable IRQ 159 which causes 277K interrupts/sec due to floating GPIO
 # This saves approximately 36% CPU usage
-ExecStart=/bin/sh -c 'echo 1 > /sys/devices/platform/fe5e0000.i2s/rk817-headset/power/wakeup || echo disabled > /proc/irq/159/spurious_unhandled || true'
+# Note: The IRQ cannot be fully disabled without kernel module changes.
+# This service documents the issue. A kernel module blacklist or device tree
+# modification would be needed for a permanent fix.
+ExecStart=/bin/true
 RemainAfterExit=yes
 StandardOutput=journal
 StandardError=journal
