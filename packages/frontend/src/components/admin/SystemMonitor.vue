@@ -74,7 +74,7 @@ async function fetchStatus() {
       services: [
         { name: 'r58-recorder', active: health.status === 'healthy', status: health.status },
         { name: 'mediamtx', active: true, status: 'running' },
-        { name: 'vdo-mixer', active: true, status: 'embedded', note: 'Browser-based' },
+        { name: 'vdo.ninja', active: true, status: 'running', note: 'r58-vdo.itagenten.no' },
       ],
       pipelines: Object.entries(ingest.cameras || {}).map(([id, cam]: [string, any]) => ({
         pipeline_id: id,

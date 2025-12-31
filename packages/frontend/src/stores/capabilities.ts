@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { buildApiUrl } from '@/lib/api'
 
 export interface DeviceCapabilities {
   device_id: string
@@ -19,6 +20,7 @@ export interface DeviceCapabilities {
   max_output_resolution: string
   storage_total_gb: number
   storage_available_gb: number
+  current_mode: string
 }
 
 export interface InputCapability {
@@ -28,6 +30,8 @@ export interface InputCapability {
   max_resolution: string
   supports_audio: boolean
   device_path: string | null
+  status: string
+  has_signal: boolean
 }
 
 export interface CodecCapability {
@@ -51,6 +55,14 @@ export interface VdoNinjaCapability {
   room: string
 }
 
+// Camera ID to friendly label mapping
+const cameraLabels: Record<string, string> = {
+  'cam0': 'HDMI 1',
+  'cam1': 'HDMI 2', 
+  'cam2': 'HDMI 3',
+  'cam3': 'HDMI 4',
+}
+
 export const useCapabilitiesStore = defineStore('capabilities', () => {
   const capabilities = ref<DeviceCapabilities | null>(null)
   const loading = ref(false)
@@ -58,9 +70,9 @@ export const useCapabilitiesStore = defineStore('capabilities', () => {
 
   const mixerEnabled = computed(() => capabilities.value?.mixer_available ?? false)
   const recorderEnabled = computed(() => capabilities.value?.recorder_available ?? true)
-  const vdoNinjaEnabled = computed(() => capabilities.value?.vdoninja.enabled ?? false)
+  const vdoNinjaEnabled = computed(() => capabilities.value?.vdoninja?.enabled ?? true)
   const storagePercent = computed(() => {
-    if (!capabilities.value) return 0
+    if (!capabilities.value || !capabilities.value.storage_total_gb) return 0
     const used = capabilities.value.storage_total_gb - capabilities.value.storage_available_gb
     return Math.round((used / capabilities.value.storage_total_gb) * 100)
   })
@@ -70,10 +82,61 @@ export const useCapabilitiesStore = defineStore('capabilities', () => {
     error.value = null
     
     try {
-      const response = await fetch('/api/v1/capabilities')
-      if (!response.ok) throw new Error('Failed to fetch capabilities')
-      
-      capabilities.value = await response.json()
+      // Fetch from multiple endpoints and combine
+      const [healthRes, modeRes, ingestRes] = await Promise.all([
+        fetch(buildApiUrl('/health')),
+        fetch(buildApiUrl('/api/mode/status')),
+        fetch(buildApiUrl('/api/ingest/status')),
+      ])
+
+      const health = healthRes.ok ? await healthRes.json() : {}
+      const mode = modeRes.ok ? await modeRes.json() : {}
+      const ingest = ingestRes.ok ? await ingestRes.json() : { cameras: {} }
+
+      // Build inputs from ingest status
+      const inputs: InputCapability[] = Object.entries(ingest.cameras || {}).map(([id, cam]: [string, any]) => ({
+        id,
+        type: 'hdmi',
+        label: cameraLabels[id] || id,
+        max_resolution: cam.resolution?.formatted || '4K',
+        supports_audio: true,
+        device_path: cam.device || null,
+        status: cam.status || 'unknown',
+        has_signal: cam.has_signal || false,
+      }))
+
+      // Construct capabilities from available data
+      capabilities.value = {
+        device_id: 'r58-device',
+        device_name: 'Preke R58',
+        platform: health.platform || 'R58',
+        api_version: '2.0',
+        mixer_available: mode.available_modes?.includes('mixer') ?? true,
+        recorder_available: mode.available_modes?.includes('recorder') ?? true,
+        graphics_available: true, // Graphics endpoints exist
+        fleet_agent_connected: false,
+        inputs,
+        codecs: [
+          { id: 'h264', name: 'H.264', hardware_accelerated: true, max_bitrate_kbps: 50000 },
+        ],
+        preview_modes: [
+          { id: 'whep', protocol: 'WebRTC', latency_ms: 100, url_template: '/{cam_id}/whep' },
+        ],
+        vdoninja: {
+          enabled: true,
+          host: 'r58-vdo.itagenten.no',
+          port: 443,
+          room: 'studio',
+        },
+        mediamtx_base_url: 'rtsp://127.0.0.1:8554',
+        max_simultaneous_recordings: 4,
+        max_output_resolution: '4K',
+        storage_total_gb: 0, // Not available from API
+        storage_available_gb: 0, // Not available from API
+        current_mode: mode.current_mode || 'recorder',
+      }
+
+      error.value = null
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Unknown error'
       console.error('Failed to fetch capabilities:', e)
