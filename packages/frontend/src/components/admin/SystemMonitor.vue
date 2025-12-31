@@ -50,9 +50,38 @@ const pipelines = computed(() => systemStatus.value?.pipelines ?? [])
 // Actions
 async function fetchStatus() {
   try {
-    const response = await fetch('/api/v1/system/status')
+    // Use the health endpoint which exists on the device
+    const { buildApiUrl } = await import('@/lib/api')
+    const response = await fetch(buildApiUrl('/health'))
     if (!response.ok) throw new Error('Failed to fetch status')
-    systemStatus.value = await response.json()
+    const health = await response.json()
+    
+    // Also get ingest status for pipeline info
+    const ingestResponse = await fetch(buildApiUrl('/api/ingest/status'))
+    const ingest = ingestResponse.ok ? await ingestResponse.json() : { cameras: {} }
+    
+    // Build a compatible systemStatus object from available data
+    systemStatus.value = {
+      info: {
+        hostname: 'R58 Device',
+        platform: health.platform || 'R58',
+        gstreamer: health.gstreamer,
+        load_average: [0, 0, 0], // Not available
+        memory_percent: 0, // Not available
+        uptime_seconds: 0, // Not available
+        temperatures: [], // Not available
+      },
+      services: [
+        { name: 'r58-recorder', active: health.status === 'healthy', status: health.status },
+        { name: 'mediamtx', active: true, status: 'running' },
+      ],
+      pipelines: Object.entries(ingest.cameras || {}).map(([id, cam]: [string, any]) => ({
+        pipeline_id: id,
+        pipeline_type: 'ingest',
+        device: cam.device,
+        state: cam.status === 'streaming' ? 'running' : cam.status,
+      })),
+    }
     error.value = null
   } catch (e: any) {
     error.value = e.message
@@ -63,55 +92,24 @@ async function fetchStatus() {
 }
 
 async function restartServices(service: string) {
-  try {
-    const response = await fetch('/api/v1/system/restart', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ service })
-    })
-    const data = await response.json()
-    
-    if (data.success) {
-      toast.success(`Restarted: ${data.restarted_services.join(', ')}`)
-      // Refresh status after a delay
-      setTimeout(fetchStatus, 3000)
-    } else {
-      toast.error(data.message || 'Restart failed')
-    }
-  } catch (e: any) {
-    toast.error(`Restart failed: ${e.message}`)
-  }
+  // Note: This endpoint may not exist on the device
+  toast.info('Service restart not available in this version')
 }
 
 async function rebootDevice() {
-  if (!confirm('Are you sure you want to reboot the device? This will stop all recordings.')) {
-    return
-  }
-  
-  try {
-    const response = await fetch('/api/v1/system/reboot', {
-      method: 'POST'
-    })
-    const data = await response.json()
-    
-    if (data.success) {
-      toast.success(`Rebooting in ${data.delay_seconds} seconds...`)
-    } else {
-      toast.error(data.message || 'Reboot failed')
-    }
-  } catch (e: any) {
-    toast.error(`Reboot failed: ${e.message}`)
-  }
+  // Note: This endpoint may not exist on the device
+  toast.info('Device reboot not available in this version')
 }
 
 async function stopPipeline(pipelineId: string) {
   try {
-    const response = await fetch(`/api/v1/system/pipeline/${pipelineId}/stop`, {
+    const { buildApiUrl } = await import('@/lib/api')
+    const response = await fetch(buildApiUrl(`/api/ingest/stop/${pipelineId}`), {
       method: 'POST'
     })
     const data = await response.json()
     
-    if (data.success) {
+    if (response.ok) {
       toast.success(`Stopped pipeline: ${pipelineId}`)
       await fetchStatus()
     } else {

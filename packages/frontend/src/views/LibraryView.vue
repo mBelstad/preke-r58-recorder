@@ -1,13 +1,31 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { r58Api } from '@/lib/api'
+import { buildApiUrl } from '@/lib/api'
 
 interface RecordingFile {
   filename: string
   path: string
-  size_bytes: number
-  camera_id: string
-  created_at: string
+  size: number
+  cam_id: string
+  time: string
+  url: string
+}
+
+interface DateSession {
+  session_id: string
+  name: string | null
+  start_time: string
+  end_time: string
+  recordings: RecordingFile[]
+  count: number
+  total_size: number
+}
+
+interface DateGroup {
+  date: string
+  date_sessions: DateSession[]
+  count: number
+  total_size: number
 }
 
 interface Session {
@@ -27,21 +45,59 @@ const selectedSession = ref<Session | null>(null)
 const editingName = ref<string | null>(null)
 const newName = ref('')
 
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+}
+
+function formatDuration(startTime: string, endTime: string): string {
+  // Simple duration format
+  return `${startTime} - ${endTime}`
+}
+
 async function fetchSessions() {
   loading.value = true
   error.value = null
   
   try {
-    const response = await fetch('/api/v1/recorder/sessions')
+    const url = buildApiUrl('/api/recordings')
+    const response = await fetch(url)
     if (!response.ok) {
       throw new Error(`Failed to fetch sessions: ${response.status}`)
     }
-    sessions.value = await response.json()
+    const data = await response.json()
+    
+    // Transform the API response to our Session format
+    const transformedSessions: Session[] = []
+    
+    for (const dateGroup of (data.sessions || []) as DateGroup[]) {
+      for (const session of dateGroup.date_sessions) {
+        transformedSessions.push({
+          id: session.session_id,
+          name: session.name,
+          date: dateGroup.date,
+          duration: formatDuration(session.start_time, session.end_time),
+          file_count: session.count,
+          total_size: formatBytes(session.total_size),
+          files: session.recordings.map(r => ({
+            ...r,
+            size_bytes: r.size,
+            camera_id: r.cam_id,
+            created_at: r.time,
+          })) as any,
+        })
+      }
+    }
+    
+    sessions.value = transformedSessions
   } catch (e) {
     console.error('Failed to fetch sessions:', e)
     error.value = e instanceof Error ? e.message : 'Failed to load recordings'
   } finally {
-  loading.value = false
+    loading.value = false
   }
 }
 
@@ -54,7 +110,8 @@ function closeSession() {
 }
 
 async function downloadFile(session: Session, file: RecordingFile) {
-  const url = `/api/v1/recorder/sessions/${session.id}/files/${file.filename}`
+  // Use the file's URL directly from the API response
+  const url = buildApiUrl(file.url)
   window.open(url, '_blank')
 }
 
@@ -70,7 +127,8 @@ async function saveRename(session: Session) {
   }
   
   try {
-    const response = await fetch(`/api/v1/recorder/sessions/${session.id}`, {
+    const url = buildApiUrl(`/api/sessions/${session.id}`)
+    const response = await fetch(url, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: newName.value.trim() }),
@@ -97,7 +155,8 @@ async function deleteSession(session: Session) {
   }
   
   try {
-    const response = await fetch(`/api/v1/recorder/sessions/${session.id}`, {
+    const url = buildApiUrl(`/api/sessions/${session.id}`)
+    const response = await fetch(url, {
       method: 'DELETE',
     })
     

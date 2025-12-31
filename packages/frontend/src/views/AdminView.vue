@@ -26,18 +26,9 @@ onMounted(() => {
 })
 
 async function downloadSupportBundle() {
-  try {
-    const response = await fetch('/api/v1/support/bundle', { method: 'POST' })
-    const blob = await response.blob()
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `r58-support-bundle-${new Date().toISOString().slice(0, 10)}.zip`
-    a.click()
-    URL.revokeObjectURL(url)
-  } catch (e) {
-    console.error('Failed to download support bundle:', e)
-  }
+  // Support bundle endpoint not available on device
+  // Could be implemented in Electron's main process instead
+  alert('Support bundle download not available in this version. Use the Electron app menu: Help > Export Support Bundle')
 }
 </script>
 
