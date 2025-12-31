@@ -202,6 +202,43 @@
             }
         }
 
+        /* Mode Toggle */
+        .mode-toggle {
+            display: flex;
+            gap: 0;
+            background: var(--bg-secondary);
+            border-radius: var(--radius-md);
+            padding: 2px;
+        }
+
+        .mode-btn {
+            padding: 8px 16px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: var(--text-sm);
+            font-weight: var(--weight-medium);
+            border-radius: calc(var(--radius-md) - 2px);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            white-space: nowrap;
+        }
+
+        .mode-btn:hover {
+            color: var(--text-primary);
+            background: var(--bg-hover);
+        }
+
+        .mode-btn.active {
+            background: var(--accent);
+            color: white;
+        }
+
+        .mode-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             .app-container {
@@ -233,6 +270,10 @@
 
             .mobile-overlay.active {
                 display: block;
+            }
+            
+            .mode-toggle {
+                display: none; /* Hide on mobile */
             }
         }
     </style>
@@ -292,6 +333,15 @@
             <header class="content-header">
                 <h1 class="content-title" id="contentTitle">Studio</h1>
                 <div class="flex items-center gap-md">
+                    <!-- Mode Toggle -->
+                    <div class="mode-toggle" id="modeToggle">
+                        <button class="mode-btn" data-mode="recorder" id="recorderModeBtn">
+                            📹 Recorder
+                        </button>
+                        <button class="mode-btn" data-mode="mixer" id="mixerModeBtn">
+                            🎛️ Mixer
+                        </button>
+                    </div>
                     <button class="btn btn-ghost btn-sm" onclick="window.open('/static/guest', '_blank')">
                         👤 Guest Portal
                     </button>
@@ -343,7 +393,8 @@
         const state = {
             currentSection: 'studio',
             sidebarCollapsed: false,
-            isLocalAccess: window.location.hostname === 'localhost' || window.location.hostname.includes('192.168')
+            isLocalAccess: window.location.hostname === 'localhost' || window.location.hostname.includes('192.168'),
+            currentMode: 'recorder' // 'recorder' or 'mixer'
         };
 
         // Navigation
@@ -528,7 +579,127 @@
                 </div>
             `;
         }
+
+        // Mode Management
+        async function fetchCurrentMode() {
+            try {
+                const response = await fetch('/api/mode');
+                const data = await response.json();
+                state.currentMode = data.current_mode || 'recorder';
+                updateModeUI();
+            } catch (error) {
+                console.error('Failed to fetch current mode:', error);
+            }
+        }
+
+        async function switchMode(mode) {
+            const endpoint = mode === 'mixer' ? '/api/mode/mixer' : '/api/mode/recorder';
+            
+            try {
+                // Disable buttons during switch
+                document.querySelectorAll('.mode-btn').forEach(btn => btn.disabled = true);
+                
+                const response = await fetch(endpoint, { method: 'POST' });
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    state.currentMode = mode;
+                    updateModeUI();
+                    
+                    // Show success message
+                    const message = mode === 'mixer' 
+                        ? 'Switched to Mixer mode. Individual recording disabled.'
+                        : 'Switched to Recorder mode. Individual recording enabled.';
+                    showToast(message, 'success');
+                    
+                    // Refresh current section if it's studio or mixer
+                    if (state.currentSection === 'studio' || state.currentSection === 'mixer') {
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1000);
+                    }
+                } else {
+                    showToast(data.message || 'Failed to switch mode', 'error');
+                }
+            } catch (error) {
+                console.error('Mode switch error:', error);
+                showToast('Failed to switch mode', 'error');
+            } finally {
+                // Re-enable buttons
+                document.querySelectorAll('.mode-btn').forEach(btn => btn.disabled = false);
+            }
+        }
+
+        function updateModeUI() {
+            document.querySelectorAll('.mode-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.mode === state.currentMode);
+            });
+        }
+
+        function showToast(message, type = 'info') {
+            // Simple toast notification
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 12px 20px;
+                background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'};
+                color: white;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                z-index: 10000;
+                animation: slideIn 0.3s ease;
+            `;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // Mode toggle event listeners
+        document.getElementById('recorderModeBtn').addEventListener('click', () => {
+            if (state.currentMode !== 'recorder') {
+                switchMode('recorder');
+            }
+        });
+
+        document.getElementById('mixerModeBtn').addEventListener('click', () => {
+            if (state.currentMode !== 'mixer') {
+                switchMode('mixer');
+            }
+        });
+
+        // Fetch current mode on load
+        fetchCurrentMode();
     </script>
+    
+    <style>
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+    </style>
 </body>
 </html>
 

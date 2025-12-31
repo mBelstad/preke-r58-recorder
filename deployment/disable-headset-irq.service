@@ -1,0 +1,17 @@
+[Unit]
+Description=Disable floating headset detection IRQ
+Documentation=https://github.com/mBelstad/preke-r58-recorder/blob/main/docs/HEADSET_IRQ_FIX.md
+After=multi-user.target
+
+[Service]
+Type=oneshot
+# Disable IRQ 159 which causes 277K interrupts/sec due to floating GPIO
+# This saves approximately 36% CPU usage
+ExecStart=/bin/sh -c 'echo 1 > /sys/devices/platform/fe5e0000.i2s/rk817-headset/power/wakeup || echo disabled > /proc/irq/159/spurious_unhandled || true'
+RemainAfterExit=yes
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+

@@ -136,11 +136,16 @@ else:
 calls_manager: Optional[Any] = None
 calls_relay: Optional[Any] = None
 
-# Initialize Mode Manager (for switching between Recorder and VDO.ninja modes)
+# Initialize Mode Manager (for switching between Recorder and Mixer modes)
 mode_manager = None
 try:
     from .mode_manager import ModeManager
-    mode_manager = ModeManager(ingest_manager=ingest_manager, config=config)
+    mode_manager = ModeManager(
+        ingest_manager=ingest_manager,
+        recorder=recorder,
+        mixer_core=mixer_core,
+        config=config
+    )
     logger.info(f"Mode manager initialized")
 except Exception as e:
     logger.error(f"Failed to initialize mode manager: {e}")
@@ -386,6 +391,15 @@ async def health() -> Dict[str, Any]:
 @app.post("/record/start/{cam_id}")
 async def start_recording(cam_id: str) -> Dict[str, str]:
     """Start recording for a specific camera."""
+    # Check if we're in recorder mode
+    if mode_manager:
+        current_mode = await mode_manager.get_current_mode()
+        if current_mode != "recorder":
+            raise HTTPException(
+                status_code=403,
+                detail=f"Individual camera recording not available in {current_mode} mode. Switch to recorder mode first."
+            )
+    
     if cam_id not in config.cameras:
         raise HTTPException(status_code=404, detail=f"Camera {cam_id} not found")
 
@@ -434,6 +448,15 @@ async def trigger_start(session_name: Optional[str] = None) -> Dict[str, Any]:
     This is the master trigger that starts all R58 recordings and can optionally
     trigger external cameras (Blackmagic, Obsbot) if configured.
     """
+    # Check if we're in recorder mode
+    if mode_manager:
+        current_mode = await mode_manager.get_current_mode()
+        if current_mode != "recorder":
+            raise HTTPException(
+                status_code=403,
+                detail=f"Individual camera recording not available in {current_mode} mode. Switch to recorder mode first."
+            )
+    
     logger.info(f"Master trigger START called (session_name: {session_name})")
     
     # Start all R58 recordings
@@ -625,9 +648,23 @@ async def switch_to_recorder() -> Dict[str, Any]:
     return result
 
 
+@app.post("/api/mode/mixer")
+async def switch_to_mixer_mode() -> Dict[str, Any]:
+    """Switch to Mixer Mode."""
+    if not mode_manager:
+        raise HTTPException(status_code=503, detail="Mode manager not available")
+    
+    result = await mode_manager.switch_to_mixer()
+    
+    if not result["success"]:
+        raise HTTPException(status_code=500, detail=result["message"])
+    
+    return result
+
+
 @app.post("/api/mode/vdoninja")
 async def switch_to_vdoninja() -> Dict[str, Any]:
-    """Switch to VDO.ninja Mode."""
+    """Switch to VDO.ninja Mode - DEPRECATED."""
     if not mode_manager:
         raise HTTPException(status_code=503, detail="Mode manager not available")
     
@@ -1763,6 +1800,15 @@ async def start_mixer() -> Dict[str, str]:
     """Start the mixer pipeline."""
     if not mixer_core:
         raise HTTPException(status_code=503, detail="Mixer not enabled")
+    
+    # Auto-switch to mixer mode if not already
+    if mode_manager:
+        current_mode = await mode_manager.get_current_mode()
+        if current_mode != "mixer":
+            logger.info("Auto-switching to mixer mode...")
+            result = await mode_manager.switch_to_mixer()
+            if not result["success"]:
+                raise HTTPException(status_code=500, detail=f"Failed to switch to mixer mode: {result.get('message')}")
     
     success = mixer_core.start()
     if not success:
