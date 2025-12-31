@@ -128,25 +128,23 @@ export const useRecorderStore = defineStore('recorder', () => {
     /**
      * Fetch current recorder status from API.
      * Used to sync state on initial load or after disconnect.
+     * 
+     * Note: The /status endpoint returns camera status, not recording status.
+     * Recording status would come from a separate endpoint if it exists.
      */
     try {
       const response = await r58Api.getRecorderStatus()
       
-      if (response.status === 'recording') {
+      // The /status endpoint returns cameras, not recording info
+      // Check if any cameras are actively recording (status might indicate this)
+      const cameras = response.cameras || {}
+      const hasRecordingCameras = Object.values(cameras).some((cam: any) => 
+        cam.status === 'recording'
+      )
+      
+      if (hasRecordingCameras) {
         status.value = 'recording'
-        sessionId.value = response.session_id || null
-        duration.value = response.duration_ms
-        durationMs.value = response.duration_ms
-        
-        // Mark inputs as recording
-        response.inputs.forEach(inputId => {
-          const input = inputs.value.find(i => i.id === inputId)
-          if (input) {
-            input.isRecording = true
-          }
-        })
-        
-        // Start duration timer
+        // Start duration timer if recording
         startDurationTimer()
       } else {
         status.value = 'idle'
@@ -165,15 +163,23 @@ export const useRecorderStore = defineStore('recorder', () => {
     try {
       const response = await r58Api.getInputsStatus()
       
-      // Map API response to InputStatus format
-      inputs.value = response.map((input: any) => ({
-        id: input.id,
-        label: input.label,
-        hasSignal: input.has_signal,
-        isRecording: input.is_recording,
+      // Camera labels mapping
+      const cameraLabels: Record<string, string> = {
+        'cam0': 'HDMI IN0',
+        'cam1': 'HDMI RX',
+        'cam2': 'HDMI IN11',
+        'cam3': 'HDMI IN21'
+      }
+      
+      // Map API response (cameras object) to InputStatus array
+      inputs.value = Object.entries(response.cameras).map(([id, cam]: [string, any]) => ({
+        id,
+        label: cameraLabels[id] || id,
+        hasSignal: cam.has_signal || cam.status === 'streaming' || cam.status === 'preview',
+        isRecording: false,
         bytesWritten: 0,
-        resolution: input.resolution || '',
-        framerate: input.framerate || 0,
+        resolution: cam.resolution?.formatted || '',
+        framerate: 0,
       }))
       
       inputsLoaded.value = true
