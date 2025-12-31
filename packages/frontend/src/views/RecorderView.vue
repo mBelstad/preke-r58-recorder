@@ -17,6 +17,7 @@ const duration = computed(() => recorderStore.formattedDuration)
 
 // Loading state
 const isLoading = ref(true)
+const contentReady = ref(false)
 
 function handleLoadingReady() {
   isLoading.value = false
@@ -26,6 +27,8 @@ function handleLoadingReady() {
 onMounted(async () => {
   await recorderStore.fetchInputs()
   await recorderStore.fetchStatus()
+  // Mark content as ready once data is fetched
+  contentReady.value = true
 })
 
 // Ref for leave confirmation dialog
@@ -47,6 +50,9 @@ watch(showLeaveConfirmation, (show) => {
     <ModeLoadingScreen
       v-if="isLoading"
       mode="recorder"
+      :content-ready="contentReady"
+      :min-time="1500"
+      :max-time="6000"
       @ready="handleLoadingReady"
     />
   </Transition>

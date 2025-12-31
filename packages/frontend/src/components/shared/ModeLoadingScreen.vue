@@ -1,17 +1,42 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   mode: 'recorder' | 'mixer'
-}>()
+  /** Minimum time to show loading screen (ms) */
+  minTime?: number
+  /** Maximum time before auto-dismissing (ms) */
+  maxTime?: number
+  /** Signal from parent that content is ready */
+  contentReady?: boolean
+}>(), {
+  minTime: 1500,  // Show for at least 1.5 seconds
+  maxTime: 8000,  // Max 8 seconds before auto-dismiss
+  contentReady: false
+})
 
 const emit = defineEmits<{
   (e: 'ready'): void
 }>()
 
-// Auto-dismiss after timeout
-const autoTimeout = 2500 // 2.5 seconds
-let timeoutId: ReturnType<typeof setTimeout> | null = null
+// Track if minimum time has passed
+const minTimePassed = ref(false)
+let minTimeoutId: ReturnType<typeof setTimeout> | null = null
+let maxTimeoutId: ReturnType<typeof setTimeout> | null = null
+
+// Dismiss when both minTime passed AND contentReady
+function checkAndDismiss() {
+  if (minTimePassed.value && props.contentReady) {
+    emit('ready')
+  }
+}
+
+// Watch for contentReady changes
+watch(() => props.contentReady, (ready) => {
+  if (ready) {
+    checkAndDismiss()
+  }
+})
 
 // Mode-specific styling
 const modeColor = computed(() => props.mode === 'recorder' ? '#ef4444' : '#3b82f6')
@@ -38,14 +63,21 @@ onMounted(() => {
   // Start animation
   animateBars()
   
-  // Auto-dismiss after timeout
-  timeoutId = setTimeout(() => {
+  // Minimum time before allowing dismiss
+  minTimeoutId = setTimeout(() => {
+    minTimePassed.value = true
+    checkAndDismiss()
+  }, props.minTime)
+  
+  // Maximum time - force dismiss even if content not ready
+  maxTimeoutId = setTimeout(() => {
     emit('ready')
-  }, autoTimeout)
+  }, props.maxTime)
 })
 
 onUnmounted(() => {
-  if (timeoutId) clearTimeout(timeoutId)
+  if (minTimeoutId) clearTimeout(minTimeoutId)
+  if (maxTimeoutId) clearTimeout(maxTimeoutId)
   if (animationFrame) cancelAnimationFrame(animationFrame)
 })
 </script>

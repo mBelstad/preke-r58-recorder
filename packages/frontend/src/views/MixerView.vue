@@ -43,9 +43,15 @@ const enabledDestinationsCount = computed(() => streamingStore.enabledDestinatio
 
 // Loading state
 const isLoading = ref(true)
+const contentReady = ref(false)
 
 function handleLoadingReady() {
   isLoading.value = false
+}
+
+// Mark content ready when inputs are loaded OR iframe is ready
+function markContentReady() {
+  contentReady.value = true
 }
 
 // Refresh inputs interval - adaptive based on recording state
@@ -73,9 +79,12 @@ watch(() => recorderStore.isRecording, () => {
   startInputsPolling()
 })
 
-onMounted(() => {
+onMounted(async () => {
   // Fetch initial HDMI inputs status
-  recorderStore.fetchInputs()
+  await recorderStore.fetchInputs()
+  
+  // Mark content as ready once inputs are fetched
+  markContentReady()
   
   // Set up interval to refresh inputs (adaptive rate)
   startInputsPolling()
@@ -180,6 +189,9 @@ function openHotkeySettings() {
     <ModeLoadingScreen
       v-if="isLoading"
       mode="mixer"
+      :content-ready="contentReady"
+      :min-time="1500"
+      :max-time="8000"
       @ready="handleLoadingReady"
     />
   </Transition>
