@@ -1,7 +1,7 @@
 # R58 Remote Access - Complete Guide
 
-**Last Updated**: December 28, 2025  
-**Status**: ✅ STABLE & WORKING (SSH Key Auth)
+**Last Updated**: December 31, 2025  
+**Status**: ✅ STABLE & WORKING (SSH Key Auth + Tailscale P2P)
 
 ---
 
@@ -9,7 +9,7 @@
 
 ### Connect to R58
 ```bash
-./connect-r58-frp.sh                    # Interactive shell
+./connect-r58-frp.sh                    # Interactive shell (via FRP)
 ./connect-r58-frp.sh "ls -la"          # Run command
 ```
 
@@ -19,6 +19,13 @@
 ```
 
 ### Access Web Interface
+
+**Via Tailscale (P2P - Preferred):**
+- **WHEP cam0**: https://linaro-alip.tailab6fd7.ts.net/cam0/whep
+- **WHEP cam2**: https://linaro-alip.tailab6fd7.ts.net/cam2/whep
+- **WHEP cam3**: https://linaro-alip.tailab6fd7.ts.net/cam3/whep
+
+**Via FRP/VPS (Backup):**
 - **Main App**: https://r58-api.itagenten.no/static/app.html
 - **Studio Control**: https://r58-api.itagenten.no/static/studio-control.html
 - **Studio (Multiview)**: https://r58-api.itagenten.no/static/studio.html
@@ -26,7 +33,59 @@
 
 ---
 
-## 📡 How It Works
+## 🌐 Tailscale P2P (PREFERRED)
+
+Tailscale provides direct P2P connectivity without routing through VPS.
+
+### Why Tailscale?
+| Method | Bandwidth Cost | Latency | Reliability |
+|--------|---------------|---------|-------------|
+| **Tailscale P2P** | **$0** | ~2ms | ✅ Excellent |
+| **Tailscale Relay** | **$0** | ~50ms | ✅ Good |
+| FRP/VPS | You pay | ~100ms | ⚠️ Depends on VPS |
+
+### Tailscale URLs (Public - No Install Needed)
+```
+https://linaro-alip.tailab6fd7.ts.net/cam0/whep
+https://linaro-alip.tailab6fd7.ts.net/cam2/whep
+https://linaro-alip.tailab6fd7.ts.net/cam3/whep
+```
+
+### VDO.ninja Links
+```
+https://vdo.ninja/?whepplay=https://linaro-alip.tailab6fd7.ts.net/cam0/whep
+https://vdo.ninja/?whepplay=https://linaro-alip.tailab6fd7.ts.net/cam2/whep
+https://vdo.ninja/?whepplay=https://linaro-alip.tailab6fd7.ts.net/cam3/whep
+```
+
+### P2P Direct Access (Tailscale Users Only)
+```bash
+# Tailscale IP
+curl http://100.98.37.53:8000/health
+
+# Check P2P status
+tailscale ping linaro-alip
+# Expected: "pong via 192.168.x.x:xxxxx in 2ms" (P2P)
+# If shows "via DERP(xxx)" = relay mode
+```
+
+### Tailscale on R58
+```bash
+# Check status
+tailscale status
+
+# Services (auto-start on boot)
+sudo systemctl status tailscale-userspace   # Main daemon
+sudo systemctl status tailscale-funnel       # Funnel for public access
+```
+
+**See full documentation**: [docs/TAILSCALE_P2P_INTEGRATION.md](docs/TAILSCALE_P2P_INTEGRATION.md)
+
+---
+
+## 📡 FRP Tunnel (BACKUP)
+
+FRP is used as backup when Tailscale is unavailable.
 
 ### FRP Tunnel Architecture
 
@@ -281,12 +340,27 @@ bind_port = 10022
 
 ## 🎯 Summary
 
-**Primary Method**: FRP Tunnel  
-**Primary Script**: `./connect-r58-frp.sh`  
-**Backup Method**: Local Network  
-**Backup Script**: `./connect-r58-local.sh`
+### Video Streaming
+| Priority | Method | URL Example |
+|----------|--------|-------------|
+| 1 | **Tailscale Funnel** | `https://linaro-alip.tailab6fd7.ts.net/cam0/whep` |
+| 2 | FRP/VPS | `https://r58-api.itagenten.no/cam0/whep` |
 
-**No Cloudflare** - We use FRP tunnel exclusively for remote access.
+### SSH Access
+| Priority | Method | Script |
+|----------|--------|--------|
+| 1 | **FRP Tunnel** | `./connect-r58-frp.sh` |
+| 2 | Local Network | `./connect-r58-local.sh` |
+
+### Electron App Discovery
+| Priority | Method | Connection Type |
+|----------|--------|-----------------|
+| 1 | **Tailscale** | P2P or DERP |
+| 2 | USB-C Direct | 192.168.42.1 |
+| 3 | mDNS | r58.local |
+| 4 | LAN Scan | Subnet scan |
+
+**Tailscale = P2P, $0 bandwidth cost!**
 
 ---
 

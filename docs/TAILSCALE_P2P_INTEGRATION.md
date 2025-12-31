@@ -4,6 +4,13 @@
 
 The R58 system now supports Tailscale for reliable P2P connectivity. This eliminates the need to route video streams through a VPS, reducing bandwidth costs and improving latency.
 
+## Quick Start
+
+1. **R58**: Tailscale auto-starts on boot (`tailscale-userspace.service`)
+2. **Mac**: Install Tailscale from App Store, login to same account
+3. **Electron App**: Automatically discovers R58 via Tailscale (priority method)
+4. **Public Viewers**: Use Funnel URLs (no Tailscale needed)
+
 ## How It Works
 
 1. **Tailscale Mesh Network**: Both the R58 device and the Electron app join the same Tailscale tailnet
@@ -177,9 +184,110 @@ alias tailscale='"/Applications/Tailscale.app/Contents/MacOS/Tailscale"'
                                                  └─────────────────┘
 ```
 
+## FRP Coexistence
+
+Tailscale and FRP run in parallel **without conflicts**:
+
+| Service | Purpose | When to Use |
+|---------|---------|-------------|
+| **Tailscale** | P2P connectivity, Funnel | Primary method for video streaming |
+| **FRP** | VPS tunnel (SSH, API, Media) | Backup when Tailscale unavailable |
+
+### Port Usage
+
+| Port | Service | Protocol | Notes |
+|------|---------|----------|-------|
+| 8000 | FastAPI | TCP | R58 API |
+| 8889 | MediaMTX | TCP/HTTPS | WHEP/WebRTC signaling |
+| 8189 | WebRTC UDP | UDP | Media (via FRP) |
+| 41641 | Tailscale | UDP | WireGuard P2P |
+
+FRP is a **client** on R58 (outbound connections only) - no local port conflicts.
+
+### Service Status Commands (on R58)
+
+```bash
+# Check Tailscale
+sudo systemctl status tailscale-userspace
+
+# Check FRP
+sudo systemctl status frpc
+
+# Check Tailscale connection
+tailscale status
+
+# Check Funnel
+tailscale funnel status
+```
+
+## Auto-Start on Boot
+
+Tailscale is configured to auto-start with userspace networking:
+
+```bash
+# Service file: /etc/systemd/system/tailscale-userspace.service
+# Key parameter: --tun=userspace-networking (bypasses TUN kernel requirement)
+
+# Check if enabled
+systemctl is-enabled tailscale-userspace
+
+# Re-enable if needed
+sudo systemctl enable tailscale-userspace
+```
+
+### Funnel Auto-Start
+
+Funnel is configured to auto-start via systemd:
+
+```bash
+# Service: /etc/systemd/system/tailscale-funnel.service
+# Starts after: tailscale-userspace.service, mediamtx.service
+
+# Check status
+sudo systemctl status tailscale-funnel
+
+# Manually start if needed
+sudo systemctl start tailscale-funnel
+```
+
+## UI Connection Indicator
+
+The Electron app status bar shows connection method:
+
+| Icon | Label | Meaning | Color |
+|------|-------|---------|-------|
+| ⚡ | P2P | Tailscale P2P via hole punching | Green |
+| 🔀 | Relay | Tailscale DERP relay | Blue |
+| 🏠 | LAN | Local network direct | Cyan |
+| ☁️ | VPS | FRP tunnel through VPS | Orange |
+
+Green (P2P) = best performance, $0 cost
+Orange (VPS) = working but using VPS bandwidth
+
 ## Files Modified
 
 - `packages/desktop/src/main/tailscale.ts` - Tailscale detection and device discovery
 - `packages/desktop/src/main/discovery.ts` - Integrated Tailscale as priority discovery method
 - `packages/desktop/src/preload/index.ts` - Exposed Tailscale APIs to renderer
+- `packages/frontend/src/composables/useTailscaleStatus.ts` - Tailscale status composable
+- `packages/frontend/src/components/layout/StatusBar.vue` - Connection method indicator
+- `/etc/systemd/system/tailscale-userspace.service` - R58 Tailscale auto-start
+
+## Deployment Checklist
+
+When deploying R58 to a new location:
+
+1. ✅ Tailscale service starts automatically (`tailscale-userspace.service`)
+2. ✅ Funnel starts automatically (`tailscale-funnel.service`)
+3. ✅ FRP continues working as backup
+4. ✅ Electron app auto-discovers via Tailscale
+
+**All services auto-start on boot - no manual intervention needed!**
+
+## Security Notes
+
+- Tailscale uses WireGuard encryption (AES-256)
+- Funnel URLs are HTTPS with valid TLS certificates
+- Only devices on your Tailscale tailnet can use P2P
+- Public viewers via Funnel cannot access other ports
 

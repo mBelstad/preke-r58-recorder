@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useConnectionStatus } from '@/composables/useConnectionStatus'
+import { useTailscaleStatus } from '@/composables/useTailscaleStatus'
 
 const { state, latencyMs, reconnectAttempts, statusLabel, statusColor } = useConnectionStatus()
+const { connectionMethod, connectionLabel, connectionIcon, connectionColor, isTailscaleP2P } = useTailscaleStatus()
 
 const currentTime = ref(new Date())
 
@@ -78,6 +80,22 @@ const displayStatusLabel = computed(() => {
   }
   return statusLabel.value
 })
+
+// Tooltip for connection method
+const connectionMethodTooltip = computed(() => {
+  switch (connectionMethod.value) {
+    case 'tailscale-p2p':
+      return 'Tailscale P2P: Direct connection via hole punching (best performance, no VPS cost)'
+    case 'tailscale-relay':
+      return 'Tailscale DERP: Relayed via Tailscale servers (free, good performance)'
+    case 'lan':
+      return 'Local Network: Direct LAN connection'
+    case 'frp':
+      return 'VPS Tunnel: Routed through your VPS (costs bandwidth)'
+    default:
+      return ''
+  }
+})
 </script>
 
 <template>
@@ -102,6 +120,18 @@ const displayStatusLabel = computed(() => {
           ]"
         >
           {{ displayStatusLabel }}
+        </span>
+        <!-- Connection Method Indicator (P2P/Relay/LAN/VPS) -->
+        <span 
+          v-if="connectionMethod !== 'unknown'"
+          :class="[
+            'text-xs px-1.5 py-0.5 rounded bg-zinc-800/50 flex items-center gap-1',
+            connectionColor
+          ]"
+          :title="connectionMethodTooltip"
+        >
+          <span>{{ connectionIcon }}</span>
+          <span>{{ connectionLabel }}</span>
         </span>
       </div>
     </div>
