@@ -432,43 +432,72 @@ export function buildWsUrl(path: string): string {
 
 /**
  * R58 API client with typed methods
+ * 
+ * Device API endpoints (actual):
+ * - /health - Health check
+ * - /status - Camera status
+ * - /api/ingest/status - Detailed ingest status
+ * - /{cam_id}/whep - WHEP streaming endpoint
  */
 export const r58Api = {
   // Health
   async getHealth() {
-    return apiGet<{ status: string; message?: string }>(buildApiUrl('/api/v1/health'))
+    return apiGet<{ 
+      status: string
+      platform?: string
+      gstreamer?: string
+      gstreamer_error?: string | null 
+    }>(buildApiUrl('/health'))
   },
 
   async getDetailedHealth() {
+    // Use /health as fallback since /health/detailed may not exist
     return apiGet<{
       status: string
-      timestamp: string
-      services: Array<{ name: string; status: string; message?: string }>
-      storage: { total_gb: number; available_gb: number; used_percent: number }
-      uptime_seconds: number
-    }>(buildApiUrl('/api/v1/health/detailed'))
+      platform?: string
+      gstreamer?: string
+      gstreamer_error?: string | null
+    }>(buildApiUrl('/health'))
   },
 
-  // Recorder
+  // Camera/Recorder Status
   async getRecorderStatus() {
+    // Device uses /status for camera status
     return apiGet<{
-      status: string
-      session_id?: string
-      duration_ms: number
-      inputs: string[]
-    }>(buildApiUrl('/api/v1/recorder/status'))
+      cameras: Record<string, {
+        status: string
+        config: boolean
+      }>
+    }>(buildApiUrl('/status'))
   },
 
   async getInputsStatus() {
-    return apiGet<Array<{
-      id: string
-      label: string
-      has_signal: boolean
-      is_recording: boolean
-      resolution: string | null
-      framerate: number | null
-      device_path: string | null
-    }>>(buildApiUrl('/api/v1/recorder/inputs'))
+    // Use /api/ingest/status for detailed input info
+    try {
+      return apiGet<{
+        cameras: Record<string, {
+          status: string
+          resolution?: { width: number; height: number; formatted: string }
+          config: boolean
+        }>
+        summary: {
+          streaming: number
+          error: number
+          total: number
+        }
+      }>(buildApiUrl('/api/ingest/status'))
+    } catch {
+      // Fallback to /status
+      const status = await this.getRecorderStatus()
+      return {
+        cameras: status.cameras,
+        summary: {
+          streaming: Object.values(status.cameras).filter(c => c.status === 'streaming' || c.status === 'preview').length,
+          error: Object.values(status.cameras).filter(c => c.status === 'error').length,
+          total: Object.keys(status.cameras).length
+        }
+      }
+    }
   },
 
   async startRecording(options?: { name?: string; inputs?: string[] }) {
@@ -479,7 +508,7 @@ export const r58Api = {
       inputs: string[]
       status: string
     }>(
-      buildApiUrl('/api/v1/recorder/start'),
+      buildApiUrl('/api/recorder/start'),
       options,
       { idempotent: true }
     )
@@ -492,27 +521,34 @@ export const r58Api = {
       files: Record<string, string>
       status: string
     }>(
-      buildApiUrl('/api/v1/recorder/stop'),
+      buildApiUrl('/api/recorder/stop'),
       sessionId ? { session_id: sessionId } : undefined,
       { idempotent: true }
     )
   },
 
-  // Capabilities
+  // Capabilities - construct from /status
   async getCapabilities() {
-    return apiGet<{
-      device_id: string
-      inputs: Array<{
-        id: string
-        label: string
-        type: string
-        device_path?: string
-        has_signal: boolean
-      }>
-      codecs: Array<{ id: string; name: string; hardware_accelerated: boolean }>
-      preview_modes: Array<{ id: string; name: string }>
-      vdoninja?: { enabled: boolean; port: number; room: string }
-    }>(buildApiUrl('/api/v1/capabilities'))
+    const status = await this.getRecorderStatus()
+    const cameraLabels: Record<string, string> = {
+      'cam0': 'HDMI IN0',
+      'cam1': 'HDMI RX',
+      'cam2': 'HDMI IN11',
+      'cam3': 'HDMI IN21'
+    }
+    
+    return {
+      device_id: 'r58-device',
+      inputs: Object.entries(status.cameras).map(([id, info]) => ({
+        id,
+        label: cameraLabels[id] || id,
+        type: 'hdmi',
+        has_signal: info.status === 'streaming' || info.status === 'preview'
+      })),
+      codecs: [{ id: 'h264', name: 'H.264', hardware_accelerated: true }],
+      preview_modes: [{ id: 'whep', name: 'WHEP WebRTC' }],
+      vdoninja: undefined
+    }
   },
 
   // Degradation
