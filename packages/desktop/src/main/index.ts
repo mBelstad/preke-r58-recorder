@@ -16,7 +16,9 @@ import { setupDiscoveryHandlers } from './discovery'
 // Prevent multiple instances
 const gotTheLock = app.requestSingleInstanceLock()
 if (!gotTheLock) {
+  console.error('Another instance is already running')
   app.quit()
+  process.exit(1)
 }
 
 // Initialize logger early
@@ -27,6 +29,7 @@ log.info(`Version: ${app.getVersion()}`)
 log.info(`Electron: ${process.versions.electron}`)
 log.info(`Chrome: ${process.versions.chrome}`)
 log.info(`Node: ${process.versions.node}`)
+log.info('Got single instance lock, waiting for app ready...')
 
 /**
  * Handle certificate errors for self-signed certificates on user-configured devices

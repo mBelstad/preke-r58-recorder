@@ -82,7 +82,7 @@ function getLocalNetworks(): { ip: string; subnet: string }[] {
 }
 
 /**
- * Try to resolve common R58 hostnames via mDNS/DNS
+ * Try to resolve common R58 hostnames and known IPs via mDNS/DNS
  */
 async function tryKnownHostnames(): Promise<DiscoveredDevice[]> {
   const hostnames = [
@@ -93,8 +93,34 @@ async function tryKnownHostnames(): Promise<DiscoveredDevice[]> {
     'r58-api.local'
   ]
 
+  // Known direct connection IPs (USB-C gadget, hotspot)
+  const knownIPs = [
+    '192.168.42.1',   // USB-C gadget mode (highest priority)
+    '192.168.4.1',    // Wi-Fi hotspot mode
+  ]
+
   const devices: DiscoveredDevice[] = []
 
+  // First, try known direct connection IPs (fastest)
+  for (const ip of knownIPs) {
+    try {
+      const device = await probeDevice(ip, 8000)
+      if (device) {
+        device.source = 'probe'
+        if (ip === '192.168.42.1') {
+          device.name = `${device.name} (USB-C)`
+        } else if (ip === '192.168.4.1') {
+          device.name = `${device.name} (Hotspot)`
+        }
+        devices.push(device)
+        log.info(`Found device via direct connection: ${ip}`)
+      }
+    } catch (error) {
+      // IP not reachable, continue
+    }
+  }
+
+  // Then try mDNS/DNS hostnames
   for (const hostname of hostnames) {
     try {
       const addresses = await new Promise<string[]>((resolve) => {
@@ -139,17 +165,17 @@ async function probeDevice(
 
   for (const baseUrl of urls) {
     try {
-      const result = await probeUrl(`${baseUrl}/api/v1/health`, timeout)
-      if (result) {
+      const result = await probeUrl(`${baseUrl}/health`, timeout)
+      if (result && result.status === 'healthy') {
         return {
           id: `preke-${ip.replace(/\./g, '-')}`,
-          name: result.device_name || 'Preke Device',
+          name: `Preke Device (${ip})`,
           host: ip,
           port: parseInt(baseUrl.split(':').pop() || '8000'),
           url: baseUrl,
           source: 'probe',
           status: result.status,
-          version: result.api_version
+          version: result.platform || 'unknown'
         }
       }
     } catch (error) {
@@ -307,18 +333,18 @@ function stopDiscovery(): void {
 async function probeSpecificUrl(url: string): Promise<DiscoveredDevice | null> {
   try {
     const urlObj = new URL(url)
-    const result = await probeUrl(`${url}/api/v1/health`, 5000)
+    const result = await probeUrl(`${url}/health`, 5000)
     
-    if (result) {
+    if (result && result.status === 'healthy') {
       return {
         id: `preke-${urlObj.host.replace(/[.:]/g, '-')}`,
-        name: result.device_name || 'Preke Device',
+        name: `Preke Device (${urlObj.hostname})`,
         host: urlObj.hostname,
-        port: parseInt(urlObj.port) || (urlObj.protocol === 'https:' ? 443 : 80),
+        port: parseInt(urlObj.port) || (urlObj.protocol === 'https:' ? 443 : 8000),
         url: url.replace(/\/$/, ''),
         source: 'probe',
         status: result.status,
-        version: result.api_version
+        version: result.platform || 'unknown'
       }
     }
   } catch (error) {
