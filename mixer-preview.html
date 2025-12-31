@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>R58 Mixer Preview</title>
+    <style>
+        :root {
+            --bg-dark: #0a0a0a;
+            --bg-panel: #141414;
+            --bg-element: #1f1f1f;
+            --bg-hover: #2a2a2a;
+            --text-primary: #ffffff;
+            --text-secondary: rgba(255, 255, 255, 0.7);
+            --text-muted: rgba(255, 255, 255, 0.4);
+            --accent-primary: #3b82f6;
+            --accent-danger: #ef4444;
+            --accent-success: #10b981;
+            --accent-warning: #f59e0b;
+            --border-light: rgba(255, 255, 255, 0.1);
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 16px;
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+            --shadow-md: 0 4px 6px rgba(0,0,0,0.5);
+            --transition-fast: 0.15s ease;
+        }
+        
+        [data-theme="light"] {
+            --bg-dark: #f5f5f7;
+            --bg-panel: #ffffff;
+            --bg-element: #f0f0f5;
+            --bg-hover: #e8e8ed;
+            --text-primary: #1d1d1f;
+            --text-secondary: rgba(0, 0, 0, 0.6);
+            --text-muted: rgba(0, 0, 0, 0.35);
+            --accent-primary: #007AFF;
+            --accent-danger: #FF3B30;
+            --accent-success: #34C759;
+            --border-light: rgba(0, 0, 0, 0.1);
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.12);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 200px 1fr 200px;
+            height: 100vh;
+        }
+
+        .sidebar {
+            background: var(--bg-panel);
+            border-right: 1px solid var(--border-light);
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            transition: background 0.3s;
+        }
+
+        .sidebar.right {
+            border-right: none;
+            border-left: 1px solid var(--border-light);
+        }
+
+        .status-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px;
+            background: var(--bg-element);
+            border-radius: var(--radius-sm);
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-success);
+            box-shadow: 0 0 8px var(--accent-success);
+        }
+
+        .toolbar {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .toolbar-btn {
+            width: 44px;
+            height: 44px;
+            background: var(--bg-element);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-sm);
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all var(--transition-fast);
+        }
+
+        .toolbar-btn:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        .toolbar-btn.active {
+            background: rgba(59, 130, 246, 0.15);
+            border-color: var(--accent-primary);
+            color: var(--accent-primary);
+        }
+
+        .camera-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .camera-input {
+            position: relative;
+            background: #000;
+            border-radius: var(--radius-sm);
+            aspect-ratio: 16/9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid var(--border-light);
+        }
+
+        .camera-input.active {
+            border-color: var(--accent-primary);
+        }
+
+        .signal-dot {
+            position: absolute;
+            top: 6px;
+            left: 6px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .signal-dot.live { background: var(--accent-success); box-shadow: 0 0 6px var(--accent-success); }
+        .signal-dot.none { background: var(--accent-danger); }
+        .signal-dot.disabled { background: #4b5563; }
+
+        .camera-label {
+            font-size: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .center {
+            background: #000;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .outputs {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 16px;
+            padding: 16px;
+            align-items: center;
+        }
+
+        .output {
+            background: #000;
+            border-radius: var(--radius-md);
+            aspect-ratio: 16/9;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .output.preview {
+            border: 3px solid var(--accent-success);
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.2);
+        }
+
+        .output.program {
+            border: 3px solid var(--accent-danger);
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.2);
+        }
+
+        .output-label {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            background: rgba(0,0,0,0.8);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+
+        .output.preview .output-label { color: var(--accent-success); border-left: 3px solid var(--accent-success); }
+        .output.program .output-label { color: var(--accent-danger); border-left: 3px solid var(--accent-danger); }
+
+        .output-text {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .take-btn {
+            width: 90px;
+            height: 70px;
+            background: linear-gradient(145deg, #ef4444, #dc2626);
+            border: none;
+            border-radius: var(--radius-lg);
+            color: white;
+            font-size: 16px;
+            font-weight: 800;
+            letter-spacing: 2px;
+            cursor: pointer;
+            box-shadow: 0 6px 20px rgba(239, 68, 68, 0.5);
+            transition: all var(--transition-fast);
+        }
+
+        .take-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 25px rgba(239, 68, 68, 0.65);
+        }
+
+        .scene-section {
+            background: var(--bg-panel);
+            padding: 16px;
+            border-top: 1px solid var(--border-light);
+            transition: background 0.3s;
+        }
+
+        .scene-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 12px;
+        }
+
+        .scene-btn {
+            padding: 20px 16px;
+            background: var(--bg-element);
+            border: 2px solid var(--border-light);
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            cursor: pointer;
+            position: relative;
+            transition: all var(--transition-fast);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .scene-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .scene-btn.program {
+            background: rgba(239, 68, 68, 0.12);
+            border-color: var(--accent-danger);
+            color: var(--accent-danger);
+            box-shadow: 0 0 0 2px var(--accent-danger);
+        }
+
+        .scene-btn.program::after {
+            content: 'LIVE';
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            font-size: 8px;
+            background: var(--accent-danger);
+            color: white;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+
+        .scene-btn.preview {
+            background: rgba(16, 185, 129, 0.12);
+            border-color: var(--accent-success);
+            color: var(--accent-success);
+            box-shadow: 0 0 0 2px var(--accent-success);
+        }
+
+        .scene-btn.preview::after {
+            content: 'PVW';
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            font-size: 8px;
+            background: var(--accent-success);
+            color: white;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+
+        .transition-btn {
+            padding: 14px;
+            background: var(--bg-element);
+            border: 2px solid var(--border-light);
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            width: 100%;
+        }
+
+        .transition-btn.cut {
+            border-color: var(--accent-danger);
+            color: var(--accent-danger);
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        .system-btn {
+            padding: 14px;
+            border: none;
+            border-radius: var(--radius-md);
+            color: white;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        .system-btn.start { background: var(--accent-success); }
+        .system-btn.stop { background: var(--accent-danger); }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .badge.local {
+            background: rgba(16, 185, 129, 0.2);
+            border: 1px solid var(--accent-success);
+            color: var(--accent-success);
+        }
+
+        .theme-toggle {
+            position: fixed;
+            top: 16px;
+            right: 220px;
+            z-index: 100;
+        }
+
+        [data-theme="light"] .scene-btn {
+            background: white;
+        }
+
+        [data-theme="light"] .scene-section {
+            background: white;
+        }
+    </style>
+</head>
+<body>
+    <button class="toolbar-btn theme-toggle" onclick="toggleTheme()" title="Toggle Theme">🌓</button>
+    
+    <div class="container">
+        <!-- Left Sidebar -->
+        <div class="sidebar">
+            <div class="status-bar">
+                <div class="status-dot"></div>
+                <span>PLAYING</span>
+            </div>
+            
+            <div class="toolbar">
+                <button class="toolbar-btn">📋</button>
+                <button class="toolbar-btn">🎬</button>
+                <button class="toolbar-btn">🎨</button>
+                <button class="toolbar-btn">🔊</button>
+                <button class="toolbar-btn active">🌓</button>
+                <button class="toolbar-btn">⚙️</button>
+                <button class="toolbar-btn">🔄</button>
+            </div>
+            
+            <div class="status-bar">
+                <div class="status-dot"></div>
+                <span>HEALTHY</span>
+            </div>
+            
+            <div class="badge local">🏠 LOCAL</div>
+            
+            <div class="camera-grid">
+                <div class="camera-input active">
+                    <div class="signal-dot live"></div>
+                    <span class="camera-label">CAM 1</span>
+                </div>
+                <div class="camera-input">
+                    <div class="signal-dot live"></div>
+                    <span class="camera-label">CAM 2</span>
+                </div>
+                <div class="camera-input">
+                    <div class="signal-dot none"></div>
+                    <span class="camera-label">CAM 3</span>
+                </div>
+                <div class="camera-input">
+                    <div class="signal-dot disabled"></div>
+                    <span class="camera-label">CAM 4</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Center -->
+        <div class="center">
+            <div class="outputs">
+                <div class="output preview">
+                    <div class="output-label">PVW</div>
+                    <span class="output-text">CAM 2 FULL</span>
+                </div>
+                
+                <button class="take-btn">TAKE</button>
+                
+                <div class="output program">
+                    <div class="output-label">PGM</div>
+                    <span class="output-text">CAM 1 FULL</span>
+                </div>
+            </div>
+            
+            <div class="scene-section">
+                <div class="scene-grid">
+                    <button class="scene-btn program">CAM 1 FULL</button>
+                    <button class="scene-btn preview">CAM 2 FULL</button>
+                    <button class="scene-btn">SIDE BY SIDE</button>
+                    <button class="scene-btn">QUAD VIEW</button>
+                    <button class="scene-btn">PIP CAM 2</button>
+                    <button class="scene-btn">INTERVIEW</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Sidebar -->
+        <div class="sidebar right">
+            <button class="transition-btn cut">CUT</button>
+            <button class="transition-btn">AUTO</button>
+            <button class="transition-btn">MIX</button>
+            
+            <div style="flex: 1;"></div>
+            
+            <div class="status-bar">
+                <div class="status-dot"></div>
+                <span>PLAYING</span>
+            </div>
+            
+            <button class="system-btn start">START</button>
+            <button class="system-btn stop">STOP</button>
+        </div>
+    </div>
+
+    <script>
+        function toggleTheme() {
+            const html = document.documentElement;
+            const current = html.getAttribute('data-theme');
+            html.setAttribute('data-theme', current === 'light' ? 'dark' : 'light');
+        }
+        
+        // Make scene buttons interactive
+        document.querySelectorAll('.scene-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                // Clear preview from others
+                document.querySelectorAll('.scene-btn.preview').forEach(b => b.classList.remove('preview'));
+                // Add preview to clicked (if not program)
+                if (!btn.classList.contains('program')) {
+                    btn.classList.add('preview');
+                }
+            });
+        });
+        
+        // Take button
+        document.querySelector('.take-btn').addEventListener('click', () => {
+            const preview = document.querySelector('.scene-btn.preview');
+            const program = document.querySelector('.scene-btn.program');
+            if (preview) {
+                program?.classList.remove('program');
+                preview.classList.remove('preview');
+                preview.classList.add('program');
+            }
+        });
+    </script>
+</body>
+</html>
