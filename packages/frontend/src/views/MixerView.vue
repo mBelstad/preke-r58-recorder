@@ -19,6 +19,7 @@ import { useMixerStore } from '@/stores/mixer'
 import { useRecorderStore } from '@/stores/recorder'
 import { useStreamingStore } from '@/stores/streaming'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
+import { useLocalDeviceMode } from '@/composables/useLocalDeviceMode'
 import { toast } from '@/composables/useToast'
 import VdoNinjaEmbed from '@/components/mixer/VdoNinjaEmbed.vue'
 import SourcePanel from '@/components/mixer/SourcePanel.vue'
@@ -29,17 +30,23 @@ import RecordingControls from '@/components/mixer/RecordingControls.vue'
 import HotkeySettings from '@/components/mixer/HotkeySettings.vue'
 import ConnectionStatus from '@/components/mixer/ConnectionStatus.vue'
 import ModeLoadingScreen from '@/components/shared/ModeLoadingScreen.vue'
+import MixerLiteView from '@/components/mixer/MixerLiteView.vue'
 
 const mixerStore = useMixerStore()
 const recorderStore = useRecorderStore()
 const streamingStore = useStreamingStore()
 const { register } = useKeyboardShortcuts()
+const { isLiteMode, modeLabel } = useLocalDeviceMode()
 const vdoEmbedRef = ref<InstanceType<typeof VdoNinjaEmbed> | null>(null)
 const streamingSettingsRef = ref<InstanceType<typeof StreamingSettings> | null>(null)
 const hotkeySettingsRef = ref<InstanceType<typeof HotkeySettings> | null>(null)
 
 const isLive = computed(() => mixerStore.isLive)
 const enabledDestinationsCount = computed(() => streamingStore.enabledDestinations.length)
+
+// Force full mode (user can override lite mode)
+const forceFullMode = ref(false)
+const showFullMixer = computed(() => !isLiteMode.value || forceFullMode.value)
 
 // Loading state
 const isLoading = ref(true)
@@ -186,19 +193,27 @@ function openHotkeySettings() {
 </script>
 
 <template>
-  <!-- Loading Screen -->
-  <Transition name="fade">
-    <ModeLoadingScreen
-      v-if="isLoading"
-      mode="mixer"
-      :content-ready="contentReady"
-      :min-time="2000"
-      :max-time="15000"
-      @ready="handleLoadingReady"
-    />
-  </Transition>
+  <!-- Lite Mode for on-device usage (no VDO.ninja iframe) -->
+  <MixerLiteView 
+    v-if="!showFullMixer"
+    @enable-full-mode="forceFullMode = true"
+  />
   
-  <div class="h-full flex flex-col">
+  <!-- Full Mode with VDO.ninja -->
+  <template v-else>
+    <!-- Loading Screen -->
+    <Transition name="fade">
+      <ModeLoadingScreen
+        v-if="isLoading"
+        mode="mixer"
+        :content-ready="contentReady"
+        :min-time="2000"
+        :max-time="15000"
+        @ready="handleLoadingReady"
+      />
+    </Transition>
+    
+    <div class="h-full flex flex-col">
     <!-- Header -->
     <header class="flex items-center justify-between px-6 py-4 border-b border-r58-bg-tertiary bg-r58-bg-secondary" data-testid="mixer-header">
       <div class="flex items-center gap-4">
@@ -318,6 +333,7 @@ function openHotkeySettings() {
     <!-- Hotkey Settings Modal -->
     <HotkeySettings ref="hotkeySettingsRef" />
   </div>
+  </template>
 </template>
 
 <style scoped>

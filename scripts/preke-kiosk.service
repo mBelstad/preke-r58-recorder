@@ -1,0 +1,19 @@
+[Unit]
+Description=Preke Studio Kiosk Mode
+After=graphical.target preke-recorder.service
+Wants=preke-recorder.service
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+User=linaro
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=/home/linaro/.Xauthority
+ExecStartPre=/bin/sleep 5
+ExecStart=/opt/preke-r58-recorder/scripts/preke-kiosk.sh
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=graphical-session.target
+
