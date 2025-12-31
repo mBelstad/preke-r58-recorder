@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRecorderStore } from '@/stores/recorder'
+import { buildApiUrl } from '@/lib/api'
 
 const props = defineProps<{
   inputId: string
@@ -14,11 +15,10 @@ const videoRef = ref<HTMLVideoElement | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
 
-// Get preview URL from API proxy (same origin, avoids mixed content issues)
+// Get preview URL using device base URL
 function getPreviewUrl(): string {
-  // Use API proxy endpoint for WHEP - served over same HTTPS origin
-  const origin = window.location.origin
-  return `${origin}/api/v1/whep/${props.inputId}/whep`
+  // WHEP endpoint is at /{cam_id}/whep on the device
+  return buildApiUrl(`/${props.inputId}/whep`)
 }
 
 // Track peer connection for cleanup
