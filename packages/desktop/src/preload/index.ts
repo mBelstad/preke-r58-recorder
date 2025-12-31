@@ -27,9 +27,41 @@ interface DiscoveredDevice {
   host: string
   port: number
   url: string
-  source: 'mdns' | 'probe' | 'hostname'
+  source: 'mdns' | 'probe' | 'hostname' | 'tailscale'
   status?: string
   version?: string
+  /** Tailscale-specific: whether connection is P2P or via DERP relay */
+  isP2P?: boolean
+  /** Tailscale-specific: latency in ms */
+  latencyMs?: number
+  /** Tailscale IP if discovered via Tailscale */
+  tailscaleIp?: string
+}
+
+/**
+ * Tailscale status type
+ */
+interface TailscaleStatus {
+  installed: boolean
+  running: boolean
+  loggedIn: boolean
+  selfIp?: string
+  selfHostname?: string
+  version?: string
+  error?: string
+}
+
+/**
+ * Tailscale device type
+ */
+interface TailscaleDevice {
+  id: string
+  name: string
+  hostname: string
+  tailscaleIp: string
+  online: boolean
+  os?: string
+  isP2P: boolean
 }
 
 /**
@@ -214,6 +246,35 @@ const electronAPI = {
     const handler = (_event: Electron.IpcRendererEvent, devices: DiscoveredDevice[]) => callback(devices)
     ipcRenderer.on('discovery:complete', handler)
     return () => ipcRenderer.removeListener('discovery:complete', handler)
+  },
+
+  /**
+   * Listen for discovery phase changes
+   */
+  onDiscoveryPhase: (callback: (phase: { phase: string; message: string }) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, phase: { phase: string; message: string }) => callback(phase)
+    ipcRenderer.on('discovery:phase', handler)
+    return () => ipcRenderer.removeListener('discovery:phase', handler)
+  },
+
+  // ============================================
+  // Tailscale P2P
+  // ============================================
+
+  /**
+   * Get Tailscale status
+   * Checks if Tailscale is installed, running, and logged in
+   */
+  getTailscaleStatus: (): Promise<TailscaleStatus> => {
+    return ipcRenderer.invoke('tailscale:status')
+  },
+
+  /**
+   * Find R58 devices on Tailscale network
+   * Returns devices that are online and running R58 API
+   */
+  findTailscaleDevices: (): Promise<TailscaleDevice[]> => {
+    return ipcRenderer.invoke('tailscale:find-devices')
   },
 
   // ============================================

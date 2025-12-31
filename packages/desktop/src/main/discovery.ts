@@ -2,9 +2,10 @@
  * Device Discovery - Find R58/Preke devices on local network
  * 
  * Uses multiple methods:
- * 1. mDNS/Bonjour (if available) - looks for _http._tcp services with preke/r58 names
- * 2. HTTP probing - scans local subnet for R58 API endpoints
- * 3. Known hostnames - tries common names like r58.local, preke.local
+ * 1. Tailscale (preferred) - P2P mesh network for reliable connectivity
+ * 2. mDNS/Bonjour (if available) - looks for _http._tcp services with preke/r58 names
+ * 3. HTTP probing - scans local subnet for R58 API endpoints
+ * 4. Known hostnames - tries common names like r58.local, preke.local
  */
 
 import { ipcMain, BrowserWindow } from 'electron'
@@ -13,6 +14,13 @@ import * as http from 'http'
 import * as https from 'https'
 import * as dns from 'dns'
 import * as os from 'os'
+import { 
+  getTailscaleStatus, 
+  findR58DevicesOnTailscale, 
+  getR58TailscaleUrl,
+  TailscaleDevice,
+  TailscaleStatus
+} from './tailscale'
 
 export interface DiscoveredDevice {
   id: string
@@ -20,9 +28,15 @@ export interface DiscoveredDevice {
   host: string
   port: number
   url: string
-  source: 'mdns' | 'probe' | 'hostname'
+  source: 'mdns' | 'probe' | 'hostname' | 'tailscale'
   status?: string
   version?: string
+  /** Tailscale-specific: whether connection is P2P or via DERP relay */
+  isP2P?: boolean
+  /** Tailscale-specific: latency in ms */
+  latencyMs?: number
+  /** Tailscale IP if discovered via Tailscale */
+  tailscaleIp?: string
 }
 
 let isScanning = false
@@ -79,6 +93,39 @@ function getLocalNetworks(): { ip: string; subnet: string }[] {
   }
 
   return networks
+}
+
+/**
+ * Discover R58 devices via Tailscale (P2P preferred)
+ */
+async function discoverViaTailscale(): Promise<DiscoveredDevice[]> {
+  try {
+    const tailscaleDevices = await findR58DevicesOnTailscale()
+    const devices: DiscoveredDevice[] = []
+
+    for (const tsDevice of tailscaleDevices) {
+      const { url, isP2P, latencyMs } = await getR58TailscaleUrl(tsDevice)
+      
+      devices.push({
+        id: `tailscale-${tsDevice.tailscaleIp.replace(/\./g, '-')}`,
+        name: `${tsDevice.name} ${isP2P ? '(P2P)' : '(Relay)'}`,
+        host: tsDevice.tailscaleIp,
+        port: 8000,
+        url,
+        source: 'tailscale',
+        status: 'healthy',
+        version: tsDevice.os,
+        isP2P,
+        latencyMs,
+        tailscaleIp: tsDevice.tailscaleIp,
+      })
+    }
+
+    return devices
+  } catch (error) {
+    log.error('Tailscale discovery error:', error)
+    return []
+  }
 }
 
 /**
@@ -286,8 +333,20 @@ async function startDiscovery(window: BrowserWindow): Promise<void> {
   }
 
   try {
+    // Phase 0: Tailscale (fastest, P2P preferred)
+    log.info('Phase 0: Checking Tailscale for P2P devices...')
+    window.webContents.send('discovery:phase', { phase: 'tailscale', message: 'Checking Tailscale...' })
+    const tailscaleDevices = await discoverViaTailscale()
+    for (const device of tailscaleDevices) {
+      onDeviceFound(device)
+    }
+    if (tailscaleDevices.length > 0) {
+      log.info(`Found ${tailscaleDevices.length} device(s) via Tailscale P2P`)
+    }
+
     // Phase 1: Try known hostnames (fast)
     log.info('Phase 1: Trying known hostnames...')
+    window.webContents.send('discovery:phase', { phase: 'hostname', message: 'Trying known hostnames...' })
     const hostnameDevices = await tryKnownHostnames()
     for (const device of hostnameDevices) {
       onDeviceFound(device)
@@ -296,6 +355,7 @@ async function startDiscovery(window: BrowserWindow): Promise<void> {
     // Phase 2: Scan local networks (slower)
     if (!scanAbortController.signal.aborted) {
       log.info('Phase 2: Scanning local network...')
+      window.webContents.send('discovery:phase', { phase: 'lan', message: 'Scanning local network...' })
       const networks = getLocalNetworks()
       
       for (const network of networks) {
@@ -381,6 +441,19 @@ export function setupDiscoveryHandlers(getWindow: () => BrowserWindow | null): v
     return isScanning
   })
 
+  // Get Tailscale status
+  ipcMain.handle('tailscale:status', async () => {
+    return getTailscaleStatus()
+  })
+
+  // Find R58 devices on Tailscale
+  ipcMain.handle('tailscale:find-devices', async () => {
+    return findR58DevicesOnTailscale()
+  })
+
   log.info('Discovery IPC handlers registered')
 }
+
+// Re-export Tailscale types for preload
+export type { TailscaleStatus, TailscaleDevice }
 
