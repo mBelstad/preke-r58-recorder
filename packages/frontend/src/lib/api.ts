@@ -474,7 +474,7 @@ export const r58Api = {
   async getInputsStatus() {
     // Use /api/ingest/status for detailed input info
     try {
-      return apiGet<{
+      return await apiGet<{
         cameras: Record<string, {
           status: string
           resolution?: { width: number; height: number; formatted: string }
@@ -487,7 +487,7 @@ export const r58Api = {
         }
       }>(buildApiUrl('/api/ingest/status'))
     } catch {
-      // Fallback to /status
+      // Fallback to /status if /api/ingest/status fails
       const status = await this.getRecorderStatus()
       return {
         cameras: status.cameras,
