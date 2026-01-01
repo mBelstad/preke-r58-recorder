@@ -30,40 +30,42 @@ export interface HotkeyDefinition {
 const DEFAULT_HOTKEYS: HotkeyDefinition[] = [
   // Global
   { id: 'help', key: '?', modifiers: ['shift'], description: 'Show keyboard shortcuts', context: 'global', category: 'Navigation', editable: false },
-  { id: 'goto-recorder', key: 'r', description: 'Go to Recorder', context: 'global', category: 'Navigation', editable: true },
-  { id: 'goto-mixer', key: 'm', description: 'Go to Mixer', context: 'global', category: 'Navigation', editable: true },
+  { id: 'goto-recorder', key: 'r', modifiers: ['alt'], description: 'Go to Recorder', context: 'global', category: 'Navigation', editable: true },
+  { id: 'goto-mixer', key: 'm', modifiers: ['alt'], description: 'Go to Mixer', context: 'global', category: 'Navigation', editable: true },
   { id: 'escape', key: 'Escape', description: 'Close modal / Cancel', context: 'global', category: 'Navigation', editable: false },
   
-  // Mixer - Scenes
-  { id: 'scene-1', key: '1', description: 'Switch to Scene 1', context: 'mixer', category: 'Scenes', editable: true },
-  { id: 'scene-2', key: '2', description: 'Switch to Scene 2', context: 'mixer', category: 'Scenes', editable: true },
-  { id: 'scene-3', key: '3', description: 'Switch to Scene 3', context: 'mixer', category: 'Scenes', editable: true },
-  { id: 'scene-4', key: '4', description: 'Switch to Scene 4', context: 'mixer', category: 'Scenes', editable: true },
-  { id: 'scene-5', key: '5', description: 'Switch to Scene 5', context: 'mixer', category: 'Scenes', editable: true },
-  { id: 'scene-6', key: '6', description: 'Switch to Scene 6', context: 'mixer', category: 'Scenes', editable: true },
-  { id: 'scene-7', key: '7', description: 'Switch to Scene 7', context: 'mixer', category: 'Scenes', editable: true },
-  { id: 'scene-8', key: '8', description: 'Switch to Scene 8', context: 'mixer', category: 'Scenes', editable: true },
-  { id: 'scene-9', key: '9', description: 'Switch to Scene 9', context: 'mixer', category: 'Scenes', editable: true },
+  // Mixer - Scenes (Preview selection)
+  { id: 'scene-1', key: '1', description: 'Select Scene 1 for preview', context: 'mixer', category: 'Scenes', editable: true },
+  { id: 'scene-2', key: '2', description: 'Select Scene 2 for preview', context: 'mixer', category: 'Scenes', editable: true },
+  { id: 'scene-3', key: '3', description: 'Select Scene 3 for preview', context: 'mixer', category: 'Scenes', editable: true },
+  { id: 'scene-4', key: '4', description: 'Select Scene 4 for preview', context: 'mixer', category: 'Scenes', editable: true },
+  { id: 'scene-5', key: '5', description: 'Select Scene 5 for preview', context: 'mixer', category: 'Scenes', editable: true },
+  { id: 'scene-6', key: '6', description: 'Select Scene 6 for preview', context: 'mixer', category: 'Scenes', editable: true },
+  { id: 'scene-7', key: '7', description: 'Select Scene 7 for preview', context: 'mixer', category: 'Scenes', editable: true },
+  { id: 'scene-8', key: '8', description: 'Select Scene 8 for preview', context: 'mixer', category: 'Scenes', editable: true },
   
-  // Mixer - Transitions
-  { id: 'cut', key: 't', description: 'Cut transition', context: 'mixer', category: 'Transitions', editable: true },
-  { id: 'fade', key: 'a', description: 'Auto-transition (fade)', context: 'mixer', category: 'Transitions', editable: true },
-  { id: 'cycle-sources', key: 'Tab', description: 'Cycle through sources', context: 'mixer', category: 'Transitions', editable: true },
+  // Mixer - Transitions (PVW/PGM workflow)
+  { id: 'take', key: ' ', description: 'TAKE - Transition preview to program', context: 'mixer', category: 'Transitions', editable: false },
+  { id: 'cut', key: 'Escape', description: 'CUT - Immediate switch to preview', context: 'mixer', category: 'Transitions', editable: false },
+  { id: 'transition-cut', key: 't', description: 'Set transition: Cut', context: 'mixer', category: 'Transitions', editable: true },
+  { id: 'transition-fade', key: 'f', description: 'Set transition: Fade', context: 'mixer', category: 'Transitions', editable: true },
   
   // Mixer - Control
   { id: 'go-live', key: 'g', description: 'Toggle Go Live', context: 'mixer', category: 'Control', editable: true },
-  { id: 'toggle-recording', key: 'r', modifiers: ['ctrl'], description: 'Toggle local recording', context: 'mixer', category: 'Control', editable: true },
+  { id: 'toggle-recording', key: 'r', description: 'Toggle recording', context: 'mixer', category: 'Control', editable: true },
   { id: 'mute-all', key: 'm', modifiers: ['ctrl'], description: 'Mute all sources', context: 'mixer', category: 'Control', editable: true },
+  { id: 'toggle-sidebar', key: 's', modifiers: ['ctrl'], description: 'Toggle sidebar', context: 'mixer', category: 'Control', editable: true },
   
-  // Mixer - Sources
-  { id: 'source-1', key: 'F1', description: 'Select source 1', context: 'mixer', category: 'Sources', editable: true },
-  { id: 'source-2', key: 'F2', description: 'Select source 2', context: 'mixer', category: 'Sources', editable: true },
-  { id: 'source-3', key: 'F3', description: 'Select source 3', context: 'mixer', category: 'Sources', editable: true },
-  { id: 'source-4', key: 'F4', description: 'Select source 4', context: 'mixer', category: 'Sources', editable: true },
+  // Mixer - Audio
+  { id: 'mute-1', key: 'F1', description: 'Toggle mute: Source 1', context: 'mixer', category: 'Audio', editable: true },
+  { id: 'mute-2', key: 'F2', description: 'Toggle mute: Source 2', context: 'mixer', category: 'Audio', editable: true },
+  { id: 'mute-3', key: 'F3', description: 'Toggle mute: Source 3', context: 'mixer', category: 'Audio', editable: true },
+  { id: 'mute-4', key: 'F4', description: 'Toggle mute: Source 4', context: 'mixer', category: 'Audio', editable: true },
   
   // Recorder
   { id: 'start-stop-recording', key: ' ', description: 'Start/Stop recording', context: 'recorder', category: 'Recording', editable: true },
   { id: 'mark-chapter', key: 'c', description: 'Mark chapter point', context: 'recorder', category: 'Recording', editable: true },
+  { id: 'select-all', key: 'a', modifiers: ['ctrl'], description: 'Select all cameras', context: 'recorder', category: 'Recording', editable: true },
 ]
 
 // Local state

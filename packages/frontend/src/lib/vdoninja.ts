@@ -30,10 +30,11 @@ export const embedProfiles = {
       cleanoutput: true,
       darkmode: true,
       nologo: true,
+      api: true,  // Enable postMessage API
     }
   },
   
-  // MIXER VIEW - Alternative director view (same as director for now)
+  // MIXER VIEW - For embedded control without visible UI
   mixer: {
     base: '/',
     params: {
@@ -43,6 +44,35 @@ export const embedProfiles = {
       cleanoutput: true,
       darkmode: true,
       nologo: true,
+      api: true,
+    }
+  },
+  
+  // PREVIEW VIEW - For PVW monitor (hidden, receives scene output)
+  preview: {
+    base: '/',
+    params: {
+      scene: true,
+      room: VDO_ROOM,
+      cover: true,
+      cleanoutput: true,
+      hideheader: true,
+      nologo: true,
+      muted: true,  // Muted for preview
+    }
+  },
+  
+  // PROGRAM VIEW - For PGM monitor (live output)
+  program: {
+    base: '/',
+    params: {
+      scene: true,
+      room: VDO_ROOM,
+      cover: true,
+      cleanoutput: true,
+      hideheader: true,
+      nologo: true,
+      quality: 2,
     }
   },
   
