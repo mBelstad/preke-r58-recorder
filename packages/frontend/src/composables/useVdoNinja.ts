@@ -555,6 +555,9 @@ export function useVdoNinja(iframeRef: Ref<HTMLIFrameElement | null>) {
       case 'loaded':
       case 'ready':
       case 'started':
+      case 'director':        // VDO.ninja sends this when director mode is active
+      case 'joined-room-complete':  // VDO.ninja sends this when room join is complete
+      case 'seeding-started': // VDO.ninja sends this when room is ready to accept connections
         isReady.value = true
         connectionState.value = 'connected'
         lastError.value = null
