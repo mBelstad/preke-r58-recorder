@@ -395,10 +395,15 @@ export function getPublicWhepUrl(cameraId: string): string {
  * Build a VDO.ninja scene output URL for a specific scene number
  * Used for PVW/PGM monitors - displays what a specific VDO.ninja scene shows
  * 
- * Uses &scene=N&autoadd=* to create a scene viewer that auto-adds all room guests.
- * This is the correct VDO.ninja approach for PVW/PGM displays.
+ * The director uses postMessage API (addScene command) to add sources to scenes.
+ * This scene viewer URL then displays the sources that have been added to the scene.
  * 
- * @param sceneNumber - VDO.ninja scene number (1-8)
+ * VDO.ninja scene URL format:
+ * - &scene (no value) - shows scene 1 (the default/program scene)
+ * - &scene=1 - explicitly shows scene 1
+ * - &scene=2 - shows scene 2, etc.
+ * 
+ * @param sceneNumber - VDO.ninja scene number (1-8, or 0 for default)
  * @param options - Additional options
  * @param options.muted - Mute audio (default: false, use true for preview)
  * @param options.quality - Video quality 0-2 (default: 2 for program, 1 for preview)
@@ -415,12 +420,17 @@ export function buildSceneOutputUrl(
   const VDO_PROTOCOL = getVdoProtocol()
   const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/`)
   
-  // VDO.ninja scene viewer URL format (from director panel):
-  // &scene (boolean flag) - creates a scene viewer
-  // &room - specifies the room
-  // &password - authenticates to access the scene
-  // The director's "Auto-add guests" checkbox handles automatic source addition
-  url.searchParams.set('scene', '')  // Boolean flag (empty value)
+  // VDO.ninja scene viewer - uses the scene number directly
+  // For scene 1 (the program scene), we can use empty value or '1'
+  // Director auto-adds sources to scenes via postMessage API
+  if (sceneNumber <= 1) {
+    // Scene 1 is the default, can use empty value
+    url.searchParams.set('scene', '')
+  } else {
+    // Scene 2-8 need explicit number
+    url.searchParams.set('scene', sceneNumber.toString())
+  }
+  
   url.searchParams.set('room', options.room || VDO_ROOM)
   url.searchParams.set('password', VDO_DIRECTOR_PASSWORD)  // Required for scene access
   

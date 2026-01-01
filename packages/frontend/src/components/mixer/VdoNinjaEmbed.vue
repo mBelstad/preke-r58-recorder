@@ -75,6 +75,9 @@ defineExpose({
   connectionState,
   lastError,
   
+  // Sources state - needed for auto-add functionality
+  sources: vdoSources,
+  
   // Scene/layout control (VERIFIED API)
   addToScene,
   removeFromScene,

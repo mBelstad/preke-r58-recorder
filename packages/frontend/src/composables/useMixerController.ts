@@ -73,6 +73,10 @@ export function useMixerController(
   const isInitialized = ref(false)
   const lastAppliedSceneId = ref<string | null>(null)
   
+  // Track which sources have been auto-added to scenes
+  // Maps sourceId -> vdoSceneNumber
+  const sourcesAddedToScenes = ref<Map<string, number>>(new Map())
+  
   // ==========================================
   // INTERNAL HELPERS
   // ==========================================
@@ -409,6 +413,43 @@ export function useMixerController(
       }
     },
     { immediate: true }
+  )
+  
+  // Watch for new VDO.ninja sources and auto-add them to scene 1 (program)
+  // This is critical for PVW/PGM displays to work - sources must be added to scenes
+  watch(
+    () => vdoEmbedRef.value?.sources?.value,
+    (sources) => {
+      if (!sources || sources.size === 0) return
+      
+      const vdo = getVdo()
+      if (!vdo) return
+      
+      // Check each source - if not already added to a scene, add to scene 1
+      for (const [sourceId, sourceInfo] of sources) {
+        if (!sourcesAddedToScenes.value.has(sourceId)) {
+          // Auto-add to VDO.ninja scene 1 (program output)
+          console.log(`[MixerController] Auto-adding source ${sourceId} (${sourceInfo.label}) to scene 1`)
+          
+          try {
+            vdo.addToScene(sourceId, 1)
+            sourcesAddedToScenes.value.set(sourceId, 1)
+            console.log(`[MixerController] Successfully added ${sourceId} to scene 1`)
+          } catch (err) {
+            console.error(`[MixerController] Failed to add ${sourceId} to scene:`, err)
+          }
+        }
+      }
+      
+      // Clean up sources that have disconnected
+      for (const [sourceId] of sourcesAddedToScenes.value) {
+        if (!sources.has(sourceId)) {
+          console.log(`[MixerController] Source ${sourceId} disconnected, removing from tracking`)
+          sourcesAddedToScenes.value.delete(sourceId)
+        }
+      }
+    },
+    { deep: true, immediate: true }
   )
   
   // Fallback: Initialize after a delay if isReady never fires
