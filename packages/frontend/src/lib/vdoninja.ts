@@ -429,6 +429,7 @@ export function buildSceneOutputUrl(
   if (sceneNumber === 0) {
     // View ALL room guests (best for program output monitoring)
     url.searchParams.set('view', '*')
+    url.searchParams.set('autostart', '')  // Auto-join the room without clicking
   } else if (sceneNumber === 1) {
     // Scene 1: can use empty value (VDO.ninja default)
     url.searchParams.set('scene', '')
