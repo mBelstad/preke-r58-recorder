@@ -24,6 +24,7 @@ import { useRecorderStore } from '@/stores/recorder'
 import { useStreamingStore } from '@/stores/streaming'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import { useLocalDeviceMode } from '@/composables/useLocalDeviceMode'
+import { useMixerController } from '@/composables/useMixerController'
 import { toast } from '@/composables/useToast'
 
 // Components
@@ -54,6 +55,9 @@ const { isLiteMode } = useLocalDeviceMode()
 
 // Refs
 const vdoEmbedRef = ref<InstanceType<typeof VdoNinjaEmbed> | null>(null)
+
+// Initialize mixer controller (connects store to VDO.ninja)
+const mixerController = useMixerController(vdoEmbedRef)
 const streamingSettingsRef = ref<InstanceType<typeof StreamingSettings> | null>(null)
 const hotkeySettingsRef = ref<InstanceType<typeof HotkeySettings> | null>(null)
 const sceneEditorRef = ref<InstanceType<typeof SceneEditor> | null>(null)
@@ -135,26 +139,26 @@ onMounted(async () => {
     unregisterFns.push(unregister)
   }
   
-  // Space for Take
+  // Space for Take (uses controller to sync with VDO.ninja)
   unregisterFns.push(register({
     key: ' ',
     description: 'Take (transition preview to program)',
     action: () => {
       if (mixerStore.previewSceneId && mixerStore.previewSceneId !== mixerStore.programSceneId) {
-        mixerStore.take()
+        mixerController.takeToProgram()
         toast.success('Take!')
       }
     },
     context: 'mixer'
   }))
   
-  // Escape for Cut
+  // Escape for Cut (uses controller to sync with VDO.ninja)
   unregisterFns.push(register({
     key: 'Escape',
     description: 'Cut (immediate switch)',
     action: () => {
       if (mixerStore.previewSceneId) {
-        mixerStore.cut()
+        mixerController.cutToProgram()
         toast.info('Cut')
       }
     },
@@ -209,13 +213,16 @@ function toggleGoLive() {
 }
 
 function toggleRecording() {
-  if (!vdoEmbedRef.value) return
+  if (!mixerController.isConnected.value) {
+    toast.error('VDO.ninja not connected')
+    return
+  }
   
-  if (vdoEmbedRef.value.isRecording?.value) {
-    vdoEmbedRef.value.stopRecording()
+  if (vdoEmbedRef.value?.isRecording?.value) {
+    mixerController.stopRecording()
     toast.info('Recording stopped')
   } else {
-    vdoEmbedRef.value.startRecording()
+    mixerController.startRecording()
     toast.success('Recording started')
   }
 }
@@ -366,6 +373,7 @@ function toggleSidebar() {
         <div class="flex-1 min-w-0">
           <MixerWorkspace 
             :vdo-embed="vdoEmbedRef"
+            :controller="mixerController"
             @edit-scene="handleEditScene"
             @add-scene="handleAddScene"
           />

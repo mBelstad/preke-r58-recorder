@@ -10,9 +10,11 @@ import { ref, computed, watch } from 'vue'
 import { useMixerStore } from '@/stores/mixer'
 import { useScenesStore } from '@/stores/scenes'
 import VdoNinjaEmbed from './VdoNinjaEmbed.vue'
+import type { MixerController } from '@/composables/useMixerController'
 
 const props = defineProps<{
   vdoEmbed?: InstanceType<typeof VdoNinjaEmbed> | null
+  controller?: MixerController
 }>()
 
 const emit = defineEmits<{
@@ -52,13 +54,25 @@ watch([selectedTransition, transitionDuration], ([type, duration]) => {
 // Actions
 function handleTake() {
   if (!canTake.value) return
-  mixerStore.take()
+  
+  // Use controller if available (syncs with VDO.ninja)
+  if (props.controller) {
+    props.controller.takeToProgram()
+  } else {
+    mixerStore.take()
+  }
   emit('take')
 }
 
 function handleCut() {
   if (!mixerStore.previewSceneId) return
-  mixerStore.cut()
+  
+  // Use controller if available (syncs with VDO.ninja)
+  if (props.controller) {
+    props.controller.cutToProgram()
+  } else {
+    mixerStore.cut()
+  }
   emit('cut')
 }
 

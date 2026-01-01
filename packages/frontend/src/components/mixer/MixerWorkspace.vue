@@ -14,9 +14,11 @@ import SourcePanel from './SourcePanel.vue'
 import PreviewProgramView from './PreviewProgramView.vue'
 import SceneStrip from './SceneStrip.vue'
 import VdoNinjaEmbed from './VdoNinjaEmbed.vue'
+import type { MixerController } from '@/composables/useMixerController'
 
 const props = defineProps<{
   vdoEmbed?: InstanceType<typeof VdoNinjaEmbed> | null
+  controller?: MixerController
 }>()
 
 const emit = defineEmits<{
@@ -105,6 +107,7 @@ function handleCut() {
         <div class="flex-1 min-h-0">
           <PreviewProgramView 
             :vdo-embed="vdoEmbed"
+            :controller="controller"
             @take="handleTake"
             @cut="handleCut"
           />
