@@ -19,18 +19,18 @@ export const VDO_ROOM = 'studio'
 /**
  * VDO.ninja URL parameter profiles for each embed scenario
  * 
- * IMPORTANT: Director and mixer profiles use &mediamtx= parameter
- * This makes VDO.ninja pull streams directly from MediaMTX via WHEP
- * instead of relying on P2P room guests (which doesn't work through tunnels)
+ * NOTE: We do NOT use &mediamtx= parameter here because:
+ * 1. It causes VDO.ninja to connect directly to MediaMTX:8889 which fails through nginx proxy
+ * 2. CameraPushBar handles camera bridging via &whepplay= which works correctly
+ * 3. The cameras appear as P2P room guests, which is more reliable through tunnels
  */
 export const embedProfiles = {
   // DIRECTOR VIEW - Full control panel for operator
-  // Uses &mediamtx= to auto-discover MediaMTX streams
+  // Camera sources are pushed via CameraPushBar using &whepplay= parameter
   director: {
     base: '/',
     params: {
       director: VDO_ROOM,
-      mediamtx: '{mediamtxHost}',  // Enables WHEP stream discovery from MediaMTX
       hidesolo: true,
       hideheader: true,
       cleanoutput: true,
@@ -41,12 +41,11 @@ export const embedProfiles = {
   },
   
   // MIXER VIEW - For embedded control without visible UI
-  // Uses &mediamtx= to auto-discover MediaMTX streams
+  // Camera sources are pushed via CameraPushBar using &whepplay= parameter
   mixer: {
     base: '/',
     params: {
       director: VDO_ROOM,
-      mediamtx: '{mediamtxHost}',  // Enables WHEP stream discovery from MediaMTX
       hidesolo: true,
       hideheader: true,
       cleanoutput: true,
@@ -192,11 +191,7 @@ export function buildVdoUrl(
   const basePath = config.base || '/'
   const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}${basePath}`)
   
-  // Auto-provide mediamtxHost if not specified (for director/mixer profiles)
   const effectiveVars = { ...vars }
-  if (!effectiveVars.mediamtxHost) {
-    effectiveVars.mediamtxHost = getMediaMtxHost()
-  }
   
   // Add custom CSS for reskin if available
   const cssUrl = getVdoCssUrl()

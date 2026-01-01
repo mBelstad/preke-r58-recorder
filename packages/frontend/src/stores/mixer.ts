@@ -76,7 +76,7 @@ export const useMixerStore = defineStore('mixer', () => {
   
   // Greenroom state
   const greenroom = ref<GreenroomGuest[]>([])
-  
+
   // Connection state
   const vdoConnected = ref(false)
   const lastError = ref<string | null>(null)
@@ -106,7 +106,7 @@ export const useMixerStore = defineStore('mixer', () => {
   
   const hasPreview = computed(() => previewSceneId.value !== null)
   const hasProgram = computed(() => programSceneId.value !== null)
-  
+
   // VDO.ninja scene numbers for PVW/PGM monitors
   // Used by PreviewProgramView to build iframe URLs
   const previewVdoSceneNumber = computed(() => {
@@ -199,22 +199,22 @@ export const useMixerStore = defineStore('mixer', () => {
   }
   
   // --- Legacy Scene Control ---
-  
+
   function setScene(sceneId: string) {
     activeScene.value = sceneId
     programSceneId.value = sceneId
   }
   
   // --- Source Control ---
-  
+
   function setProgram(sourceId: string) {
     programSource.value = sourceId
   }
-  
+
   function setPreview(sourceId: string) {
     previewSource.value = sourceId
   }
-  
+
   function updateSourcesFromVdo(vdoSources: MixerSource[]) {
     sources.value = vdoSources
     
@@ -251,7 +251,7 @@ export const useMixerStore = defineStore('mixer', () => {
   }
   
   // --- Audio Control ---
-  
+
   function setSourceMute(sourceId: string, muted: boolean) {
     const source = sources.value.find(s => s.id === sourceId)
     if (source) {
@@ -281,7 +281,7 @@ export const useMixerStore = defineStore('mixer', () => {
       audioMix.value[sourceId].solo = solo
     }
   }
-  
+
   function updateAudioLevel(sourceId: string, level: number) {
     const source = sources.value.find(s => s.id === sourceId)
     if (source) {
@@ -340,7 +340,7 @@ export const useMixerStore = defineStore('mixer', () => {
   // ==========================================
   // RETURN
   // ==========================================
-  
+
   return {
     // State
     isLive,

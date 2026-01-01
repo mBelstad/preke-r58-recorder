@@ -270,20 +270,20 @@ function toggleSidebar() {
     </Transition>
     
     <div class="h-full flex flex-col bg-r58-bg-primary">
-      <!-- Header -->
+    <!-- Header -->
       <header 
         class="flex items-center justify-between px-6 py-3 border-b border-r58-bg-tertiary bg-r58-bg-secondary"
         data-testid="mixer-header"
       >
-        <div class="flex items-center gap-4">
+      <div class="flex items-center gap-4">
           <!-- Live Indicator -->
-          <div class="flex items-center gap-2">
-            <span 
+        <div class="flex items-center gap-2">
+          <span 
               class="w-3 h-3 rounded-full transition-colors"
               :class="isLive ? 'bg-red-500 animate-pulse' : 'bg-r58-bg-tertiary'"
-            ></span>
+          ></span>
             <span class="text-xl font-semibold text-r58-mixer">Mixer</span>
-          </div>
+        </div>
           
           <!-- On Air Badge -->
           <span 
@@ -304,12 +304,12 @@ function toggleSidebar() {
             class="text-xs text-r58-text-secondary"
           >
             → {{ enabledDestinationsCount }} platform{{ enabledDestinationsCount > 1 ? 's' : '' }}
-          </span>
-          
-          <!-- Connection Status -->
-          <ConnectionStatus :vdo-embed="vdoEmbedRef" />
-        </div>
+        </span>
         
+        <!-- Connection Status -->
+        <ConnectionStatus :vdo-embed="vdoEmbedRef" />
+      </div>
+      
         <div class="flex items-center gap-3">
           <!-- Mode Toggle (Simple / PVW-PGM) -->
           <div class="flex items-center gap-1 bg-r58-bg-tertiary rounded-lg p-1">
@@ -334,41 +334,41 @@ function toggleSidebar() {
           </div>
           
           <!-- Hotkeys Button -->
-          <button 
-            class="btn btn-sm" 
-            @click="openHotkeySettings"
-            title="Keyboard Shortcuts (Shift+?)"
-          >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-            </svg>
-          </button>
-          
-          <!-- Streaming Settings Button -->
-          <button 
-            class="btn btn-sm" 
-            @click="openStreamingSettings"
-            title="Streaming Settings"
-          >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-          </button>
-          
-          <!-- Go Live Button -->
-          <button 
+        <button 
+          class="btn btn-sm" 
+          @click="openHotkeySettings"
+          title="Keyboard Shortcuts (Shift+?)"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+          </svg>
+        </button>
+        
+        <!-- Streaming Settings Button -->
+        <button 
+          class="btn btn-sm" 
+          @click="openStreamingSettings"
+          title="Streaming Settings"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+        </button>
+        
+        <!-- Go Live Button -->
+        <button 
             class="btn px-6"
-            :class="isLive ? 'btn-danger' : 'btn-primary'"
-            @click="toggleGoLive"
-          >
-            {{ isLive ? 'End Session' : 'Go Live' }}
-          </button>
-        </div>
-      </header>
-      
+          :class="isLive ? 'btn-danger' : 'btn-primary'"
+          @click="toggleGoLive"
+        >
+          {{ isLive ? 'End Session' : 'Go Live' }}
+        </button>
+      </div>
+    </header>
+    
       <!-- Main Content -->
-      <div class="flex-1 flex overflow-hidden">
+    <div class="flex-1 flex overflow-hidden">
         <!-- Workspace (Sources + PVW/PGM + Scenes) -->
         <div class="flex-1 min-w-0">
           <MixerWorkspace 
@@ -376,9 +376,9 @@ function toggleSidebar() {
             :controller="mixerController"
             @edit-scene="handleEditScene"
             @add-scene="handleAddScene"
-          />
-        </div>
-        
+        />
+      </div>
+      
         <!-- Sidebar (collapsible) -->
         <aside 
           class="flex-shrink-0 border-l border-r58-bg-tertiary bg-r58-bg-secondary overflow-y-auto transition-all duration-300"
@@ -468,13 +468,13 @@ function toggleSidebar() {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
               </svg>
             </button>
-          </div>
-        </aside>
-      </div>
-      
+        </div>
+      </aside>
+    </div>
+    
       <!-- Camera Push Bar -->
-      <CameraPushBar />
-      
+    <CameraPushBar />
+    
       <!-- Hidden VDO.ninja Embed for API Control -->
       <div class="hidden">
         <VdoNinjaEmbed 
@@ -484,10 +484,10 @@ function toggleSidebar() {
       </div>
       
       <!-- Modals -->
-      <StreamingSettings ref="streamingSettingsRef" />
-      <HotkeySettings ref="hotkeySettingsRef" />
+    <StreamingSettings ref="streamingSettingsRef" />
+    <HotkeySettings ref="hotkeySettingsRef" />
       <SceneEditor ref="sceneEditorRef" />
-    </div>
+  </div>
   </template>
 </template>
 
