@@ -64,10 +64,31 @@ const iframeSrc = computed(() => {
 // Whether we're using the real mixer.html
 const isMixerEmbed = computed(() => props.profile === 'mixer')
 
-// Sync VDO.ninja state to our store
-watch(vdoSources, (newSources) => {
-  mixerStore.updateSourcesFromVdo(Array.from(newSources.values()))
-}, { deep: true })
+// Track which sources have been auto-added to VDO.ninja scenes
+const sourcesAddedToScenes = new Set<string>()
+
+// Sync VDO.ninja state to our store AND auto-add new sources to scene 1
+watch(vdoSourcesVersion, () => {
+  // Sync to mixer store
+  mixerStore.updateSourcesFromVdo(Array.from(vdoSources.value.values()))
+  
+  // Auto-add new sources to VDO.ninja scene 1 (program output)
+  for (const [sourceId, sourceInfo] of vdoSources.value) {
+    if (!sourcesAddedToScenes.has(sourceId)) {
+      console.log(`[VdoNinjaEmbed] Auto-adding source ${sourceId} (${sourceInfo.label}) to scene 1`)
+      addToScene(sourceId, 1)
+      sourcesAddedToScenes.add(sourceId)
+    }
+  }
+  
+  // Clean up disconnected sources from tracking
+  for (const sourceId of sourcesAddedToScenes) {
+    if (!vdoSources.value.has(sourceId)) {
+      console.log(`[VdoNinjaEmbed] Source ${sourceId} disconnected, removing from tracking`)
+      sourcesAddedToScenes.delete(sourceId)
+    }
+  }
+}, { immediate: true })
 
 // Expose controls to parent
 defineExpose({
