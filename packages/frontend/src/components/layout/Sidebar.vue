@@ -1,30 +1,127 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useRecorderStore } from '@/stores/recorder'
+import { useCapabilitiesStore } from '@/stores/capabilities'
+import { buildApiUrl } from '@/lib/api'
+import { toast } from '@/composables/useToast'
+import ConfirmDialog from '@/components/shared/ConfirmDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
+const recorderStore = useRecorderStore()
+const capabilitiesStore = useCapabilitiesStore()
+
+// Mode switching state
+const switching = ref(false)
+const confirmDialogRef = ref<InstanceType<typeof ConfirmDialog> | null>(null)
+const pendingMode = ref<'recorder' | 'mixer' | null>(null)
 
 interface NavItem {
   id: string
   label: string
   path: string
   icon: string
+  requiresMode?: 'recorder' | 'mixer'  // If set, requires mode switch
 }
 
 const navItems: NavItem[] = [
   { id: 'studio', label: 'Studio', path: '/', icon: 'home' },
-  { id: 'recorder', label: 'Recorder', path: '/recorder', icon: 'record' },
-  { id: 'mixer', label: 'Mixer', path: '/mixer', icon: 'mixer' },
+  { id: 'recorder', label: 'Recorder', path: '/recorder', icon: 'record', requiresMode: 'recorder' },
+  { id: 'mixer', label: 'Mixer', path: '/mixer', icon: 'mixer', requiresMode: 'mixer' },
   { id: 'library', label: 'Library', path: '/library', icon: 'folder' },
   { id: 'admin', label: 'Admin', path: '/admin', icon: 'settings' },
 ]
 
 const currentPath = computed(() => route.path)
+const currentMode = computed(() => capabilitiesStore.capabilities?.current_mode || 'recorder')
+const isRecording = computed(() => recorderStore.status === 'recording')
 
 function isActive(path: string): boolean {
   return currentPath.value === path
 }
+
+// Check if nav item is the current mode
+function isModeActive(item: NavItem): boolean {
+  if (!item.requiresMode) return false
+  return item.requiresMode === currentMode.value
+}
+
+// Handle nav item click with mode switching
+async function handleNavClick(item: NavItem, event: Event) {
+  // If no mode required, let router-link handle it
+  if (!item.requiresMode) return
+  
+  // Prevent default navigation
+  event.preventDefault()
+  
+  // If already in this mode, just navigate
+  if (item.requiresMode === currentMode.value) {
+    router.push(item.path)
+    return
+  }
+  
+  // If switching to mixer and currently recording, show confirmation
+  if (item.requiresMode === 'mixer' && isRecording.value) {
+    pendingMode.value = 'mixer'
+    confirmDialogRef.value?.open()
+    return
+  }
+  
+  // Otherwise, switch mode and navigate
+  await switchModeAndNavigate(item.requiresMode, item.path)
+}
+
+// Confirm mode switch (called from dialog)
+async function confirmModeSwitch() {
+  if (pendingMode.value) {
+    const path = pendingMode.value === 'mixer' ? '/mixer' : '/recorder'
+    await switchModeAndNavigate(pendingMode.value, path)
+  }
+  pendingMode.value = null
+}
+
+// Cancel mode switch
+function cancelModeSwitch() {
+  pendingMode.value = null
+}
+
+// Switch mode via API then navigate
+async function switchModeAndNavigate(mode: 'recorder' | 'mixer', path: string) {
+  if (switching.value) return
+  
+  switching.value = true
+  
+  try {
+    const response = await fetch(buildApiUrl(`/api/mode/${mode}`), { method: 'POST' })
+    
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}))
+      throw new Error(data.detail || `Failed to switch to ${mode} mode`)
+    }
+    
+    // Refresh capabilities to get updated mode
+    await capabilitiesStore.fetchCapabilities()
+    
+    // Show success toast
+    const modeLabel = mode === 'mixer' ? 'Mixer' : 'Recorder'
+    toast.success(`Switched to ${modeLabel} mode`)
+    
+    // Navigate to the mode view
+    router.push(path)
+  } catch (e) {
+    const message = e instanceof Error ? e.message : 'Failed to switch mode'
+    toast.error(message)
+    console.error('Mode switch error:', e)
+  } finally {
+    switching.value = false
+  }
+}
+
+// Fetch initial mode on mount
+onMounted(async () => {
+  await capabilitiesStore.fetchCapabilities()
+})
 </script>
 
 <template>
@@ -40,30 +137,53 @@ function isActive(path: string): boolean {
         <li v-for="item in navItems" :key="item.id">
           <router-link
             :to="item.path"
-            class="flex flex-col items-center gap-1 py-3 px-2 rounded-lg transition-colors"
+            @click="handleNavClick(item, $event)"
+            class="relative flex flex-col items-center gap-1 py-3 px-2 rounded-lg transition-colors"
             :class="[
               isActive(item.path)
                 ? 'bg-r58-accent-primary/10 text-r58-accent-primary'
-                : 'text-r58-text-secondary hover:text-r58-text-primary hover:bg-r58-bg-tertiary'
+                : 'text-r58-text-secondary hover:text-r58-text-primary hover:bg-r58-bg-tertiary',
+              switching && item.requiresMode ? 'opacity-60 cursor-wait' : ''
             ]"
           >
+            <!-- Mode indicator dot -->
+            <span 
+              v-if="isModeActive(item)"
+              class="absolute top-1 right-1 w-2 h-2 rounded-full"
+              :class="item.requiresMode === 'recorder' ? 'bg-red-500' : 'bg-blue-500'"
+              :title="item.requiresMode === 'recorder' ? 'Recorder mode active' : 'Mixer mode active'"
+            ></span>
+            
+            <!-- Loading spinner when switching -->
+            <svg 
+              v-if="switching && pendingMode === item.requiresMode" 
+              class="w-6 h-6 animate-spin" 
+              fill="none" 
+              viewBox="0 0 24 24"
+            >
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            
             <!-- Icons -->
-            <svg v-if="item.icon === 'home'" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
-            </svg>
-            <svg v-else-if="item.icon === 'record'" class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-              <circle cx="12" cy="12" r="8"/>
-            </svg>
-            <svg v-else-if="item.icon === 'mixer'" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
-            </svg>
-            <svg v-else-if="item.icon === 'folder'" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
-            </svg>
-            <svg v-else-if="item.icon === 'settings'" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-            </svg>
+            <template v-else>
+              <svg v-if="item.icon === 'home'" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+              </svg>
+              <svg v-else-if="item.icon === 'record'" class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="8"/>
+              </svg>
+              <svg v-else-if="item.icon === 'mixer'" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
+              </svg>
+              <svg v-else-if="item.icon === 'folder'" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+              </svg>
+              <svg v-else-if="item.icon === 'settings'" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+              </svg>
+            </template>
             
             <span class="text-xs font-medium">{{ item.label }}</span>
           </router-link>
@@ -76,5 +196,17 @@ function isActive(path: string): boolean {
       v2.0.0
     </div>
   </aside>
+  
+  <!-- Confirmation dialog for stopping recording -->
+  <ConfirmDialog
+    ref="confirmDialogRef"
+    title="Stop Recording?"
+    message="Switching to Mixer mode will stop all active recordings. Are you sure you want to continue?"
+    confirm-text="Stop & Switch"
+    cancel-text="Cancel"
+    :danger="true"
+    @confirm="confirmModeSwitch"
+    @cancel="cancelModeSwitch"
+  />
 </template>
 
