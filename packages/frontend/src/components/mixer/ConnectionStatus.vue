@@ -41,6 +41,14 @@ const lastError = computed(() => props.vdoEmbed?.lastError?.value || null)
 type HealthStatus = 'healthy' | 'degraded' | 'error' | 'disconnected'
 
 const healthStatus = computed<HealthStatus>(() => {
+  // Check if we've received VDO.ninja events (more reliable than state)
+  const stats = props.vdoEmbed?.getEventStats?.()
+  const hasRecentActivity = stats?.lastActivity && (Date.now() - stats.lastActivity < 30000)
+  
+  // If we have recent activity, consider it connected
+  if (hasRecentActivity) return 'healthy'
+  
+  // Otherwise fall back to state-based check
   if (connectionState.value === 'disconnected' || !isReady.value) return 'disconnected'
   if (lastError.value) return 'error'
   if (connectionState.value === 'connecting') return 'degraded'
