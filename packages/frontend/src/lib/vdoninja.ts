@@ -395,6 +395,9 @@ export function getPublicWhepUrl(cameraId: string): string {
  * Build a VDO.ninja scene output URL for a specific scene number
  * Used for PVW/PGM monitors - displays what a specific VDO.ninja scene shows
  * 
+ * Uses &scene=N&autoadd=* to create a scene viewer that auto-adds all room guests.
+ * This is the correct VDO.ninja approach for PVW/PGM displays.
+ * 
  * @param sceneNumber - VDO.ninja scene number (1-8)
  * @param options - Additional options
  * @param options.muted - Mute audio (default: false, use true for preview)
@@ -412,12 +415,13 @@ export function buildSceneOutputUrl(
   const VDO_PROTOCOL = getVdoProtocol()
   const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/`)
   
-  // Use view mode with room and autoadd to display all guests
-  // This creates a view of all guests in the room without needing scene assignments
-  url.searchParams.set('view', '*')  // View all guests
+  // Use scene=N with autoadd=* to display all guests in the room
+  // This creates a scene viewer that auto-adds all room guests
+  url.searchParams.set('scene', sceneNumber.toString())
   url.searchParams.set('room', options.room || VDO_ROOM)
+  url.searchParams.set('autoadd', '*')  // Auto-add all room guests
   
-  // Display options
+  // Display options for clean output
   url.searchParams.set('cover', '')
   url.searchParams.set('cleanoutput', '')
   url.searchParams.set('hideheader', '')
