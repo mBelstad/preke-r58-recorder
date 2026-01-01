@@ -420,13 +420,12 @@ export function buildSceneOutputUrl(
   const VDO_PROTOCOL = getVdoProtocol()
   const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/`)
   
-  // VDO.ninja scene viewing - uses scene parameter with no local camera/mic
-  // - scene (empty/boolean): joins as scene viewer for scene 1
-  // - scene=N: views specific scene number
+  // VDO.ninja scene viewing - uses &scene to view the scene output
+  // VDO.ninja scene URL format (from director "copy scene link"):
+  //   ?scene&room=xxx&password=xxx
   // 
-  // For PGM (sceneNumber=0), we join as a scene viewer which auto-shows guests
-  // videodevice=0&audiodevice=0: No local camera/mic (headless viewer)
-  // autostart: Auto-join without clicking START button
+  // Note: DO NOT add videodevice=0/audiodevice=0 - this breaks the scene viewer
+  // The scene viewer URL doesn't need to "join" - it just displays the scene output
   if (sceneNumber === 0 || sceneNumber === 1) {
     // Scene 1 is the default - empty value means scene 1
     url.searchParams.set('scene', '')
@@ -434,11 +433,6 @@ export function buildSceneOutputUrl(
     // Scene 2-8 need explicit number
     url.searchParams.set('scene', sceneNumber.toString())
   }
-  
-  // Join as headless viewer (no local camera/mic)
-  url.searchParams.set('videodevice', '0')
-  url.searchParams.set('audiodevice', '0')
-  url.searchParams.set('autostart', '')  // Auto-join without clicking START
   
   url.searchParams.set('room', options.room || VDO_ROOM)
   url.searchParams.set('password', VDO_DIRECTOR_PASSWORD)  // Required for room access
