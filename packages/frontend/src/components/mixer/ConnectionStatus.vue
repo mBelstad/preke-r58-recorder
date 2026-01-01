@@ -31,6 +31,7 @@ const showDetails = ref(false)
 const lastActivityAgo = ref<string>('never')
 const reconnectAttempts = ref(0)
 const isReconnecting = ref(false)
+const refreshTrigger = ref(0)  // Trigger for reactive updates
 
 // Connection state from VDO embed
 const connectionState = computed(() => props.vdoEmbed?.connectionState?.value || 'disconnected')
@@ -41,12 +42,22 @@ const lastError = computed(() => props.vdoEmbed?.lastError?.value || null)
 type HealthStatus = 'healthy' | 'degraded' | 'error' | 'disconnected'
 
 const healthStatus = computed<HealthStatus>(() => {
+  // Access refreshTrigger to make this computed reactive to timer updates
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _trigger = refreshTrigger.value
+  
   // Check if we've received VDO.ninja events (more reliable than state)
-  const stats = props.vdoEmbed?.getEventStats?.()
-  const hasRecentActivity = stats?.lastActivity && (Date.now() - stats.lastActivity < 30000)
+  // Use global debug stats directly since it's more reliable
+  const globalStats = (window as unknown as Record<string, { getStats?: () => { lastActivity: number | null } }>).__VDO_DEBUG__?.getStats?.()
+  const hasRecentActivity = globalStats?.lastActivity && (Date.now() - globalStats.lastActivity < 30000)
   
   // If we have recent activity, consider it connected
   if (hasRecentActivity) return 'healthy'
+  
+  // Also check component-exposed stats as fallback
+  const stats = props.vdoEmbed?.getEventStats?.()
+  const hasComponentActivity = stats?.lastActivity && (Date.now() - stats.lastActivity < 30000)
+  if (hasComponentActivity) return 'healthy'
   
   // Otherwise fall back to state-based check
   if (connectionState.value === 'disconnected' || !isReady.value) return 'disconnected'
@@ -81,6 +92,9 @@ const statusText = computed(() => {
 let activityInterval: number | null = null
 
 function updateLastActivity() {
+  // Increment refresh trigger to force computed properties to re-evaluate
+  refreshTrigger.value++
+  
   if (props.vdoEmbed) {
     const stats = props.vdoEmbed.getEventStats()
     if (stats.lastActivity) {
