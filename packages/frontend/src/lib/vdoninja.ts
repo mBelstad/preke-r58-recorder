@@ -412,15 +412,10 @@ export function buildSceneOutputUrl(
   const VDO_PROTOCOL = getVdoProtocol()
   const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/`)
   
-  // Scene output params - use scene=true (boolean) to enable scene mode
-  // Combined with autoadd=*, this will auto-add all guests in a responsive layout
-  // Note: scene=N (specific number) requires director to manually assign sources
-  url.searchParams.set('scene', '')
+  // Use view mode with room and autoadd to display all guests
+  // This creates a view of all guests in the room without needing scene assignments
+  url.searchParams.set('view', '*')  // View all guests
   url.searchParams.set('room', options.room || VDO_ROOM)
-  
-  // Auto-add all guests to the scene so video displays immediately
-  // This is key - without autoadd, scenes show nothing until director assigns sources
-  url.searchParams.set('autoadd', '*')
   
   // Display options
   url.searchParams.set('cover', '')
