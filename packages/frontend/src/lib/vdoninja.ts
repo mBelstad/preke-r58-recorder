@@ -421,10 +421,14 @@ export function buildSceneOutputUrl(
   const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/`)
   
   // VDO.ninja scene viewer - uses the scene number directly
-  // For scene 1 (the program scene), we can use empty value or '1'
-  // Director auto-adds sources to scenes via postMessage API
-  if (sceneNumber <= 1) {
-    // Scene 1 is the default, can use empty value
+  // - scene=0: auto-adds all videos (recommended for PGM)
+  // - scene=1+: empty scene, videos added manually by director
+  // - scene (empty): defaults to scene 1
+  if (sceneNumber === 0) {
+    // Scene 0: auto-add all room guests (best for program output)
+    url.searchParams.set('scene', '0')
+  } else if (sceneNumber === 1) {
+    // Scene 1: can use empty value (VDO.ninja default)
     url.searchParams.set('scene', '')
   } else {
     // Scene 2-8 need explicit number
@@ -468,8 +472,9 @@ export function buildPreviewUrl(sceneNumber: number, room?: string): string {
 /**
  * Build a VDO.ninja program monitor URL (PGM)
  * Full quality, audio enabled for live output
+ * Uses scene=0 by default which auto-adds all room guests
  */
-export function buildProgramUrl(sceneNumber: number = 1, room?: string): string {
+export function buildProgramUrl(sceneNumber: number = 0, room?: string): string {
   return buildSceneOutputUrl(sceneNumber, { muted: false, quality: 2, room })
 }
 

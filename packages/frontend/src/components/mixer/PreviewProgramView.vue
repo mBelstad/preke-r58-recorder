@@ -63,8 +63,8 @@ const previewIframeSrc = computed(() => {
 })
 
 const programIframeSrc = computed(() => {
-  // Program always shows VDO.ninja scene 1 (the live output)
-  return buildProgramUrl(1)
+  // Program uses VDO.ninja scene 0 which auto-adds all room guests
+  return buildProgramUrl(0)
 })
 
 // Watch for transition changes

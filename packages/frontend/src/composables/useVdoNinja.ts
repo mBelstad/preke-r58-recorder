@@ -567,7 +567,11 @@ export function useVdoNinja(iframeRef: Ref<HTMLIFrameElement | null>) {
       case 'guest-connected':
       case 'push':
       case 'view':
-      case 'joined': {
+      case 'joined':
+      case 'new-push-connection':   // VDO.ninja sends this when a guest starts pushing
+      case 'push-connection':       // VDO.ninja sends this when push connection established
+      case 'new-view-connection':   // VDO.ninja sends this when viewing starts
+      case 'view-connection': {     // VDO.ninja sends this when view connection established
         // New source joined
         if (streamId) {
           const eventData = data.data as Record<string, unknown> | undefined
@@ -581,6 +585,7 @@ export function useVdoNinja(iframeRef: Ref<HTMLIFrameElement | null>) {
             audioLevel: 0,
           }
           sources.value.set(streamId, sourceInfo)
+          console.log(`[VDO.ninja] Source added: ${streamId} (${sourceInfo.label})`)
         }
         break
       }
