@@ -428,6 +428,10 @@ export function buildSceneOutputUrl(
   url.searchParams.set('hideheader', '')
   url.searchParams.set('nologo', '')
   
+  // Auto-add all guests to the scene so video displays immediately
+  // Without this, scenes wait for director to assign sources via postMessage API
+  url.searchParams.set('autoadd', '*')
+  
   // Quality: 0=low, 1=medium, 2=high
   url.searchParams.set('quality', (options.quality ?? 2).toString())
   

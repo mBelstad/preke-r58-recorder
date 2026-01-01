@@ -19,6 +19,7 @@ export function useR58WebSocket() {
   const isConnected = ref(false)
   const lastSeq = ref(0)
   const reconnectAttempts = ref(0)
+  const endpointUnavailable = ref(false)  // Track if endpoint doesn't exist
   
   let ws: WebSocket | null = null
   let reconnectTimeout: number | null = null
@@ -32,10 +33,16 @@ export function useR58WebSocket() {
   }
   
   function connect() {
+    // Don't attempt if we know the endpoint doesn't exist
+    if (endpointUnavailable.value) return
     if (ws?.readyState === WebSocket.OPEN) return
     
     const url = getWsUrl()
-    console.log('[WebSocket] Connecting to', url)
+    
+    // Only log on first attempt
+    if (reconnectAttempts.value === 0) {
+      console.log('[WebSocket] Connecting to', url)
+    }
     
     ws = new WebSocket(url)
     
@@ -66,14 +73,21 @@ export function useR58WebSocket() {
       }
     }
     
-    ws.onclose = () => {
-      console.log('[WebSocket] Disconnected')
+    ws.onclose = (event) => {
       isConnected.value = false
+      
+      // Check if this was a failed connection (not a graceful disconnect)
+      // WebSocket close code 1006 = abnormal closure (connection never established)
+      if (event.code === 1006 && reconnectAttempts.value === 0) {
+        // First connection failed - endpoint may not exist (404)
+        console.warn('[WebSocket] Connection failed - endpoint may not be available on this device')
+      }
+      
       scheduleReconnect()
     }
     
-    ws.onerror = (error) => {
-      console.error('[WebSocket] Error:', error)
+    ws.onerror = () => {
+      // Error is logged by onclose handler, avoid duplicate logs
     }
   }
   
@@ -82,19 +96,18 @@ export function useR58WebSocket() {
       clearTimeout(reconnectTimeout)
     }
     
-    // Stop trying after 10 attempts to avoid wasting resources
-    // The WebSocket endpoint may not exist on this device
-    const MAX_RECONNECT_ATTEMPTS = 10
+    // Stop trying after 3 attempts - endpoint probably doesn't exist
+    // This avoids spamming the console with errors
+    const MAX_RECONNECT_ATTEMPTS = 3
     if (reconnectAttempts.value >= MAX_RECONNECT_ATTEMPTS) {
-      console.log('[WebSocket] Max reconnect attempts reached, giving up. WebSocket may not be available on this device.')
+      endpointUnavailable.value = true
+      console.log('[WebSocket] Endpoint unavailable, real-time events disabled. This is normal if WebSocket is not configured on the backend.')
       return
     }
     
-    // Exponential backoff: 1s, 2s, 4s, 8s, 16s, max 60s
-    const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.value), 60000)
+    // Exponential backoff: 2s, 4s, 8s
+    const delay = Math.min(2000 * Math.pow(2, reconnectAttempts.value), 60000)
     reconnectAttempts.value++
-    
-    console.log(`[WebSocket] Reconnecting in ${delay}ms (attempt ${reconnectAttempts.value}/${MAX_RECONNECT_ATTEMPTS})`)
     
     reconnectTimeout = window.setTimeout(() => {
       connect()
