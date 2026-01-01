@@ -18,13 +18,19 @@ export const VDO_ROOM = 'studio'
 
 /**
  * VDO.ninja URL parameter profiles for each embed scenario
+ * 
+ * IMPORTANT: Director and mixer profiles use &mediamtx= parameter
+ * This makes VDO.ninja pull streams directly from MediaMTX via WHEP
+ * instead of relying on P2P room guests (which doesn't work through tunnels)
  */
 export const embedProfiles = {
   // DIRECTOR VIEW - Full control panel for operator
+  // Uses &mediamtx= to auto-discover MediaMTX streams
   director: {
     base: '/',
     params: {
       director: VDO_ROOM,
+      mediamtx: '{mediamtxHost}',  // Enables WHEP stream discovery from MediaMTX
       hidesolo: true,
       hideheader: true,
       cleanoutput: true,
@@ -35,10 +41,12 @@ export const embedProfiles = {
   },
   
   // MIXER VIEW - For embedded control without visible UI
+  // Uses &mediamtx= to auto-discover MediaMTX streams
   mixer: {
     base: '/',
     params: {
       director: VDO_ROOM,
+      mediamtx: '{mediamtxHost}',  // Enables WHEP stream discovery from MediaMTX
       hidesolo: true,
       hideheader: true,
       cleanoutput: true,
@@ -184,6 +192,12 @@ export function buildVdoUrl(
   const basePath = config.base || '/'
   const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}${basePath}`)
   
+  // Auto-provide mediamtxHost if not specified (for director/mixer profiles)
+  const effectiveVars = { ...vars }
+  if (!effectiveVars.mediamtxHost) {
+    effectiveVars.mediamtxHost = getMediaMtxHost()
+  }
+  
   // Add custom CSS for reskin if available
   const cssUrl = getVdoCssUrl()
   if (cssUrl) {
@@ -201,7 +215,7 @@ export function buildVdoUrl(
     } else if (typeof value === 'string') {
       // Check for variable substitution
       let finalValue = value
-      for (const [varName, varValue] of Object.entries(vars)) {
+      for (const [varName, varValue] of Object.entries(effectiveVars)) {
         finalValue = finalValue.replace(`{${varName}}`, varValue)
       }
       // Only add if no unsubstituted variables remain
@@ -212,20 +226,20 @@ export function buildVdoUrl(
   }
   
   // Add any additional vars as params
-  if (vars.push_id) {
-    url.searchParams.set('push', vars.push_id)
+  if (effectiveVars.push_id) {
+    url.searchParams.set('push', effectiveVars.push_id)
   }
-  if (vars.view_id) {
-    url.searchParams.set('view', vars.view_id)
+  if (effectiveVars.view_id) {
+    url.searchParams.set('view', effectiveVars.view_id)
   }
-  if (vars.source_ids) {
-    url.searchParams.set('autoadd', vars.source_ids)
+  if (effectiveVars.source_ids) {
+    url.searchParams.set('autoadd', effectiveVars.source_ids)
   }
-  if (vars.whep_url) {
-    url.searchParams.set('whepshare', encodeURIComponent(vars.whep_url))
+  if (effectiveVars.whep_url) {
+    url.searchParams.set('whepshare', encodeURIComponent(effectiveVars.whep_url))
   }
-  if (vars.label) {
-    url.searchParams.set('label', vars.label)
+  if (effectiveVars.label) {
+    url.searchParams.set('label', effectiveVars.label)
   }
   
   return url.toString()
@@ -250,7 +264,11 @@ export function buildGuestInviteUrl(guestName: string, guestId?: string): string
 }
 
 /**
- * Build a camera contribution URL (WHEP share)
+ * Build a camera contribution URL (WHEP bridge to VDO.ninja room)
+ * 
+ * Uses &whepplay= to pull the WHEP stream and &push= + &room= to share it
+ * to the VDO.ninja room. This is the approach used by camera-bridge.html
+ * which is known to work through FRP tunnels.
  */
 export function buildCameraContributionUrl(
   cameraId: string,
@@ -261,13 +279,14 @@ export function buildCameraContributionUrl(
   const VDO_PROTOCOL = getVdoProtocol()
   const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/`)
   
+  // Use whepplay (not whepshare) - this is the working approach from camera-bridge.html
+  url.searchParams.set('whepplay', whepUrl)
   url.searchParams.set('push', cameraId)
   url.searchParams.set('room', VDO_ROOM)
-  url.searchParams.set('whepshare', whepUrl)
   url.searchParams.set('label', label)
-  url.searchParams.set('videodevice', '0')
-  url.searchParams.set('audiodevice', '0')
-  url.searchParams.set('autostart', '')
+  url.searchParams.set('autostart', 'true')
+  url.searchParams.set('stereo', '2')  // Audio channels
+  url.searchParams.set('whepwait', '2000')  // Wait time for WHEP connection
   
   // Add custom CSS only if available
   const cssUrl = getVdoCssUrl()

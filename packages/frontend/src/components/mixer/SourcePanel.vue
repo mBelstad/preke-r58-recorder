@@ -99,12 +99,29 @@ const hdmiSources = computed((): (MixerSource & { subtitle?: string })[] => {
     })
 })
 
-// Combined sources
+// Combined sources - merge both VDO and HDMI sources
+// This ensures HDMI cameras always appear, even if VDO.ninja detection is delayed
 const sources = computed(() => {
-  if (vdoSources.value.length > 0) {
-    return vdoSources.value
+  const sourceMap = new Map<string, MixerSource & { subtitle?: string }>()
+  
+  // First, add HDMI sources (from recorder API - always reliable)
+  for (const source of hdmiSources.value) {
+    sourceMap.set(source.id, source)
   }
-  return hdmiSources.value
+  
+  // Then, add/overlay VDO.ninja sources (may have more info like audio levels)
+  for (const source of vdoSources.value) {
+    const existing = sourceMap.get(source.id)
+    if (existing) {
+      // Merge VDO info into existing HDMI source
+      sourceMap.set(source.id, { ...existing, ...source, subtitle: source.subtitle || existing.subtitle })
+    } else {
+      // New source from VDO (guest, screen share, etc.)
+      sourceMap.set(source.id, source)
+    }
+  }
+  
+  return Array.from(sourceMap.values())
 })
 
 const usingHdmiFallback = computed(() => vdoSources.value.length === 0 && hdmiSources.value.length > 0)

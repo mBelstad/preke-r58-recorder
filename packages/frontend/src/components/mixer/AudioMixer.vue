@@ -7,6 +7,7 @@
  */
 import { computed } from 'vue'
 import { useMixerStore, type MixerSource } from '@/stores/mixer'
+import { useRecorderStore } from '@/stores/recorder'
 import VdoNinjaEmbed from './VdoNinjaEmbed.vue'
 import type { MixerController } from '@/composables/useMixerController'
 
@@ -16,9 +17,56 @@ const props = defineProps<{
 }>()
 
 const mixerStore = useMixerStore()
+const recorderStore = useRecorderStore()
 
-// Computed
-const sources = computed(() => mixerStore.connectedSources.filter(s => s.hasAudio))
+// Camera label mapping
+const cameraLabels: Record<string, string> = {
+  'cam0': 'HDMI 1',
+  'cam1': 'HDMI 2',
+  'cam2': 'HDMI 3',
+  'cam3': 'HDMI 4',
+}
+
+// HDMI sources from recorder (as audio sources)
+const hdmiAudioSources = computed((): MixerSource[] => {
+  return recorderStore.inputs
+    .filter(input => input.hasSignal)
+    .map(input => ({
+      id: input.id,
+      label: cameraLabels[input.id] || input.label,
+      type: 'camera' as const,
+      hasVideo: true,
+      hasAudio: true,
+      muted: false,
+      audioLevel: 0,
+      volume: 100,
+      solo: false,
+    }))
+})
+
+// Computed - merge VDO sources with HDMI sources
+const sources = computed(() => {
+  const sourceMap = new Map<string, MixerSource>()
+  
+  // Add HDMI sources first
+  for (const source of hdmiAudioSources.value) {
+    sourceMap.set(source.id, source)
+  }
+  
+  // Overlay with VDO.ninja sources (have real audio levels)
+  for (const source of mixerStore.connectedSources) {
+    if (source.hasAudio) {
+      const existing = sourceMap.get(source.id)
+      if (existing) {
+        sourceMap.set(source.id, { ...existing, ...source })
+      } else {
+        sourceMap.set(source.id, source)
+      }
+    }
+  }
+  
+  return Array.from(sourceMap.values())
+})
 
 // Actions
 function handleVolumeChange(source: MixerSource, volume: number) {
