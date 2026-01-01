@@ -475,8 +475,9 @@ function toggleSidebar() {
       <!-- Camera Push Bar -->
     <CameraPushBar />
     
-      <!-- Hidden VDO.ninja Embed for API Control -->
-      <div class="hidden">
+      <!-- VDO.ninja Director Embed for API Control -->
+      <!-- Using fixed positioning off-screen instead of hidden to ensure proper iframe initialization -->
+      <div class="fixed -left-[9999px] -top-[9999px] w-[1px] h-[1px] overflow-hidden">
         <VdoNinjaEmbed 
           ref="vdoEmbedRef"
           profile="director"
