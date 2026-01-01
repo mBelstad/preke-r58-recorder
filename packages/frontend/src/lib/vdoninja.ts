@@ -415,11 +415,11 @@ export function buildSceneOutputUrl(
   const VDO_PROTOCOL = getVdoProtocol()
   const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/`)
   
-  // Use scene=N with autoadd=* to display all guests in the room
-  // This creates a scene viewer that auto-adds all room guests
-  url.searchParams.set('scene', sceneNumber.toString())
+  // Use scene (boolean flag) with autoadd=* to display all guests in a grid
+  // This is the correct VDO.ninja format for scene output
+  url.searchParams.set('scene', '')  // Boolean flag, not a number
   url.searchParams.set('room', options.room || VDO_ROOM)
-  url.searchParams.set('autoadd', '*')  // Auto-add all room guests
+  url.searchParams.set('autoadd', '*')  // Auto-add all room guests to the grid
   
   // Display options for clean output
   url.searchParams.set('cover', '')
