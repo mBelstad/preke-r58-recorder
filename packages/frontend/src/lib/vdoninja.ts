@@ -412,25 +412,21 @@ export function buildSceneOutputUrl(
   const VDO_PROTOCOL = getVdoProtocol()
   const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/`)
   
-  // Scene output params
+  // Scene output params - use scene=true (boolean) to enable scene mode
+  // Combined with autoadd=*, this will auto-add all guests in a responsive layout
+  // Note: scene=N (specific number) requires director to manually assign sources
   url.searchParams.set('scene', '')
   url.searchParams.set('room', options.room || VDO_ROOM)
   
-  // Specific scene number (1-8)
-  // VDO.ninja uses &scene=N to view scene N's output
-  if (sceneNumber > 0 && sceneNumber <= 8) {
-    url.searchParams.set('scene', sceneNumber.toString())
-  }
+  // Auto-add all guests to the scene so video displays immediately
+  // This is key - without autoadd, scenes show nothing until director assigns sources
+  url.searchParams.set('autoadd', '*')
   
   // Display options
   url.searchParams.set('cover', '')
   url.searchParams.set('cleanoutput', '')
   url.searchParams.set('hideheader', '')
   url.searchParams.set('nologo', '')
-  
-  // Auto-add all guests to the scene so video displays immediately
-  // Without this, scenes wait for director to assign sources via postMessage API
-  url.searchParams.set('autoadd', '*')
   
   // Quality: 0=low, 1=medium, 2=high
   url.searchParams.set('quality', (options.quality ?? 2).toString())
