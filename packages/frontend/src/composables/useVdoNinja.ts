@@ -198,6 +198,9 @@ if (typeof window !== 'undefined') {
 export function useVdoNinja(iframeRef: Ref<HTMLIFrameElement | null>) {
   const isReady = ref(false)
   const sources = ref<Map<string, SourceInfo>>(new Map())
+  // Version counter to trigger reactivity when Map is mutated
+  // Vue's deep watch doesn't reliably detect Map.set()/delete() calls
+  const sourcesVersion = ref(0)
   const activeScene = ref<number | null>(null)
   const isRecording = ref(false)
   const connectionState = ref<'disconnected' | 'connecting' | 'connected'>('disconnected')
@@ -585,6 +588,7 @@ export function useVdoNinja(iframeRef: Ref<HTMLIFrameElement | null>) {
             audioLevel: 0,
           }
           sources.value.set(streamId, sourceInfo)
+          sourcesVersion.value++  // Trigger reactivity for watchers
           console.log(`[VDO.ninja] Source added: ${streamId} (${sourceInfo.label})`)
         }
         break
@@ -596,6 +600,7 @@ export function useVdoNinja(iframeRef: Ref<HTMLIFrameElement | null>) {
       case 'disconnect':
         if (streamId) {
           sources.value.delete(streamId)
+          sourcesVersion.value++  // Trigger reactivity for watchers
         }
         break
         
@@ -673,6 +678,7 @@ export function useVdoNinja(iframeRef: Ref<HTMLIFrameElement | null>) {
     // State
     isReady,
     sources,
+    sourcesVersion,  // For triggering watchers on Map mutations
     activeScene,
     isRecording,
     connectionState,

@@ -19,6 +19,7 @@ const vdo = useVdoNinja(iframeRef)
 const { 
   isReady, 
   sources: vdoSources, 
+  sourcesVersion: vdoSourcesVersion,  // For triggering watchers
   addToScene,
   removeFromScene, 
   setMute, 
@@ -77,6 +78,7 @@ defineExpose({
   
   // Sources state - needed for auto-add functionality
   sources: vdoSources,
+  sourcesVersion: vdoSourcesVersion,  // For triggering watchers on Map mutations
   
   // Scene/layout control (VERIFIED API)
   addToScene,

@@ -417,9 +417,12 @@ export function useMixerController(
   
   // Watch for new VDO.ninja sources and auto-add them to scene 1 (program)
   // This is critical for PVW/PGM displays to work - sources must be added to scenes
+  // Note: We watch sourcesVersion instead of sources.value because Vue's reactivity
+  // doesn't reliably detect Map.set()/delete() mutations
   watch(
-    () => vdoEmbedRef.value?.sources?.value,
-    (sources) => {
+    () => vdoEmbedRef.value?.sourcesVersion?.value,
+    () => {
+      const sources = vdoEmbedRef.value?.sources?.value
       if (!sources || sources.size === 0) return
       
       const vdo = getVdo()
@@ -449,7 +452,7 @@ export function useMixerController(
         }
       }
     },
-    { deep: true, immediate: true }
+    { immediate: true }
   )
   
   // Fallback: Initialize after a delay if isReady never fires
