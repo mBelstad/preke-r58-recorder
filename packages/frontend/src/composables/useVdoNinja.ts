@@ -207,6 +207,9 @@ export function useVdoNinja(iframeRef: Ref<HTMLIFrameElement | null>) {
   const lastError = ref<string | null>(null)
   const VDO_HOST = getVdoHost()
   
+  // Map UUID to stream ID - VDO.ninja scene operations require stream IDs, not UUIDs
+  const uuidToStreamId = new Map<string, string>()
+  
   // ==========================================
   // SENDING COMMANDS TO VDO.NINJA
   // ==========================================
@@ -279,7 +282,12 @@ export function useVdoNinja(iframeRef: Ref<HTMLIFrameElement | null>) {
    * API: action: "addScene", target: streamID/slot, value: sceneNumber
    */
   function addToScene(targetId: string, sceneNumber: number = 1): void {
-    sendCommand('addScene', targetId, sceneNumber)
+    // Resolve UUID to stream ID if we have a mapping (VDO.ninja scenes require stream IDs)
+    const resolvedId = uuidToStreamId.get(targetId) || targetId
+    if (resolvedId !== targetId) {
+      console.log(`[VDO.ninja] Resolved UUID ${targetId} to stream ID ${resolvedId} for addScene`)
+    }
+    sendCommand('addScene', resolvedId, sceneNumber)
     activeScene.value = sceneNumber
   }
   
@@ -288,6 +296,8 @@ export function useVdoNinja(iframeRef: Ref<HTMLIFrameElement | null>) {
    * Note: This keeps them in the room but removes from the scene view
    */
   function removeFromScene(targetId: string, sceneNumber: number = 1): void {
+    // Resolve UUID to stream ID if we have a mapping
+    const resolvedId = uuidToStreamId.get(targetId) || targetId
     // VDO.ninja uses addScene with value 0 or negative to remove
     sendCommand('addScene', targetId, 0)
   }
@@ -566,6 +576,48 @@ export function useVdoNinja(iframeRef: Ref<HTMLIFrameElement | null>) {
         lastError.value = null
         break
         
+      case 'stream-id-detected': {
+        // VDO.ninja sends this to provide the short stream ID (e.g., "4v6AX33")
+        // This is the ID that must be used for scene operations
+        const detectedStreamId = (data.value as string) || (data.data as string)
+        const uuid = data.UUID as string | undefined
+        
+        if (detectedStreamId) {
+          // Store UUID -> streamID mapping if we have both
+          if (uuid) {
+            uuidToStreamId.set(uuid, detectedStreamId)
+            console.log(`[VDO.ninja] Stream ID mapping: ${uuid} -> ${detectedStreamId}`)
+            
+            // If we have a source registered with UUID, update it to use stream ID
+            const existingSource = sources.value.get(uuid)
+            if (existingSource) {
+              sources.value.delete(uuid)
+              existingSource.id = detectedStreamId
+              sources.value.set(detectedStreamId, existingSource)
+              sourcesVersion.value++
+              console.log(`[VDO.ninja] Updated source ID from UUID to stream ID: ${detectedStreamId}`)
+            }
+          }
+          
+          // Create source entry if it doesn't exist
+          if (!sources.value.has(detectedStreamId)) {
+            const sourceInfo: SourceInfo = {
+              id: detectedStreamId,
+              label: (data.label as string) || detectedStreamId,
+              type: 'guest',
+              hasVideo: true,
+              hasAudio: true,
+              muted: false,
+              audioLevel: 0,
+            }
+            sources.value.set(detectedStreamId, sourceInfo)
+            sourcesVersion.value++
+            console.log(`[VDO.ninja] Source added via stream-id-detected: ${detectedStreamId}`)
+          }
+        }
+        break
+      }
+      
       case 'new-guest':
       case 'guest-connected':
       case 'push':
@@ -575,21 +627,32 @@ export function useVdoNinja(iframeRef: Ref<HTMLIFrameElement | null>) {
       case 'push-connection':       // VDO.ninja sends this when push connection established
       case 'new-view-connection':   // VDO.ninja sends this when viewing starts
       case 'view-connection': {     // VDO.ninja sends this when view connection established
-        // New source joined
-        if (streamId) {
+        // New source joined - prefer streamID over UUID for scene operations
+        const uuid = data.UUID as string | undefined
+        const actualStreamId = data.streamID as string | undefined
+        
+        // Use stream ID if available, otherwise UUID (will be updated later by stream-id-detected)
+        const sourceId = actualStreamId || uuid || streamId
+        
+        if (sourceId) {
+          // If we have UUID, store the mapping for later
+          if (uuid && actualStreamId) {
+            uuidToStreamId.set(uuid, actualStreamId)
+          }
+          
           const eventData = data.data as Record<string, unknown> | undefined
           const sourceInfo: SourceInfo = {
-            id: streamId,
-            label: (eventData?.label as string) || data.label || streamId,
+            id: sourceId,
+            label: (eventData?.label as string) || data.label || sourceId,
             type: (eventData?.type as SourceInfo['type']) || 'guest',
             hasVideo: eventData?.video !== false,
             hasAudio: eventData?.audio !== false,
             muted: false,
             audioLevel: 0,
           }
-          sources.value.set(streamId, sourceInfo)
+          sources.value.set(sourceId, sourceInfo)
           sourcesVersion.value++  // Trigger reactivity for watchers
-          console.log(`[VDO.ninja] Source added: ${streamId} (${sourceInfo.label})`)
+          console.log(`[VDO.ninja] Source added: ${sourceId} (${sourceInfo.label})${uuid && !actualStreamId ? ' (UUID, awaiting stream ID)' : ''}`)
         }
         break
       }
