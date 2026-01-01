@@ -16,6 +16,10 @@ export function getVdoProtocol(): string {
 
 export const VDO_ROOM = 'studio'
 
+// Director password for VDO.ninja room - ensures this app is the authenticated director
+// This allows the mixer to control the room even if other sessions exist
+export const VDO_DIRECTOR_PASSWORD = 'preke-r58-2024'
+
 /**
  * VDO.ninja URL parameter profiles for each embed scenario
  * 
@@ -27,10 +31,12 @@ export const VDO_ROOM = 'studio'
 export const embedProfiles = {
   // DIRECTOR VIEW - Full control panel for operator
   // Camera sources are pushed via CameraPushBar using &whepplay= parameter
+  // Uses password to authenticate as the room director
   director: {
     base: '/',
     params: {
       director: VDO_ROOM,
+      password: VDO_DIRECTOR_PASSWORD,  // Authenticate as director
       hidesolo: true,
       hideheader: true,
       cleanoutput: true,
@@ -42,10 +48,12 @@ export const embedProfiles = {
   
   // MIXER VIEW - For embedded control without visible UI
   // Camera sources are pushed via CameraPushBar using &whepplay= parameter
+  // Uses password to authenticate as the room director
   mixer: {
     base: '/',
     params: {
       director: VDO_ROOM,
+      password: VDO_DIRECTOR_PASSWORD,  // Authenticate as director
       hidesolo: true,
       hideheader: true,
       cleanoutput: true,
