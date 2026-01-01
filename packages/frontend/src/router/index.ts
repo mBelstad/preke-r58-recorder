@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory, createWebHashHistory } from 'vue-router'
 import { isElectron, buildApiUrl } from '@/lib/api'
+import { useCapabilitiesStore } from '@/stores/capabilities'
 
 // Use hash history for both Electron and web (works with static file serving)
 // This avoids needing server-side SPA routing configuration
@@ -119,6 +120,15 @@ router.beforeEach(async (to, _from, next) => {
       console.error('[Router] Mode switch failed:', errorData.detail || 'Unknown error')
     } else {
       console.log(`[Router] Successfully switched to ${requiredMode} mode`)
+      
+      // Refresh capabilities store to update UI mode indicator
+      try {
+        const capabilitiesStore = useCapabilitiesStore()
+        await capabilitiesStore.fetchCapabilities()
+        console.log('[Router] Refreshed capabilities after mode switch')
+      } catch (e) {
+        console.warn('[Router] Failed to refresh capabilities:', e)
+      }
     }
     
     isSwitchingMode = false

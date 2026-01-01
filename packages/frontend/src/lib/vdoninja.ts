@@ -423,13 +423,11 @@ export function buildSceneOutputUrl(
   // VDO.ninja scene viewing with auto-add enabled
   // The &autoadd parameter tells VDO.ninja to automatically add all room guests to the scene
   // This is crucial because the director may not have added sources yet when the scene loads
-  if (sceneNumber === 0 || sceneNumber === 1) {
-    // Scene 1 is the default - empty value means scene 1
-    url.searchParams.set('scene', '')
-  } else {
-    // Scene 2-8 need explicit number
-    url.searchParams.set('scene', sceneNumber.toString())
-  }
+  // 
+  // IMPORTANT: Always use explicit scene number (1, 2, etc.) - NOT empty string
+  // VDO.ninja may not recognize &scene= (empty value) correctly
+  const effectiveScene = sceneNumber === 0 ? 1 : sceneNumber  // Scene 0 maps to scene 1
+  url.searchParams.set('scene', effectiveScene.toString())
   
   // Auto-add all room guests to this scene as they join
   url.searchParams.set('autoadd', '')  // Automatically add guests to scene
