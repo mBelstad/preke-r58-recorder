@@ -420,17 +420,16 @@ export function buildSceneOutputUrl(
   const VDO_PROTOCOL = getVdoProtocol()
   const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/`)
   
-  // VDO.ninja scene viewing with auto-add enabled
-  // The &autoadd parameter tells VDO.ninja to automatically add all room guests to the scene
-  // This is crucial because the director may not have added sources yet when the scene loads
-  // 
-  // IMPORTANT: Always use explicit scene number (1, 2, etc.) - NOT empty string
-  // VDO.ninja may not recognize &scene= (empty value) correctly
-  const effectiveScene = sceneNumber === 0 ? 1 : sceneNumber  // Scene 0 maps to scene 1
-  url.searchParams.set('scene', effectiveScene.toString())
-  
-  // Auto-add all room guests to this scene as they join
-  url.searchParams.set('autoadd', '')  // Automatically add guests to scene
+  // Use &view to show room participants directly, not &scene
+  // &scene is meant for OBS integration and requires director commands
+  // &view shows all room participants when set to * or specific stream IDs
+  //
+  // &push=false prevents the viewer from being a source
+  // &api= enables postMessage API for external control
+  // &autostart joins automatically without user interaction
+  url.searchParams.set('view', '*')  // View all room participants
+  url.searchParams.set('push', 'false')  // Don't push to room
+  url.searchParams.set('api', '')  // Enable API
   
   url.searchParams.set('room', options.room || VDO_ROOM)
   url.searchParams.set('password', VDO_DIRECTOR_PASSWORD)  // Required for room access
