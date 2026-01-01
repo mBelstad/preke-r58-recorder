@@ -420,12 +420,9 @@ export function buildSceneOutputUrl(
   const VDO_PROTOCOL = getVdoProtocol()
   const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/`)
   
-  // VDO.ninja scene viewing - uses &scene to view the scene output
-  // VDO.ninja scene URL format (from director "copy scene link"):
-  //   ?scene&room=xxx&password=xxx
-  // 
-  // Note: DO NOT add videodevice=0/audiodevice=0 - this breaks the scene viewer
-  // The scene viewer URL doesn't need to "join" - it just displays the scene output
+  // VDO.ninja scene viewing with auto-add enabled
+  // The &autoadd parameter tells VDO.ninja to automatically add all room guests to the scene
+  // This is crucial because the director may not have added sources yet when the scene loads
   if (sceneNumber === 0 || sceneNumber === 1) {
     // Scene 1 is the default - empty value means scene 1
     url.searchParams.set('scene', '')
@@ -433,6 +430,9 @@ export function buildSceneOutputUrl(
     // Scene 2-8 need explicit number
     url.searchParams.set('scene', sceneNumber.toString())
   }
+  
+  // Auto-add all room guests to this scene as they join
+  url.searchParams.set('autoadd', '')  // Automatically add guests to scene
   
   url.searchParams.set('room', options.room || VDO_ROOM)
   url.searchParams.set('password', VDO_DIRECTOR_PASSWORD)  // Required for room access
