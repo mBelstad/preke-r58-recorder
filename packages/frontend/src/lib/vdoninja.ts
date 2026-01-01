@@ -420,6 +420,7 @@ export function buildSceneOutputUrl(
   // scene=1+: empty scene, videos need to be added manually by director
   url.searchParams.set('scene', '0')
   url.searchParams.set('room', options.room || VDO_ROOM)
+  url.searchParams.set('autoadd', '*')  // Required: auto-add all room guests to the scene
   
   // Display options for clean output
   url.searchParams.set('cover', '')
