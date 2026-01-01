@@ -424,13 +424,11 @@ export function buildSceneOutputUrl(
   // &scene is meant for OBS integration and requires director commands
   // &view shows all room participants when set to * or specific stream IDs
   //
-  // &push=false prevents the viewer from being a source
-  // &videodevice=0&audiodevice=0 disables camera/mic prompts (headless viewer)
+  // &videodevice=0&audiodevice=0 disables camera/mic (headless viewer mode)
   // &autostart joins automatically without user interaction
   url.searchParams.set('view', '*')  // View all room participants
-  url.searchParams.set('push', 'false')  // Don't push to room
-  url.searchParams.set('videodevice', '0')  // No camera
-  url.searchParams.set('audiodevice', '0')  // No mic
+  url.searchParams.set('videodevice', '0')  // No camera - headless viewer
+  url.searchParams.set('audiodevice', '0')  // No mic - headless viewer
   url.searchParams.set('autostart', '')  // Auto-join without user interaction
   
   url.searchParams.set('room', options.room || VDO_ROOM)
