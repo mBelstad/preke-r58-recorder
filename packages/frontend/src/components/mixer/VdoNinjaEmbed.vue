@@ -67,6 +67,10 @@ const isMixerEmbed = computed(() => props.profile === 'mixer')
 // Track which sources have been auto-added to VDO.ninja scenes
 const sourcesAddedToScenes = new Set<string>()
 
+// Check if a source ID looks like a UUID (36 chars with dashes)
+// VDO.ninja scene operations require short stream IDs (like "w7pLfHh"), not UUIDs
+const isUUID = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+
 // Sync VDO.ninja state to our store AND auto-add new sources to scene 1
 watch(vdoSourcesVersion, () => {
   // Sync to mixer store
@@ -75,6 +79,13 @@ watch(vdoSourcesVersion, () => {
   // Auto-add new sources to VDO.ninja scene 1 (program output)
   for (const [sourceId, sourceInfo] of vdoSources.value) {
     if (!sourcesAddedToScenes.has(sourceId)) {
+      // Skip UUIDs - VDO.ninja scene operations require short stream IDs
+      // The stream-id-detected event will provide the proper ID later
+      if (isUUID(sourceId)) {
+        console.log(`[VdoNinjaEmbed] Skipping UUID ${sourceId} - waiting for stream ID`)
+        continue
+      }
+      
       console.log(`[VdoNinjaEmbed] Auto-adding source ${sourceId} (${sourceInfo.label}) to scene 1`)
       addToScene(sourceId, 1)
       sourcesAddedToScenes.add(sourceId)
