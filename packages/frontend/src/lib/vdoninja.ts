@@ -415,12 +415,14 @@ export function buildSceneOutputUrl(
   const VDO_PROTOCOL = getVdoProtocol()
   const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/`)
   
-  // Use scene=0 to automatically add all room guests to the scene
-  // scene=0: auto-adds all videos, they cannot be removed
-  // scene=1+: empty scene, videos need to be added manually by director
-  url.searchParams.set('scene', '0')
+  // VDO.ninja scene viewer URL format (from director panel):
+  // &scene (boolean flag) - creates a scene viewer
+  // &room - specifies the room
+  // &password - authenticates to access the scene
+  // The director's "Auto-add guests" checkbox handles automatic source addition
+  url.searchParams.set('scene', '')  // Boolean flag (empty value)
   url.searchParams.set('room', options.room || VDO_ROOM)
-  url.searchParams.set('autoadd', '*')  // Required: auto-add all room guests to the scene
+  url.searchParams.set('password', VDO_DIRECTOR_PASSWORD)  // Required for scene access
   
   // Display options for clean output
   url.searchParams.set('cover', '')
