@@ -420,13 +420,15 @@ export function buildSceneOutputUrl(
   const VDO_PROTOCOL = getVdoProtocol()
   const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/`)
   
-  // VDO.ninja scene viewer - uses the scene number directly
-  // - scene=0: auto-adds all videos (recommended for PGM)
-  // - scene=1+: empty scene, videos added manually by director
-  // - scene (empty): defaults to scene 1
+  // VDO.ninja viewing modes:
+  // - view=* : View ALL guests in the room (recommended for PGM/monitoring)
+  // - scene=N : Scene-based view requiring director API to add sources
+  // 
+  // sceneNumber=0 is special: use &view=* to show all room guests
+  // sceneNumber>0: use &scene=N for scene-based display
   if (sceneNumber === 0) {
-    // Scene 0: auto-add all room guests (best for program output)
-    url.searchParams.set('scene', '0')
+    // View ALL room guests (best for program output monitoring)
+    url.searchParams.set('view', '*')
   } else if (sceneNumber === 1) {
     // Scene 1: can use empty value (VDO.ninja default)
     url.searchParams.set('scene', '')
@@ -436,7 +438,7 @@ export function buildSceneOutputUrl(
   }
   
   url.searchParams.set('room', options.room || VDO_ROOM)
-  url.searchParams.set('password', VDO_DIRECTOR_PASSWORD)  // Required for scene access
+  url.searchParams.set('password', VDO_DIRECTOR_PASSWORD)  // Required for room access
   
   // Display options for clean output
   url.searchParams.set('cover', '')
