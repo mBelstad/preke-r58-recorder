@@ -36,6 +36,11 @@ const editName = ref('')
 // Props
 const props = defineProps<{
   vdoEmbed?: InstanceType<typeof VdoNinjaEmbed> | null
+  controller?: {
+    addSourceToScene: (sourceId: string, slotIndex?: number) => void
+    setMute: (sourceId: string, muted: boolean) => void
+    toggleMute: (sourceId: string) => void
+  }
 }>()
 
 // Stores
@@ -117,17 +122,27 @@ function isInProgramScene(sourceId: string): boolean {
 
 // Actions
 function toggleMute(source: MixerSource) {
-  if (props.vdoEmbed) {
+  // Use controller if available (syncs with VDO.ninja)
+  if (props.controller) {
+    props.controller.toggleMute(source.id)
+  } else if (props.vdoEmbed) {
     props.vdoEmbed.toggleMute?.(source.id)
+    mixerStore.setSourceMute(source.id, !source.muted)
+  } else {
+    mixerStore.setSourceMute(source.id, !source.muted)
   }
-  mixerStore.setSourceMute(source.id, !source.muted)
 }
 
 function addToPreviewScene(source: MixerSource) {
   const previewScene = scenesStore.getScene(mixerStore.previewSceneId || '')
   if (!previewScene) return
   
-  // Find first empty slot
+  // Use controller if available (syncs with VDO.ninja)
+  if (props.controller) {
+    props.controller.addSourceToScene(source.id)
+  }
+  
+  // Also update our scene store
   const emptySlot = previewScene.slots.find(s => !s.sourceId)
   if (emptySlot) {
     scenesStore.assignSourceToSlot(previewScene.id, emptySlot.id, source.id)

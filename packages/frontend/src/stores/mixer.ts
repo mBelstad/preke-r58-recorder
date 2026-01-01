@@ -107,6 +107,20 @@ export const useMixerStore = defineStore('mixer', () => {
   const hasPreview = computed(() => previewSceneId.value !== null)
   const hasProgram = computed(() => programSceneId.value !== null)
   
+  // VDO.ninja scene numbers for PVW/PGM monitors
+  // Used by PreviewProgramView to build iframe URLs
+  const previewVdoSceneNumber = computed(() => {
+    const scenesStore = useScenesStore()
+    const scene = scenesStore.getScene(previewSceneId.value || '')
+    return scene?.vdoSceneNumber || null
+  })
+  
+  const programVdoSceneNumber = computed(() => {
+    const scenesStore = useScenesStore()
+    const scene = scenesStore.getScene(programSceneId.value || '')
+    return scene?.vdoSceneNumber || 1  // Default to scene 1 for program
+  })
+  
   // ==========================================
   // ACTIONS
   // ==========================================
@@ -354,6 +368,8 @@ export const useMixerStore = defineStore('mixer', () => {
     liveSourceIds,
     hasPreview,
     hasProgram,
+    previewVdoSceneNumber,
+    programVdoSceneNumber,
     
     // Actions - Live
     toggleLive,

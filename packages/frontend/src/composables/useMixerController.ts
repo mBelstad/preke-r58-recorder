@@ -13,7 +13,7 @@
  */
 import { ref, watch, onMounted, type Ref } from 'vue'
 import { useMixerStore, type MixerSource } from '@/stores/mixer'
-import { useScenesStore, type Scene, type SceneSlot } from '@/stores/scenes'
+import { useScenesStore, type Scene, type SceneSlot, VdoLayoutPreset } from '@/stores/scenes'
 import { useRecorderStore } from '@/stores/recorder'
 import type VdoNinjaEmbed from '@/components/mixer/VdoNinjaEmbed.vue'
 import type { VdoLayoutSlot } from '@/composables/useVdoNinja'
@@ -104,22 +104,6 @@ export function useMixerController(
   }
   
   /**
-   * Convert our scene to VDO.ninja layout format
-   * VDO.ninja uses percentage-based positions: x, y, w, h (0-100)
-   */
-  function sceneToVdoLayout(scene: Scene): VdoLayoutSlot[] {
-    return scene.slots.map((slot, index) => ({
-      x: slot.position.x,
-      y: slot.position.y,
-      w: slot.position.w,
-      h: slot.position.h,
-      slot: index,
-      z: slot.zIndex,
-      c: true  // Crop to fit
-    }))
-  }
-  
-  /**
    * Get source IDs that should be visible in a scene
    */
   function getSceneSourceIds(scene: Scene): string[] {
@@ -134,6 +118,7 @@ export function useMixerController(
   
   /**
    * Apply a scene's layout and sources to VDO.ninja
+   * Uses the scene's vdoSceneNumber and layoutPreset directly
    */
   function applySceneToVdo(scene: Scene): void {
     const vdo = getVdo()
@@ -147,60 +132,28 @@ export function useMixerController(
       console.log('[MixerController] VDO.ninja may not be fully ready, attempting anyway')
     }
     
-    console.log('[MixerController] Applying scene to VDO:', scene.name)
-    
-    // Get source IDs
-    const sourceIds = getSceneSourceIds(scene)
-    
-    // Determine layout preset based on slot count and positions
-    // VDO.ninja layout presets:
-    // 0 = Auto grid
-    // 1 = Solo (first source fullscreen)
-    // 2 = Side by side (50/50 split)
-    // 3 = Picture-in-picture (main + small overlay)
-    // 4+ = Other presets
-    
-    let layoutPreset = 0 // Default to auto grid
-    
-    if (scene.slots.length === 1) {
-      // Full screen / Solo
-      layoutPreset = 1
-    } else if (scene.slots.length === 2) {
-      // Check if side-by-side or PiP
-      const slot0 = scene.slots[0]
-      const slot1 = scene.slots[1]
-      if (slot0.position.w === 50 && slot1.position.w === 50) {
-        layoutPreset = 2 // Side by side
-      } else if (slot1.position.w <= 30 && slot1.position.h <= 30) {
-        layoutPreset = 3 // Picture in picture
-      } else {
-        layoutPreset = 2 // Default to side by side
-      }
-    } else if (scene.slots.length === 3) {
-      // Three-up layout
-      layoutPreset = 5 // Usually a 3-up preset
-    } else if (scene.slots.length === 4) {
-      // Quad view
-      layoutPreset = 0 // Auto grid handles this well
-    } else {
-      // More than 4 sources, use auto grid
-      layoutPreset = 0
-    }
+    console.log('[MixerController] Applying scene to VDO:', scene.name, 
+      '- VDO Scene:', scene.vdoSceneNumber, 
+      '- Layout:', VdoLayoutPreset[scene.layoutPreset] || scene.layoutPreset)
     
     try {
-      // Apply layout preset
-      vdo.setLayout(layoutPreset)
+      // Apply layout preset from scene definition
+      // VDO.ninja layout presets: 0=auto, 1=solo, 2=split, 3=pip, etc.
+      vdo.setLayout(scene.layoutPreset)
       
-      // Add sources to scene
-      // VDO.ninja scene 1 is the default output scene
-      const sceneNumber = 1
+      // Get source IDs from scene slots
+      const sourceIds = getSceneSourceIds(scene)
       
-      // Add each source to the scene
+      // Add each source to the VDO.ninja scene
+      // Use scene.vdoSceneNumber for proper scene assignment
       for (const sourceId of sourceIds) {
-        vdo.addToScene(sourceId, sceneNumber)
+        vdo.addToScene(sourceId, scene.vdoSceneNumber)
       }
       
       lastAppliedSceneId.value = scene.id
+      
+      console.log('[MixerController] Scene applied successfully:', scene.name,
+        '- Sources:', sourceIds.length)
     } catch (error) {
       console.error('[MixerController] Error applying scene to VDO:', error)
     }
@@ -255,22 +208,29 @@ export function useMixerController(
   // ==========================================
   
   /**
-   * Add a source to the current scene
+   * Add a source to the current preview scene
    */
   function addSourceToScene(sourceId: string, slotIndex?: number): void {
     const vdo = getVdo()
     if (!vdo || !isVdoReady()) return
     
-    // Add to VDO.ninja scene 1
-    vdo.addToScene(sourceId, 1)
+    // Get the current preview scene
+    const previewScene = mixerStore.previewSceneId 
+      ? scenesStore.getScene(mixerStore.previewSceneId) 
+      : null
+    
+    // Add to VDO.ninja using the scene's vdoSceneNumber (or default to 1)
+    const vdoSceneNumber = previewScene?.vdoSceneNumber || 1
+    vdo.addToScene(sourceId, vdoSceneNumber)
     
     // Also update our scene store if we have a preview scene
-    if (mixerStore.previewSceneId) {
-      scenesStore.updateSlot(
-        mixerStore.previewSceneId, 
-        slotIndex || 0, 
-        { sourceId }
-      )
+    if (mixerStore.previewSceneId && previewScene) {
+      // Find the first empty slot or use the specified slot
+      const targetSlotIndex = slotIndex ?? previewScene.slots.findIndex(s => !s.sourceId)
+      if (targetSlotIndex >= 0 && targetSlotIndex < previewScene.slots.length) {
+        const slotId = previewScene.slots[targetSlotIndex].id
+        scenesStore.updateSlot(mixerStore.previewSceneId, slotId, { sourceId })
+      }
     }
   }
   
@@ -374,13 +334,19 @@ export function useMixerController(
   }
   
   /**
-   * Admit a guest from greenroom to main room
+   * Admit a guest from greenroom to the current preview scene
    */
   function admitFromGreenroom(sourceId: string): void {
     const vdo = getVdo()
     if (vdo && isVdoReady()) {
-      // In VDO.ninja, this would be done by adding them to a scene
-      vdo.addToScene(sourceId, 1)
+      // Get the current preview scene
+      const previewScene = mixerStore.previewSceneId 
+        ? scenesStore.getScene(mixerStore.previewSceneId) 
+        : null
+      
+      // Add to VDO.ninja scene (preview scene or default to 1)
+      const vdoSceneNumber = previewScene?.vdoSceneNumber || 1
+      vdo.addToScene(sourceId, vdoSceneNumber)
     }
     mixerStore.admitFromGreenroom(sourceId)
   }

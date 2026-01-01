@@ -369,3 +369,73 @@ export function getPublicWhepUrl(cameraId: string): string {
   return `${getPublicR58Host()}/${cameraId}/whep`
 }
 
+/**
+ * Build a VDO.ninja scene output URL for a specific scene number
+ * Used for PVW/PGM monitors - displays what a specific VDO.ninja scene shows
+ * 
+ * @param sceneNumber - VDO.ninja scene number (1-8)
+ * @param options - Additional options
+ * @param options.muted - Mute audio (default: false, use true for preview)
+ * @param options.quality - Video quality 0-2 (default: 2 for program, 1 for preview)
+ */
+export function buildSceneOutputUrl(
+  sceneNumber: number,
+  options: {
+    muted?: boolean
+    quality?: number
+    room?: string
+  } = {}
+): string {
+  const VDO_HOST = getVdoHost()
+  const VDO_PROTOCOL = getVdoProtocol()
+  const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/`)
+  
+  // Scene output params
+  url.searchParams.set('scene', '')
+  url.searchParams.set('room', options.room || VDO_ROOM)
+  
+  // Specific scene number (1-8)
+  // VDO.ninja uses &scene=N to view scene N's output
+  if (sceneNumber > 0 && sceneNumber <= 8) {
+    url.searchParams.set('scene', sceneNumber.toString())
+  }
+  
+  // Display options
+  url.searchParams.set('cover', '')
+  url.searchParams.set('cleanoutput', '')
+  url.searchParams.set('hideheader', '')
+  url.searchParams.set('nologo', '')
+  
+  // Quality: 0=low, 1=medium, 2=high
+  url.searchParams.set('quality', (options.quality ?? 2).toString())
+  
+  // Audio
+  if (options.muted) {
+    url.searchParams.set('muted', '')
+  }
+  
+  // Custom CSS
+  const cssUrl = getVdoCssUrl()
+  if (cssUrl) {
+    url.searchParams.set('css', cssUrl)
+  }
+  
+  return url.toString()
+}
+
+/**
+ * Build a VDO.ninja preview monitor URL (PVW)
+ * Muted, lower quality for preview purposes
+ */
+export function buildPreviewUrl(sceneNumber: number, room?: string): string {
+  return buildSceneOutputUrl(sceneNumber, { muted: true, quality: 1, room })
+}
+
+/**
+ * Build a VDO.ninja program monitor URL (PGM)
+ * Full quality, audio enabled for live output
+ */
+export function buildProgramUrl(sceneNumber: number = 1, room?: string): string {
+  return buildSceneOutputUrl(sceneNumber, { muted: false, quality: 2, room })
+}
+

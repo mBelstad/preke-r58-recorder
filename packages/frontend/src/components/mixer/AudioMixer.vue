@@ -3,14 +3,16 @@
  * AudioMixer - Per-source volume and mute controls
  * 
  * Provides audio level meters, volume sliders, and mute/solo toggles
- * for all connected sources.
+ * for all connected sources. Syncs with VDO.ninja via controller.
  */
 import { computed } from 'vue'
 import { useMixerStore, type MixerSource } from '@/stores/mixer'
 import VdoNinjaEmbed from './VdoNinjaEmbed.vue'
+import type { MixerController } from '@/composables/useMixerController'
 
 const props = defineProps<{
   vdoEmbed?: InstanceType<typeof VdoNinjaEmbed> | null
+  controller?: MixerController
 }>()
 
 const mixerStore = useMixerStore()
@@ -20,34 +22,45 @@ const sources = computed(() => mixerStore.connectedSources.filter(s => s.hasAudi
 
 // Actions
 function handleVolumeChange(source: MixerSource, volume: number) {
-  mixerStore.setSourceVolume(source.id, volume)
-  
-  // Send to VDO.ninja (VDO uses 0-200 scale, 100 = normal)
-  if (props.vdoEmbed) {
-    // Convert our 0-100 scale to VDO's 0-200 scale
-    const vdoVolume = Math.round(volume * 2)
-    props.vdoEmbed.setVolume?.(source.id, vdoVolume)
+  // Use controller if available (proper VDO.ninja sync)
+  if (props.controller) {
+    props.controller.setVolume(source.id, volume)
+  } else {
+    mixerStore.setSourceVolume(source.id, volume)
+    
+    // Send to VDO.ninja (VDO uses 0-200 scale, 100 = normal)
+    if (props.vdoEmbed) {
+      const vdoVolume = Math.round(volume * 2)
+      props.vdoEmbed.setVolume?.(source.id, vdoVolume)
+    }
   }
 }
 
 function toggleMute(source: MixerSource) {
-  const newMuted = !source.muted
-  mixerStore.setSourceMute(source.id, newMuted)
-  
-  // Send to VDO.ninja
-  if (props.vdoEmbed) {
-    props.vdoEmbed.setMute?.(source.id, newMuted)
+  // Use controller if available (proper VDO.ninja sync)
+  if (props.controller) {
+    props.controller.toggleMute(source.id)
+  } else {
+    const newMuted = !source.muted
+    mixerStore.setSourceMute(source.id, newMuted)
+    
+    if (props.vdoEmbed) {
+      props.vdoEmbed.setMute?.(source.id, newMuted)
+    }
   }
 }
 
 function toggleSolo(source: MixerSource) {
-  const newSolo = !source.solo
-  mixerStore.setSourceSolo(source.id, newSolo)
-  
-  // Send to VDO.ninja - solo mutes all others
-  if (props.vdoEmbed && newSolo) {
-    // VDO.ninja soloChat API
-    props.vdoEmbed.sendCommand?.('soloChat', source.id)
+  // Use controller if available (proper VDO.ninja sync)
+  if (props.controller) {
+    props.controller.setSolo(source.id, !source.solo)
+  } else {
+    const newSolo = !source.solo
+    mixerStore.setSourceSolo(source.id, newSolo)
+    
+    if (props.vdoEmbed && newSolo) {
+      props.vdoEmbed.sendCommand?.('soloChat', source.id)
+    }
   }
 }
 

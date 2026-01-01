@@ -414,7 +414,7 @@ function toggleSidebar() {
               <h3 class="text-xs font-semibold text-r58-text-secondary uppercase tracking-wide mb-3">
                 Audio
               </h3>
-              <AudioMixer :vdo-embed="vdoEmbedRef" />
+              <AudioMixer :vdo-embed="vdoEmbedRef" :controller="mixerController" />
             </section>
             
             <!-- Program Output -->

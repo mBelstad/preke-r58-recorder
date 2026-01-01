@@ -85,7 +85,7 @@ function handleCut() {
           v-show="!sourcePanelCollapsed" 
           class="h-[calc(100%-48px)] overflow-y-auto scrollbar-thin"
         >
-          <SourcePanel :vdo-embed="vdoEmbed" />
+          <SourcePanel :vdo-embed="vdoEmbed" :controller="controller" />
         </div>
         
         <!-- Collapsed Icon View -->

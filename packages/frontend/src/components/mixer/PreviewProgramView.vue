@@ -5,10 +5,15 @@
  * The heart of the broadcast-style mixer interface.
  * Shows Preview (what's next) and Program (what's live) side by side
  * with transition controls between them.
+ * 
+ * Uses VDO.ninja scene iframes to display actual video:
+ * - PVW: Shows the scene currently selected for preview (muted, lower quality)
+ * - PGM: Shows the live program output (scene 1, full quality)
  */
 import { ref, computed, watch } from 'vue'
 import { useMixerStore } from '@/stores/mixer'
 import { useScenesStore } from '@/stores/scenes'
+import { buildPreviewUrl, buildProgramUrl } from '@/lib/vdoninja'
 import VdoNinjaEmbed from './VdoNinjaEmbed.vue'
 import type { MixerController } from '@/composables/useMixerController'
 
@@ -29,6 +34,10 @@ const scenesStore = useScenesStore()
 const selectedTransition = ref(mixerStore.transition.type)
 const transitionDuration = ref(mixerStore.transition.duration)
 
+// Refs for iframe containers
+const pvwIframeReady = ref(false)
+const pgmIframeReady = ref(false)
+
 // Computed
 const previewScene = computed(() => 
   scenesStore.getScene(mixerStore.previewSceneId || '')
@@ -45,6 +54,18 @@ const canTake = computed(() =>
 )
 
 const isLive = computed(() => mixerStore.isLive)
+
+// VDO.ninja scene iframe URLs
+// Preview uses the scene's vdoSceneNumber, Program always uses scene 1
+const previewIframeSrc = computed(() => {
+  if (!previewScene.value) return null
+  return buildPreviewUrl(previewScene.value.vdoSceneNumber)
+})
+
+const programIframeSrc = computed(() => {
+  // Program always shows VDO.ninja scene 1 (the live output)
+  return buildProgramUrl(1)
+})
 
 // Watch for transition changes
 watch([selectedTransition, transitionDuration], ([type, duration]) => {
@@ -112,31 +133,39 @@ const durationOptions = [
           class="flex-1 bg-black rounded-lg overflow-hidden border-2 transition-colors relative"
           :class="previewScene ? 'border-amber-500/50' : 'border-r58-bg-tertiary'"
         >
-          <!-- Preview Content -->
-          <div v-if="previewScene" class="absolute inset-0 flex items-center justify-center">
-            <!-- Scene Layout Preview -->
-            <div class="relative w-full h-full bg-r58-bg-secondary">
-              <div 
-                v-for="slot in previewScene.slots" 
-                :key="slot.id"
-                class="absolute bg-r58-bg-tertiary border border-r58-bg-tertiary/50 flex items-center justify-center text-xs text-r58-text-secondary"
-                :style="{
-                  left: `${slot.position.x}%`,
-                  top: `${slot.position.y}%`,
-                  width: `${slot.position.w}%`,
-                  height: `${slot.position.h}%`,
-                  zIndex: slot.zIndex,
-                  borderRadius: slot.style?.borderRadius ? `${slot.style.borderRadius}px` : undefined
-                }"
-              >
-                <span v-if="slot.sourceId" class="truncate px-1">{{ slot.sourceId }}</span>
-                <span v-else class="opacity-50">Empty</span>
-              </div>
-            </div>
+          <!-- VDO.ninja Scene Preview (live video) -->
+          <iframe
+            v-if="previewIframeSrc"
+            :src="previewIframeSrc"
+            class="absolute inset-0 w-full h-full border-0"
+            :class="{ 'opacity-0': !pvwIframeReady }"
+            allow="autoplay; fullscreen"
+            @load="pvwIframeReady = true"
+          ></iframe>
+          
+          <!-- Scene Info Overlay -->
+          <div 
+            v-if="previewScene" 
+            class="absolute bottom-2 left-2 right-2 flex items-center justify-between pointer-events-none"
+          >
+            <span class="px-2 py-1 bg-black/70 rounded text-xs text-white">
+              Scene {{ previewScene.vdoSceneNumber }}: {{ previewScene.name }}
+            </span>
+            <span class="px-2 py-1 bg-black/70 rounded text-xs text-amber-400">
+              {{ previewScene.slots.filter(s => s.sourceId).length }}/{{ previewScene.slots.length }} sources
+            </span>
+          </div>
+          
+          <!-- Loading State -->
+          <div 
+            v-if="previewScene && !pvwIframeReady" 
+            class="absolute inset-0 flex items-center justify-center bg-r58-bg-secondary"
+          >
+            <div class="animate-spin w-6 h-6 border-2 border-amber-400 border-t-transparent rounded-full"></div>
           </div>
           
           <!-- Empty State -->
-          <div v-else class="absolute inset-0 flex items-center justify-center text-r58-text-secondary">
+          <div v-if="!previewScene" class="absolute inset-0 flex items-center justify-center text-r58-text-secondary">
             <div class="text-center">
               <svg class="w-8 h-8 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
@@ -225,43 +254,50 @@ const durationOptions = [
           class="flex-1 bg-black rounded-lg overflow-hidden border-2 transition-colors relative"
           :class="isLive ? 'border-red-500' : (programScene ? 'border-emerald-500/50' : 'border-r58-bg-tertiary')"
         >
-          <!-- Program Content - VDO.ninja scene output -->
-          <div v-if="programScene" class="absolute inset-0">
-            <!-- In production, this would show the actual VDO.ninja scene output -->
-            <!-- For now, show scene layout preview -->
-            <div class="relative w-full h-full bg-r58-bg-secondary">
-              <div 
-                v-for="slot in programScene.slots" 
-                :key="slot.id"
-                class="absolute bg-r58-bg-primary border border-r58-bg-tertiary/50 flex items-center justify-center text-xs text-r58-text-secondary"
-                :style="{
-                  left: `${slot.position.x}%`,
-                  top: `${slot.position.y}%`,
-                  width: `${slot.position.w}%`,
-                  height: `${slot.position.h}%`,
-                  zIndex: slot.zIndex,
-                  borderRadius: slot.style?.borderRadius ? `${slot.style.borderRadius}px` : undefined
-                }"
-              >
-                <span v-if="slot.sourceId" class="truncate px-1">{{ slot.sourceId }}</span>
-                <span v-else class="opacity-50">Empty</span>
-              </div>
-            </div>
-            
-            <!-- Live indicator overlay -->
-            <div v-if="isLive" class="absolute top-2 left-2 flex items-center gap-2">
-              <div class="w-3 h-3 rounded-full bg-red-500 animate-recording"></div>
-            </div>
+          <!-- VDO.ninja Program Output (live video from scene 1) -->
+          <iframe
+            v-if="programIframeSrc"
+            :src="programIframeSrc"
+            class="absolute inset-0 w-full h-full border-0"
+            :class="{ 'opacity-0': !pgmIframeReady }"
+            allow="autoplay; fullscreen"
+            @load="pgmIframeReady = true"
+          ></iframe>
+          
+          <!-- Scene Info Overlay -->
+          <div 
+            v-if="programScene" 
+            class="absolute bottom-2 left-2 right-2 flex items-center justify-between pointer-events-none"
+          >
+            <span class="px-2 py-1 bg-black/70 rounded text-xs text-white">
+              {{ programScene.name }}
+            </span>
+            <span v-if="isLive" class="px-2 py-1 bg-red-600/90 rounded text-xs text-white font-bold">
+              ON AIR
+            </span>
           </div>
           
-          <!-- Empty State -->
-          <div v-else class="absolute inset-0 flex items-center justify-center text-r58-text-secondary">
+          <!-- Loading State -->
+          <div 
+            v-if="!pgmIframeReady" 
+            class="absolute inset-0 flex items-center justify-center bg-r58-bg-secondary"
+          >
+            <div class="animate-spin w-6 h-6 border-2 border-emerald-400 border-t-transparent rounded-full"></div>
+          </div>
+          
+          <!-- Live indicator overlay -->
+          <div v-if="isLive" class="absolute top-2 left-2 flex items-center gap-2 pointer-events-none">
+            <div class="w-3 h-3 rounded-full bg-red-500 animate-recording"></div>
+          </div>
+          
+          <!-- Empty State (only when no program scene AND iframe not loaded) -->
+          <div v-if="!programScene && !pgmIframeReady" class="absolute inset-0 flex items-center justify-center text-r58-text-secondary">
             <div class="text-center">
               <svg class="w-8 h-8 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <p class="text-sm">No scene on program</p>
+              <p class="text-sm">Waiting for program...</p>
             </div>
           </div>
         </div>

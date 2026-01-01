@@ -36,12 +36,34 @@ export interface AudioMixConfig {
   }
 }
 
+/**
+ * VDO.ninja Layout Presets
+ * These map to VDO.ninja's built-in layout system
+ */
+export enum VdoLayoutPreset {
+  AUTO_GRID = 0,    // Auto-arrange all sources in grid
+  SOLO = 1,         // First source fullscreen
+  SPLIT = 2,        // Side by side 50/50
+  PIP = 3,          // Main + small overlay (picture-in-picture)
+  THREE_UP = 4,     // 1 large + 2 small
+  QUAD = 5,         // 2x2 grid
+  PRESENTATION = 6, // Large content + small speaker
+  INTERVIEW = 7,    // Two speakers centered
+}
+
 export interface Scene {
   id: string
   name: string
   thumbnail?: string
   resolution: { width: number; height: number }
+  
+  // VDO.ninja integration
+  vdoSceneNumber: number      // 1-8, maps to VDO.ninja scene
+  layoutPreset: VdoLayoutPreset  // Which VDO.ninja layout to use
+  
+  // Source assignments for each slot
   slots: SceneSlot[]
+  
   transition?: TransitionConfig
   audio?: AudioMixConfig
   createdAt: string
@@ -56,6 +78,8 @@ const defaultScenes: Scene[] = [
   {
     id: 'solo-1',
     name: 'Solo 1',
+    vdoSceneNumber: 1,  // VDO.ninja scene 1 (also used as program output)
+    layoutPreset: VdoLayoutPreset.SOLO,
     resolution: { width: 1920, height: 1080 },
     slots: [
       { id: 'slot-1', sourceId: null, position: { x: 0, y: 0, w: 100, h: 100 }, zIndex: 0 }
@@ -66,6 +90,8 @@ const defaultScenes: Scene[] = [
   {
     id: 'solo-2',
     name: 'Solo 2',
+    vdoSceneNumber: 2,
+    layoutPreset: VdoLayoutPreset.SOLO,
     resolution: { width: 1920, height: 1080 },
     slots: [
       { id: 'slot-1', sourceId: null, position: { x: 0, y: 0, w: 100, h: 100 }, zIndex: 0 }
@@ -76,6 +102,8 @@ const defaultScenes: Scene[] = [
   {
     id: 'split',
     name: 'Split Screen',
+    vdoSceneNumber: 3,
+    layoutPreset: VdoLayoutPreset.SPLIT,
     resolution: { width: 1920, height: 1080 },
     slots: [
       { id: 'slot-1', sourceId: null, position: { x: 0, y: 0, w: 50, h: 100 }, zIndex: 0 },
@@ -87,6 +115,8 @@ const defaultScenes: Scene[] = [
   {
     id: 'pip',
     name: 'Picture in Picture',
+    vdoSceneNumber: 4,
+    layoutPreset: VdoLayoutPreset.PIP,
     resolution: { width: 1920, height: 1080 },
     slots: [
       { id: 'slot-1', sourceId: null, position: { x: 0, y: 0, w: 100, h: 100 }, zIndex: 0 },
@@ -98,6 +128,8 @@ const defaultScenes: Scene[] = [
   {
     id: 'quad',
     name: 'Quad View',
+    vdoSceneNumber: 5,
+    layoutPreset: VdoLayoutPreset.QUAD,
     resolution: { width: 1920, height: 1080 },
     slots: [
       { id: 'slot-1', sourceId: null, position: { x: 0, y: 0, w: 50, h: 50 }, zIndex: 0 },
@@ -111,6 +143,8 @@ const defaultScenes: Scene[] = [
   {
     id: 'three-up',
     name: 'Three Up',
+    vdoSceneNumber: 6,
+    layoutPreset: VdoLayoutPreset.THREE_UP,
     resolution: { width: 1920, height: 1080 },
     slots: [
       { id: 'slot-1', sourceId: null, position: { x: 0, y: 0, w: 50, h: 100 }, zIndex: 0 },
@@ -123,6 +157,8 @@ const defaultScenes: Scene[] = [
   {
     id: 'interview',
     name: 'Interview',
+    vdoSceneNumber: 7,
+    layoutPreset: VdoLayoutPreset.INTERVIEW,
     resolution: { width: 1920, height: 1080 },
     slots: [
       { id: 'slot-1', sourceId: null, position: { x: 5, y: 0, w: 42.5, h: 100 }, zIndex: 0 },
@@ -134,6 +170,8 @@ const defaultScenes: Scene[] = [
   {
     id: 'presentation',
     name: 'Presentation',
+    vdoSceneNumber: 8,
+    layoutPreset: VdoLayoutPreset.PRESENTATION,
     resolution: { width: 1920, height: 1080 },
     slots: [
       { id: 'slot-1', sourceId: null, position: { x: 0, y: 0, w: 75, h: 100 }, zIndex: 0 },
@@ -196,10 +234,25 @@ export const useScenesStore = defineStore('scenes', () => {
     return scenes.value.find(s => s.id === sceneId)
   }
   
+  /**
+   * Get the next available VDO.ninja scene number (1-8)
+   * Returns 0 if all 8 scenes are used
+   */
+  function getNextVdoSceneNumber(): number {
+    const usedNumbers = new Set(scenes.value.map(s => s.vdoSceneNumber))
+    for (let i = 1; i <= 8; i++) {
+      if (!usedNumbers.has(i)) return i
+    }
+    return 0 // All scenes used - will need to reuse
+  }
+  
   function createScene(scene: Omit<Scene, 'id' | 'createdAt' | 'updatedAt'>): Scene {
     const newScene: Scene = {
       ...scene,
       id: `scene-${Date.now()}`,
+      // Assign VDO scene number if not provided
+      vdoSceneNumber: scene.vdoSceneNumber || getNextVdoSceneNumber() || 1,
+      layoutPreset: scene.layoutPreset ?? VdoLayoutPreset.AUTO_GRID,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     }
@@ -273,10 +326,21 @@ export const useScenesStore = defineStore('scenes', () => {
         return { success: false, count: 0, error: 'Invalid format: missing scenes array' }
       }
       
+      // Get used VDO scene numbers
+      const usedNumbers = new Set(scenes.value.map(s => s.vdoSceneNumber))
+      let nextAvailable = 1
+      const getNextNumber = () => {
+        while (usedNumbers.has(nextAvailable) && nextAvailable <= 8) nextAvailable++
+        usedNumbers.add(nextAvailable)
+        return nextAvailable <= 8 ? nextAvailable : 1
+      }
+      
       // Validate and import scenes
       const importedScenes: Scene[] = parsed.scenes.map((s: Partial<Scene>) => ({
         id: s.id || `scene-${Date.now()}-${Math.random().toString(36).slice(2)}`,
         name: s.name || 'Imported Scene',
+        vdoSceneNumber: s.vdoSceneNumber || getNextNumber(),
+        layoutPreset: s.layoutPreset ?? VdoLayoutPreset.AUTO_GRID,
         resolution: s.resolution || { width: 1920, height: 1080 },
         slots: s.slots || [],
         thumbnail: s.thumbnail,
@@ -347,6 +411,7 @@ export const useScenesStore = defineStore('scenes', () => {
     // Actions
     setActiveScene,
     getScene,
+    getNextVdoSceneNumber,
     createScene,
     updateScene,
     deleteScene,
