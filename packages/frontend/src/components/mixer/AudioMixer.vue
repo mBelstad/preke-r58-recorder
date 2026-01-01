@@ -22,9 +22,11 @@ const sources = computed(() => mixerStore.connectedSources.filter(s => s.hasAudi
 function handleVolumeChange(source: MixerSource, volume: number) {
   mixerStore.setSourceVolume(source.id, volume)
   
-  // Send to VDO.ninja
+  // Send to VDO.ninja (VDO uses 0-200 scale, 100 = normal)
   if (props.vdoEmbed) {
-    props.vdoEmbed.setVolume?.(source.id, volume)
+    // Convert our 0-100 scale to VDO's 0-200 scale
+    const vdoVolume = Math.round(volume * 2)
+    props.vdoEmbed.setVolume?.(source.id, vdoVolume)
   }
 }
 

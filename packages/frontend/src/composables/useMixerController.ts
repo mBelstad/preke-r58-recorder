@@ -11,7 +11,7 @@
  * - Recording control
  * - Greenroom management
  */
-import { ref, computed, watch, onMounted, onUnmounted, type Ref } from 'vue'
+import { ref, watch, onMounted, type Ref } from 'vue'
 import { useMixerStore, type MixerSource } from '@/stores/mixer'
 import { useScenesStore, type Scene, type SceneSlot } from '@/stores/scenes'
 import { useRecorderStore } from '@/stores/recorder'
@@ -86,10 +86,21 @@ export function useMixerController(
   
   /**
    * Check if VDO.ninja is ready
+   * Uses multiple fallback checks for reliability
    */
   function isVdoReady(): boolean {
     const vdo = getVdo()
-    return vdo?.isReady?.value === true
+    if (!vdo) return false
+    
+    // Check isReady ref from useVdoNinja
+    if (vdo.isReady?.value === true) return true
+    
+    // Check connectionState for 'connected'
+    if (vdo.connectionState?.value === 'connected') return true
+    
+    // Fallback: check if the iframe element exists
+    // The 5s timeout in useVdoNinja should have marked it ready
+    return isInitialized.value
   }
   
   /**
@@ -126,50 +137,73 @@ export function useMixerController(
    */
   function applySceneToVdo(scene: Scene): void {
     const vdo = getVdo()
-    if (!vdo || !isVdoReady()) {
-      console.warn('[MixerController] VDO.ninja not ready, cannot apply scene')
+    if (!vdo) {
+      console.warn('[MixerController] VDO.ninja embed not available')
       return
+    }
+    
+    // Allow applying even if not fully ready - VDO.ninja will queue commands
+    if (!isVdoReady()) {
+      console.log('[MixerController] VDO.ninja may not be fully ready, attempting anyway')
     }
     
     console.log('[MixerController] Applying scene to VDO:', scene.name)
     
-    // Get layout slots
-    const layout = sceneToVdoLayout(scene)
-    
     // Get source IDs
     const sourceIds = getSceneSourceIds(scene)
     
-    // Apply layout to VDO.ninja
-    // If layout has no slots or is a simple full-screen, use preset
-    if (scene.slots.length === 1 && 
-        scene.slots[0].position.w === 100 && 
-        scene.slots[0].position.h === 100) {
-      // Full screen - use layout preset 1
-      vdo.setLayout(1)
+    // Determine layout preset based on slot count and positions
+    // VDO.ninja layout presets:
+    // 0 = Auto grid
+    // 1 = Solo (first source fullscreen)
+    // 2 = Side by side (50/50 split)
+    // 3 = Picture-in-picture (main + small overlay)
+    // 4+ = Other presets
+    
+    let layoutPreset = 0 // Default to auto grid
+    
+    if (scene.slots.length === 1) {
+      // Full screen / Solo
+      layoutPreset = 1
     } else if (scene.slots.length === 2) {
-      // Side by side - check if it's split screen
-      vdo.setLayout(2)
+      // Check if side-by-side or PiP
+      const slot0 = scene.slots[0]
+      const slot1 = scene.slots[1]
+      if (slot0.position.w === 50 && slot1.position.w === 50) {
+        layoutPreset = 2 // Side by side
+      } else if (slot1.position.w <= 30 && slot1.position.h <= 30) {
+        layoutPreset = 3 // Picture in picture
+      } else {
+        layoutPreset = 2 // Default to side by side
+      }
+    } else if (scene.slots.length === 3) {
+      // Three-up layout
+      layoutPreset = 5 // Usually a 3-up preset
     } else if (scene.slots.length === 4) {
-      // Quad view - use layout preset 0 (auto grid)
-      vdo.setLayout(0)
+      // Quad view
+      layoutPreset = 0 // Auto grid handles this well
     } else {
-      // Custom layout
-      vdo.setLayout(layout)
+      // More than 4 sources, use auto grid
+      layoutPreset = 0
     }
     
-    // Add sources to scene
-    // VDO.ninja scene 1 is the default output scene
-    const sceneNumber = 1
-    
-    // First, clear existing sources from scene (by setting them to scene 0)
-    // This would require tracking previous sources
-    
-    // Add each source to the scene
-    for (const sourceId of sourceIds) {
-      vdo.addToScene(sourceId, sceneNumber)
+    try {
+      // Apply layout preset
+      vdo.setLayout(layoutPreset)
+      
+      // Add sources to scene
+      // VDO.ninja scene 1 is the default output scene
+      const sceneNumber = 1
+      
+      // Add each source to the scene
+      for (const sourceId of sourceIds) {
+        vdo.addToScene(sourceId, sceneNumber)
+      }
+      
+      lastAppliedSceneId.value = scene.id
+    } catch (error) {
+      console.error('[MixerController] Error applying scene to VDO:', error)
     }
-    
-    lastAppliedSceneId.value = scene.id
   }
   
   /**
@@ -410,6 +444,18 @@ export function useMixerController(
     },
     { immediate: true }
   )
+  
+  // Fallback: Initialize after a delay if isReady never fires
+  onMounted(() => {
+    setTimeout(() => {
+      if (!isInitialized.value && vdoEmbedRef.value) {
+        console.log('[MixerController] Fallback initialization (timeout)')
+        isInitialized.value = true
+        isConnected.value = true
+        mixerStore.setVdoConnected(true)
+      }
+    }, 6000) // 6s, after the 5s timeout in useVdoNinja
+  })
   
   // Watch for program scene changes
   watch(
