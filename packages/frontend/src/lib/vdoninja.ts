@@ -425,11 +425,13 @@ export function buildSceneOutputUrl(
   // &view shows all room participants when set to * or specific stream IDs
   //
   // &push=false prevents the viewer from being a source
-  // &api= enables postMessage API for external control
+  // &videodevice=0&audiodevice=0 disables camera/mic prompts (headless viewer)
   // &autostart joins automatically without user interaction
   url.searchParams.set('view', '*')  // View all room participants
   url.searchParams.set('push', 'false')  // Don't push to room
-  url.searchParams.set('api', '')  // Enable API
+  url.searchParams.set('videodevice', '0')  // No camera
+  url.searchParams.set('audiodevice', '0')  // No mic
+  url.searchParams.set('autostart', '')  // Auto-join without user interaction
   
   url.searchParams.set('room', options.room || VDO_ROOM)
   url.searchParams.set('password', VDO_DIRECTOR_PASSWORD)  // Required for room access
