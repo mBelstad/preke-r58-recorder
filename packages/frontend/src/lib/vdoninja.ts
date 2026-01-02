@@ -461,9 +461,9 @@ export function buildPreviewUrl(sceneNumber: number, room?: string): string {
 /**
  * Build a VDO.ninja program monitor URL (PGM)
  * Full quality, audio enabled for live output
- * Uses scene=0 by default which auto-adds all room guests
+ * Uses scene=1 which receives sources added via addToScene director command
  */
-export function buildProgramUrl(sceneNumber: number = 0, room?: string): string {
+export function buildProgramUrl(sceneNumber: number = 1, room?: string): string {
   return buildSceneOutputUrl(sceneNumber, { muted: false, quality: 2, room })
 }
 
