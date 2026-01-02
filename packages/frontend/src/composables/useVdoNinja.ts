@@ -287,9 +287,34 @@ export function useVdoNinja(iframeRef: Ref<HTMLIFrameElement | null>) {
     if (resolvedId !== targetId) {
       console.log(`[VDO.ninja] Resolved UUID ${targetId} to stream ID ${resolvedId} for addToScene`)
     }
-    // VDO.ninja API uses 'addToScene' action (not 'addScene')
-    sendCommand('addToScene', resolvedId, sceneNumber)
-    activeScene.value = sceneNumber
+    
+    // VDO.ninja API uses shorthand format: { addToScene: sceneNumber, target: streamId }
+    // This is different from the standard { action: 'addToScene', target: ..., value: ... } format
+    if (!iframeRef.value?.contentWindow) {
+      console.warn('[VDO.ninja] Cannot send addToScene - iframe not ready')
+      return
+    }
+    
+    const message = { 
+      addToScene: sceneNumber,
+      target: resolvedId
+    }
+    
+    logDebugEntry({
+      timestamp: Date.now(),
+      direction: 'outgoing',
+      type: 'addToScene',
+      target: resolvedId,
+      data: { sceneNumber },
+      raw: message
+    })
+    
+    try {
+      iframeRef.value.contentWindow.postMessage(message, '*')
+      activeScene.value = sceneNumber
+    } catch (err) {
+      console.error('[VDO.ninja] Failed to send addToScene:', err)
+    }
   }
   
   /**
@@ -299,8 +324,32 @@ export function useVdoNinja(iframeRef: Ref<HTMLIFrameElement | null>) {
   function removeFromScene(targetId: string, sceneNumber: number = 1): void {
     // Resolve UUID to stream ID if we have a mapping
     const resolvedId = uuidToStreamId.get(targetId) || targetId
-    // VDO.ninja uses removeFromScene action
-    sendCommand('removeFromScene', resolvedId, sceneNumber)
+    
+    // VDO.ninja API uses shorthand format: { removeFromScene: sceneNumber, target: streamId }
+    if (!iframeRef.value?.contentWindow) {
+      console.warn('[VDO.ninja] Cannot send removeFromScene - iframe not ready')
+      return
+    }
+    
+    const message = { 
+      removeFromScene: sceneNumber,
+      target: resolvedId
+    }
+    
+    logDebugEntry({
+      timestamp: Date.now(),
+      direction: 'outgoing',
+      type: 'removeFromScene',
+      target: resolvedId,
+      data: { sceneNumber },
+      raw: message
+    })
+    
+    try {
+      iframeRef.value.contentWindow.postMessage(message, '*')
+    } catch (err) {
+      console.error('[VDO.ninja] Failed to send removeFromScene:', err)
+    }
   }
   
   /**
