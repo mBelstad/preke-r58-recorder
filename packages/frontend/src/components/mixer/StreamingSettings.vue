@@ -17,6 +17,10 @@ const isOpen = ref(false)
 const editingDestination = ref<StreamingDestination | null>(null)
 const showAddPlatform = ref(false)
 
+// Quick setup fields
+const quickSetupPlatform = ref('youtube')
+const quickSetupStreamKey = ref('')
+
 // Form fields for custom RTMP
 const customRtmpUrl = ref('')
 const customStreamKey = ref('')
@@ -78,6 +82,39 @@ function getPlatformName(platformId: string): string {
   return platform?.name || 'Unknown'
 }
 
+// Quick setup functions
+function getQuickSetupPlaceholder(): string {
+  const platform = STREAMING_PLATFORMS.find(p => p.id === quickSetupPlatform.value)
+  return platform?.streamKeyPlaceholder || 'Enter stream key'
+}
+
+function getStreamKeyHelpUrl(): string {
+  switch (quickSetupPlatform.value) {
+    case 'youtube': return 'https://support.google.com/youtube/answer/2907883'
+    case 'twitch': return 'https://help.twitch.tv/s/article/twitch-stream-key-faq'
+    case 'facebook': return 'https://www.facebook.com/help/587160588142067'
+    case 'restream': return 'https://support.restream.io/en/'
+    default: return '#'
+  }
+}
+
+function quickAddAndSave() {
+  if (!quickSetupStreamKey.value.trim()) {
+    toast.error('Please enter your stream key')
+    return
+  }
+  
+  const dest = streamingStore.addDestination(quickSetupPlatform.value)
+  streamingStore.updateDestination(dest.id, {
+    streamKey: quickSetupStreamKey.value,
+    enabled: true
+  })
+  streamingStore.saveDestinations()
+  
+  quickSetupStreamKey.value = ''
+  toast.success(`${getPlatformName(quickSetupPlatform.value)} configured and enabled!`)
+}
+
 // Expose open method
 defineExpose({ open: openSettings })
 </script>
@@ -101,6 +138,49 @@ defineExpose({ open: openSettings })
 
           <!-- Content -->
           <div class="p-6 overflow-y-auto max-h-[60vh]">
+            <!-- Quick Stream Key Entry (when no destinations) -->
+            <section v-if="destinations.length === 0" class="mb-8 p-6 bg-gradient-to-br from-amber-600/20 to-red-600/20 rounded-xl border border-amber-500/30">
+              <h3 class="text-xl font-semibold mb-2 flex items-center gap-2">
+                🔴 Quick Setup: Stream to YouTube
+              </h3>
+              <p class="text-sm text-r58-text-secondary mb-4">
+                Get streaming in seconds! Just paste your stream key below.
+              </p>
+              
+              <div class="flex gap-3 mb-4">
+                <select
+                  v-model="quickSetupPlatform"
+                  class="px-4 py-3 bg-r58-bg-secondary border border-r58-bg-tertiary rounded-lg text-base"
+                >
+                  <option value="youtube">▶️ YouTube Live</option>
+                  <option value="twitch">📺 Twitch</option>
+                  <option value="facebook">📘 Facebook</option>
+                  <option value="restream">🔄 Restream</option>
+                </select>
+                
+                <input
+                  v-model="quickSetupStreamKey"
+                  type="password"
+                  :placeholder="getQuickSetupPlaceholder()"
+                  class="flex-1 px-4 py-3 bg-r58-bg-secondary border border-r58-bg-tertiary rounded-lg font-mono text-base focus:border-amber-500 focus:outline-none"
+                />
+                
+                <button
+                  @click="quickAddAndSave"
+                  class="px-6 py-3 bg-red-600 hover:bg-red-500 text-white rounded-lg font-semibold transition-colors"
+                >
+                  Save & Enable
+                </button>
+              </div>
+              
+              <p class="text-xs text-r58-text-secondary">
+                🔒 Your stream key is stored locally on this device and never sent to any server.
+                <a :href="getStreamKeyHelpUrl()" target="_blank" class="text-amber-400 hover:underline ml-2">
+                  Where do I find my stream key? →
+                </a>
+              </p>
+            </section>
+
             <!-- Destinations Section -->
             <section class="mb-8">
               <div class="flex items-center justify-between mb-4">
