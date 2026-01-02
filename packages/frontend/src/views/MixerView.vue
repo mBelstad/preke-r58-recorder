@@ -9,7 +9,7 @@
  */
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRecorderStore } from '@/stores/recorder'
-import { buildMixerUrl, getVdoCssUrl, VDO_ROOM, VDO_DIRECTOR_PASSWORD } from '@/lib/vdoninja'
+import { getVdoCssUrl, VDO_ROOM, VDO_DIRECTOR_PASSWORD } from '@/lib/vdoninja'
 
 // Components
 import CameraPushBar from '@/components/mixer/CameraPushBar.vue'
@@ -22,23 +22,31 @@ const isLoading = ref(true)
 const iframeLoaded = ref(false)
 const iframeRef = ref<HTMLIFrameElement | null>(null)
 
-// Build the native mixer URL with custom CSS
+// Build the native director URL (not mixer.html) 
+// Director view works better with our camera push approach
 const mixerUrl = computed(() => {
-  const baseUrl = buildMixerUrl({ room: VDO_ROOM })
-  const url = new URL(baseUrl)
+  const VDO_HOST = 'r58-vdo.itagenten.no'
+  const url = new URL(`https://${VDO_HOST}/`)
   
-  // Add password for director access
+  // Director mode with room
+  url.searchParams.set('director', VDO_ROOM)
   url.searchParams.set('password', VDO_DIRECTOR_PASSWORD)
   
-  // Add darkmode for better integration
+  // Dark mode for better integration
   url.searchParams.set('darkmode', '')
   
-  // Hide branding
+  // Hide branding and clean up UI
   url.searchParams.set('nologo', '')
   url.searchParams.set('hideheader', '')
   
   // Enable API for future integration
   url.searchParams.set('api', '')
+  
+  // Custom CSS for R58 theme
+  const cssUrl = getVdoCssUrl()
+  if (cssUrl) {
+    url.searchParams.set('css', cssUrl)
+  }
   
   return url.toString()
 })
