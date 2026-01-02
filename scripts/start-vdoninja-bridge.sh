@@ -104,8 +104,8 @@ start_chromium() {
         log "Camera: $label -> $whep_url"
     done
     
-    # Also add the director URL for monitoring
-    local director_url="https://$VDONINJA_HOST/?director=$ROOM_NAME"
+    # Add the director URL with password (required to be the actual director)
+    local director_url="https://$VDONINJA_HOST/?director=$ROOM_NAME&password=preke-r58-2024"
     
     # Start Chromium with all URLs
     # Key flags:
