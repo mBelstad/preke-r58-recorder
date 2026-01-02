@@ -1,54 +1,80 @@
 <script setup lang="ts">
 /**
- * MixerView - VDO.ninja native mixer with R58 theme
+ * MixerView - Direct WHEP multiview with VDO.ninja playback
  * 
- * Uses VDO.ninja mixer.html with MediaMTX SFU for video transport.
- * This bypasses P2P WebRTC which doesn't work through FRP tunnels.
+ * IMPORTANT: VDO.ninja room P2P does NOT work through FRP tunnels.
+ * Instead, this view uses direct &whepplay= URLs to display each camera
+ * in individual iframes. This approach is confirmed working.
  * 
- * Camera sources are pushed via CameraPushBar using &whepplay= parameter.
+ * Each camera is displayed via VDO.ninja's &whepplay= parameter which
+ * pulls the WHEP stream directly from MediaMTX through the nginx proxy.
  */
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRecorderStore } from '@/stores/recorder'
-import { buildMixerUrl, getMediaMtxHost, VDO_ROOM, VDO_DIRECTOR_PASSWORD } from '@/lib/vdoninja'
+import { getVdoHost, getVdoProtocol, getPublicWhepUrl } from '@/lib/vdoninja'
 
 // Components
-import CameraPushBar from '@/components/mixer/CameraPushBar.vue'
 import ModeLoadingScreen from '@/components/shared/ModeLoadingScreen.vue'
 
 const recorderStore = useRecorderStore()
 
 // State
 const isLoading = ref(true)
-const iframeLoaded = ref(false)
-const iframeRef = ref<HTMLIFrameElement | null>(null)
+const loadedIframes = ref<Record<string, boolean>>({})
 
-// Build the native mixer.html URL with MediaMTX SFU
-// &mediamtx= parameter makes VDO.ninja use MediaMTX WHEP/WHIP for video transport
-// instead of P2P WebRTC, which works through FRP tunnels
-const mixerUrl = computed(() => {
-  return buildMixerUrl({
-    room: VDO_ROOM,
-    mediamtxHost: getMediaMtxHost()
-  })
-})
-
-// Connected cameras count
-const connectedCameras = computed(() => 
-  recorderStore.inputs.filter(i => i.hasSignal).length
+// Active cameras with signal
+const activeCameras = computed(() => 
+  recorderStore.inputs.filter(i => i.hasSignal)
 )
 
-function handleIframeLoad() {
-  console.log('[Mixer] Native mixer iframe loaded')
-  iframeLoaded.value = true
+// Build WHEP playback URL for a camera
+function buildWhepPlaybackUrl(cameraId: string, label: string): string {
+  const VDO_HOST = getVdoHost()
+  const VDO_PROTOCOL = getVdoProtocol()
+  const whepUrl = getPublicWhepUrl(cameraId)
+  
+  const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/`)
+  url.searchParams.set('whepplay', whepUrl)
+  url.searchParams.set('label', label)
+  url.searchParams.set('cleanoutput', '')
+  url.searchParams.set('hideheader', '')
+  url.searchParams.set('nologo', '')
+  url.searchParams.set('cover', '')
+  
+  return url.toString()
 }
+
+// Track iframe load state
+function handleIframeLoad(cameraId: string) {
+  console.log(`[Mixer] Camera ${cameraId} iframe loaded`)
+  loadedIframes.value[cameraId] = true
+}
+
+// Check if all iframes are loaded
+const allIframesLoaded = computed(() => {
+  if (activeCameras.value.length === 0) return false
+  return activeCameras.value.every(cam => loadedIframes.value[cam.id])
+})
 
 function handleLoadingReady() {
   isLoading.value = false
 }
 
+// Selected camera for program output
+const selectedCamera = ref<string | null>(null)
+
+function selectCamera(cameraId: string) {
+  selectedCamera.value = cameraId
+  console.log(`[Mixer] Selected camera: ${cameraId}`)
+}
+
 // Fetch inputs on mount
 onMounted(async () => {
   await recorderStore.fetchInputs()
+  // Auto-select first camera
+  if (activeCameras.value.length > 0) {
+    selectedCamera.value = activeCameras.value[0].id
+  }
 })
 </script>
 
@@ -58,9 +84,9 @@ onMounted(async () => {
     <ModeLoadingScreen
       v-if="isLoading"
       mode="mixer"
-      :content-ready="iframeLoaded"
+      :content-ready="allIframesLoaded || activeCameras.length === 0"
       :min-time="1500"
-      :max-time="10000"
+      :max-time="8000"
       @ready="handleLoadingReady"
     />
   </Transition>
@@ -71,40 +97,79 @@ onMounted(async () => {
       <div class="flex items-center gap-3">
         <span class="text-lg font-semibold text-r58-mixer">Mixer</span>
         <span class="text-sm text-r58-text-secondary">
-          {{ connectedCameras }} camera{{ connectedCameras !== 1 ? 's' : '' }} connected
+          {{ activeCameras.length }} camera{{ activeCameras.length !== 1 ? 's' : '' }} connected
         </span>
       </div>
       
       <div class="flex items-center gap-2 text-xs text-r58-text-secondary">
-        <span class="px-2 py-1 bg-r58-bg-tertiary rounded">Room: {{ VDO_ROOM }}</span>
+        <span class="px-2 py-1 bg-r58-bg-tertiary rounded">Direct WHEP Playback</span>
       </div>
     </header>
     
-    <!-- Native VDO.ninja Mixer (full height) -->
-    <div class="flex-1 relative">
-      <iframe
-        ref="iframeRef"
-        :src="mixerUrl"
-        @load="handleIframeLoad"
-        class="absolute inset-0 w-full h-full border-0"
-        allow="camera; microphone; autoplay; display-capture"
-        allowfullscreen
-      ></iframe>
+    <!-- Main Content Area -->
+    <div class="flex-1 flex">
+      <!-- Program Output (selected camera) -->
+      <div class="flex-1 relative bg-black">
+        <template v-if="selectedCamera">
+          <iframe
+            :key="selectedCamera"
+            :src="buildWhepPlaybackUrl(selectedCamera, 'Program')"
+            class="absolute inset-0 w-full h-full border-0"
+            allow="autoplay"
+            allowfullscreen
+          ></iframe>
+          <div class="absolute top-2 left-2 px-2 py-1 bg-red-600 text-white text-xs font-bold rounded">
+            PGM
+          </div>
+        </template>
+        <div v-else class="absolute inset-0 flex items-center justify-center text-r58-text-secondary">
+          No camera selected
+        </div>
+      </div>
       
-      <!-- Loading overlay while iframe loads -->
-      <div 
-        v-if="!iframeLoaded"
-        class="absolute inset-0 flex items-center justify-center bg-r58-bg-primary"
-      >
-        <div class="flex flex-col items-center gap-4">
-          <div class="w-8 h-8 border-2 border-r58-accent-primary border-t-transparent rounded-full animate-spin"></div>
-          <span class="text-r58-text-secondary">Loading VDO.ninja mixer...</span>
+      <!-- Camera Multiview (right sidebar) -->
+      <div class="w-80 bg-r58-bg-secondary border-l border-r58-bg-tertiary flex flex-col">
+        <div class="px-3 py-2 border-b border-r58-bg-tertiary">
+          <span class="text-sm font-medium text-r58-text-primary">Sources</span>
+        </div>
+        
+        <div class="flex-1 overflow-y-auto p-2 space-y-2">
+          <template v-if="activeCameras.length === 0">
+            <div class="flex items-center justify-center h-32 text-r58-text-secondary text-sm">
+              No cameras detected
+            </div>
+          </template>
+          
+          <template v-for="camera in activeCameras" :key="camera.id">
+            <div 
+              class="relative aspect-video bg-black rounded overflow-hidden cursor-pointer transition-all"
+              :class="{ 'ring-2 ring-red-500': selectedCamera === camera.id }"
+              @click="selectCamera(camera.id)"
+            >
+              <iframe
+                :src="buildWhepPlaybackUrl(camera.id, camera.name)"
+                @load="handleIframeLoad(camera.id)"
+                class="absolute inset-0 w-full h-full border-0 pointer-events-none"
+                allow="autoplay"
+              ></iframe>
+              
+              <!-- Camera Label -->
+              <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
+                <span class="text-white text-xs font-medium">{{ camera.name }}</span>
+              </div>
+              
+              <!-- Selected indicator -->
+              <div 
+                v-if="selectedCamera === camera.id"
+                class="absolute top-1 right-1 px-1.5 py-0.5 bg-red-600 text-white text-[10px] font-bold rounded"
+              >
+                ON AIR
+              </div>
+            </div>
+          </template>
         </div>
       </div>
     </div>
-    
-    <!-- Camera Push Bar (feeds cameras to VDO.ninja room) -->
-    <CameraPushBar />
   </div>
 </template>
 
