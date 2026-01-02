@@ -375,19 +375,14 @@ export function buildMixerUrl(options: {
 /**
  * Get the default MediaMTX host for the R58 system
  * 
- * Uses Tailscale Funnel URL when available (HTTPS, public access)
- * Falls back to FRP tunnel URL otherwise
+ * IMPORTANT: Always use the FRP-proxied MediaMTX URL (r58-mediamtx.itagenten.no)
+ * because it has proper CORS headers configured via nginx.
+ * 
+ * Tailscale Funnel doesn't include CORS headers, causing VDO.ninja
+ * to fail with "unknown address space" errors when fetching WHEP streams.
  */
 export function getMediaMtxHost(): string {
-  // Check if we're accessing via Tailscale (based on hostname)
-  const hostname = window.location.hostname
-  
-  // If accessing via Tailscale IP or hostname, use Tailscale Funnel
-  if (hostname.includes('.ts.net') || hostname.match(/^100\.\d+\.\d+\.\d+$/)) {
-    return 'linaro-alip.tailab6fd7.ts.net'
-  }
-  
-  // Default to FRP tunnel
+  // Always use FRP-proxied MediaMTX which has CORS headers
   return 'r58-mediamtx.itagenten.no'
 }
 
@@ -414,17 +409,14 @@ export function getPublicR58Host(): string {
  * Build a public WHEP URL for a camera
  * VDO.ninja needs this public URL to fetch the stream
  * 
- * Uses Tailscale Funnel or FRP tunnel based on access method
+ * IMPORTANT: Always use the FRP-proxied MediaMTX URL (r58-mediamtx.itagenten.no)
+ * because it has proper CORS headers configured via nginx.
+ * 
+ * The Tailscale Funnel doesn't include CORS headers, so VDO.ninja
+ * can't fetch WHEP streams from it due to "unknown address space" errors.
  */
 export function getPublicWhepUrl(cameraId: string): string {
-  const hostname = window.location.hostname
-  
-  // For Tailscale, use MediaMTX directly via Funnel
-  if (hostname.includes('.ts.net') || hostname.match(/^100\.\d+\.\d+\.\d+$/)) {
-    return `https://linaro-alip.tailab6fd7.ts.net/${cameraId}/whep`
-  }
-  
-  // For FRP, use the MediaMTX proxy
+  // Always use FRP-proxied MediaMTX which has CORS headers
   return `https://r58-mediamtx.itagenten.no/${cameraId}/whep`
 }
 
