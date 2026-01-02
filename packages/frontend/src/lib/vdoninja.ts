@@ -286,6 +286,7 @@ export function buildCameraContributionUrl(
   url.searchParams.set('whepplay', whepUrl)
   url.searchParams.set('push', cameraId)
   url.searchParams.set('room', VDO_ROOM)
+  url.searchParams.set('password', VDO_DIRECTOR_PASSWORD)  // Required to join the director's room
   url.searchParams.set('label', label)
   url.searchParams.set('autostart', 'true')
   url.searchParams.set('stereo', '2')  // Audio channels
