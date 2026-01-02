@@ -349,7 +349,7 @@ export function buildProgramOutputUrl(whipUrl: string): string {
 /**
  * Build a mixer URL with MediaMTX integration
  * 
- * Uses the ALPHA mixer which has improved MediaMTX SFU support.
+ * Uses the standard mixer.html which has all dependencies bundled.
  * The &mediamtx= parameter tells VDO.ninja to use MediaMTX for
  * WHEP/WHIP transport instead of P2P WebRTC, which is required
  * for working through FRP tunnels.
@@ -360,8 +360,8 @@ export function buildMixerUrl(options: {
 } = {}): string {
   const VDO_HOST = getVdoHost()
   const VDO_PROTOCOL = getVdoProtocol()
-  // Use ALPHA mixer for better MediaMTX integration
-  const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/alpha/mixer.html`)
+  // Use standard mixer.html (alpha mixer lacks bundled dependencies)
+  const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/mixer.html`)
   
   // Room name
   const room = options.room || VDO_ROOM
