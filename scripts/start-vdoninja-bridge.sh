@@ -91,8 +91,8 @@ start_chromium() {
     for camera in "${CAMERA_ARRAY[@]}"; do
         IFS=':' read -r stream_id push_id label <<< "$camera"
         
-        # URL encode the WHEP URL
-        local whep_url="https://$API_HOST/whep/$stream_id"
+        # URL encode the WHEP URL (format: /{stream_id}/whep)
+        local whep_url="https://$API_HOST/$stream_id/whep"
         local encoded_whep=$(url_encode "$whep_url")
         
         # Build the VDO.ninja URL with &whepshare
