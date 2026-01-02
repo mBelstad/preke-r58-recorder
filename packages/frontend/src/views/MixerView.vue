@@ -17,6 +17,7 @@ import { getVdoHost, getVdoProtocol, VDO_ROOM, VDO_DIRECTOR_PASSWORD } from '@/l
 
 // Components
 import ModeLoadingScreen from '@/components/shared/ModeLoadingScreen.vue'
+import StreamingControlPanel from '@/components/mixer/StreamingControlPanel.vue'
 
 const recorderStore = useRecorderStore()
 
@@ -84,6 +85,9 @@ onMounted(async () => {
         <span class="px-2 py-1 bg-r58-bg-tertiary rounded">Room: {{ VDO_ROOM }}</span>
       </div>
     </header>
+    
+    <!-- Streaming Control Panel -->
+    <StreamingControlPanel />
     
     <!-- VDO.ninja Mixer (full height) -->
     <div class="flex-1 relative">

@@ -70,6 +70,12 @@ const router = createRouter({
       component: () => import('@/views/DeviceDetail.vue'),
       meta: { title: 'Device Details', requiresAuth: true }
     },
+    {
+      path: '/stream-test',
+      name: 'stream-test',
+      component: () => import('@/views/StreamTestView.vue'),
+      meta: { title: 'Stream Test' }
+    },
   ]
 })
 

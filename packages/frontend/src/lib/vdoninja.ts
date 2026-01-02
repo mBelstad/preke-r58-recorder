@@ -506,3 +506,22 @@ export function buildProgramUrl(sceneNumber: number = 1, room?: string): string 
   return buildSceneOutputUrl(sceneNumber, { muted: false, quality: 2, room })
 }
 
+/**
+ * Open program output in a popup window for local viewing
+ * Opens a new browser window with the program feed
+ * 
+ * @param sceneNumber - VDO.ninja scene number (default: 1 for program)
+ * @returns Window reference or null if popup blocked
+ */
+export function openProgramPopup(sceneNumber: number = 1): Window | null {
+  const url = buildProgramUrl(sceneNumber)
+  const windowFeatures = 'width=1280,height=720,menubar=no,toolbar=no,location=no,status=no'
+  const popup = window.open(url, 'R58_Program_Output', windowFeatures)
+  
+  if (!popup) {
+    console.warn('[VDO.ninja] Popup blocked - please allow popups for this site')
+  }
+  
+  return popup
+}
+

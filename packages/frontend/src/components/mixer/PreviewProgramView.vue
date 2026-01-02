@@ -63,8 +63,8 @@ const previewIframeSrc = computed(() => {
 })
 
 const programIframeSrc = computed(() => {
-  // Program uses VDO.ninja scene 0 which auto-adds all room guests
-  return buildProgramUrl(0)
+  // Program uses VDO.ninja scene 1 where sources are auto-added by VdoNinjaEmbed
+  return buildProgramUrl(1)
 })
 
 // Watch for transition changes

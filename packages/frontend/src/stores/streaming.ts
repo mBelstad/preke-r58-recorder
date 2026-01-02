@@ -223,6 +223,106 @@ export const useStreamingStore = defineStore('streaming', () => {
     }
   }
 
+  /**
+   * Start RTMP relay to enabled destinations via backend API
+   * 
+   * Uses MediaMTX's runOnReady hook to automatically spawn FFmpeg
+   * when the mixer_program stream becomes ready. MediaMTX manages
+   * the process lifecycle including automatic restart on failure.
+   */
+  async function startRtmpRelay(): Promise<{ success: boolean; message: string }> {
+    try {
+      const enabled = enabledDestinations.value
+      if (enabled.length === 0) {
+        console.warn('[Streaming] No enabled destinations to stream to')
+        return { success: false, message: 'No destinations configured' }
+      }
+
+      const rtmpDestinations = enabled.map(dest => ({
+        platform: dest.platformId,
+        rtmp_url: STREAMING_PLATFORMS.find(p => p.id === dest.platformId)?.rtmpBaseUrl || '',
+        stream_key: dest.streamKey,
+        enabled: true
+      }))
+
+      const response = await fetch('/api/streaming/rtmp/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ destinations: rtmpDestinations })
+      })
+
+      const data = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(data.detail || 'Failed to start RTMP relay')
+      }
+
+      console.log('[Streaming] RTMP relay configured via MediaMTX runOnReady:', data)
+      return { 
+        success: true, 
+        message: data.message || `Streaming to ${enabled.length} destination(s)` 
+      }
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Failed to start RTMP relay'
+      console.error('[Streaming] Failed to start RTMP relay:', e)
+      return { success: false, message }
+    }
+  }
+
+  /**
+   * Stop RTMP relay via backend API
+   * 
+   * Removes the runOnReady hook from MediaMTX, which stops any
+   * running FFmpeg processes.
+   */
+  async function stopRtmpRelay(): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await fetch('/api/streaming/rtmp/stop', {
+        method: 'POST'
+      })
+
+      const data = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(data.detail || 'Failed to stop RTMP relay')
+      }
+
+      console.log('[Streaming] RTMP relay stopped')
+      return { success: true, message: 'RTMP relay stopped' }
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Failed to stop RTMP relay'
+      console.error('[Streaming] Failed to stop RTMP relay:', e)
+      return { success: false, message }
+    }
+  }
+
+  /**
+   * Get streaming status from backend
+   * 
+   * Returns:
+   * - active: Whether mixer_program stream is active in MediaMTX
+   * - rtmp_relay_configured: Whether runOnReady hook is set
+   * - run_on_ready: The current FFmpeg command if configured
+   */
+  async function getStreamingStatus(): Promise<{
+    active: boolean
+    mixer_program_active: boolean
+    rtmp_relay_configured: boolean
+    run_on_ready: string | null
+    error?: string
+  } | null> {
+    try {
+      const response = await fetch('/api/streaming/status')
+      if (!response.ok) {
+        throw new Error('Failed to get streaming status')
+      }
+      return await response.json()
+    } catch (e) {
+      console.error('[Streaming] Failed to get streaming status:', e)
+      return null
+    }
+  }
+
   // Initialize
   loadSavedDestinations()
 
@@ -251,7 +351,12 @@ export const useStreamingStore = defineStore('streaming', () => {
     buildRtmpUrl,
     getSrtOutputUrl,
     saveDestinations,
-    loadSavedDestinations
+    loadSavedDestinations,
+    
+    // RTMP Relay API
+    startRtmpRelay,
+    stopRtmpRelay,
+    getStreamingStatus
   }
 })
 

@@ -21,8 +21,8 @@ const iframeSrc = ref('')
 
 // MediaMTX WHIP endpoint for program output
 function getWhipUrl(): string {
-  const origin = window.location.origin
-  return `${origin}/api/v1/whip/program/whip`
+  // MediaMTX WHIP format: https://host/{stream_name}/whip
+  return `https://r58-mediamtx.itagenten.no/mixer_program/whip`
 }
 
 function startProgramOutput() {
