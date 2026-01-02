@@ -374,26 +374,58 @@ export function buildMixerUrl(options: {
 
 /**
  * Get the default MediaMTX host for the R58 system
+ * 
+ * Uses Tailscale Funnel URL when available (HTTPS, public access)
+ * Falls back to FRP tunnel URL otherwise
  */
 export function getMediaMtxHost(): string {
-  // Use the public MediaMTX endpoint
+  // Check if we're accessing via Tailscale (based on hostname)
+  const hostname = window.location.hostname
+  
+  // If accessing via Tailscale IP or hostname, use Tailscale Funnel
+  if (hostname.includes('.ts.net') || hostname.match(/^100\.\d+\.\d+\.\d+$/)) {
+    return 'linaro-alip.tailab6fd7.ts.net'
+  }
+  
+  // Default to FRP tunnel
   return 'r58-mediamtx.itagenten.no'
 }
 
 /**
  * Get the public R58 API host for external services (like VDO.ninja)
  * This is the URL that external services can use to reach the R58 device
+ * 
+ * Uses Tailscale Funnel when available (HTTPS public access)
+ * Falls back to FRP tunnel otherwise
  */
 export function getPublicR58Host(): string {
+  const hostname = window.location.hostname
+  
+  // If accessing via Tailscale IP or hostname, use Tailscale Funnel
+  if (hostname.includes('.ts.net') || hostname.match(/^100\.\d+\.\d+\.\d+$/)) {
+    return 'https://linaro-alip.tailab6fd7.ts.net'
+  }
+  
+  // Default to FRP tunnel
   return 'https://r58-api.itagenten.no'
 }
 
 /**
  * Build a public WHEP URL for a camera
  * VDO.ninja needs this public URL to fetch the stream
+ * 
+ * Uses Tailscale Funnel or FRP tunnel based on access method
  */
 export function getPublicWhepUrl(cameraId: string): string {
-  return `${getPublicR58Host()}/${cameraId}/whep`
+  const hostname = window.location.hostname
+  
+  // For Tailscale, use MediaMTX directly via Funnel
+  if (hostname.includes('.ts.net') || hostname.match(/^100\.\d+\.\d+\.\d+$/)) {
+    return `https://linaro-alip.tailab6fd7.ts.net/${cameraId}/whep`
+  }
+  
+  // For FRP, use the MediaMTX proxy
+  return `https://r58-mediamtx.itagenten.no/${cameraId}/whep`
 }
 
 /**
