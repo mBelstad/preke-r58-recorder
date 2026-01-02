@@ -98,7 +98,8 @@ start_chromium() {
         # Build the VDO.ninja URL with &whepshare
         # &videodevice=0&audiodevice=0 disables local devices
         # &autostart automatically starts streaming
-        local vdo_url="https://$VDONINJA_HOST/?push=$push_id&room=$ROOM_NAME&whepshare=$encoded_whep&label=$label&videodevice=0&audiodevice=0&autostart"
+        # &password is required to join the same authenticated room as the director
+        local vdo_url="https://$VDONINJA_HOST/?push=$push_id&room=$ROOM_NAME&password=preke-r58-2024&whepshare=$encoded_whep&label=$label&videodevice=0&audiodevice=0&autostart"
         urls="$urls $vdo_url"
         
         log "Camera: $label -> $whep_url"
