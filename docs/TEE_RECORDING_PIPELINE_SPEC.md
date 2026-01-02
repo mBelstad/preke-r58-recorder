@@ -375,3 +375,4 @@ cat /sys/class/devfreq/fdac0000.rkvenc-core/cur_freq
 **Status**: Ready for implementation  
 **Next Step**: Test single-camera TEE pipeline on R58 device
 
+

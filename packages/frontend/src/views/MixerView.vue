@@ -2,14 +2,14 @@
 /**
  * MixerView - VDO.ninja native mixer with R58 theme
  * 
- * Simplified approach: Embed the native VDO.ninja mixer.html which is
- * proven to work, and apply custom CSS to match R58 design.
+ * Uses VDO.ninja mixer.html with MediaMTX SFU for video transport.
+ * This bypasses P2P WebRTC which doesn't work through FRP tunnels.
  * 
  * Camera sources are pushed via CameraPushBar using &whepplay= parameter.
  */
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRecorderStore } from '@/stores/recorder'
-import { getVdoCssUrl, VDO_ROOM, VDO_DIRECTOR_PASSWORD } from '@/lib/vdoninja'
+import { buildMixerUrl, getMediaMtxHost, VDO_ROOM, VDO_DIRECTOR_PASSWORD } from '@/lib/vdoninja'
 
 // Components
 import CameraPushBar from '@/components/mixer/CameraPushBar.vue'
@@ -22,33 +22,14 @@ const isLoading = ref(true)
 const iframeLoaded = ref(false)
 const iframeRef = ref<HTMLIFrameElement | null>(null)
 
-// Build the native director URL (not mixer.html) 
-// Director view works better with our camera push approach
+// Build the native mixer.html URL with MediaMTX SFU
+// &mediamtx= parameter makes VDO.ninja use MediaMTX WHEP/WHIP for video transport
+// instead of P2P WebRTC, which works through FRP tunnels
 const mixerUrl = computed(() => {
-  const VDO_HOST = 'r58-vdo.itagenten.no'
-  const url = new URL(`https://${VDO_HOST}/`)
-  
-  // Director mode with room
-  url.searchParams.set('director', VDO_ROOM)
-  url.searchParams.set('password', VDO_DIRECTOR_PASSWORD)
-  
-  // Dark mode for better integration
-  url.searchParams.set('darkmode', '')
-  
-  // Hide branding and clean up UI
-  url.searchParams.set('nologo', '')
-  url.searchParams.set('hideheader', '')
-  
-  // Enable API for future integration
-  url.searchParams.set('api', '')
-  
-  // Custom CSS for R58 theme
-  const cssUrl = getVdoCssUrl()
-  if (cssUrl) {
-    url.searchParams.set('css', cssUrl)
-  }
-  
-  return url.toString()
+  return buildMixerUrl({
+    room: VDO_ROOM,
+    mediamtxHost: getMediaMtxHost()
+  })
 })
 
 // Connected cameras count

@@ -357,7 +357,11 @@ export function buildMixerUrl(options: {
   const room = options.room || VDO_ROOM
   url.searchParams.set('room', room)
   
-  // MediaMTX integration - enables WHEP input from MediaMTX
+  // Room password for authentication
+  url.searchParams.set('password', VDO_DIRECTOR_PASSWORD)
+  
+  // MediaMTX integration - enables WHEP/WHIP transport instead of P2P
+  // This is critical for working through FRP tunnels
   if (options.mediamtxHost) {
     url.searchParams.set('mediamtx', options.mediamtxHost)
   }
