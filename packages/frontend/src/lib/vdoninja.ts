@@ -420,17 +420,10 @@ export function buildSceneOutputUrl(
   const VDO_PROTOCOL = getVdoProtocol()
   const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/`)
   
-  // Use &view to show room participants directly, not &scene
-  // &scene is meant for OBS integration and requires director commands
-  // &view shows all room participants when set to * or specific stream IDs
-  //
-  // &videodevice=0&audiodevice=0 disables camera/mic (headless viewer mode)
-  // &autostart joins automatically without user interaction
-  url.searchParams.set('view', '*')  // View all room participants
-  url.searchParams.set('videodevice', '0')  // No camera - headless viewer
-  url.searchParams.set('audiodevice', '0')  // No mic - headless viewer
-  url.searchParams.set('autostart', '')  // Auto-join without user interaction
-  
+  // Use &scene for OBS-style output - shows sources added via director API addToScene command
+  // Scene 1 = program output, Scene 2 = preview, etc.
+  // The director iframe uses addToScene API to populate scenes
+  url.searchParams.set('scene', sceneNumber.toString())
   url.searchParams.set('room', options.room || VDO_ROOM)
   url.searchParams.set('password', VDO_DIRECTOR_PASSWORD)  // Required for room access
   

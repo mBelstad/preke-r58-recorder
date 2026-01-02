@@ -285,9 +285,10 @@ export function useVdoNinja(iframeRef: Ref<HTMLIFrameElement | null>) {
     // Resolve UUID to stream ID if we have a mapping (VDO.ninja scenes require stream IDs)
     const resolvedId = uuidToStreamId.get(targetId) || targetId
     if (resolvedId !== targetId) {
-      console.log(`[VDO.ninja] Resolved UUID ${targetId} to stream ID ${resolvedId} for addScene`)
+      console.log(`[VDO.ninja] Resolved UUID ${targetId} to stream ID ${resolvedId} for addToScene`)
     }
-    sendCommand('addScene', resolvedId, sceneNumber)
+    // VDO.ninja API uses 'addToScene' action (not 'addScene')
+    sendCommand('addToScene', resolvedId, sceneNumber)
     activeScene.value = sceneNumber
   }
   
@@ -298,8 +299,8 @@ export function useVdoNinja(iframeRef: Ref<HTMLIFrameElement | null>) {
   function removeFromScene(targetId: string, sceneNumber: number = 1): void {
     // Resolve UUID to stream ID if we have a mapping
     const resolvedId = uuidToStreamId.get(targetId) || targetId
-    // VDO.ninja uses addScene with value 0 or negative to remove
-    sendCommand('addScene', targetId, 0)
+    // VDO.ninja uses removeFromScene action
+    sendCommand('removeFromScene', resolvedId, sceneNumber)
   }
   
   /**
