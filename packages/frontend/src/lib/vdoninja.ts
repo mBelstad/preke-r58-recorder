@@ -270,8 +270,11 @@ export function buildGuestInviteUrl(guestName: string, guestId?: string): string
  * Build a camera contribution URL (WHEP bridge to VDO.ninja room)
  * 
  * Uses &whepplay= to pull the WHEP stream and &push= + &room= to share it
- * to the VDO.ninja room. This is the approach used by camera-bridge.html
- * which is known to work through FRP tunnels.
+ * to the VDO.ninja room. 
+ * 
+ * IMPORTANT: The &mediamtx= parameter is added so that the camera guest
+ * uses MediaMTX SFU for transport instead of P2P WebRTC. This is required
+ * for working through FRP tunnels where P2P doesn't work.
  */
 export function buildCameraContributionUrl(
   cameraId: string,
@@ -282,7 +285,7 @@ export function buildCameraContributionUrl(
   const VDO_PROTOCOL = getVdoProtocol()
   const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/`)
   
-  // Use whepplay (not whepshare) - this is the working approach from camera-bridge.html
+  // Use whepplay (not whepshare) - this pulls the WHEP stream from MediaMTX
   url.searchParams.set('whepplay', whepUrl)
   url.searchParams.set('push', cameraId)
   url.searchParams.set('room', VDO_ROOM)
@@ -291,6 +294,10 @@ export function buildCameraContributionUrl(
   url.searchParams.set('autostart', 'true')
   url.searchParams.set('stereo', '2')  // Audio channels
   url.searchParams.set('whepwait', '2000')  // Wait time for WHEP connection
+  
+  // CRITICAL: Use MediaMTX SFU instead of P2P for sharing to the room
+  // Without this, the camera's video won't reach the director through FRP tunnels
+  url.searchParams.set('mediamtx', getMediaMtxHost())
   
   // Add custom CSS only if available
   const cssUrl = getVdoCssUrl()
@@ -342,8 +349,10 @@ export function buildProgramOutputUrl(whipUrl: string): string {
 /**
  * Build a mixer URL with MediaMTX integration
  * 
- * Uses the alpha mixer's built-in MediaMTX support for WHEP input
- * and optional WHIP output via Scene Output Options.
+ * Uses the ALPHA mixer which has improved MediaMTX SFU support.
+ * The &mediamtx= parameter tells VDO.ninja to use MediaMTX for
+ * WHEP/WHIP transport instead of P2P WebRTC, which is required
+ * for working through FRP tunnels.
  */
 export function buildMixerUrl(options: {
   mediamtxHost?: string
@@ -351,7 +360,8 @@ export function buildMixerUrl(options: {
 } = {}): string {
   const VDO_HOST = getVdoHost()
   const VDO_PROTOCOL = getVdoProtocol()
-  const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/mixer.html`)
+  // Use ALPHA mixer for better MediaMTX integration
+  const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/alpha/mixer.html`)
   
   // Room name
   const room = options.room || VDO_ROOM
