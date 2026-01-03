@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRecorderStore } from '@/stores/recorder'
-import { getDeviceUrl, isElectron } from '@/lib/api'
 
 const props = defineProps<{
   inputId: string
@@ -14,65 +13,61 @@ const isRecording = computed(() => recorderStore.status === 'recording')
 const videoRef = ref<HTMLVideoElement | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
+const connectionType = ref<'p2p' | 'relay' | 'unknown'>('unknown')
 
 /**
- * Get preview URL using the device's API WHEP proxy
+ * Get preview URL - Always use FRP for WHEP signaling
  * 
- * The device API (port 8000) has /{cam}/whep routes that proxy to MediaMTX (8889)
- * with proper CORS headers. This works for both Electron and web access.
+ * Strategy: "FRP Signaling + ICE P2P"
+ * - WHEP signaling always goes through FRP (reliable HTTPS)
+ * - WebRTC ICE negotiation finds the best path (P2P when available)
+ * - MediaMTX on R58 includes Tailscale/LAN IPs in ICE candidates
+ * - Browser automatically picks fastest path
  * 
- * Priority:
- * 1. Electron: Use configured device URL (Tailscale P2P or LAN)
- * 2. Web (public proxy): Use FRP-proxied MediaMTX
- * 3. Web (direct): Use same-origin API proxy
+ * This approach works for both Electron and web, with automatic P2P
+ * when the client can reach the device directly.
  */
 function getPreviewUrl(): string {
-  // Check for Electron with configured device
-  const deviceUrl = getDeviceUrl()
-  
-  if (deviceUrl) {
-    // In Electron, use device's API proxy (handles CORS)
-    // Device URL is like http://100.98.37.53:8000 (Tailscale) or http://192.168.1.24:8000 (LAN)
-    try {
-      const url = new URL(deviceUrl)
-      
-      // If it's the public proxy (r58-api), use FRP-proxied MediaMTX
-      if (url.hostname.includes('r58-api') || url.hostname.includes('itagenten')) {
-        return `https://r58-mediamtx.itagenten.no/${props.inputId}/whep`
-      }
-      
-      // For direct device access (Tailscale or LAN), use API proxy on same port
-      // The API has /{cam}/whep routes that proxy to MediaMTX
-      return `${url.origin}/${props.inputId}/whep`
-    } catch {
-      // Fallback to FRP-proxied MediaMTX
-      return `https://r58-mediamtx.itagenten.no/${props.inputId}/whep`
-    }
-  }
-  
-  // Web access - check current host
-  const host = window.location.hostname
-  const port = window.location.port
-  const protocol = window.location.protocol
-  
-  // Public proxy - use FRP-proxied MediaMTX
-  if (host.includes('r58-api') || host.includes('itagenten')) {
-    return `https://r58-mediamtx.itagenten.no/${props.inputId}/whep`
-  }
-  
-  // Direct device access (same origin) - use API proxy
-  // Works when accessing http://192.168.1.24:8000 or http://100.98.37.53:8000 directly
-  if (port === '8000' || port === '') {
-    // Same-origin API proxy (port 8000 or default)
-    return `${protocol}//${host}${port ? ':' + port : ''}/${props.inputId}/whep`
-  }
-  
-  // Dev mode (frontend on 5173, API on 8000)
-  return `${protocol}//${host}:8000/${props.inputId}/whep`
+  // Always use FRP-proxied MediaMTX for WHEP signaling
+  // WebRTC ICE will find P2P path if device IPs are reachable
+  return `https://r58-mediamtx.itagenten.no/${props.inputId}/whep`
 }
 
 // Track peer connection for cleanup
 let peerConnection: RTCPeerConnection | null = null
+
+/**
+ * Detect if the connection is P2P or using a relay (TURN)
+ */
+async function detectConnectionType(pc: RTCPeerConnection): Promise<'p2p' | 'relay' | 'unknown'> {
+  try {
+    const stats = await pc.getStats()
+    for (const report of stats.values()) {
+      if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+        // Check if using relay
+        const localCandidate = stats.get(report.localCandidateId)
+        const remoteCandidate = stats.get(report.remoteCandidateId)
+        
+        if (localCandidate?.candidateType === 'relay' || remoteCandidate?.candidateType === 'relay') {
+          return 'relay'
+        }
+        
+        // Log the selected path for debugging
+        console.log(`[WHEP ${props.inputId}] Connected via:`, {
+          local: localCandidate?.candidateType,
+          remote: remoteCandidate?.candidateType,
+          localIP: localCandidate?.address,
+          remoteIP: remoteCandidate?.address,
+        })
+        
+        return 'p2p'
+      }
+    }
+  } catch (e) {
+    console.warn('[WHEP] Failed to detect connection type:', e)
+  }
+  return 'unknown'
+}
 
 async function initWhepPlayback() {
   if (!videoRef.value) return
@@ -85,12 +80,14 @@ async function initWhepPlayback() {
   
   loading.value = true
   error.value = null
+  connectionType.value = 'unknown'
   
   try {
     const url = getPreviewUrl()
+    console.log(`[WHEP ${props.inputId}] Connecting via FRP signaling: ${url}`)
     
     // Create peer connection for WHEP
-    // Use Google STUN server for remote access NAT traversal
+    // STUN servers help with NAT traversal for P2P discovery
     const pc = new RTCPeerConnection({
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
@@ -106,9 +103,17 @@ async function initWhepPlayback() {
       }
     }
     
-    pc.oniceconnectionstatechange = () => {
-      if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
+    pc.oniceconnectionstatechange = async () => {
+      const state = pc.iceConnectionState
+      console.log(`[WHEP ${props.inputId}] ICE state: ${state}`)
+      
+      if (state === 'connected' || state === 'completed') {
+        // Detect and log connection type (P2P vs relay)
+        connectionType.value = await detectConnectionType(pc)
+        console.log(`[WHEP ${props.inputId}] Connection type: ${connectionType.value}`)
+      } else if (state === 'failed' || state === 'disconnected') {
         error.value = 'Connection lost'
+        connectionType.value = 'unknown'
       }
     }
     
@@ -120,7 +125,7 @@ async function initWhepPlayback() {
     const offer = await pc.createOffer()
     await pc.setLocalDescription(offer)
     
-    // Send offer to WHEP endpoint
+    // Send offer to WHEP endpoint (via FRP)
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -140,7 +145,7 @@ async function initWhepPlayback() {
     })
     
   } catch (e) {
-    console.error('WHEP playback error:', e)
+    console.error(`[WHEP ${props.inputId}] Playback error:`, e)
     error.value = e instanceof Error ? e.message : 'Failed to connect'
     loading.value = false
   }
@@ -173,6 +178,14 @@ watch(isRecording, (recording, wasRecording) => {
     }, 2000) // 2 second delay for pipeline to initialize
   }
 })
+
+// Cleanup on unmount
+onUnmounted(() => {
+  if (peerConnection) {
+    peerConnection.close()
+    peerConnection = null
+  }
+})
 </script>
 
 <template>
@@ -184,6 +197,18 @@ watch(isRecording, (recording, wasRecording) => {
       playsinline
       class="w-full h-full object-contain"
     ></video>
+    
+    <!-- Connection type indicator (P2P vs Relay) -->
+    <div 
+      v-if="!loading && !error && connectionType !== 'unknown'"
+      class="absolute top-1 right-1 px-1.5 py-0.5 text-[10px] font-medium rounded"
+      :class="connectionType === 'p2p' 
+        ? 'bg-emerald-500/80 text-white' 
+        : 'bg-amber-500/80 text-white'"
+      :title="connectionType === 'p2p' ? 'Direct P2P connection' : 'Relay connection (FRP)'"
+    >
+      {{ connectionType === 'p2p' ? 'P2P' : 'RELAY' }}
+    </div>
     
     <!-- Loading overlay -->
     <div 
