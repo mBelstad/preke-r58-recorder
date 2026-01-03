@@ -8,12 +8,24 @@
  * - Recording indicator with bytes written
  * - Signal quality tooltip
  * - Framerate mismatch warning
+ * 
+ * OPTIMIZATION: Only shows live video previews in Recorder mode.
+ * In Mixer mode, shows static placeholders to avoid duplicate
+ * WebRTC connections (VDO.ninja handles video in Mixer mode).
  */
 import { computed } from 'vue'
 import { useRecorderStore, type InputStatus } from '@/stores/recorder'
+import { useCapabilitiesStore } from '@/stores/capabilities'
 import InputPreview from '@/components/shared/InputPreview.vue'
 
 const recorderStore = useRecorderStore()
+const capabilitiesStore = useCapabilitiesStore()
+
+// Only show live video in recorder mode to avoid duplicate WHEP connections
+// VDO.ninja handles video streams in mixer mode
+const isRecorderMode = computed(() => 
+  capabilitiesStore.capabilities?.current_mode === 'recorder'
+)
 
 // Filter to show only inputs with signal (hides disconnected HDMI inputs)
 const inputs = computed(() => recorderStore.inputs.filter(i => i.hasSignal))
@@ -126,11 +138,24 @@ function getInputTooltip(input: InputStatus): string {
       :class="getBorderClass(input)"
       :title="getInputTooltip(input)"
     >
-      <!-- Video preview (only inputs with signal are shown) -->
+      <!-- Video preview - only in recorder mode to avoid duplicate WHEP connections -->
       <InputPreview
+        v-if="isRecorderMode"
         :input-id="input.id"
         class="w-full h-full"
       />
+      <!-- Static placeholder in mixer mode (VDO.ninja handles video) -->
+      <div 
+        v-else 
+        class="w-full h-full flex items-center justify-center bg-r58-bg-tertiary"
+      >
+        <div class="text-center">
+          <svg class="w-8 h-8 mx-auto mb-2 text-r58-text-secondary/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+          </svg>
+          <span class="text-xs text-r58-text-secondary/70">Mixer mode</span>
+        </div>
+      </div>
       
       <!-- Overlay info -->
       <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-4">
