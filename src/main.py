@@ -1090,9 +1090,9 @@ async def proxy_whep(stream_path: str, request: Request):
         # Get request body
         body = await request.body()
         
-        # Forward to MediaMTX WHEP endpoint (HTTPS - MediaMTX uses TLS on 8889)
-        async with httpx.AsyncClient(verify=False) as client:
-            mediamtx_url = f"https://localhost:8889/{stream_path}/whep"
+        # Forward to MediaMTX WHEP endpoint (HTTP - MediaMTX on port 8889)
+        async with httpx.AsyncClient() as client:
+            mediamtx_url = f"http://localhost:8889/{stream_path}/whep"
             
             response = await client.post(
                 mediamtx_url,
@@ -1112,10 +1112,10 @@ async def proxy_whep(stream_path: str, request: Request):
             }
             if location:
                 # Rewrite Location header to point to our proxy
-                if location.startswith("https://localhost:8889/"):
-                    location = location.replace("https://localhost:8889/", "/whep-resource/")
-                elif location.startswith("http://localhost:8889/"):
+                if location.startswith("http://localhost:8889/"):
                     location = location.replace("http://localhost:8889/", "/whep-resource/")
+                elif location.startswith("https://localhost:8889/"):
+                    location = location.replace("https://localhost:8889/", "/whep-resource/")
                 response_headers["Location"] = location
             
             # Log the response for debugging
@@ -1151,8 +1151,8 @@ async def proxy_whep_resource(stream_path: str, request: Request):
     try:
         body = await request.body()
         
-        async with httpx.AsyncClient(verify=False) as client:
-            mediamtx_url = f"https://localhost:8889/{stream_path}"
+        async with httpx.AsyncClient() as client:
+            mediamtx_url = f"http://localhost:8889/{stream_path}"
             
             response = await client.patch(
                 mediamtx_url,
@@ -1188,10 +1188,10 @@ async def proxy_whip(stream_path: str, request: Request):
         # Read the SDP offer from request body
         sdp_offer = await request.body()
         
-        # Forward to MediaMTX WHIP endpoint (HTTPS - MediaMTX uses TLS)
-        mediamtx_whip_url = f"https://localhost:8889/{stream_path}/whip"
+        # Forward to MediaMTX WHIP endpoint (HTTP - MediaMTX on port 8889)
+        mediamtx_whip_url = f"http://localhost:8889/{stream_path}/whip"
         
-        async with httpx.AsyncClient(verify=False) as client:
+        async with httpx.AsyncClient() as client:
             response = await client.post(
                 mediamtx_whip_url,
                 content=sdp_offer,
@@ -1275,9 +1275,9 @@ async def mediamtx_whip_compat(stream_name: str, request: Request):
     
     try:
         sdp_offer = await request.body()
-        mediamtx_url = f"https://localhost:8889/{stream_name}/whip"
+        mediamtx_url = f"http://localhost:8889/{stream_name}/whip"
         
-        async with httpx.AsyncClient(verify=False) as client:
+        async with httpx.AsyncClient() as client:
             response = await client.post(
                 mediamtx_url,
                 content=sdp_offer,
@@ -1329,9 +1329,9 @@ async def mediamtx_whep_compat(stream_name: str, request: Request):
     
     try:
         body = await request.body()
-        mediamtx_url = f"https://localhost:8889/{stream_name}/whep"
+        mediamtx_url = f"http://localhost:8889/{stream_name}/whep"
         
-        async with httpx.AsyncClient(verify=False) as client:
+        async with httpx.AsyncClient() as client:
             response = await client.post(
                 mediamtx_url,
                 content=body,
