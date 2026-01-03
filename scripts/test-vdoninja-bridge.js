@@ -9,7 +9,7 @@ const puppeteer = require('puppeteer-core');
 const CHROMIUM_WS = 'ws://127.0.0.1:9222';
 const BRIDGE_URL = 'https://r58-api.itagenten.no/static/vdoninja-guest-bridge.html';
 const ROOM = process.argv[2] || 'testroom4';
-const VDO_HOST = 'r58-vdo.itagenten.no';
+const VDO_HOST = 'vdo.itagenten.no';
 
 async function main() {
     console.log(`\n=== VDO.ninja Bridge Test ===`);

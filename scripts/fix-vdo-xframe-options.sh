@@ -20,7 +20,7 @@ echo ""
 # This allows the iframe to be embedded from any origin
 echo "Step 2: Removing X-Frame-Options from VDO.ninja server block..."
 
-docker exec $NGINX_CONTAINER sed -i '/server_name r58-vdo.itagenten.no;/,/^server {/s/add_header X-Frame-Options.*always;//g' $CONFIG_FILE
+docker exec $NGINX_CONTAINER sed -i '/server_name vdo.itagenten.no;/,/^server {/s/add_header X-Frame-Options.*always;//g' $CONFIG_FILE
 
 echo "✅ X-Frame-Options removed from VDO.ninja block"
 echo ""
@@ -57,7 +57,7 @@ echo ""
 
 # Step 6: Test with curl
 echo "Step 6: Testing HTTP headers..."
-response=$(curl -sI https://r58-vdo.itagenten.no/ 2>/dev/null | grep -i "x-frame-options" || echo "No X-Frame-Options header found")
+response=$(curl -sI https://vdo.itagenten.no/ 2>/dev/null | grep -i "x-frame-options" || echo "No X-Frame-Options header found")
 echo "Response: $response"
 echo ""
 

@@ -6,7 +6,7 @@
 
 // VDO.ninja host - self-hosted instance with HTTPS
 export function getVdoHost(): string {
-  return 'r58-vdo.itagenten.no'
+  return 'vdo.itagenten.no'
 }
 
 // Protocol for VDO.ninja URLs

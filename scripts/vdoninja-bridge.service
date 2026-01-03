@@ -17,7 +17,7 @@ Environment=DISPLAY=:0
 Environment=VDONINJA_ROOM=r58studio
 
 # VDO.ninja host (self-hosted instance)
-Environment=VDONINJA_HOST=r58-vdo.itagenten.no
+Environment=VDONINJA_HOST=vdo.itagenten.no
 
 # R58 API host (for WHEP streams)
 Environment=API_HOST=r58-api.itagenten.no
