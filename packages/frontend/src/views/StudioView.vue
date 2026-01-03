@@ -1,13 +1,29 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { buildApiUrl } from '@/lib/api'
 import { toast } from '@/composables/useToast'
+import { useCapabilitiesStore } from '@/stores/capabilities'
 
 const router = useRouter()
+const capabilitiesStore = useCapabilitiesStore()
 const selectedMode = ref<'recorder' | 'mixer'>('recorder')
 const switching = ref(false)
 const switchError = ref<string | null>(null)
+
+// Switch to idle mode when entering Studio page (stops all camera processes)
+onMounted(async () => {
+  try {
+    const response = await fetch(buildApiUrl('/api/mode/idle'), { method: 'POST' })
+    if (response.ok) {
+      console.log('[Studio] Switched to idle mode')
+      // Refresh capabilities to update sidebar
+      await capabilitiesStore.fetchCapabilities()
+    }
+  } catch (e) {
+    console.warn('[Studio] Failed to switch to idle mode:', e)
+  }
+})
 
 async function selectMode(mode: 'recorder' | 'mixer') {
   if (switching.value) return
@@ -26,7 +42,7 @@ async function selectMode(mode: 'recorder' | 'mixer') {
     }
     
     // Navigate to the mode view
-  router.push(`/${mode}`)
+    router.push(`/${mode}`)
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Failed to switch mode'
     switchError.value = message

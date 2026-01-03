@@ -53,7 +53,7 @@ class ModeManager:
     Ingest pipelines always run in both modes (for preview).
     """
     
-    MODES = ["recorder", "mixer"]
+    MODES = ["idle", "recorder", "mixer"]
     STATE_FILE = Path("/tmp/r58_mode_state.json")
     
     def __init__(self, ingest_manager=None, recorder=None, mixer_core=None, config=None):
@@ -69,7 +69,7 @@ class ModeManager:
         self.recorder = recorder
         self.mixer_core = mixer_core
         self.config = config
-        self._current_mode: str = "recorder"
+        self._current_mode: str = "idle"
         self._load_state()
     
     def _load_state(self):
@@ -78,15 +78,15 @@ class ModeManager:
             if self.STATE_FILE.exists():
                 with open(self.STATE_FILE, 'r') as f:
                     data = json.load(f)
-                    self._current_mode = data.get('mode', 'recorder')
+                    self._current_mode = data.get('mode', 'idle')
                     logger.info(f"Loaded mode state: {self._current_mode}")
             else:
-                # Default to recorder mode
-                self._current_mode = 'recorder'
+                # Default to idle mode (no cameras active)
+                self._current_mode = 'idle'
                 self._save_state()
         except Exception as e:
             logger.error(f"Failed to load mode state: {e}")
-            self._current_mode = 'recorder'
+            self._current_mode = 'idle'
     
     def _save_state(self):
         """Save mode state to file."""
@@ -135,6 +135,63 @@ class ModeManager:
             can_switch=True,
             message=f"Currently in {current_mode} mode. Ingest pipelines always running for preview."
         )
+    
+    async def switch_to_idle(self) -> Dict[str, any]:
+        """Switch to Idle Mode (Studio/Portal).
+        
+        Stops all camera-related processes including the VDO.ninja bridge.
+        This is the default mode when entering the Studio page.
+        No WebRTC sessions should be active in this mode.
+        
+        Returns:
+            Dict with success status and message
+        """
+        if self._current_mode == "idle":
+            logger.info("Already in idle mode")
+            return {
+                "success": True,
+                "mode": "idle",
+                "message": "Already in idle mode"
+            }
+        
+        logger.info("Switching to idle mode...")
+        
+        # Stop mixer if running
+        if self.mixer_core:
+            try:
+                mixer_status = self.mixer_core.get_status()
+                if mixer_status.get("state") == "PLAYING":
+                    logger.info("Stopping mixer...")
+                    self.mixer_core.stop()
+            except Exception as e:
+                logger.warning(f"Failed to stop mixer: {e}")
+        
+        # Stop all individual recordings
+        stopped_recordings = []
+        if self.recorder:
+            try:
+                for cam_id, state in self.recorder.states.items():
+                    if state == "recording":
+                        self.recorder.stop_recording(cam_id)
+                        stopped_recordings.append(cam_id)
+            except Exception as e:
+                logger.warning(f"Failed to stop recordings: {e}")
+        
+        # Stop VDO.ninja bridge to free up resources
+        bridge_stopped = await self._stop_vdoninja_bridge()
+        
+        # Update mode
+        self._current_mode = "idle"
+        self._save_state()
+        
+        logger.info("Switched to idle mode")
+        return {
+            "success": True,
+            "mode": "idle",
+            "message": "Switched to idle mode. All camera processes stopped.",
+            "bridge_stopped": bridge_stopped,
+            "stopped_recordings": stopped_recordings
+        }
     
     async def switch_to_recorder(self) -> Dict[str, any]:
         """Switch to Recorder Mode.

@@ -921,6 +921,23 @@ async def get_mode_status() -> Dict[str, Any]:
     return asdict(status)
 
 
+@app.post("/api/mode/idle")
+async def switch_to_idle_mode() -> Dict[str, Any]:
+    """Switch to Idle Mode (Studio/Portal).
+    
+    Stops all camera-related processes. Use this when on the Studio page.
+    """
+    if not mode_manager:
+        raise HTTPException(status_code=503, detail="Mode manager not available")
+    
+    result = await mode_manager.switch_to_idle()
+    
+    if not result["success"]:
+        raise HTTPException(status_code=500, detail=result["message"])
+    
+    return result
+
+
 @app.post("/api/mode/recorder")
 async def switch_to_recorder() -> Dict[str, Any]:
     """Switch to Recorder Mode."""

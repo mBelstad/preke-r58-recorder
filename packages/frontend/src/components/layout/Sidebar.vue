@@ -39,7 +39,7 @@ const navItems: NavItem[] = [
 ]
 
 const currentPath = computed(() => route.path)
-const currentMode = computed(() => capabilitiesStore.capabilities?.current_mode || 'recorder')
+const currentMode = computed(() => capabilitiesStore.capabilities?.current_mode || 'idle')
 const isRecording = computed(() => recorderStore.status === 'recording')
 
 function isActive(path: string): boolean {
