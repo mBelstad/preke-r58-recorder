@@ -13,13 +13,17 @@
  */
 import { ref, computed, onMounted } from 'vue'
 import { useRecorderStore } from '@/stores/recorder'
+import { useCapabilitiesStore } from '@/stores/capabilities'
 import { getVdoHost, getVdoProtocol, VDO_ROOM, VDO_DIRECTOR_PASSWORD } from '@/lib/vdoninja'
+import { buildApiUrl, hasDeviceConfigured } from '@/lib/api'
+import { toast } from '@/composables/useToast'
 
 // Components
 import ModeLoadingScreen from '@/components/shared/ModeLoadingScreen.vue'
 import StreamingControlPanel from '@/components/mixer/StreamingControlPanel.vue'
 
 const recorderStore = useRecorderStore()
+const capabilitiesStore = useCapabilitiesStore()
 
 // State
 const isLoading = ref(true)
@@ -52,8 +56,32 @@ function handleLoadingReady() {
   isLoading.value = false
 }
 
+// Auto-switch to mixer mode if not already in it
+async function ensureMixerMode() {
+  if (!hasDeviceConfigured()) return
+  
+  // Fetch current capabilities to get mode
+  await capabilitiesStore.fetchCapabilities()
+  
+  const currentMode = capabilitiesStore.capabilities?.current_mode
+  if (currentMode && currentMode !== 'mixer') {
+    console.log('[Mixer] Not in mixer mode, switching...')
+    try {
+      const response = await fetch(buildApiUrl('/api/mode/mixer'), { method: 'POST' })
+      if (response.ok) {
+        await capabilitiesStore.fetchCapabilities()
+        toast.success('Switched to Mixer mode')
+      }
+    } catch (e) {
+      console.warn('[Mixer] Failed to switch mode:', e)
+    }
+  }
+}
+
 // Fetch inputs on mount
 onMounted(async () => {
+  // Ensure we're in mixer mode before loading data
+  await ensureMixerMode()
   await recorderStore.fetchInputs()
 })
 </script>

@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRecorderStore } from '@/stores/recorder'
+import { useCapabilitiesStore } from '@/stores/capabilities'
 import { useRecordingGuard } from '@/composables/useRecordingGuard'
+import { buildApiUrl, hasDeviceConfigured } from '@/lib/api'
+import { toast } from '@/composables/useToast'
 import RecorderControls from '@/components/recorder/RecorderControls.vue'
 import RecordingHealth from '@/components/recorder/RecordingHealth.vue'
 import InputGrid from '@/components/recorder/InputGrid.vue'
@@ -10,6 +13,7 @@ import ConfirmDialog from '@/components/shared/ConfirmDialog.vue'
 import ModeLoadingScreen from '@/components/shared/ModeLoadingScreen.vue'
 
 const recorderStore = useRecorderStore()
+const capabilitiesStore = useCapabilitiesStore()
 const { showLeaveConfirmation, confirmLeave, cancelLeave } = useRecordingGuard()
 
 const isRecording = computed(() => recorderStore.status === 'recording')
@@ -23,8 +27,32 @@ function handleLoadingReady() {
   isLoading.value = false
 }
 
+// Auto-switch to recorder mode if not already in it
+async function ensureRecorderMode() {
+  if (!hasDeviceConfigured()) return
+  
+  // Fetch current capabilities to get mode
+  await capabilitiesStore.fetchCapabilities()
+  
+  const currentMode = capabilitiesStore.capabilities?.current_mode
+  if (currentMode && currentMode !== 'recorder') {
+    console.log('[Recorder] Not in recorder mode, switching...')
+    try {
+      const response = await fetch(buildApiUrl('/api/mode/recorder'), { method: 'POST' })
+      if (response.ok) {
+        await capabilitiesStore.fetchCapabilities()
+        toast.success('Switched to Recorder mode')
+      }
+    } catch (e) {
+      console.warn('[Recorder] Failed to switch mode:', e)
+    }
+  }
+}
+
 // Fetch real input status on mount
 onMounted(async () => {
+  // Ensure we're in recorder mode before loading data
+  await ensureRecorderMode()
   await recorderStore.fetchInputs()
   await recorderStore.fetchStatus()
   // Mark content as ready once data is fetched
