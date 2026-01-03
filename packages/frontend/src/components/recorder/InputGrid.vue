@@ -23,12 +23,9 @@ const capabilitiesStore = useCapabilitiesStore()
 
 // Only show live video in recorder mode to avoid duplicate WHEP connections
 // VDO.ninja handles video streams in mixer mode
-const isRecorderMode = computed(() => {
-  const mode = capabilitiesStore.capabilities?.current_mode
-  const result = mode === 'recorder'
-  console.log(`[InputGrid] Mode check: current_mode="${mode}", isRecorderMode=${result}`)
-  return result
-})
+const isRecorderMode = computed(() => 
+  capabilitiesStore.capabilities?.current_mode === 'recorder'
+)
 
 // Filter to show only inputs with signal (hides disconnected HDMI inputs)
 const inputs = computed(() => recorderStore.inputs.filter(i => i.hasSignal))
