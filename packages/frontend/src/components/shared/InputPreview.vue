@@ -14,6 +14,16 @@ const videoRef = ref<HTMLVideoElement | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
 const connectionType = ref<'p2p' | 'relay' | 'unknown'>('unknown')
+const reconnectAttempts = ref(0)
+const isReconnecting = ref(false)
+
+// Auto-reconnect configuration
+const MAX_RECONNECT_ATTEMPTS = 5
+const INITIAL_RECONNECT_DELAY = 1000 // 1 second
+const MAX_RECONNECT_DELAY = 30000 // 30 seconds
+
+// Track reconnect timeout for cleanup
+let reconnectTimeout: ReturnType<typeof setTimeout> | null = null
 
 /**
  * Get preview URL - Always use FRP for WHEP signaling
@@ -35,6 +45,62 @@ function getPreviewUrl(): string {
 
 // Track peer connection for cleanup
 let peerConnection: RTCPeerConnection | null = null
+
+/**
+ * Schedule a reconnection attempt with exponential backoff
+ */
+function scheduleReconnect(reason: string) {
+  if (isReconnecting.value) return
+  
+  if (reconnectAttempts.value >= MAX_RECONNECT_ATTEMPTS) {
+    console.error(`[WHEP ${props.inputId}] Max reconnect attempts (${MAX_RECONNECT_ATTEMPTS}) reached`)
+    error.value = 'Connection failed after multiple attempts'
+    loading.value = false
+    return
+  }
+  
+  isReconnecting.value = true
+  reconnectAttempts.value++
+  
+  // Exponential backoff: 1s, 2s, 4s, 8s, 16s (capped at 30s)
+  const delay = Math.min(
+    INITIAL_RECONNECT_DELAY * Math.pow(2, reconnectAttempts.value - 1),
+    MAX_RECONNECT_DELAY
+  )
+  
+  console.log(`[WHEP ${props.inputId}] Scheduling reconnect #${reconnectAttempts.value} in ${delay}ms (reason: ${reason})`)
+  error.value = `Reconnecting... (${reconnectAttempts.value}/${MAX_RECONNECT_ATTEMPTS})`
+  
+  // Clear any existing reconnect timeout
+  if (reconnectTimeout) {
+    clearTimeout(reconnectTimeout)
+  }
+  
+  reconnectTimeout = setTimeout(() => {
+    isReconnecting.value = false
+    initWhepPlayback()
+  }, delay)
+}
+
+/**
+ * Cancel any pending reconnect
+ */
+function cancelReconnect() {
+  if (reconnectTimeout) {
+    clearTimeout(reconnectTimeout)
+    reconnectTimeout = null
+  }
+  isReconnecting.value = false
+}
+
+/**
+ * Reset reconnect state (call after successful manual retry)
+ */
+function resetReconnectState() {
+  reconnectAttempts.value = 0
+  isReconnecting.value = false
+  cancelReconnect()
+}
 
 /**
  * Detect if the connection is P2P or using a relay (TURN)
@@ -112,12 +178,29 @@ async function initWhepPlayback() {
       console.log(`[WHEP ${props.inputId}] ICE state: ${state}`)
       
       if (state === 'connected' || state === 'completed') {
+        // Connection successful - reset reconnect attempts
+        reconnectAttempts.value = 0
+        isReconnecting.value = false
+        
         // Detect and log connection type (P2P vs relay)
         connectionType.value = await detectConnectionType(pc)
         console.log(`[WHEP ${props.inputId}] Connection type: ${connectionType.value}`)
-      } else if (state === 'failed' || state === 'disconnected') {
-        error.value = 'Connection lost'
+      } else if (state === 'failed') {
+        // ICE failed - attempt to reconnect
+        console.warn(`[WHEP ${props.inputId}] ICE failed, will attempt reconnect`)
         connectionType.value = 'unknown'
+        scheduleReconnect('ICE negotiation failed')
+      } else if (state === 'disconnected') {
+        // Disconnected - wait a moment then check if it recovers
+        console.warn(`[WHEP ${props.inputId}] ICE disconnected, waiting for recovery...`)
+        
+        // Give ICE 3 seconds to recover before reconnecting
+        setTimeout(() => {
+          if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed') {
+            console.warn(`[WHEP ${props.inputId}] ICE did not recover, reconnecting...`)
+            scheduleReconnect('Connection lost')
+          }
+        }, 3000)
       }
     }
     
@@ -150,9 +233,24 @@ async function initWhepPlayback() {
     
   } catch (e) {
     console.error(`[WHEP ${props.inputId}] Playback error:`, e)
-    error.value = e instanceof Error ? e.message : 'Failed to connect'
-    loading.value = false
+    const errorMessage = e instanceof Error ? e.message : 'Failed to connect'
+    
+    // Schedule reconnect for network errors
+    if (errorMessage.includes('fetch') || errorMessage.includes('network') || errorMessage.includes('WHEP')) {
+      scheduleReconnect(errorMessage)
+    } else {
+      error.value = errorMessage
+      loading.value = false
+    }
   }
+}
+
+/**
+ * Manual retry - resets reconnect counter
+ */
+function manualRetry() {
+  resetReconnectState()
+  initWhepPlayback()
 }
 
 onMounted(() => {
@@ -185,6 +283,7 @@ watch(isRecording, (recording, wasRecording) => {
 
 // Cleanup on unmount
 onUnmounted(() => {
+  cancelReconnect()
   if (peerConnection) {
     peerConnection.close()
     peerConnection = null
@@ -222,15 +321,26 @@ onUnmounted(() => {
       <div class="animate-spin w-6 h-6 border-2 border-white border-t-transparent rounded-full"></div>
     </div>
     
+    <!-- Reconnecting overlay -->
+    <div 
+      v-if="isReconnecting && !loading"
+      class="absolute inset-0 flex items-center justify-center bg-black/70"
+    >
+      <div class="text-center">
+        <div class="animate-spin w-5 h-5 border-2 border-amber-400 border-t-transparent rounded-full mx-auto mb-2"></div>
+        <p class="text-xs text-amber-400">{{ error || 'Reconnecting...' }}</p>
+      </div>
+    </div>
+    
     <!-- Error overlay with retry button -->
     <div 
-      v-if="error"
+      v-else-if="error && !loading"
       class="absolute inset-0 flex items-center justify-center bg-black/80"
     >
       <div class="text-center text-r58-text-secondary">
         <p class="text-sm">{{ error }}</p>
         <button 
-          @click="initWhepPlayback"
+          @click="manualRetry"
           class="mt-2 text-xs text-r58-accent-primary hover:underline"
         >
           Retry
