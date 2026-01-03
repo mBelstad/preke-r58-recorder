@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { buildApiUrl } from '@/lib/api'
 
 /**
  * Streaming platform presets
@@ -245,7 +246,7 @@ export const useStreamingStore = defineStore('streaming', () => {
         enabled: true
       }))
 
-      const response = await fetch('/api/streaming/rtmp/start', {
+      const response = await fetch(buildApiUrl('/api/streaming/rtmp/start'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ destinations: rtmpDestinations })
@@ -277,7 +278,7 @@ export const useStreamingStore = defineStore('streaming', () => {
    */
   async function stopRtmpRelay(): Promise<{ success: boolean; message: string }> {
     try {
-      const response = await fetch('/api/streaming/rtmp/stop', {
+      const response = await fetch(buildApiUrl('/api/streaming/rtmp/stop'), {
         method: 'POST'
       })
 
@@ -312,7 +313,7 @@ export const useStreamingStore = defineStore('streaming', () => {
     error?: string
   } | null> {
     try {
-      const response = await fetch('/api/streaming/status')
+      const response = await fetch(buildApiUrl('/api/streaming/status'))
       if (!response.ok) {
         throw new Error('Failed to get streaming status')
       }
