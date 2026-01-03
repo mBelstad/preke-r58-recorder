@@ -5,7 +5,7 @@
  * Provides real-time feedback for operators.
  */
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { r58Api } from '@/lib/api'
+import { r58Api, hasDeviceConfigured } from '@/lib/api'
 
 export type ConnectionState = 'connected' | 'connecting' | 'degraded' | 'disconnected'
 
@@ -61,6 +61,12 @@ export function useConnectionStatus() {
   )
 
   async function checkConnection() {
+    // Don't check if no device is configured (Electron mode)
+    if (!hasDeviceConfigured()) {
+      state.value = 'disconnected'
+      return
+    }
+    
     if (isChecking.value) return
     isChecking.value = true
 
@@ -143,9 +149,6 @@ export function useConnectionStatus() {
   }
 }
 
-// Start monitoring globally on import
-if (typeof window !== 'undefined') {
-  const { startMonitoring } = useConnectionStatus()
-  startMonitoring()
-}
+// Note: Monitoring is started when components use the composable via onMounted
+// Don't auto-start here as it would run before device URL is initialized
 

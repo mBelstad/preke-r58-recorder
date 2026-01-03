@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { buildApiUrl } from '@/lib/api'
+import { buildApiUrl, hasDeviceConfigured } from '@/lib/api'
 
 export interface DeviceCapabilities {
   device_id: string
@@ -78,6 +78,12 @@ export const useCapabilitiesStore = defineStore('capabilities', () => {
   })
 
   async function fetchCapabilities() {
+    // Don't fetch if no device is configured (Electron mode)
+    if (!hasDeviceConfigured()) {
+      console.log('[Capabilities] No device configured, skipping fetch')
+      return
+    }
+    
     loading.value = true
     error.value = null
     

@@ -1,6 +1,4 @@
-import { createRouter, createWebHistory, createWebHashHistory } from 'vue-router'
-import { isElectron, buildApiUrl, getDeviceUrl } from '@/lib/api'
-import { useCapabilitiesStore } from '@/stores/capabilities'
+import { createRouter, createWebHashHistory } from 'vue-router'
 
 // Use hash history for both Electron and web (works with static file serving)
 // This avoids needing server-side SPA routing configuration
@@ -9,9 +7,6 @@ const createHistory = () => {
   // This works in both Electron (file:// protocol) and web (https://)
   return createWebHashHistory()
 }
-
-// Track mode switching state to avoid duplicate calls
-let isSwitchingMode = false
 
 const router = createRouter({
   history: createHistory(),
@@ -86,81 +81,9 @@ router.beforeEach((to, _from, next) => {
   next()
 })
 
-// Auto-switch mode when navigating to routes that require a specific mode
-router.beforeEach(async (to, _from, next) => {
-  const requiredMode = to.meta.mode as 'recorder' | 'mixer' | undefined
-  
-  if (!requiredMode || isSwitchingMode) {
-    next()
-    return
-  }
-  
-  // In Electron, skip mode switching if no device is configured
-  if (isElectron() && !getDeviceUrl()) {
-    console.log('[Router] No device configured, skipping mode switch')
-    next()
-    return
-  }
-  
-  try {
-    // Fetch current mode from API with timeout to prevent hanging
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout
-    
-    const modeRes = await fetch(buildApiUrl('/api/mode/status'), {
-      signal: controller.signal
-    }).finally(() => clearTimeout(timeoutId))
-    if (!modeRes.ok) {
-      console.warn('[Router] Could not fetch mode status, proceeding anyway')
-      next()
-      return
-    }
-    
-    const modeData = await modeRes.json()
-    const currentMode = modeData.current_mode as string
-    
-    // If already in the correct mode, proceed
-    if (currentMode === requiredMode) {
-      next()
-      return
-    }
-    
-    // Switch to the required mode
-    console.log(`[Router] Switching mode from ${currentMode} to ${requiredMode}`)
-    isSwitchingMode = true
-    
-    const switchController = new AbortController()
-    const switchTimeoutId = setTimeout(() => switchController.abort(), 10000) // 10 second timeout
-    
-    const switchRes = await fetch(buildApiUrl(`/api/mode/${requiredMode}`), { 
-      method: 'POST',
-      signal: switchController.signal
-    }).finally(() => clearTimeout(switchTimeoutId))
-    
-    if (!switchRes.ok) {
-      const errorData = await switchRes.json().catch(() => ({}))
-      console.error('[Router] Mode switch failed:', errorData.detail || 'Unknown error')
-    } else {
-      console.log(`[Router] Successfully switched to ${requiredMode} mode`)
-      
-      // Refresh capabilities store to update UI mode indicator
-      try {
-        const capabilitiesStore = useCapabilitiesStore()
-        await capabilitiesStore.fetchCapabilities()
-        console.log('[Router] Refreshed capabilities after mode switch')
-      } catch (e) {
-        console.warn('[Router] Failed to refresh capabilities:', e)
-      }
-    }
-    
-    isSwitchingMode = false
-    next()
-  } catch (e) {
-    console.error('[Router] Error during mode switch:', e)
-    isSwitchingMode = false
-    next()
-  }
-})
+// Note: Mode switching is handled by the Sidebar component
+// The router just navigates, the Sidebar handles the mode switch API calls
+// This avoids duplicate mode switches and keeps the UI in sync
 
 export default router
 

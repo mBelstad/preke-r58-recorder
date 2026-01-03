@@ -4,7 +4,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRecorderStore } from '@/stores/recorder'
 import { useMixerStore } from '@/stores/mixer'
-import { buildWsUrl, getDeviceUrl } from '@/lib/api'
+import { buildWsUrl, hasDeviceConfigured } from '@/lib/api'
 
 interface BaseEvent {
   v: number
@@ -37,7 +37,19 @@ export function useR58WebSocket() {
     if (endpointUnavailable.value) return
     if (ws?.readyState === WebSocket.OPEN) return
     
-    const url = getWsUrl()
+    // Don't attempt if no device is configured (Electron mode)
+    if (!hasDeviceConfigured()) {
+      console.log('[WebSocket] No device configured, skipping connection')
+      return
+    }
+    
+    let url: string
+    try {
+      url = getWsUrl()
+    } catch (e) {
+      console.log('[WebSocket] Cannot connect - no device configured')
+      return
+    }
     
     // Only log on first attempt
     if (reconnectAttempts.value === 0) {

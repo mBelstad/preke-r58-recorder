@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useRecorderStore } from '@/stores/recorder'
 import { useCapabilitiesStore } from '@/stores/capabilities'
-import { buildApiUrl } from '@/lib/api'
+import { buildApiUrl, hasDeviceConfigured } from '@/lib/api'
 import { toast } from '@/composables/useToast'
 import ConfirmDialog from '@/components/shared/ConfirmDialog.vue'
 
@@ -14,8 +14,13 @@ const capabilitiesStore = useCapabilitiesStore()
 
 // Mode switching state
 const switching = ref(false)
+const switchingTo = ref<'recorder' | 'mixer' | null>(null) // Track which mode we're switching to
 const confirmDialogRef = ref<InstanceType<typeof ConfirmDialog> | null>(null)
 const pendingMode = ref<'recorder' | 'mixer' | null>(null)
+
+// Periodic mode polling interval
+let modePollingInterval: number | null = null
+const MODE_POLL_INTERVAL = 15000 // 15 seconds
 
 interface NavItem {
   id: string
@@ -90,10 +95,24 @@ function cancelModeSwitch() {
 async function switchModeAndNavigate(mode: 'recorder' | 'mixer', path: string) {
   if (switching.value) return
   
+  // Skip if no device configured
+  if (!hasDeviceConfigured()) {
+    router.push(path)
+    return
+  }
+  
   switching.value = true
+  switchingTo.value = mode
   
   try {
-    const response = await fetch(buildApiUrl(`/api/mode/${mode}`), { method: 'POST' })
+    // Use timeout to prevent hanging
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
+    
+    const response = await fetch(buildApiUrl(`/api/mode/${mode}`), { 
+      method: 'POST',
+      signal: controller.signal
+    }).finally(() => clearTimeout(timeoutId))
     
     if (!response.ok) {
       const data = await response.json().catch(() => ({}))
@@ -110,17 +129,42 @@ async function switchModeAndNavigate(mode: 'recorder' | 'mixer', path: string) {
     // Navigate to the mode view
     router.push(path)
   } catch (e) {
-    const message = e instanceof Error ? e.message : 'Failed to switch mode'
-    toast.error(message)
-    console.error('Mode switch error:', e)
+    // If it's a timeout/abort, still navigate but warn
+    if (e instanceof Error && e.name === 'AbortError') {
+      console.warn('Mode switch timed out, navigating anyway')
+      router.push(path)
+    } else {
+      const message = e instanceof Error ? e.message : 'Failed to switch mode'
+      toast.error(message)
+      console.error('Mode switch error:', e)
+    }
   } finally {
     switching.value = false
+    switchingTo.value = null
   }
 }
 
-// Fetch initial mode on mount
+// Fetch initial mode and start polling
 onMounted(async () => {
   await capabilitiesStore.fetchCapabilities()
+  
+  // Start periodic polling to keep mode indicator in sync
+  // Only poll if device is configured
+  if (hasDeviceConfigured()) {
+    modePollingInterval = window.setInterval(async () => {
+      // Don't poll while switching
+      if (switching.value) return
+      await capabilitiesStore.fetchCapabilities()
+    }, MODE_POLL_INTERVAL)
+  }
+})
+
+// Cleanup polling on unmount
+onUnmounted(() => {
+  if (modePollingInterval) {
+    clearInterval(modePollingInterval)
+    modePollingInterval = null
+  }
 })
 </script>
 
@@ -156,7 +200,7 @@ onMounted(async () => {
             
             <!-- Loading spinner when switching -->
             <svg 
-              v-if="switching && pendingMode === item.requiresMode" 
+              v-if="switching && switchingTo === item.requiresMode" 
               class="w-6 h-6 animate-spin" 
               fill="none" 
               viewBox="0 0 24 24"

@@ -383,16 +383,13 @@ export function buildMixerUrl(options: {
 }
 
 /**
- * Get the default MediaMTX host for the R58 system
+ * Get the MediaMTX host for VDO.ninja's &mediamtx= parameter
  * 
- * IMPORTANT: Always use the FRP-proxied MediaMTX URL (r58-mediamtx.itagenten.no)
- * because it has proper CORS headers configured via nginx.
- * 
- * Tailscale Funnel doesn't include CORS headers, causing VDO.ninja
- * to fail with "unknown address space" errors when fetching WHEP streams.
+ * This host is used by VDO.ninja for MediaMTX SFU mode, which requires HTTPS.
+ * Always use the FRP-proxied URL for reliable HTTPS access.
  */
 export function getMediaMtxHost(): string {
-  // Always use FRP-proxied MediaMTX which has CORS headers
+  // Always use FRP-proxied MediaMTX for VDO.ninja (HTTPS required)
   return 'r58-mediamtx.itagenten.no'
 }
 
@@ -416,17 +413,22 @@ export function getPublicR58Host(): string {
 }
 
 /**
- * Build a public WHEP URL for a camera
- * VDO.ninja needs this public URL to fetch the stream
+ * Build a WHEP URL for a camera that VDO.ninja can access
  * 
- * IMPORTANT: Always use the FRP-proxied MediaMTX URL (r58-mediamtx.itagenten.no)
- * because it has proper CORS headers configured via nginx.
+ * IMPORTANT: VDO.ninja runs in an HTTPS iframe (r58-vdo.itagenten.no).
+ * Browsers block "mixed content" - HTTPS pages cannot load HTTP resources.
+ * Therefore, VDO.ninja MUST use the FRP-proxied HTTPS URL.
  * 
- * The Tailscale Funnel doesn't include CORS headers, so VDO.ninja
- * can't fetch WHEP streams from it due to "unknown address space" errors.
+ * For direct device connections (Recorder view), use InputPreview.vue
+ * which connects directly via the device's API proxy.
+ * 
+ * This separation allows:
+ * - Mixer (VDO.ninja): Reliable HTTPS via FRP
+ * - Recorder: Direct connection (Tailscale P2P when available)
  */
 export function getPublicWhepUrl(cameraId: string): string {
-  // Always use FRP-proxied MediaMTX which has CORS headers
+  // Always use FRP-proxied MediaMTX for VDO.ninja (HTTPS required)
+  // VDO.ninja's HTTPS context blocks HTTP (mixed content)
   return `https://r58-mediamtx.itagenten.no/${cameraId}/whep`
 }
 

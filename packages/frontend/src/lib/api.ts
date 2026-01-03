@@ -370,12 +370,26 @@ export async function apiDelete<T>(url: string, options?: Omit<ApiOptions, 'meth
 }
 
 /**
+ * Check if a device URL is configured
+ * Useful to skip API calls before device setup
+ */
+export function hasDeviceConfigured(): boolean {
+  if (isElectron()) {
+    return !!getDeviceUrl()
+  }
+  // Web mode: always consider "configured" as the URL is derived from browser location
+  return true
+}
+
+/**
  * Build API URL from base path
  * 
  * Priority:
  * 1. Electron: Use configured device URL
  * 2. Web (reverse proxy on 80/443): Use same-origin API
  * 3. Dev mode (localhost:5173): Connect to API on port 8000
+ * 
+ * @throws Error if in Electron and no device URL is configured
  */
 export function buildApiUrl(path: string): string {
   // Priority 1: Electron with configured device URL
@@ -384,6 +398,11 @@ export function buildApiUrl(path: string): string {
     // Remove trailing slash from device URL if present
     const baseUrl = deviceUrl.replace(/\/+$/, '')
     return `${baseUrl}${path}`
+  }
+
+  // In Electron without device URL, we can't make API calls
+  if (isElectron()) {
+    throw new Error('No device configured - cannot make API calls')
   }
 
   // Priority 2 & 3: Web browser access
@@ -403,6 +422,8 @@ export function buildApiUrl(path: string): string {
 
 /**
  * Build WebSocket URL from device configuration
+ * 
+ * @throws Error if in Electron and no device URL is configured
  */
 export function buildWsUrl(path: string): string {
   const deviceUrl = getDeviceUrl()
@@ -414,6 +435,11 @@ export function buildWsUrl(path: string): string {
       .replace(/^http:/, 'ws:')
       .replace(/\/+$/, '')
     return `${wsUrl}${path}`
+  }
+
+  // In Electron without device URL, we can't make WebSocket connections
+  if (isElectron()) {
+    throw new Error('No device configured - cannot connect WebSocket')
   }
 
   // Fall back to browser-based URL construction
