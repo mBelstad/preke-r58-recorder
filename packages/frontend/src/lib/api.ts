@@ -57,8 +57,18 @@ interface AppInfo {
 // Device URL Management
 // ============================================
 
+/** FRP fallback API URL - used when device is unreachable */
+const FRP_API_URL = 'https://r58-api.itagenten.no'
+
 /** Cached device URL for synchronous access */
 let cachedDeviceUrl: string | null = null
+
+/** Whether we're currently using FRP fallback (device unreachable) */
+let usingFrpFallback = false
+
+/** Track consecutive connection failures to trigger fallback */
+let consecutiveFailures = 0
+const FAILURES_BEFORE_FALLBACK = 2
 
 /**
  * Initialize the device URL from Electron
@@ -256,6 +266,9 @@ export async function apiRequest<T>(
 
         // Check for success
         if (response.ok) {
+          // Record successful connection
+          recordConnectionSuccess()
+          
           // Handle empty responses
           const text = await response.text()
           if (!text) {
@@ -292,10 +305,12 @@ export async function apiRequest<T>(
         if (e instanceof Error && e.name === 'AbortError') {
           lastError = createApiError('Request timeout', 408, 'Request Timeout')
           lastError.retryable = true
+          recordConnectionFailure()
         } else if (e instanceof TypeError) {
-          // Network error
+          // Network error - likely device unreachable
           lastError = createApiError('Network error: ' + e.message)
           lastError.retryable = true
+          recordConnectionFailure()
         } else {
           throw e
         }
@@ -316,7 +331,25 @@ export async function apiRequest<T>(
     }
   }
 
-  // All retries exhausted
+  // All retries exhausted - try FRP fallback if we haven't already
+  if (lastError && isElectron() && !usingFrpFallback) {
+    console.log('[API] Primary device unreachable, trying FRP fallback...')
+    enableFrpFallback()
+    
+    // Extract path from URL and rebuild with FRP
+    try {
+      const urlObj = new URL(url)
+      const frpUrl = `${FRP_API_URL}${urlObj.pathname}${urlObj.search}`
+      console.log('[API] Retrying with FRP:', frpUrl)
+      
+      // Try once with FRP (no retries to avoid long delays)
+      return await apiRequest<T>(frpUrl, { ...options, retries: 0 })
+    } catch (frpError) {
+      console.error('[API] FRP fallback also failed:', frpError)
+      // Fall through to original error
+    }
+  }
+
   if (lastError) {
     console.error(`[API] Failed after ${retries + 1} attempts: ${url}`, lastError)
     throw lastError
@@ -391,7 +424,12 @@ export function hasDeviceConfigured(): boolean {
  * 
  * @throws Error if in Electron and no device URL is configured
  */
-export function buildApiUrl(path: string): string {
+export function buildApiUrl(path: string, useFallback: boolean = false): string {
+  // If explicitly using fallback or we've detected device is unreachable
+  if (useFallback || usingFrpFallback) {
+    return `${FRP_API_URL}${path}`
+  }
+  
   // Priority 1: Electron with configured device URL
   const deviceUrl = getDeviceUrl()
   if (deviceUrl) {
@@ -400,9 +438,10 @@ export function buildApiUrl(path: string): string {
     return `${baseUrl}${path}`
   }
 
-  // In Electron without device URL, we can't make API calls
+  // In Electron without device URL, use FRP fallback
   if (isElectron()) {
-    throw new Error('No device configured - cannot make API calls')
+    console.log('[API] No device configured, using FRP fallback')
+    return `${FRP_API_URL}${path}`
   }
 
   // Priority 2 & 3: Web browser access
@@ -418,6 +457,52 @@ export function buildApiUrl(path: string): string {
   // Dev mode: connect to API on port 8000
   const apiPort = 8000
   return `${protocol}//${host}:${apiPort}${path}`
+}
+
+/**
+ * Enable FRP fallback mode (call when device is detected as unreachable)
+ */
+export function enableFrpFallback(): void {
+  if (!usingFrpFallback) {
+    console.log('[API] Enabling FRP fallback - device unreachable')
+    usingFrpFallback = true
+  }
+}
+
+/**
+ * Disable FRP fallback mode (call when device becomes reachable again)
+ */
+export function disableFrpFallback(): void {
+  if (usingFrpFallback) {
+    console.log('[API] Disabling FRP fallback - using direct connection')
+    usingFrpFallback = false
+    consecutiveFailures = 0
+  }
+}
+
+/**
+ * Check if currently using FRP fallback
+ */
+export function isUsingFrpFallback(): boolean {
+  return usingFrpFallback
+}
+
+/**
+ * Record a connection failure (triggers fallback after threshold)
+ */
+export function recordConnectionFailure(): void {
+  consecutiveFailures++
+  if (consecutiveFailures >= FAILURES_BEFORE_FALLBACK && !usingFrpFallback) {
+    enableFrpFallback()
+  }
+}
+
+/**
+ * Record a successful connection (resets failure counter)
+ */
+export function recordConnectionSuccess(): void {
+  consecutiveFailures = 0
+  // Don't automatically disable fallback - keep using what works
 }
 
 /**
