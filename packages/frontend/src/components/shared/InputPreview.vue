@@ -88,10 +88,14 @@ async function initWhepPlayback() {
     
     // Create peer connection for WHEP
     // STUN servers help with NAT traversal for P2P discovery
+    // Multiple servers increase chances of successful hole-punching
     const pc = new RTCPeerConnection({
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' },
+        { urls: 'stun:stun3.l.google.com:19302' },
+        { urls: 'stun:stun.cloudflare.com:3478' },
       ]
     })
     peerConnection = pc
