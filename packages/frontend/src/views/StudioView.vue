@@ -11,7 +11,7 @@ const switchError = ref<string | null>(null)
 
 async function selectMode(mode: 'recorder' | 'mixer') {
   if (switching.value) return
-  
+
   selectedMode.value = mode
   switching.value = true
   switchError.value = null
@@ -26,7 +26,7 @@ async function selectMode(mode: 'recorder' | 'mixer') {
     }
     
     // Navigate to the mode view
-    router.push(`/${mode}`)
+  router.push(`/${mode}`)
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Failed to switch mode'
     switchError.value = message

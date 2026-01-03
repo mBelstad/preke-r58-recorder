@@ -40,7 +40,7 @@ export const useRecorderStore = defineStore('recorder', () => {
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
   })
   const activeInputs = computed(() => inputs.value.filter(i => i.hasSignal))
-  
+
   /**
    * Check if framerates are mismatched across active inputs.
    * Considers 2x multiples as compatible (e.g., 30fps and 60fps are OK).
@@ -227,7 +227,7 @@ export const useRecorderStore = defineStore('recorder', () => {
           label: cameraLabels[id] || id,
           hasSignal: cam.has_signal || cam.status === 'streaming' || cam.status === 'preview',
           isRecording: cam.status === 'recording',
-          bytesWritten: 0,
+        bytesWritten: 0,
           resolution: cam.resolution?.formatted || '',
           framerate: Math.round(framerate * 10) / 10, // Round to 1 decimal
         }

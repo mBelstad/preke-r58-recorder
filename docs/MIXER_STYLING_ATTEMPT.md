@@ -110,3 +110,4 @@ If custom mixer styling is needed in the future, consider:
 
 The mixer now uses VDO.ninja's default styling with no custom CSS. All custom files have been removed from both the repository and the R58 device.
 
+

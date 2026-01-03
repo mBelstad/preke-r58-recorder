@@ -150,7 +150,7 @@ async function fetchSessions() {
     console.error('Failed to fetch sessions:', e)
     error.value = e instanceof Error ? e.message : 'Failed to load recordings'
   } finally {
-    loading.value = false
+  loading.value = false
   }
 }
 
@@ -198,7 +198,7 @@ async function saveRename(session: Session) {
   const trimmedName = newName.value.trim()
   setLocalSessionName(session.id, trimmedName)
   session.name = trimmedName
-  editingName.value = null
+    editingName.value = null
 }
 
 function cancelRename() {
