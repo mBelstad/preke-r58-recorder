@@ -19,6 +19,11 @@ const deviceHostname = ref<string | null>(null)
 
 // Check if URL indicates local access
 function isLocalUrl(): boolean {
+  // In Electron with file:// protocol, hostname is empty - NOT local device
+  if (window.location.protocol === 'file:') {
+    return false
+  }
+  
   const host = window.location.hostname
   return host === 'localhost' || 
          host === '127.0.0.1' ||

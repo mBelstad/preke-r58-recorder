@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory, createWebHashHistory } from 'vue-router'
-import { isElectron, buildApiUrl } from '@/lib/api'
+import { isElectron, buildApiUrl, getDeviceUrl } from '@/lib/api'
 import { useCapabilitiesStore } from '@/stores/capabilities'
 
 // Use hash history for both Electron and web (works with static file serving)
@@ -95,9 +95,21 @@ router.beforeEach(async (to, _from, next) => {
     return
   }
   
+  // In Electron, skip mode switching if no device is configured
+  if (isElectron() && !getDeviceUrl()) {
+    console.log('[Router] No device configured, skipping mode switch')
+    next()
+    return
+  }
+  
   try {
-    // Fetch current mode from API
-    const modeRes = await fetch(buildApiUrl('/api/mode/status'))
+    // Fetch current mode from API with timeout to prevent hanging
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout
+    
+    const modeRes = await fetch(buildApiUrl('/api/mode/status'), {
+      signal: controller.signal
+    }).finally(() => clearTimeout(timeoutId))
     if (!modeRes.ok) {
       console.warn('[Router] Could not fetch mode status, proceeding anyway')
       next()
@@ -117,9 +129,13 @@ router.beforeEach(async (to, _from, next) => {
     console.log(`[Router] Switching mode from ${currentMode} to ${requiredMode}`)
     isSwitchingMode = true
     
+    const switchController = new AbortController()
+    const switchTimeoutId = setTimeout(() => switchController.abort(), 10000) // 10 second timeout
+    
     const switchRes = await fetch(buildApiUrl(`/api/mode/${requiredMode}`), { 
-      method: 'POST' 
-    })
+      method: 'POST',
+      signal: switchController.signal
+    }).finally(() => clearTimeout(switchTimeoutId))
     
     if (!switchRes.ok) {
       const errorData = await switchRes.json().catch(() => ({}))
