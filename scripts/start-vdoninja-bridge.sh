@@ -125,7 +125,7 @@ start_chromium() {
         --disable-notifications \
         --disable-popup-blocking \
         --start-maximized \
-        $director_url $urls \
+        $urls  # director removed - Electron app is the director \
         >/dev/null 2>&1 &
     
     CHROMIUM_PID=$!
@@ -282,7 +282,7 @@ verify_bridge() {
     
     # Check tabs
     local tabs=$(curl -s http://127.0.0.1:9222/json 2>/dev/null | grep -c '"title"' || echo "0")
-    local expected=$(($(echo "$CAMERAS" | tr ',' '\n' | wc -l) + 1))  # cameras + director
+    local expected=$(($(echo "$CAMERAS" | tr ',' '\n' | wc -l)))  # cameras only - director in Electron
     
     if [ "$tabs" -ge "$expected" ]; then
         log "SUCCESS: Bridge is running ($tabs tabs open, expected $expected)"
