@@ -20,7 +20,12 @@ const props = defineProps<{
   protocol?: 'whep' | 'hls'
 }>()
 
+const emit = defineEmits<{
+  (e: 'videoReady'): void
+}>()
+
 const recorderStore = useRecorderStore()
+let videoReadyEmitted = false
 const isRecording = computed(() => recorderStore.status === 'recording')
 
 const videoRef = ref<HTMLVideoElement | null>(null)
@@ -62,6 +67,17 @@ function handleConnectionChange(conn: WHEPConnection) {
       if (conn.mediaStream && videoRef.value) {
         if (videoRef.value.srcObject !== conn.mediaStream) {
           videoRef.value.srcObject = conn.mediaStream
+          
+          // Emit videoReady when first frame is displayed
+          if (!videoReadyEmitted) {
+            videoRef.value.onloadeddata = () => {
+              if (!videoReadyEmitted) {
+                videoReadyEmitted = true
+                console.log(`[InputPreview ${props.inputId}] Video ready (first frame displayed)`)
+                emit('videoReady')
+              }
+            }
+          }
         }
       }
       break

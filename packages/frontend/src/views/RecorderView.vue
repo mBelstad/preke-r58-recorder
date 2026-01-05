@@ -5,7 +5,6 @@ import { useCapabilitiesStore } from '@/stores/capabilities'
 import { useRecordingGuard } from '@/composables/useRecordingGuard'
 import { buildApiUrl, hasDeviceConfigured } from '@/lib/api'
 import { toast } from '@/composables/useToast'
-import { preloadConnections } from '@/lib/whepConnectionManager'
 import RecorderControls from '@/components/recorder/RecorderControls.vue'
 import RecordingHealth from '@/components/recorder/RecordingHealth.vue'
 import InputGrid from '@/components/recorder/InputGrid.vue'
@@ -22,7 +21,11 @@ const duration = computed(() => recorderStore.formattedDuration)
 
 // Loading state
 const isLoading = ref(true)
-const contentReady = ref(false)
+const dataLoaded = ref(false)
+const videosReady = ref(false)
+
+// Content is ready when BOTH data is loaded AND videos are displaying
+const contentReady = computed(() => dataLoaded.value && videosReady.value)
 
 function handleLoadingReady() {
   isLoading.value = false
@@ -50,41 +53,34 @@ async function ensureRecorderMode() {
   }
 }
 
-// Preload WHEP connections for cameras with signal
-async function preloadVideoStreams() {
-  // Get cameras with signal from the store (after fetchInputs completes)
-  const camerasWithSignal = recorderStore.inputs
-    .filter(i => i.hasSignal)
-    .map(i => i.id)
-  
-  if (camerasWithSignal.length === 0) {
-    console.log('[Recorder] No cameras with signal to preload')
-    return
-  }
-  
-  console.log(`[Recorder] Preloading ${camerasWithSignal.length} video streams...`)
-  await preloadConnections(camerasWithSignal)
+// Called by InputGrid when all videos have their first frame
+function handleAllVideosReady() {
+  console.log('[Recorder] All videos ready!')
+  videosReady.value = true
 }
 
 // Fetch real input status on mount - parallelized for speed
 onMounted(async () => {
   const startTime = performance.now()
   
-  // Phase 1: Fetch data (mode, inputs, status) in parallel
+  // Fetch data (mode, inputs, status) in parallel
+  // Video connections start automatically via InputPreview components
   await Promise.all([
     ensureRecorderMode(),
     recorderStore.fetchInputs(),
     recorderStore.fetchStatus()
   ])
-  console.log(`[Recorder] Loaded ${recorderStore.inputs.length} inputs, ${recorderStore.inputs.filter(i => i.hasSignal).length} with signal`)
   
-  // Phase 2: Preload video streams (while loading screen still visible)
-  await preloadVideoStreams()
+  const camerasWithSignal = recorderStore.inputs.filter(i => i.hasSignal).length
+  console.log(`[Recorder] Data loaded: ${recorderStore.inputs.length} inputs, ${camerasWithSignal} with signal (${Math.round(performance.now() - startTime)}ms)`)
   
-  console.log(`[Recorder] Total load time: ${Math.round(performance.now() - startTime)}ms`)
+  // Mark data as loaded - videos are loading in parallel via InputPreview
+  dataLoaded.value = true
   
-  // Mark content as ready - loading screen will dismiss
-  contentReady.value = true
+  // If no cameras with signal, mark videos as ready immediately
+  if (camerasWithSignal === 0) {
+    videosReady.value = true
+  }
 })
 
 // Ref for leave confirmation dialog
@@ -137,7 +133,7 @@ watch(showLeaveConfirmation, (show) => {
     <div class="flex-1 flex overflow-hidden">
       <!-- Input grid -->
       <div class="flex-1 p-4">
-        <InputGrid />
+        <InputGrid @all-videos-ready="handleAllVideosReady" />
       </div>
       
       <!-- Sidebar -->

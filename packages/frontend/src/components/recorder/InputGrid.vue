@@ -13,13 +13,36 @@
  * In Mixer mode, shows static placeholders to avoid duplicate
  * WebRTC connections (VDO.ninja handles video in Mixer mode).
  */
-import { computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRecorderStore, type InputStatus } from '@/stores/recorder'
 import { useCapabilitiesStore } from '@/stores/capabilities'
 import InputPreview from '@/components/shared/InputPreview.vue'
 
 const recorderStore = useRecorderStore()
 const capabilitiesStore = useCapabilitiesStore()
+
+const emit = defineEmits<{
+  (e: 'allVideosReady'): void
+}>()
+
+// Track which cameras have video ready
+const videosReady = ref<Set<string>>(new Set())
+
+function handleVideoReady(inputId: string) {
+  videosReady.value.add(inputId)
+  console.log(`[InputGrid] Video ready: ${inputId} (${videosReady.value.size}/${inputs.value.length})`)
+  
+  // Check if all videos are ready
+  if (videosReady.value.size >= inputs.value.length) {
+    console.log('[InputGrid] All videos ready!')
+    emit('allVideosReady')
+  }
+}
+
+// Reset when inputs change
+watch(() => inputs.value.length, () => {
+  videosReady.value.clear()
+})
 
 // Only show live video in recorder mode to avoid duplicate WHEP connections
 // VDO.ninja handles video streams in mixer mode
@@ -143,6 +166,7 @@ function getInputTooltip(input: InputStatus): string {
         v-if="isRecorderMode"
         :input-id="input.id"
         class="w-full h-full"
+        @video-ready="handleVideoReady(input.id)"
       />
       <!-- Static placeholder in mixer mode (VDO.ninja handles video) -->
       <div 
