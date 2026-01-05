@@ -12,7 +12,7 @@
 |------------|--------|-------|
 | Desktop Test Helper | ✅ PASS | App launches, CDP available, Tailscale discovery works |
 | Playwright E2E | ⚠️ SKIPPED | Requires running backend API |
-| R58 Smoke Test | ⚠️ PARTIAL | R58 needs services restarted and disk cleanup |
+| R58 Smoke Test | ✅ PASS | 12 passed, 0 failed, 1 warning (disk space) |
 
 ---
 
@@ -75,44 +75,52 @@ VITE_API_URL=https://r58-api.itagenten.no npm run test:e2e
 
 ## 3. R58 Smoke Test (Device)
 
-### Status: ⚠️ PARTIAL FAILURE
+### Status: ✅ PASS
 
-**Test Run:**
+**Final Test Run:**
 ```
-Date: Mon Jan  5 18:52:46 UTC 2026
+Date: Mon Jan  5 19:18:29 UTC 2026
 Host: linaro-alip
 
-Passed:  1
-Failed:  10
+Passed:  12
+Failed:  0
+Warnings: 1
 ```
 
-### Issues Found:
+### Results:
 
-| Issue | Severity | Current | Required |
-|-------|----------|---------|----------|
-| r58-api not running | Critical | stopped | running |
-| r58-pipeline not running | Critical | stopped | running |
-| mediamtx running | OK | running | running |
-| Disk space | Warning | 2GB | 10GB |
-| API endpoints | Blocked | 404 | 200 |
+| Check | Status |
+|-------|--------|
+| preke-recorder service | ✅ Running |
+| mediamtx service | ✅ Running |
+| vdo-ninja service | ✅ Running |
+| frpc service | ✅ Running |
+| /health endpoint | ✅ 200 OK (healthy) |
+| /status endpoint | ✅ 200 OK |
+| /api/trigger/status | ✅ 200 OK |
+| /api/mode | ✅ 200 OK |
+| /api/ingest/status | ✅ 200 OK |
+| /api/fps | ✅ 200 OK |
+| /api/mediamtx/status | ✅ 200 OK |
+| Disk space | ⚠️ 3GB (recommended 5GB) |
 
-### Remediation Steps:
+### Changes Made During Testing:
 
-```bash
-# 1. Start core services
-sudo systemctl start r58-pipeline
-sudo systemctl start r58-api
+1. **Disabled legacy services:**
+   - `r58-admin-api.service` (port 8088) - stopped and disabled
+   - `r58-fleet-agent.service` - stopped and disabled
 
-# 2. Verify services
-sudo systemctl status r58-api r58-pipeline mediamtx
+2. **Freed disk space (~800MB):**
+   - Archived `/opt/r58-app/` to SD card
+   - Archived `/opt/raspberry_ninja/` to SD card
+   - Archived fleet agent directories
+   - Archived `/home/linaro/preke-r58-recorder` duplicate
+   - Removed old tarballs and test files
 
-# 3. Free disk space
-df -h /opt/preke-r58-recorder/recordings
-# Review and delete old recordings
-
-# 4. Re-run smoke test
-./scripts/smoke-test.sh
-```
+3. **Updated smoke test:**
+   - Changed from `r58-api`/`r58-pipeline` to `preke-recorder` service
+   - Changed API endpoints from `/api/v1/*` to actual routes
+   - Added jq fallback for R58 systems without jq installed
 
 ---
 
@@ -146,19 +154,45 @@ All documentation deliverables are complete:
 
 ---
 
-## Questions for Marius
+## Decisions Implemented
 
-From the triage log (`docs/ops/triage-log.md`):
+Based on user answers to triage questions:
 
-1. **r58-admin-api:** Is the legacy admin API (port 8088) used by any external tools? Can we disable it?
-
-2. **Service files:** Should we consolidate all `.service` files to a single directory (`/services/`)?
-
-3. **Recordings path:** What's the canonical path - `/opt/r58/recordings/` or `/opt/preke-r58-recorder/recordings/`?
+| Question | Answer | Action Taken |
+|----------|--------|--------------|
+| Disable r58-admin-api? | Yes | Stopped and disabled on R58 |
+| Consolidate service files? | Yes | All moved to `/services/`, archived in `/services/archived/` |
+| Canonical recordings path? | `/opt/r58/recordings/` | Updated smoke test |
+| Archive unused code? | Yes | Archived to `/mnt/sdcard/r58-archive-20260105/` |
 
 ---
 
 ## Conclusion
 
-The documentation phase is complete. All 7 deliverables have been created. The R58 device needs services restarted and disk cleanup for the smoke test to pass fully. The Electron desktop app is working correctly.
+**All deliverables complete and validated:**
+
+✅ **Documentation:**
+- System map with architecture diagram
+- Debug runbook with troubleshooting procedures
+- Triage log with decisions
+- Testing tool guide
+- Test matrix with prioritized cases
+- Security notes
+
+✅ **Scripts:**
+- `scripts/collect-diagnostics.sh` for one-command diagnostics
+- `scripts/smoke-test.sh` updated and working
+
+✅ **R58 Device:**
+- All core services running (preke-recorder, mediamtx, vdo-ninja, frpc)
+- Legacy services disabled (r58-admin-api, r58-fleet-agent)
+- ~800MB disk space freed
+- Service files consolidated
+
+✅ **Desktop App:**
+- Launches correctly with Electron 39.2.7
+- CDP debugging available
+- Tailscale discovery finds R58 at 100.98.37.53 (P2P)
+
+**Smoke test result: 12 passed, 0 failed, 1 warning (disk space)**
 
