@@ -12,7 +12,7 @@
  * - Reconnection with exponential backoff
  */
 
-import { getDeviceUrl, isUsingFrpFallback, tryDirectConnection } from './api'
+import { getDeviceUrl, isUsingFrpFallback } from './api'
 
 // Connection state for each camera
 interface WHEPConnection {
@@ -52,28 +52,19 @@ function buildWhepUrl(cameraId: string): string {
   const deviceUrl = getDeviceUrl()
   const usingFrp = isUsingFrpFallback()
   
-  console.log(`[WHEP Manager ${cameraId}] Building URL:`)
-  console.log(`  - deviceUrl: "${deviceUrl}"`)
-  console.log(`  - usingFrpFallback: ${usingFrp}`)
-  console.log(`  - window.__R58_DEVICE_URL__: "${(window as any).__R58_DEVICE_URL__}"`)
-  
-  // ALWAYS prefer direct connection if we have a device URL
-  // The FRP fallback is for API calls, but WHEP can work with direct MediaMTX
-  if (deviceUrl) {
+  // Use direct connection only if available AND FRP fallback not active
+  // (FRP fallback means direct connection already failed)
+  if (deviceUrl && !usingFrp) {
     try {
       const url = new URL(deviceUrl)
-      const directUrl = `http://${url.hostname}:8889/${cameraId}/whep`
-      console.log(`[WHEP Manager ${cameraId}] ✓ Using direct P2P URL: ${directUrl}`)
-      return directUrl
+      return `http://${url.hostname}:8889/${cameraId}/whep`
     } catch (e) {
-      console.warn(`[WHEP Manager ${cameraId}] Invalid device URL, falling back to FRP:`, e)
+      console.warn(`[WHEP Manager] Invalid device URL, falling back to FRP`)
     }
   }
   
-  // FRP fallback only if no device URL
-  const frpUrl = `https://r58-mediamtx.itagenten.no/${cameraId}/whep`
-  console.log(`[WHEP Manager ${cameraId}] ✗ Using FRP URL (no device URL): ${frpUrl}`)
-  return frpUrl
+  // FRP fallback
+  return `https://r58-mediamtx.itagenten.no/${cameraId}/whep`
 }
 
 /**
