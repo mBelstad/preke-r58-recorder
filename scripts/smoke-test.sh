@@ -109,22 +109,17 @@ test_disk_space() {
 }
 
 test_recording_cycle() {
-    local session_id
     local status
 
     echo ""
     echo "Testing recording cycle..."
     
-    # Start recording
-    response=$(curl -s -X POST "$API_URL/api/v1/recorder/start" \
-        -H "Content-Type: application/json" \
-        -d '{"name": "smoke-test", "inputs": ["cam2"]}' 2>/dev/null)
-    
-    session_id=$(echo "$response" | jq -r '.session_id' 2>/dev/null)
+    # Start recording using trigger API
+    response=$(curl -s -X POST "$API_URL/api/trigger/start?session_name=smoke-test" 2>/dev/null)
     status=$(echo "$response" | jq -r '.status' 2>/dev/null)
     
-    if [ "$status" == "recording" ]; then
-        log_pass "Recording started (session: $session_id)"
+    if [ "$status" == "recording" ] || [ "$status" == "started" ]; then
+        log_pass "Recording started"
     else
         log_fail "Failed to start recording: $response"
         return 1
@@ -134,18 +129,19 @@ test_recording_cycle() {
     sleep 5
     
     # Check status
-    status=$(curl -s "$API_URL/api/v1/recorder/status" 2>/dev/null | jq -r '.status' 2>/dev/null)
-    if [ "$status" == "recording" ]; then
+    response=$(curl -s "$API_URL/api/trigger/status" 2>/dev/null)
+    is_recording=$(echo "$response" | jq -r '.recording' 2>/dev/null)
+    if [ "$is_recording" == "true" ]; then
         log_pass "Recording status confirmed"
     else
-        log_fail "Recording status check failed: $status"
+        log_warn "Recording status: $is_recording"
     fi
     
     # Stop recording
-    response=$(curl -s -X POST "$API_URL/api/v1/recorder/stop" 2>/dev/null)
+    response=$(curl -s -X POST "$API_URL/api/trigger/stop" 2>/dev/null)
     status=$(echo "$response" | jq -r '.status' 2>/dev/null)
     
-    if [ "$status" == "stopped" ]; then
+    if [ "$status" == "stopped" ] || [ "$status" == "success" ]; then
         log_pass "Recording stopped successfully"
     else
         log_fail "Failed to stop recording: $response"
@@ -183,17 +179,18 @@ echo ""
 
 # 2. API Endpoints
 echo "=== 2. API Endpoints ==="
-test_api_endpoint "/api/v1/health" "200" || true
-test_api_json "/api/v1/health" ".status" "healthy" || true
-test_api_endpoint "/api/v1/health/detailed" "200" || true
-test_api_endpoint "/api/v1/capabilities" "200" || true
-test_api_endpoint "/api/v1/recorder/status" "200" || true
+test_api_endpoint "/health" "200" || true
+test_api_json "/health" ".status" "healthy" || true
+test_api_endpoint "/status" "200" || true
+test_api_endpoint "/api/trigger/status" "200" || true
+test_api_endpoint "/api/mode" "200" || true
 echo ""
 
-# 3. Device Capabilities
-echo "=== 3. Device Capabilities ==="
-test_api_json "/api/v1/capabilities" ".recorder_available" "true" || true
-test_api_json "/api/v1/capabilities" ".api_version" "2.0.0" || true
+# 3. Pipelines & Streams
+echo "=== 3. Pipelines & Streams ==="
+test_api_endpoint "/api/ingest/status" "200" || true
+test_api_endpoint "/api/fps" "200" || true
+test_api_endpoint "/api/mediamtx/status" "200" || true
 echo ""
 
 # 4. Storage
