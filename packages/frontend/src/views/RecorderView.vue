@@ -109,7 +109,9 @@ watch(showLeaveConfirmation, (show) => {
     />
   </Transition>
   
-  <div class="h-full flex flex-col">
+  <!-- Content fades in when loading complete -->
+  <Transition name="content-fade">
+    <div v-show="!isLoading" class="h-full flex flex-col">
     <!-- Header -->
     <header class="flex items-center justify-between px-6 py-4 border-b border-r58-bg-tertiary bg-r58-bg-secondary">
       <div class="flex items-center gap-4">
@@ -153,7 +155,8 @@ watch(showLeaveConfirmation, (show) => {
       @confirm="confirmLeave"
       @cancel="cancelLeave"
     />
-  </div>
+    </div>
+  </Transition>
 </template>
 
 <style scoped>
@@ -165,6 +168,21 @@ watch(showLeaveConfirmation, (show) => {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+/* Content fade in animation */
+.content-fade-enter-active {
+  transition: opacity 0.4s ease-out, transform 0.4s ease-out;
+}
+
+.content-fade-enter-from {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.content-fade-enter-to {
+  opacity: 1;
+  transform: translateY(0);
 }
 </style>
 
