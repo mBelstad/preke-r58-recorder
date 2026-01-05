@@ -80,6 +80,12 @@ const router = createRouter({
       component: () => import('@/views/StyleGuideView.vue'),
       meta: { title: 'Style Guide' }
     },
+    {
+      path: '/style-guide-v2',
+      name: 'style-guide-v2',
+      component: () => import('@/views/StyleGuideV2View.vue'),
+      meta: { title: 'Style Guide v2 - Glassmorphism' }
+    },
   ]
 })
 
