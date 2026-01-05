@@ -82,14 +82,15 @@ async function getCDPInfo() {
 }
 
 // Launch the app
-async function launchApp(quiet = false) {
+async function launchApp(quiet = false, withDevTools = false) {
   if (!quiet) logHeader('Launching ' + APP_NAME);
   
   if (await isAppRunning()) {
     log('⚠️  App is already running. Use "restart" to restart.', 'yellow');
     const cdpInfo = await getCDPInfo();
     if (cdpInfo) {
-      log(`\n✅ CDP available at http://localhost:${CDP_PORT}`, 'green');
+      log(`\n✅ Ready for testing!`, 'green');
+      printUsageInstructions(cdpInfo);
     }
     return true;
   }
@@ -97,10 +98,18 @@ async function launchApp(quiet = false) {
   if (!quiet) log('Starting Electron with remote debugging...', 'cyan');
   
   const electronPath = path.join(DESKTOP_DIR, 'node_modules/.bin/electron');
+  
+  // Set environment to suppress DevTools window (unless explicitly requested)
+  const env = { ...process.env };
+  if (!withDevTools) {
+    env.PREKE_NO_DEVTOOLS = '1';
+  }
+  
   const child = spawn(electronPath, ['.', `--remote-debugging-port=${CDP_PORT}`], {
     cwd: DESKTOP_DIR,
     detached: true,
     stdio: 'ignore',
+    env,
   });
   
   child.unref();
@@ -127,13 +136,7 @@ async function launchApp(quiet = false) {
     console.log('');
     if (running && cdpInfo) {
       log('✅ App launched successfully!', 'green');
-      log(`\n📡 CDP: http://localhost:${CDP_PORT}`, 'cyan');
-      log(`📄 Logs: ${LOG_FILE}`, 'cyan');
-      
-      log('\n📱 Pages:', 'bright');
-      cdpInfo.forEach((page, i) => {
-        log(`   ${i + 1}. ${page.title || 'Untitled'}`, 'reset');
-      });
+      printUsageInstructions(cdpInfo);
     } else if (running) {
       log('⚠️  App running but CDP not available', 'yellow');
     } else {
@@ -143,6 +146,33 @@ async function launchApp(quiet = false) {
   }
   
   return running && cdpInfo;
+}
+
+// Print clear instructions for chat agents
+function printUsageInstructions(cdpInfo) {
+  // Find the main app page (not DevTools)
+  const mainPage = cdpInfo.find(p => 
+    !p.url.includes('devtools://') && 
+    p.url.includes('index.html')
+  );
+  
+  log('\n┌─────────────────────────────────────────────┐', 'cyan');
+  log('│  🎯 HOW TO USE WITH CURSOR BROWSER TOOLS   │', 'cyan');
+  log('├─────────────────────────────────────────────┤', 'cyan');
+  log('│                                             │', 'cyan');
+  log('│  1. Take a snapshot of the app:            │', 'cyan');
+  log('│     browser_snapshot                       │', 'cyan');
+  log('│                                             │', 'cyan');
+  log('│  2. Interact with elements:                │', 'cyan');
+  log('│     browser_click, browser_type, etc.      │', 'cyan');
+  log('│                                             │', 'cyan');
+  log('│  ⚠️  DO NOT navigate to localhost:9222     │', 'cyan');
+  log('│     (that shows debug interface, not app)  │', 'cyan');
+  log('│                                             │', 'cyan');
+  log('└─────────────────────────────────────────────┘', 'cyan');
+  
+  log(`\n📄 Log file: ${LOG_FILE}`, 'gray');
+  log(`📸 Screenshot: npm run test:screenshot`, 'gray');
 }
 
 // Stop the app
@@ -386,7 +416,9 @@ async function main() {
   switch (command) {
     case 'launch':
     case 'start':
-      await launchApp();
+      // --devtools flag opens Chrome DevTools window
+      const withDevTools = args.includes('--devtools');
+      await launchApp(false, withDevTools);
       break;
       
     case 'stop':
@@ -438,7 +470,8 @@ async function main() {
 ${colors.bright}Preke Studio Test Helper${colors.reset}
 
 ${colors.bright}App Control:${colors.reset}
-  launch      Start the app with CDP debugging
+  launch      Start the app (no DevTools window)
+  launch --devtools   Start with DevTools window
   stop        Stop the app
   restart     Stop and relaunch
   build       Rebuild main process and restart
@@ -450,6 +483,10 @@ ${colors.bright}Debugging:${colors.reset}
   cdp         Show CDP endpoints
   devtools    Open DevTools in browser
   screenshot  Capture screen to screenshots/
+
+${colors.bright}For Cursor Browser Tools:${colors.reset}
+  After "launch", use browser_snapshot to inspect the app.
+  DO NOT navigate to localhost:9222 (that's the debug API).
 
 ${colors.bright}Examples:${colors.reset}
   npm run test:launch

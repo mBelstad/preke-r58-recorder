@@ -105,8 +105,8 @@ export function createMainWindow(): BrowserWindow {
     })
   }
 
-  // Open DevTools in development
-  if (isDev()) {
+  // Open DevTools in development (unless PREKE_NO_DEVTOOLS is set)
+  if (isDev() && !process.env.PREKE_NO_DEVTOOLS) {
     mainWindow.webContents.openDevTools({ mode: 'detach' })
   }
 
