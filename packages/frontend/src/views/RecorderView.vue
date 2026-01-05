@@ -8,7 +8,7 @@ import { toast } from '@/composables/useToast'
 import RecorderControls from '@/components/recorder/RecorderControls.vue'
 import RecordingHealth from '@/components/recorder/RecordingHealth.vue'
 import InputGrid from '@/components/recorder/InputGrid.vue'
-import SessionInfo from '@/components/recorder/SessionInfo.vue'
+import SessionInfo from '@/components/recorder/SessionInfoV2.vue'
 import ConfirmDialog from '@/components/shared/ConfirmDialog.vue'
 import ModeLoadingScreen from '@/components/shared/ModeLoadingScreen.vue'
 

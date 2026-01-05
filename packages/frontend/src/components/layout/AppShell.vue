@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import Sidebar from './Sidebar.vue'
-import StatusBar from './StatusBar.vue'
+// Use v2 components for the new design system
+import Sidebar from './SidebarV2.vue'
+import StatusBar from './StatusBarV2.vue'
 
 const route = useRoute()
 const router = useRouter()
