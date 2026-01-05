@@ -139,7 +139,7 @@ What's the canonical recordings path on production R58? Is there already a symli
 
 **ID:** TRIAGE-004  
 **Severity:** Medium  
-**Status:** Open - For Awareness
+**Status:** ✅ Resolved
 
 **Evidence:**
 - `START_HERE.md` documents: "Password: linaro"
@@ -160,9 +160,12 @@ What's the canonical recordings path on production R58? Is there already a symli
 
 **Recommendation:** Option B (disable password auth) for production devices
 
-**Decision:** [Pending]
+**Decision:** Option A - Change root password
 
-**Resolution:** [Pending]
+**Resolution:** (January 5, 2026)
+- Root password changed on R58 device
+- Password removed from `START_HERE.md` documentation
+- Future: Consider Option B (disable password auth) for production
 
 ---
 
@@ -170,7 +173,7 @@ What's the canonical recordings path on production R58? Is there already a symli
 
 **ID:** TRIAGE-005  
 **Severity:** Low (for v1)  
-**Status:** Documented - Accepted Risk
+**Status:** ✅ Resolved
 
 **Evidence:**
 - `docs/CURRENT_ARCHITECTURE.md` states: "MediaMTX: Adds `Access-Control-Allow-Origin: *`"
@@ -189,9 +192,14 @@ What's the canonical recordings path on production R58? Is there already a symli
 | B) Restrict to known origins | Medium (may break clients) | 2 hours | Revert config |
 | C) Add authentication layer | None | 4+ hours | Remove auth |
 
-**Decision:** Accept for v1 - Local network is trusted. Document in security notes.
+**Decision:** Option B - Restrict to known origins
 
-**Resolution:** Documented in `docs/security/security-notes-v1.md`
+**Resolution:** (January 5, 2026)
+- CORS restricted to specific domains in:
+  - `mediamtx.yml` - WebRTC and HLS origins
+  - `packages/backend/r58_api/main.py` - FastAPI middleware
+  - `src/main.py` - WHEP proxy headers
+- Allowed origins: `*.preke.no`, `*.itagenten.no`, `localhost`, LAN IPs, Tailscale IPs
 
 ---
 
@@ -272,12 +280,14 @@ Items to address in future releases:
 |----|------|----------|--------|--------|-------|
 | TD-001 | Add authentication for remote API | P1 | Medium | Pending | Required for public exposure |
 | ~~TD-002~~ | ~~Consolidate service file locations~~ | ~~P2~~ | ~~Low~~ | ✅ Done | Completed 2026-01-05 |
-| TD-003 | Add health check for FRP tunnel | P2 | Low | Pending | Better remote monitoring |
-| TD-004 | Implement TURN server fallback | P3 | High | Pending | For restrictive networks |
-| TD-005 | Add recording file integrity check | P2 | Medium | Pending | Verify files after stop |
-| TD-006 | Implement log rotation | P3 | Low | Pending | Prevent disk fill from logs |
+| ~~TD-003~~ | ~~Add health check for FRP tunnel~~ | ~~P2~~ | ~~Low~~ | ✅ Done | Added to `/api/v1/health/detailed` |
+| ~~TD-004~~ | ~~Implement TURN server fallback~~ | ~~P3~~ | ~~High~~ | ✅ Documented | Not needed - FRP handles NAT. See `WEBRTC_CONNECTIVITY.md` |
+| ~~TD-005~~ | ~~Add recording file integrity check~~ | ~~P2~~ | ~~Medium~~ | ✅ Done | `ffprobe` validation in `integrity.py` |
+| ~~TD-006~~ | ~~Implement log rotation~~ | ~~P3~~ | ~~Low~~ | ✅ Done | `logrotate` config in `deployment/` |
 | TD-007 | Disable SSH password auth | P2 | Low | Pending | Security hardening |
 | TD-008 | Rotate FRP token | P2 | Low | Pending | Per-device tokens |
+| TD-009 | Smart connection priority (LAN>P2P>DERP>FRP) | P1 | Medium | Pending | See `BACKLOG.md` |
+| TD-010 | Connection quality indicator in UI | P2 | Low | Pending | Show LAN/P2P/DERP/FRP status |
 
 ---
 
