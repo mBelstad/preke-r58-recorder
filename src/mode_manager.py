@@ -337,24 +337,25 @@ class ModeManager:
         The bridge consumes camera streams via WHEP and pushes them to the
         VDO.ninja room so they appear in the Mixer director interface.
         
+        Note: This is non-blocking - the bridge starts in the background and
+        the API returns immediately. The frontend polls for bridge status.
+        
         Returns:
-            True if started successfully, False otherwise
+            True if command was issued successfully, False otherwise
         """
         try:
             import subprocess
-            logger.info("Starting vdoninja-bridge service...")
-            result = subprocess.run(
+            logger.info("Starting vdoninja-bridge service (async)...")
+            # Use Popen for non-blocking startup - don't wait for bridge
+            # The systemd service handles the actual startup
+            process = subprocess.Popen(
                 ["sudo", "systemctl", "start", "vdoninja-bridge"],
-                capture_output=True,
-                text=True,
-                timeout=30  # Bridge startup takes ~15-20s for Chromium tabs
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
             )
-            if result.returncode == 0:
-                logger.info("VDO.ninja bridge started")
-                return True
-            else:
-                logger.warning(f"Failed to start vdoninja-bridge: {result.stderr}")
-                return False
+            # Don't wait for completion - let it start in background
+            logger.info("VDO.ninja bridge start command issued")
+            return True
         except Exception as e:
             logger.warning(f"Error starting vdoninja-bridge: {e}")
             return False
