@@ -415,20 +415,23 @@ export function getPublicR58Host(): string {
 /**
  * Build a WHEP URL for a camera that VDO.ninja can access
  * 
- * IMPORTANT: VDO.ninja runs in an HTTPS iframe (r58-vdo.itagenten.no).
- * Browsers block "mixed content" - HTTPS pages cannot load HTTP resources.
- * Therefore, VDO.ninja MUST use the FRP-proxied HTTPS URL.
+ * In Electron: We enable allowRunningInsecureContent, so VDO.ninja can
+ * load HTTP content (direct Tailscale P2P) for much better performance.
  * 
- * For direct device connections (Recorder view), use InputPreview.vue
- * which connects directly via the device's API proxy.
- * 
- * This separation allows:
- * - Mixer (VDO.ninja): Reliable HTTPS via FRP
- * - Recorder: Direct connection (Tailscale P2P when available)
+ * In Browser: Must use FRP-proxied HTTPS URL due to mixed content security.
  */
 export function getPublicWhepUrl(cameraId: string): string {
-  // Always use FRP-proxied MediaMTX for VDO.ninja (HTTPS required)
-  // VDO.ninja's HTTPS context blocks HTTP (mixed content)
+  // In Electron, use direct Tailscale P2P when available (mixed content allowed)
+  if (typeof window !== 'undefined' && (window as any).electronAPI) {
+    const deviceUrl = (window as any).__R58_DEVICE_URL__
+    if (deviceUrl && deviceUrl.includes('100.98.37.53')) {
+      // Direct Tailscale P2P - bypasses FRP tunnel for much better performance!
+      console.log(`[VDO.ninja] Using direct P2P WHEP for ${cameraId}`)
+      return `http://100.98.37.53:8889/${cameraId}/whep`
+    }
+  }
+  
+  // Browser fallback: Always use FRP-proxied MediaMTX (HTTPS required)
   return `https://r58-mediamtx.itagenten.no/${cameraId}/whep`
 }
 

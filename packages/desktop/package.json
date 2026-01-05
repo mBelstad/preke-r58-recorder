@@ -9,6 +9,7 @@
     "email": "support@itagenten.no"
   },
   "scripts": {
+    "postinstall": "node scripts/patch-playwright-electron.js",
     "dev": "npm run build:renderer && npm run build:main && electron .",
     "build:renderer": "cd ../frontend && cross-env ELECTRON_BUILD=true npm run build",
     "dev:hot": "cross-env VITE_DEV_SERVER_URL=http://localhost:5173 npm run build:main && electron .",
@@ -21,9 +22,16 @@
     "dist": "npm run build && electron-builder",
     "dist:mac": "npm run build && electron-builder --mac",
     "dist:mac:unsigned": "npm run build && electron-builder --mac -c.mac.identity=null",
-    "clean": "rimraf app dist"
+    "clean": "rimraf app dist",
+    "test:launch": "node scripts/test-helper.js launch",
+    "test:stop": "node scripts/test-helper.js stop",
+    "test:status": "node scripts/test-helper.js status",
+    "test:logs": "node scripts/test-helper.js logs",
+    "test:logs:follow": "node scripts/test-helper.js logs -f",
+    "test:cdp": "node scripts/test-helper.js cdp"
   },
   "dependencies": {
+    "@snowfort/circuit-electron": "^0.0.18",
     "archiver": "^7.0.1",
     "electron-log": "^5.1.7",
     "electron-store": "^8.2.0"
@@ -33,14 +41,14 @@
     "@types/node": "^20.11.0",
     "concurrently": "^8.2.2",
     "cross-env": "^7.0.3",
-    "electron": "^33.2.0",
+    "electron": "^39.2.7",
     "electron-builder": "^25.1.8",
     "rimraf": "^5.0.5",
     "typescript": "^5.3.3",
-    "wait-on": "^7.2.0"
+    "wait-on": "^7.2.0",
+    "ws": "^8.18.3"
   },
   "build": {
     "extends": "electron-builder.yml"
   }
 }
-

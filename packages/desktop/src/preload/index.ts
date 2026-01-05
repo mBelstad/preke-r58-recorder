@@ -316,6 +316,14 @@ const electronAPI = {
     error: (...args: unknown[]) => ipcRenderer.send('log', 'error', ...args),
   },
 
+  /**
+   * Get recent logs from the main process log file
+   * Useful for debugging and MCP integration
+   */
+  getRecentLogs: (maxLines?: number): Promise<{ logs: string; path: string }> => {
+    return ipcRenderer.invoke('get-recent-logs', maxLines)
+  },
+
   // ============================================
   // Platform Info
   // ============================================

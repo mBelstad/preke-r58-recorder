@@ -319,7 +319,7 @@ class ModeManager:
                 ["sudo", "systemctl", "stop", "vdoninja-bridge"],
                 capture_output=True,
                 text=True,
-                timeout=10
+                timeout=30  # Bridge may take time to stop all Chromium tabs
             )
             if result.returncode == 0:
                 logger.info("VDO.ninja bridge stopped")
@@ -347,7 +347,7 @@ class ModeManager:
                 ["sudo", "systemctl", "start", "vdoninja-bridge"],
                 capture_output=True,
                 text=True,
-                timeout=10
+                timeout=30  # Bridge startup takes ~15-20s for Chromium tabs
             )
             if result.returncode == 0:
                 logger.info("VDO.ninja bridge started")

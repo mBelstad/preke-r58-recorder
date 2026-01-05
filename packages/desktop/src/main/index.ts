@@ -10,7 +10,7 @@ import * as path from 'path'
 import { createMainWindow, getMainWindow } from './window'
 import { createApplicationMenu } from './menu'
 import { deviceStore } from './deviceStore'
-import { initializeLogger, log, exportSupportBundle } from './logger'
+import { initializeLogger, log, exportSupportBundle, readRecentLogs, getLogFilePath } from './logger'
 import { setupDiscoveryHandlers } from './discovery'
 
 // Prevent multiple instances
@@ -151,6 +151,14 @@ function registerIpcHandlers(): void {
         break
       default:
         log.debug('[Renderer]', ...args)
+    }
+  })
+
+  // Get recent logs from file (for debugging/MCP integration)
+  ipcMain.handle('get-recent-logs', (_event, maxLines?: number) => {
+    return {
+      logs: readRecentLogs(maxLines || 100),
+      path: getLogFilePath()
     }
   })
 }

@@ -9,8 +9,8 @@ import { deviceStore } from './deviceStore'
 
 let mainWindow: BrowserWindow | null = null
 
-// Development mode detection
-const isDev = !app.isPackaged
+// Development mode detection (lazy to support Playwright testing)
+const isDev = (): boolean => !app.isPackaged
 
 // Vite dev server URL (for hot reload development)
 const VITE_DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL
@@ -34,7 +34,7 @@ const ALLOWED_IFRAME_ORIGINS = [
  * Get the path to the renderer (Vue frontend)
  */
 function getRendererPath(): string {
-  if (isDev) {
+  if (isDev()) {
     // In development, load from the frontend dev server or built files
     return path.join(__dirname, '../../app/renderer/index.html')
   }
@@ -67,7 +67,9 @@ export function createMainWindow(): BrowserWindow {
       
       // Additional security
       webSecurity: true,
-      allowRunningInsecureContent: false,
+      // Allow HTTP content in HTTPS iframes (VDO.ninja) for Tailscale P2P
+      // This enables direct MediaMTX connection instead of FRP tunnel
+      allowRunningInsecureContent: true,
       
       // Performance
       spellcheck: false,
@@ -104,7 +106,7 @@ export function createMainWindow(): BrowserWindow {
   }
 
   // Open DevTools in development
-  if (isDev) {
+  if (isDev()) {
     mainWindow.webContents.openDevTools({ mode: 'detach' })
   }
 
@@ -160,9 +162,43 @@ export function createMainWindow(): BrowserWindow {
 }
 
 /**
+ * Setup URL rewriting to redirect FRP WHEP requests to direct Tailscale P2P
+ * This dramatically improves VDO.ninja mixer performance when on Tailscale
+ */
+function setupWhepRedirect(win: BrowserWindow): void {
+  // Intercept requests to FRP MediaMTX and redirect to Tailscale when available
+  win.webContents.session.webRequest.onBeforeRequest(
+    { urls: ['https://r58-api.itagenten.no/*/whep*', 'https://r58-mediamtx.itagenten.no/*/whep*'] },
+    (details, callback) => {
+      const activeDevice = deviceStore.getActiveDevice()
+      
+      // Check if we have a direct Tailscale connection
+      if (activeDevice && activeDevice.url.includes('100.98.37.53')) {
+        // Extract the camera ID from the URL (e.g., /cam0/whep -> cam0)
+        const match = details.url.match(/\/(cam\d+)\/whep/)
+        if (match) {
+          const cameraId = match[1]
+          const directUrl = `http://100.98.37.53:8889/${cameraId}/whep`
+          log.info(`[WHEP P2P] Redirecting ${details.url} -> ${directUrl}`)
+          callback({ redirectURL: directUrl })
+          return
+        }
+      }
+      
+      // No redirect - use original FRP URL
+      callback({})
+    }
+  )
+  log.info('WHEP P2P redirect enabled for Tailscale connections')
+}
+
+/**
  * Setup navigation security to prevent unauthorized navigation
  */
 function setupNavigationSecurity(win: BrowserWindow): void {
+  // Setup WHEP redirect for P2P performance
+  setupWhepRedirect(win)
+  
   // Skip navigation security in dev mode with Vite (HMR needs freedom)
   if (VITE_DEV_SERVER_URL) {
     log.info('Dev mode: Navigation security relaxed for Vite HMR')
