@@ -8,6 +8,9 @@ const createHistory = () => {
   return createWebHashHistory()
 }
 
+// Track if this is the initial app load (for redirecting to device setup)
+let isInitialLoad = true
+
 const router = createRouter({
   history: createHistory(),
   routes: [
@@ -80,10 +83,26 @@ const router = createRouter({
   ]
 })
 
-// Update document title
+// Navigation guard: redirect to device-setup on initial app load (Electron only)
 router.beforeEach((to, _from, next) => {
+  // Update document title
   const title = to.meta.title as string
   document.title = title ? `${title} - Preke Studio` : 'Preke Studio'
+  
+  // On initial load in Electron, redirect to device-setup so user can choose device
+  if (isInitialLoad && window.electronAPI?.isElectron) {
+    isInitialLoad = false
+    
+    // If navigating to root, redirect to device-setup
+    if (to.path === '/') {
+      next({ name: 'device-setup' })
+      return
+    }
+  }
+  
+  // Mark initial load complete after first navigation
+  isInitialLoad = false
+  
   next()
 })
 
