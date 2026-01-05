@@ -341,7 +341,13 @@ onUnmounted(() => {
         
         <div class="welcome-content">
           <div class="welcome-logo-wrap">
-            <img src="/logo-studio-stacked.svg" alt="Preke Studio" class="welcome-logo" />
+            <div class="welcome-logo-inline">
+              <img src="/logo-sidebar.svg" alt="" class="welcome-logo-waveform" />
+              <div class="welcome-logo-text">
+                <span class="welcome-logo-preke">Preke</span>
+                <span class="welcome-logo-studio">Studio</span>
+              </div>
+            </div>
             <div class="welcome-glow"></div>
           </div>
         </div>
@@ -349,10 +355,17 @@ onUnmounted(() => {
     </Transition>
     
     <div v-show="!showWelcome" class="setup-page__content">
-      <!-- Large centered logo -->
+      <!-- Large centered logo - inline layout with waveform + text -->
       <div class="logo-hero">
-        <img src="/logo-studio-stacked.svg" alt="Preke Studio" class="logo-hero__img" />
+        <div class="logo-hero__inline">
+          <img src="/logo-sidebar.svg" alt="" class="logo-hero__waveform" />
+          <div class="logo-hero__text">
+            <span class="logo-hero__preke">Preke</span>
+            <span class="logo-hero__studio">Studio</span>
+          </div>
+        </div>
       </div>
+      
       
       <!-- Main content card -->
       <div class="setup-card">
@@ -765,6 +778,46 @@ onUnmounted(() => {
   animation: welcome-float 0.8s ease-out;
 }
 
+/* Inline welcome logo */
+.welcome-logo-inline {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  position: relative;
+  z-index: 1;
+}
+
+.welcome-logo-waveform {
+  width: 120px;
+  height: 120px;
+  filter: drop-shadow(0 0 40px rgba(224, 160, 48, 0.5));
+}
+
+.welcome-logo-text {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+}
+
+.welcome-logo-preke {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 5rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: 0.02em;
+  text-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+}
+
+.welcome-logo-studio {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 5rem;
+  font-weight: 800;
+  color: var(--gold);
+  letter-spacing: 0.02em;
+  text-shadow: 0 0 40px rgba(224, 160, 48, 0.5);
+}
+
+/* Legacy stacked welcome logo */
 .welcome-logo {
   height: 280px;
   width: auto;
@@ -947,7 +1000,7 @@ onUnmounted(() => {
 }
 
 /* ═══════════════════════════════════════════
-   LOGO HERO
+   LOGO HERO - Inline layout with waveform + text
    ═══════════════════════════════════════════ */
 .logo-hero {
   display: flex;
@@ -955,6 +1008,48 @@ onUnmounted(() => {
   animation: fadeIn 0.8s ease-out;
 }
 
+.logo-hero__inline {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.logo-hero__waveform {
+  width: 80px;
+  height: 80px;
+  filter: drop-shadow(0 0 24px rgba(224, 160, 48, 0.5));
+  transition: filter 0.3s ease;
+}
+
+.logo-hero:hover .logo-hero__waveform {
+  filter: drop-shadow(0 0 32px rgba(224, 160, 48, 0.7));
+}
+
+.logo-hero__text {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.logo-hero__preke {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 3.5rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: 0.02em;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+}
+
+.logo-hero__studio {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 3.5rem;
+  font-weight: 800;
+  color: var(--gold);
+  letter-spacing: 0.02em;
+  text-shadow: 0 0 24px rgba(224, 160, 48, 0.4);
+}
+
+/* Legacy stacked logo support */
 .logo-hero__img {
   height: 240px;
   width: auto;
@@ -1584,10 +1679,52 @@ onUnmounted(() => {
 /* ═══════════════════════════════════════════
    RESPONSIVE
    ═══════════════════════════════════════════ */
+@media (max-width: 640px) {
+  .logo-hero__inline {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .logo-hero__preke,
+  .logo-hero__studio {
+    font-size: 2.5rem;
+  }
+  
+  .logo-hero__waveform {
+    width: 60px;
+    height: 60px;
+  }
+  
+  .welcome-logo-inline {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .welcome-logo-preke,
+  .welcome-logo-studio {
+    font-size: 3rem;
+  }
+  
+  .welcome-logo-waveform {
+    width: 80px;
+    height: 80px;
+  }
+}
+
 @media (max-width: 480px) {
   .setup-page { padding: 1rem; }
   .logo-hero__img { height: 180px; }
   .setup-card { padding: 1.25rem; }
   .btn-scan-large { width: 100%; }
+  
+  .logo-hero__preke,
+  .logo-hero__studio {
+    font-size: 2rem;
+  }
+  
+  .welcome-logo-preke,
+  .welcome-logo-studio {
+    font-size: 2.5rem;
+  }
 }
 </style>
