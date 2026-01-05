@@ -75,14 +75,24 @@ test_api_json() {
     local jq_query=$2
     local expected=$3
     local response
+    local json_response
 
-    response=$(curl -s "$API_URL$endpoint" 2>/dev/null | jq -r "$jq_query" 2>/dev/null)
+    json_response=$(curl -s "$API_URL$endpoint" 2>/dev/null)
+    
+    # Try jq first, fall back to grep-based extraction
+    if command -v jq >/dev/null 2>&1; then
+        response=$(echo "$json_response" | jq -r "$jq_query" 2>/dev/null)
+    else
+        # Fallback: extract value using grep/sed (works for simple .key queries)
+        local key="${jq_query#.}"  # Remove leading dot
+        response=$(echo "$json_response" | grep -o "\"$key\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" | sed 's/.*"'"$key"'"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/' 2>/dev/null)
+    fi
     
     if [ "$response" == "$expected" ]; then
-        log_pass "GET $endpoint.$jq_query == $expected"
+        log_pass "GET $endpoint$jq_query == $expected"
         return 0
     else
-        log_fail "GET $endpoint.$jq_query == $response (expected $expected)"
+        log_fail "GET $endpoint$jq_query == $response (expected $expected)"
         return 1
     fi
 }
@@ -114,9 +124,20 @@ test_recording_cycle() {
     echo ""
     echo "Testing recording cycle..."
     
+    # Helper to extract JSON value
+    json_get() {
+        local json="$1"
+        local key="$2"
+        if command -v jq >/dev/null 2>&1; then
+            echo "$json" | jq -r ".$key" 2>/dev/null
+        else
+            echo "$json" | grep -o "\"$key\"[[:space:]]*:[[:space:]]*[^,}]*" | sed 's/.*:[[:space:]]*//' | tr -d '"' 2>/dev/null
+        fi
+    }
+    
     # Start recording using trigger API
     response=$(curl -s -X POST "$API_URL/api/trigger/start?session_name=smoke-test" 2>/dev/null)
-    status=$(echo "$response" | jq -r '.status' 2>/dev/null)
+    status=$(json_get "$response" "status")
     
     if [ "$status" == "recording" ] || [ "$status" == "started" ]; then
         log_pass "Recording started"
@@ -130,7 +151,7 @@ test_recording_cycle() {
     
     # Check status
     response=$(curl -s "$API_URL/api/trigger/status" 2>/dev/null)
-    is_recording=$(echo "$response" | jq -r '.recording' 2>/dev/null)
+    is_recording=$(json_get "$response" "recording")
     if [ "$is_recording" == "true" ]; then
         log_pass "Recording status confirmed"
     else
@@ -139,7 +160,7 @@ test_recording_cycle() {
     
     # Stop recording
     response=$(curl -s -X POST "$API_URL/api/trigger/stop" 2>/dev/null)
-    status=$(echo "$response" | jq -r '.status' 2>/dev/null)
+    status=$(json_get "$response" "status")
     
     if [ "$status" == "stopped" ] || [ "$status" == "success" ]; then
         log_pass "Recording stopped successfully"
