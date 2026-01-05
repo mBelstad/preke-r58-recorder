@@ -3,7 +3,7 @@ import { createPinia } from 'pinia'
 
 import App from './App.vue'
 import router from './router'
-import { initializeDeviceUrl, setDeviceUrl, isElectron } from './lib/api'
+import { initializeDeviceUrl, setDeviceUrl, isElectron, disableFrpFallback } from './lib/api'
 
 import './style.css'
 
@@ -37,6 +37,12 @@ async function initApp() {
     window.electronAPI?.onDeviceChanged((device) => {
       console.log('[App] Device changed:', device)
       const newUrl = device?.url || null
+      
+      // Reset FRP fallback when we get a direct device URL
+      if (newUrl && !newUrl.includes('itagenten.no')) {
+        console.log('[App] Direct device URL received, resetting FRP fallback')
+        disableFrpFallback()
+      }
       
       // Only reload if device actually changed (not on initial load)
       if (newUrl !== currentDeviceUrl && currentDeviceUrl !== null) {

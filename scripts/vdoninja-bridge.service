@@ -34,7 +34,8 @@ Environment=API_HOST=r58-api.itagenten.no
 # Example for multiple cameras:
 #   CAMERAS=cam2:hdmi1:Camera-1,cam3:hdmi2:Camera-2
 #
-Environment=CAMERAS=cam2:hdmi1:HDMI-Camera
+# Default: All 3 active HDMI cameras
+Environment="CAMERAS=cam0:hdmi0:HDMI-IN0,cam2:hdmi2:HDMI-IN1,cam3:hdmi3:HDMI-IN2"
 
 # Log file location
 Environment=LOG_FILE=/var/log/vdoninja-bridge.log
@@ -45,5 +46,8 @@ ExecStart=/opt/preke-r58-recorder/scripts/start-vdoninja-bridge.sh
 StandardOutput=journal
 StandardError=journal
 
+# NOTE: This service should NOT be enabled at boot!
+# The mode_manager.py controls starting/stopping this service
+# based on the current mode (starts in mixer mode, stops in recorder/idle)
 [Install]
-WantedBy=graphical.target
+WantedBy=multi-user.target

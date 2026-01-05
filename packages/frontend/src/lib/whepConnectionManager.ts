@@ -12,7 +12,7 @@
  * - Reconnection with exponential backoff
  */
 
-import { getDeviceUrl, isUsingFrpFallback } from './api'
+import { getDeviceUrl, isUsingFrpFallback, tryDirectConnection } from './api'
 
 // Connection state for each camera
 interface WHEPConnection {
@@ -26,6 +26,7 @@ interface WHEPConnection {
   lastConnectedAt: number | null
   reconnectAttempts: number
   reconnectTimeout: ReturnType<typeof setTimeout> | null
+  connectionStartTime: number | null  // For timing measurements
 }
 
 // Known IPs for connection type detection
@@ -45,59 +46,108 @@ const listeners = new Map<string, Set<(conn: WHEPConnection) => void>>()
 
 /**
  * Build the WHEP URL for a camera
+ * Prioritizes direct P2P connection over FRP tunnel
  */
 function buildWhepUrl(cameraId: string): string {
   const deviceUrl = getDeviceUrl()
+  const usingFrp = isUsingFrpFallback()
   
-  // Prefer direct connection if available
-  if (deviceUrl && !isUsingFrpFallback()) {
+  console.log(`[WHEP Manager ${cameraId}] Building URL:`)
+  console.log(`  - deviceUrl: "${deviceUrl}"`)
+  console.log(`  - usingFrpFallback: ${usingFrp}`)
+  console.log(`  - window.__R58_DEVICE_URL__: "${(window as any).__R58_DEVICE_URL__}"`)
+  
+  // ALWAYS prefer direct connection if we have a device URL
+  // The FRP fallback is for API calls, but WHEP can work with direct MediaMTX
+  if (deviceUrl) {
     try {
       const url = new URL(deviceUrl)
-      return `http://${url.hostname}:8889/${cameraId}/whep`
+      const directUrl = `http://${url.hostname}:8889/${cameraId}/whep`
+      console.log(`[WHEP Manager ${cameraId}] ✓ Using direct P2P URL: ${directUrl}`)
+      return directUrl
     } catch (e) {
-      console.warn(`[WHEP Manager] Invalid device URL, falling back to FRP`)
+      console.warn(`[WHEP Manager ${cameraId}] Invalid device URL, falling back to FRP:`, e)
     }
   }
   
-  // FRP fallback
-  return `https://r58-mediamtx.itagenten.no/${cameraId}/whep`
+  // FRP fallback only if no device URL
+  const frpUrl = `https://r58-mediamtx.itagenten.no/${cameraId}/whep`
+  console.log(`[WHEP Manager ${cameraId}] ✗ Using FRP URL (no device URL): ${frpUrl}`)
+  return frpUrl
 }
 
 /**
  * Detect connection type (P2P vs Relay)
+ * 
+ * With Tailscale userspace networking, the WebRTC remote candidate will show
+ * 127.0.0.1 because tailscaled proxies locally. But the actual traffic goes
+ * through Tailscale's P2P WireGuard tunnel.
+ * 
+ * Detection strategy:
+ * 1. If WHEP URL uses Tailscale IP (100.x.x.x) -> P2P via Tailscale
+ * 2. If WHEP URL uses LAN IP -> P2P via LAN  
+ * 3. If WHEP URL uses FRP (itagenten.no) -> Relay
  */
 async function detectConnectionType(pc: RTCPeerConnection, cameraId: string): Promise<'p2p' | 'relay' | 'unknown'> {
-  for (let attempt = 0; attempt < 3; attempt++) {
-    if (attempt > 0) {
-      await new Promise(r => setTimeout(r, 200))
+  const conn = connections.get(cameraId)
+  if (!conn) return 'unknown'
+  
+  // Detection based on WHEP URL (most reliable with Tailscale userspace)
+  try {
+    const whepUrl = new URL(conn.whepUrl)
+    const host = whepUrl.hostname
+    
+    // FRP tunnel = relay
+    if (host.includes('itagenten.no')) {
+      console.log(`[WHEP Manager ${cameraId}] Detected relay (FRP URL)`)
+      return 'relay'
     }
     
-    try {
-      const stats = await pc.getStats()
-      for (const report of stats.values()) {
-        if (report.type === 'candidate-pair' && report.state === 'succeeded') {
-          const remoteCandidate = stats.get(report.remoteCandidateId)
-          const remoteIP = remoteCandidate?.address
-          
-          // Check candidate types
-          if (remoteCandidate?.candidateType === 'relay') return 'relay'
-          
-          // Check known IPs
-          if (remoteIP && RELAY_IPS.includes(remoteIP)) return 'relay'
-          if (remoteIP && P2P_IPS.includes(remoteIP)) return 'p2p'
-          
-          // Check IP ranges
-          if (remoteIP) {
-            if (remoteIP.startsWith('100.')) return 'p2p'  // Tailscale
-            if (remoteIP.startsWith('192.168.') || remoteIP.startsWith('10.') || remoteIP.startsWith('172.')) return 'p2p'
-          }
-          
-          return 'relay'  // Default to relay for unknown
+    // Tailscale IP = P2P via Tailscale
+    if (host.startsWith('100.')) {
+      console.log(`[WHEP Manager ${cameraId}] Detected P2P (Tailscale IP: ${host})`)
+      return 'p2p'
+    }
+    
+    // LAN IP = P2P via LAN
+    if (host.startsWith('192.168.') || host.startsWith('10.') || host.startsWith('172.')) {
+      console.log(`[WHEP Manager ${cameraId}] Detected P2P (LAN IP: ${host})`)
+      return 'p2p'
+    }
+  } catch (e) {
+    console.warn(`[WHEP Manager ${cameraId}] Failed to parse WHEP URL:`, e)
+  }
+  
+  // Fallback: check WebRTC stats (may be unreliable with Tailscale userspace)
+  try {
+    const stats = await pc.getStats()
+    for (const report of stats.values()) {
+      if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+        const remoteCandidate = stats.get(report.remoteCandidateId)
+        
+        // Explicit relay candidate type
+        if (remoteCandidate?.candidateType === 'relay') {
+          console.log(`[WHEP Manager ${cameraId}] Detected relay (TURN candidate)`)
+          return 'relay'
+        }
+        
+        // Check for VPS IP (explicit relay)
+        const remoteIP = remoteCandidate?.address
+        if (remoteIP && RELAY_IPS.includes(remoteIP)) {
+          console.log(`[WHEP Manager ${cameraId}] Detected relay (VPS IP: ${remoteIP})`)
+          return 'relay'
         }
       }
-    } catch (e) {
-      console.warn(`[WHEP Manager ${cameraId}] Failed to detect connection type:`, e)
     }
+  } catch (e) {
+    console.warn(`[WHEP Manager ${cameraId}] Failed to get WebRTC stats:`, e)
+  }
+  
+  // If we got here with a direct device URL, assume P2P
+  const deviceUrl = getDeviceUrl()
+  if (deviceUrl && !isUsingFrpFallback()) {
+    console.log(`[WHEP Manager ${cameraId}] Assuming P2P (direct device URL configured)`)
+    return 'p2p'
   }
   
   return 'unknown'
@@ -161,8 +211,21 @@ async function createConnection(cameraId: string): Promise<WHEPConnection> {
     return conn
   }
   
+  // Wait for device URL to be set (handles race condition on startup)
+  // Reduced wait time for faster loading
+  let deviceUrl = getDeviceUrl()
+  let attempts = 0
+  while (!deviceUrl && attempts < 5) {
+    console.log(`[WHEP Manager ${cameraId}] No device URL yet, waiting... (attempt ${attempts + 1})`)
+    await new Promise(resolve => setTimeout(resolve, 100))
+    deviceUrl = getDeviceUrl()
+    attempts++
+  }
+  
+  const startTime = performance.now()
   const whepUrl = buildWhepUrl(cameraId)
-  console.log(`[WHEP Manager ${cameraId}] Creating new connection: ${whepUrl}`)
+  console.log(`[WHEP Manager ${cameraId}] Creating connection to: ${whepUrl}`)
+  console.log(`[WHEP Manager ${cameraId}] Device URL was: ${deviceUrl}`)
   
   // Clean up old connection if exists
   if (conn?.peerConnection) {
@@ -191,6 +254,7 @@ async function createConnection(cameraId: string): Promise<WHEPConnection> {
       lastConnectedAt: null,
       reconnectAttempts: conn?.reconnectAttempts || 0,
       reconnectTimeout: null,
+      connectionStartTime: startTime,
     }
     connections.set(cameraId, conn)
   } else {
@@ -199,6 +263,7 @@ async function createConnection(cameraId: string): Promise<WHEPConnection> {
     conn.whepUrl = whepUrl
     conn.mediaStream = null
     conn.connectionType = 'unknown'
+    conn.connectionStartTime = startTime
   }
   
   // Track events
@@ -219,7 +284,12 @@ async function createConnection(cameraId: string): Promise<WHEPConnection> {
       conn!.lastConnectedAt = Date.now()
       conn!.reconnectAttempts = 0  // Reset on success
       conn!.connectionType = await detectConnectionType(pc, cameraId)
-      console.log(`[WHEP Manager ${cameraId}] Connected (${conn!.connectionType})`)
+      
+      // Log connection time for performance analysis
+      const elapsed = conn!.connectionStartTime 
+        ? Math.round(performance.now() - conn!.connectionStartTime) 
+        : 0
+      console.log(`[WHEP Manager ${cameraId}] Connected (${conn!.connectionType}) in ${elapsed}ms`)
       notifyListeners(cameraId)
     } else if (state === 'failed') {
       conn!.state = 'failed'
@@ -363,6 +433,54 @@ export function forceReconnect(cameraId: string): void {
   console.log(`[WHEP Manager ${cameraId}] Force reconnecting...`)
   conn.reconnectAttempts = 0  // Reset attempts for manual retry
   createConnection(cameraId)
+}
+
+/**
+ * Preload WHEP connections for multiple cameras
+ * Starts connections without waiting, returns a promise that resolves when all have first frame
+ */
+export async function preloadConnections(cameraIds: string[]): Promise<void> {
+  console.log(`[WHEP Manager] Preloading ${cameraIds.length} connections: ${cameraIds.join(', ')}`)
+  const startTime = performance.now()
+  
+  // Start all connections in parallel (don't wait for each)
+  const connectionPromises = cameraIds.map(async (cameraId) => {
+    try {
+      await createConnection(cameraId)
+      
+      // Wait for media stream to be available (with timeout)
+      const conn = connections.get(cameraId)
+      if (!conn) return
+      
+      // Wait up to 3 seconds for first frame
+      for (let i = 0; i < 30; i++) {
+        if (conn.mediaStream && conn.mediaStream.getVideoTracks().length > 0) {
+          const track = conn.mediaStream.getVideoTracks()[0]
+          if (track.readyState === 'live') {
+            console.log(`[WHEP Manager ${cameraId}] Stream ready after ${Math.round(performance.now() - startTime)}ms`)
+            return
+          }
+        }
+        await new Promise(r => setTimeout(r, 100))
+      }
+      console.log(`[WHEP Manager ${cameraId}] Stream timeout (3s) - continuing anyway`)
+    } catch (e) {
+      console.warn(`[WHEP Manager ${cameraId}] Preload failed:`, e)
+    }
+  })
+  
+  await Promise.all(connectionPromises)
+  console.log(`[WHEP Manager] All preloads complete in ${Math.round(performance.now() - startTime)}ms`)
+}
+
+/**
+ * Check if a camera has video ready
+ */
+export function hasVideoReady(cameraId: string): boolean {
+  const conn = connections.get(cameraId)
+  if (!conn?.mediaStream) return false
+  const tracks = conn.mediaStream.getVideoTracks()
+  return tracks.length > 0 && tracks[0].readyState === 'live'
 }
 
 /**

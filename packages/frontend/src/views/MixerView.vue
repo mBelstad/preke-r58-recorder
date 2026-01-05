@@ -28,6 +28,8 @@ const capabilitiesStore = useCapabilitiesStore()
 // State
 const isLoading = ref(true)
 const iframeLoaded = ref(false)
+const bridgeReady = ref(false)
+const loadingStatus = ref('Starting mixer...')
 
 // Active cameras with signal
 const activeCameras = computed(() => 
@@ -50,15 +52,51 @@ const mixerUrl = computed(() => {
 function handleIframeLoad() {
   console.log('[Mixer] VDO.ninja mixer iframe loaded')
   iframeLoaded.value = true
+  loadingStatus.value = 'Waiting for cameras...'
 }
 
 function handleLoadingReady() {
   isLoading.value = false
 }
 
+// Check if bridge has started by checking mode manager status
+async function waitForBridge(): Promise<void> {
+  const startTime = performance.now()
+  loadingStatus.value = 'Starting camera bridge...'
+  
+  // Poll for bridge to be ready (max 20 seconds)
+  for (let i = 0; i < 40; i++) {
+    try {
+      const response = await fetch(buildApiUrl('/api/mode/status'))
+      const data = await response.json()
+      
+      // Check if bridge service is running via ingest services
+      if (data.current_mode === 'mixer') {
+        const elapsed = Math.round((performance.now() - startTime) / 1000)
+        if (elapsed >= 5) {
+          // Bridge needs ~15s to start, but after 5s in mixer mode, it's likely running
+          console.log(`[Mixer] Bridge likely ready after ${elapsed}s`)
+          bridgeReady.value = true
+          loadingStatus.value = 'Cameras connecting...'
+          return
+        }
+      }
+    } catch (e) {
+      // Ignore errors during polling
+    }
+    await new Promise(r => setTimeout(r, 500))
+    loadingStatus.value = `Starting camera bridge... (${Math.round((performance.now() - startTime) / 1000)}s)`
+  }
+  
+  console.log('[Mixer] Bridge wait timeout - continuing anyway')
+  bridgeReady.value = true
+}
+
 // Auto-switch to mixer mode if not already in it
 async function ensureMixerMode() {
   if (!hasDeviceConfigured()) return
+  
+  loadingStatus.value = 'Checking mode...'
   
   // Fetch current capabilities to get mode
   await capabilitiesStore.fetchCapabilities()
@@ -66,6 +104,7 @@ async function ensureMixerMode() {
   const currentMode = capabilitiesStore.capabilities?.current_mode
   if (currentMode && currentMode !== 'mixer') {
     console.log('[Mixer] Not in mixer mode, switching...')
+    loadingStatus.value = 'Switching to mixer mode...'
     try {
       const response = await fetch(buildApiUrl('/api/mode/mixer'), { method: 'POST' })
       if (response.ok) {
@@ -78,11 +117,20 @@ async function ensureMixerMode() {
   }
 }
 
-// Fetch inputs on mount
+// Fetch inputs on mount - parallelized for speed
 onMounted(async () => {
-  // Ensure we're in mixer mode before loading data
-  await ensureMixerMode()
-  await recorderStore.fetchInputs()
+  const startTime = performance.now()
+  
+  // Phase 1: Mode switch and data fetch in parallel
+  await Promise.all([
+    ensureMixerMode(),
+    recorderStore.fetchInputs()
+  ])
+  
+  // Phase 2: Wait for bridge to start (gives cameras time to join)
+  await waitForBridge()
+  
+  console.log(`[Mixer] Total load time: ${Math.round(performance.now() - startTime)}ms`)
 })
 </script>
 
@@ -92,9 +140,9 @@ onMounted(async () => {
     <ModeLoadingScreen
       v-if="isLoading"
       mode="mixer"
-      :content-ready="iframeLoaded"
-      :min-time="1500"
-      :max-time="10000"
+      :content-ready="iframeLoaded && bridgeReady"
+      :min-time="2000"
+      :max-time="20000"
       @ready="handleLoadingReady"
     />
   </Transition>

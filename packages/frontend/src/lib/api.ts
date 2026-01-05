@@ -80,6 +80,14 @@ export async function initializeDeviceUrl(): Promise<string | null> {
       cachedDeviceUrl = await window.electronAPI.getDeviceUrl()
       window.__R58_DEVICE_URL__ = cachedDeviceUrl || undefined
       console.log('[API] Device URL initialized:', cachedDeviceUrl)
+      
+      // Reset FRP fallback on startup - give direct connection a chance
+      if (cachedDeviceUrl && usingFrpFallback) {
+        console.log('[API] Resetting FRP fallback on startup to try direct connection first')
+        usingFrpFallback = false
+        consecutiveFailures = 0
+      }
+      
       return cachedDeviceUrl
     } catch (error) {
       console.error('[API] Failed to get device URL:', error)
@@ -503,6 +511,40 @@ export function recordConnectionFailure(): void {
 export function recordConnectionSuccess(): void {
   consecutiveFailures = 0
   // Don't automatically disable fallback - keep using what works
+}
+
+/**
+ * Try to reconnect directly to the device (bypassing FRP)
+ * Call this periodically to check if direct connection is available again
+ */
+export async function tryDirectConnection(): Promise<boolean> {
+  const deviceUrl = getDeviceUrl()
+  if (!deviceUrl) {
+    return false
+  }
+  
+  try {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 3000) // 3s timeout
+    
+    const response = await fetch(`${deviceUrl}/health`, {
+      signal: controller.signal,
+      mode: 'cors',
+      cache: 'no-cache'
+    })
+    clearTimeout(timeout)
+    
+    if (response.ok) {
+      console.log('[API] Direct connection to device successful!')
+      disableFrpFallback()
+      return true
+    }
+  } catch (e) {
+    // Direct connection failed, keep using FRP
+    console.log('[API] Direct connection check failed, continuing with FRP')
+  }
+  
+  return false
 }
 
 /**

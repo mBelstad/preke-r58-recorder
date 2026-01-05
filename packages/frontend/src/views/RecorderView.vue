@@ -5,6 +5,7 @@ import { useCapabilitiesStore } from '@/stores/capabilities'
 import { useRecordingGuard } from '@/composables/useRecordingGuard'
 import { buildApiUrl, hasDeviceConfigured } from '@/lib/api'
 import { toast } from '@/composables/useToast'
+import { preloadConnections } from '@/lib/whepConnectionManager'
 import RecorderControls from '@/components/recorder/RecorderControls.vue'
 import RecordingHealth from '@/components/recorder/RecordingHealth.vue'
 import InputGrid from '@/components/recorder/InputGrid.vue'
@@ -49,13 +50,40 @@ async function ensureRecorderMode() {
   }
 }
 
-// Fetch real input status on mount
+// Preload WHEP connections for cameras with signal
+async function preloadVideoStreams() {
+  // Get cameras with signal from the store (after fetchInputs completes)
+  const camerasWithSignal = recorderStore.inputs
+    .filter(i => i.hasSignal)
+    .map(i => i.id)
+  
+  if (camerasWithSignal.length === 0) {
+    console.log('[Recorder] No cameras with signal to preload')
+    return
+  }
+  
+  console.log(`[Recorder] Preloading ${camerasWithSignal.length} video streams...`)
+  await preloadConnections(camerasWithSignal)
+}
+
+// Fetch real input status on mount - parallelized for speed
 onMounted(async () => {
-  // Ensure we're in recorder mode before loading data
-  await ensureRecorderMode()
-  await recorderStore.fetchInputs()
-  await recorderStore.fetchStatus()
-  // Mark content as ready once data is fetched
+  const startTime = performance.now()
+  
+  // Phase 1: Fetch data (mode, inputs, status) in parallel
+  await Promise.all([
+    ensureRecorderMode(),
+    recorderStore.fetchInputs(),
+    recorderStore.fetchStatus()
+  ])
+  console.log(`[Recorder] Loaded ${recorderStore.inputs.length} inputs, ${recorderStore.inputs.filter(i => i.hasSignal).length} with signal`)
+  
+  // Phase 2: Preload video streams (while loading screen still visible)
+  await preloadVideoStreams()
+  
+  console.log(`[Recorder] Total load time: ${Math.round(performance.now() - startTime)}ms`)
+  
+  // Mark content as ready - loading screen will dismiss
   contentReady.value = true
 })
 
@@ -80,7 +108,7 @@ watch(showLeaveConfirmation, (show) => {
       mode="recorder"
       :content-ready="contentReady"
       :min-time="1500"
-      :max-time="6000"
+      :max-time="5000"
       @ready="handleLoadingReady"
     />
   </Transition>

@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { buildApiUrl, hasDeviceConfigured } from '@/lib/api'
+import { buildApiUrl, hasDeviceConfigured, isUsingFrpFallback, tryDirectConnection } from '@/lib/api'
 
 export interface DeviceCapabilities {
   device_id: string
@@ -143,6 +143,18 @@ export const useCapabilitiesStore = defineStore('capabilities', () => {
       }
 
       error.value = null
+      
+      // If using FRP fallback, periodically try to recover P2P connection
+      if (isUsingFrpFallback()) {
+        console.log('[Capabilities] Currently using FRP fallback, checking if P2P is available...')
+        tryDirectConnection().then(success => {
+          if (success) {
+            console.log('[Capabilities] P2P connection recovered! WHEP will now use direct connection.')
+          }
+        }).catch(() => {
+          // Ignore - P2P not available
+        })
+      }
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Unknown error'
       console.error('Failed to fetch capabilities:', e)
