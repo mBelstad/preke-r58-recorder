@@ -25,10 +25,15 @@
     "clean": "rimraf app dist",
     "test:launch": "node scripts/test-helper.js launch",
     "test:stop": "node scripts/test-helper.js stop",
+    "test:restart": "node scripts/test-helper.js restart",
     "test:status": "node scripts/test-helper.js status",
     "test:logs": "node scripts/test-helper.js logs",
     "test:logs:follow": "node scripts/test-helper.js logs -f",
-    "test:cdp": "node scripts/test-helper.js cdp"
+    "test:logs:clear": "node scripts/test-helper.js logs:clear",
+    "test:cdp": "node scripts/test-helper.js cdp",
+    "test:screenshot": "node scripts/test-helper.js screenshot",
+    "test:build": "node scripts/test-helper.js build",
+    "test:devtools": "node scripts/test-helper.js devtools"
   },
   "dependencies": {
     "@snowfort/circuit-electron": "^0.0.18",
