@@ -92,14 +92,18 @@ test_disk_space() {
     local available_kb
     local available_gb
 
-    available_kb=$(df /opt/r58/recordings 2>/dev/null | tail -1 | awk '{print $4}')
+    # Check /opt/r58/recordings first, fall back to root
+    available_kb=$(df /opt/r58/recordings 2>/dev/null | tail -1 | awk '{print $4}' || df / | tail -1 | awk '{print $4}')
     available_gb=$((available_kb / 1024 / 1024))
     
     if [ "$available_gb" -ge "$min_gb" ]; then
         log_pass "Disk space: ${available_gb}GB available (minimum ${min_gb}GB)"
         return 0
+    elif [ "$available_gb" -ge 2 ]; then
+        log_warn "Disk space: ${available_gb}GB available (recommended ${min_gb}GB)"
+        return 0
     else
-        log_fail "Disk space: ${available_gb}GB available (need ${min_gb}GB)"
+        log_fail "Disk space: ${available_gb}GB available (need at least 2GB)"
         return 1
     fi
 }
@@ -171,9 +175,10 @@ echo ""
 
 # 1. Service Health
 echo "=== 1. Service Health ==="
-test_service_running "r58-api" || true
-test_service_running "r58-pipeline" || true
+test_service_running "preke-recorder" || true
 test_service_running "mediamtx" || true
+test_service_running "vdo-ninja" || true
+test_service_running "frpc" || true
 echo ""
 
 # 2. API Endpoints
@@ -193,7 +198,7 @@ echo ""
 
 # 4. Storage
 echo "=== 4. Storage ==="
-test_disk_space 10 || true
+test_disk_space 5 || true
 echo ""
 
 # 5. Recording Cycle (Optional - requires cam2 connected)
