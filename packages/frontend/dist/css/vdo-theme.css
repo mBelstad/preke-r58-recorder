@@ -3,19 +3,36 @@
    Goal: VDO.ninja looks like native R58 UI
    ============================================ */
 
-/* --- CSS Variables (match R58 design-system.css) --- */
+/* --- CSS Variables (synced with main R58 design tokens) --- */
 :root {
+  /* Backgrounds */
   --r58-bg-primary: #0f172a;        /* Slate 900 */
   --r58-bg-secondary: #1e293b;      /* Slate 800 */
   --r58-bg-tertiary: #334155;       /* Slate 700 */
+  
+  /* Text */
   --r58-text-primary: #f8fafc;      /* Slate 50 */
   --r58-text-secondary: #94a3b8;    /* Slate 400 */
+  --r58-text-muted: #64748b;        /* Slate 500 */
+  
+  /* Accents */
   --r58-accent-primary: #3b82f6;    /* Blue 500 */
   --r58-accent-success: #22c55e;    /* Green 500 */
   --r58-accent-danger: #ef4444;     /* Red 500 */
   --r58-accent-warning: #f59e0b;    /* Amber 500 */
+  
+  /* Mode Colors */
+  --r58-mode-recorder: #1e40af;     /* Deep Blue */
+  --r58-mode-mixer: #7c3aed;        /* Rich Purple */
+  
+  /* Component Tokens */
   --r58-border-radius: 8px;
+  --r58-border-color: var(--r58-bg-tertiary);
+  --r58-focus-ring: rgba(59, 130, 246, 0.5);
+  
+  /* Typography */
   --r58-font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --r58-font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 }
 
 /* --- Global Reset --- */
@@ -102,6 +119,7 @@ input[type="submit"] {
   cursor: pointer !important;
   transition: all 0.15s ease !important;
   font-size: 14px !important;
+  min-height: 44px !important; /* Touch friendly */
 }
 
 button:hover,
@@ -227,6 +245,7 @@ select {
   font-family: var(--r58-font-family) !important;
   font-size: 14px !important;
   outline: none !important;
+  min-height: 44px !important; /* Touch friendly */
 }
 
 input:focus,
@@ -1079,4 +1098,3 @@ input[type="radio"]:checked::after {
   padding: 12px 16px !important;
   border-radius: var(--r58-border-radius) !important;
 }
-

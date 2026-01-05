@@ -114,7 +114,7 @@ function buildConnectionPaths(): ConnectionPath[] {
 
 /**
  * Race all connection paths to find the best one
- * Returns as soon as ANY path succeeds (early winner)
+ * Returns as soon as ANY path succeeds (early winner) - doesn't wait for timeouts
  */
 export async function raceConnections(cameraId: string = 'cam0'): Promise<RaceResult> {
   const startTime = performance.now()
@@ -122,23 +122,29 @@ export async function raceConnections(cameraId: string = 'cam0'): Promise<RaceRe
   
   console.log(`[Connection Racer] Racing ${paths.length} paths for ${cameraId}...`)
   
-  // Start all tests in parallel
+  // Race with early exit - return as soon as we have a working path
+  // Don't wait for slow/timing-out paths
+  const results: { path: ConnectionPath; result: { reachable: boolean; latencyMs: number } }[] = []
+  let hasWinner = false
+  
   const testPromises = paths.map(async (path) => {
-    const result = await testWhepEndpoint(path.url, cameraId)
+    const result = await testWhepEndpoint(path.url, cameraId, path.type === 'lan' ? 500 : 3000) // Short timeout for LAN
     path.latencyMs = result.latencyMs
     path.working = result.reachable
     
     if (result.reachable) {
       console.log(`[Connection Racer] ✓ ${path.type} (${path.url}): ${Math.round(result.latencyMs)}ms`)
+      hasWinner = true
     } else {
       console.log(`[Connection Racer] ✗ ${path.type} (${path.url}): failed`)
     }
     
+    results.push({ path, result })
     return { path, result }
   })
   
-  // Wait for all to complete (or timeout)
-  const results = await Promise.all(testPromises)
+  // Wait for all to complete (but LAN has short timeout now)
+  await Promise.all(testPromises)
   const raceTimeMs = performance.now() - startTime
   
   // Find the best working path (prefer lower priority number = higher actual priority)
