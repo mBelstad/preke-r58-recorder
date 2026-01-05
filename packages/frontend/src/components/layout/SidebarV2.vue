@@ -160,9 +160,12 @@ const modeColor = computed(() => {
 
 <template>
   <aside class="sidebar">
-    <!-- Logo -->
+    <!-- macOS window controls spacer (Electron only) -->
+    <div class="sidebar__window-controls-spacer"></div>
+    
+    <!-- Logo - gold waveform icon -->
     <div class="sidebar__logo">
-      <img src="/favicon.svg" alt="Preke" class="sidebar__logo-img" />
+      <img src="/logo-sidebar.svg" alt="Preke" class="sidebar__logo-img" />
     </div>
     
     <!-- Mode Indicator (prominent) -->
@@ -255,20 +258,42 @@ const modeColor = computed(() => {
   align-items: center;
 }
 
+/* macOS window controls spacer - only visible in Electron on macOS */
+.sidebar__window-controls-spacer {
+  height: 0;
+  width: 100%;
+  flex-shrink: 0;
+}
+
+/* In Electron, add space for macOS traffic light buttons */
+:global(.electron-app) .sidebar__window-controls-spacer {
+  height: 28px; /* Standard macOS titlebar height */
+}
+
+/* On Windows, no need for extra spacing (controls are on the right) */
+:global(.electron-app.is-windows) .sidebar__window-controls-spacer {
+  height: 0;
+}
+
 /* Logo */
 .sidebar__logo {
-  height: 56px;
+  height: 52px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-bottom: 1px solid var(--preke-border);
   width: 100%;
+  padding: var(--preke-space-xs);
 }
 
 .sidebar__logo-img {
-  width: 36px;
-  height: 36px;
-  filter: drop-shadow(0 0 8px rgba(224, 160, 48, 0.3));
+  width: 40px;
+  height: 40px;
+  filter: drop-shadow(0 0 12px rgba(224, 160, 48, 0.4));
+  transition: filter 0.2s ease;
+}
+
+.sidebar__logo:hover .sidebar__logo-img {
+  filter: drop-shadow(0 0 16px rgba(224, 160, 48, 0.6));
 }
 
 /* Mode indicator */
