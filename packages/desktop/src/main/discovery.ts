@@ -340,40 +340,10 @@ async function startDiscovery(window: BrowserWindow): Promise<void> {
     const tailscaleDevices = await discoverViaTailscale()
     for (const device of tailscaleDevices) {
       onDeviceFound(device)
-      
-      // Auto-select P2P devices for better performance
-      if (device.isP2P) {
-        const currentActive = deviceStore.getActiveDevice()
-        const currentUrl = currentActive?.url || ''
-        
-        log.info(`P2P device check - Current active: ${currentUrl || 'none'}, P2P device: ${device.url}`)
-        
-        // Auto-select if no active device, current is FRP, or current URL doesn't match P2P
-        const shouldAutoSelect = !currentActive || 
-          currentUrl.includes('itagenten.no') || 
-          !currentUrl.includes(device.host)
-          
-        if (shouldAutoSelect) {
-          log.info(`Auto-selecting P2P device: ${device.name} at ${device.url}`)
-          
-          // Add device if it doesn't exist
-          const existingDevices = deviceStore.getDevices()
-          let existingDevice = existingDevices.find(d => d.url === device.url)
-          
-          if (!existingDevice) {
-            existingDevice = deviceStore.addDevice(device.name, device.url)
-          }
-          
-          // Set as active
-          deviceStore.setActiveDevice(existingDevice.id)
-          
-          // Notify renderer
-          window.webContents.send('device-changed', existingDevice)
-        }
-      }
+      // Note: No auto-selection - let the user choose from the device setup page
     }
     if (tailscaleDevices.length > 0) {
-      log.info(`Found ${tailscaleDevices.length} device(s) via Tailscale P2P`)
+      log.info(`Found ${tailscaleDevices.length} device(s) via Tailscale`)
     }
 
     // Phase 1: Try known hostnames (fast)

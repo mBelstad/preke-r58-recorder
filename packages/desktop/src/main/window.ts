@@ -119,42 +119,15 @@ export function createMainWindow(): BrowserWindow {
   mainWindow.webContents.on('did-finish-load', async () => {
     log.info('Renderer loaded successfully')
     
-    // Check for P2P devices if no active device or current is FRP
-    let activeDevice = deviceStore.getActiveDevice()
+    // Only send existing active device to renderer - no auto-selection
+    // Let the device setup page handle discovery and selection
+    const activeDevice = deviceStore.getActiveDevice()
     
-    if (!activeDevice || activeDevice.url.includes('itagenten.no')) {
-      log.info('Checking for P2P devices on startup...')
-      try {
-        const { findR58DevicesOnTailscale } = await import('./tailscale')
-        const tailscaleDevices = await findR58DevicesOnTailscale()
-        
-        for (const tsDevice of tailscaleDevices) {
-          if (tsDevice.isP2P) {
-            const p2pUrl = `http://${tsDevice.tailscaleIp}:8000`
-            log.info(`Found P2P device on startup: ${tsDevice.name} at ${p2pUrl}`)
-            
-            // Add or update device
-            let device = deviceStore.getDevices().find(d => d.url === p2pUrl)
-            if (!device) {
-              device = deviceStore.addDevice(tsDevice.name, p2pUrl)
-            }
-            
-            // Set as active
-            deviceStore.setActiveDevice(device.id)
-            activeDevice = device
-            log.info(`Auto-selected P2P device: ${device.name}`)
-            break
-          }
-        }
-      } catch (e) {
-        log.warn('Failed to check for P2P devices:', e)
-      }
-    }
-    
-    // Send device info to renderer
     if (activeDevice) {
-      log.info(`Sending device to renderer: ${activeDevice.url}`)
+      log.info(`Sending existing device to renderer: ${activeDevice.url}`)
       mainWindow?.webContents.send('device-changed', activeDevice)
+    } else {
+      log.info('No active device configured - renderer will show device setup')
     }
   })
 
