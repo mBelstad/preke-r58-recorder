@@ -14,7 +14,8 @@ Group=linaro
 Environment=DISPLAY=:0
 
 # VDO.ninja room name
-Environment=VDONINJA_ROOM=r58studio
+# Must match VDO_ROOM in packages/frontend/src/lib/vdoninja.ts
+Environment=VDONINJA_ROOM=studio
 
 # VDO.ninja host (self-hosted instance)
 Environment=VDONINJA_HOST=r58-vdo.itagenten.no
