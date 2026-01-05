@@ -141,6 +141,24 @@ git push
 
 ---
 
+## 🖥️ Desktop App (Preke Studio)
+
+The Electron desktop app (`packages/desktop`) has a test helper for easy testing:
+
+```bash
+cd packages/desktop
+npm run test:launch    # Start with debugging
+npm run test:logs      # View logs
+npm run test:build     # Rebuild & restart
+npm run test:stop      # Stop app
+```
+
+**Browser tools:** After `test:launch`, use `http://localhost:9222` with Cursor's browser tools.
+
+**Full docs:** See `packages/desktop/TESTING.md`
+
+---
+
 ## 📦 Available Scripts
 
 ### Core Scripts (Use These)
@@ -169,6 +187,8 @@ When helping with this project:
 6. **Documentation starts with** REMOTE_ACCESS.md
 7. **R58 path is** `/opt/preke-r58-recorder` (not /home/linaro/)
 8. **Git branch is** `feature/remote-access-v2`
+9. **Desktop app testing**: Use `npm run test:launch` in `packages/desktop`
+10. **Desktop app logs**: `npm run test:logs` or `~/Library/Logs/preke-studio/main.log`
 
 ---
 
