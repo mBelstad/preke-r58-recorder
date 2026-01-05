@@ -10,9 +10,11 @@
  * - Connection sharing via reference counting
  * - Auto-cleanup when all references released
  * - Reconnection with exponential backoff
+ * - Smart connection racing (LAN → Tailscale → FRP)
  */
 
 import { getDeviceUrl, isUsingFrpFallback, tryDirectConnection } from './api'
+import { getBestWhepUrl, raceConnections, getCachedConnectionInfo, invalidateConnectionCache } from './connectionRacer'
 
 // Connection state for each camera
 interface WHEPConnection {
@@ -45,17 +47,23 @@ const connections = new Map<string, WHEPConnection>()
 const listeners = new Map<string, Set<(conn: WHEPConnection) => void>>()
 
 /**
- * Build the WHEP URL for a camera
- * Prioritizes direct P2P connection over FRP tunnel
+ * Build the WHEP URL for a camera (sync version - uses cached result)
+ * For async version with racing, use getBestWhepUrlAsync
  */
 function buildWhepUrl(cameraId: string): string {
+  // Check if we have a cached best path from connection racer
+  const cachedInfo = getCachedConnectionInfo()
+  if (cachedInfo) {
+    console.log(`[WHEP Manager ${cameraId}] Using cached ${cachedInfo.type} connection`)
+  }
+  
   const deviceUrl = getDeviceUrl()
   const usingFrp = isUsingFrpFallback()
   
   console.log(`[WHEP Manager ${cameraId}] Building URL:`)
   console.log(`  - deviceUrl: "${deviceUrl}"`)
   console.log(`  - usingFrpFallback: ${usingFrp}`)
-  console.log(`  - window.__R58_DEVICE_URL__: "${(window as any).__R58_DEVICE_URL__}"`)
+  console.log(`  - cachedConnectionType: ${cachedInfo?.type || 'none'}`)
   
   // ALWAYS prefer direct connection if we have a device URL
   // The FRP fallback is for API calls, but WHEP can work with direct MediaMTX
@@ -74,6 +82,14 @@ function buildWhepUrl(cameraId: string): string {
   const frpUrl = `https://r58-mediamtx.itagenten.no/${cameraId}/whep`
   console.log(`[WHEP Manager ${cameraId}] ✗ Using FRP URL (no device URL): ${frpUrl}`)
   return frpUrl
+}
+
+/**
+ * Get the best WHEP URL by racing multiple connection paths
+ * This is async and tests LAN → Tailscale → FRP in parallel
+ */
+async function getBestWhepUrlAsync(cameraId: string): Promise<string> {
+  return getBestWhepUrl(cameraId)
 }
 
 /**
@@ -201,6 +217,7 @@ function scheduleReconnect(cameraId: string) {
 
 /**
  * Create or reconnect a WHEP connection
+ * Uses connection racing to find the fastest path
  */
 async function createConnection(cameraId: string): Promise<WHEPConnection> {
   let conn = connections.get(cameraId)
@@ -211,21 +228,15 @@ async function createConnection(cameraId: string): Promise<WHEPConnection> {
     return conn
   }
   
-  // Wait for device URL to be set (handles race condition on startup)
-  // Reduced wait time for faster loading
-  let deviceUrl = getDeviceUrl()
-  let attempts = 0
-  while (!deviceUrl && attempts < 5) {
-    console.log(`[WHEP Manager ${cameraId}] No device URL yet, waiting... (attempt ${attempts + 1})`)
-    await new Promise(resolve => setTimeout(resolve, 100))
-    deviceUrl = getDeviceUrl()
-    attempts++
-  }
-  
   const startTime = performance.now()
-  const whepUrl = buildWhepUrl(cameraId)
-  console.log(`[WHEP Manager ${cameraId}] Creating connection to: ${whepUrl}`)
-  console.log(`[WHEP Manager ${cameraId}] Device URL was: ${deviceUrl}`)
+  
+  // Use connection racing to find the best path
+  // This tests LAN → Tailscale → FRP in parallel and picks the winner
+  console.log(`[WHEP Manager ${cameraId}] Racing connections to find best path...`)
+  const whepUrl = await getBestWhepUrlAsync(cameraId)
+  
+  const raceTime = Math.round(performance.now() - startTime)
+  console.log(`[WHEP Manager ${cameraId}] Best URL found in ${raceTime}ms: ${whepUrl}`)
   
   // Clean up old connection if exists
   if (conn?.peerConnection) {
@@ -437,13 +448,22 @@ export function forceReconnect(cameraId: string): void {
 
 /**
  * Preload WHEP connections for multiple cameras
- * Starts connections without waiting, returns a promise that resolves when all have first frame
+ * First races to find the best connection path, then starts all connections
  */
 export async function preloadConnections(cameraIds: string[]): Promise<void> {
   console.log(`[WHEP Manager] Preloading ${cameraIds.length} connections: ${cameraIds.join(', ')}`)
   const startTime = performance.now()
   
-  // Start all connections in parallel (don't wait for each)
+  // Step 1: Race connections to find the best path ONCE
+  // This establishes the fastest route (LAN > Tailscale > FRP)
+  if (cameraIds.length > 0) {
+    console.log(`[WHEP Manager] Step 1: Racing to find best connection path...`)
+    const raceResult = await raceConnections(cameraIds[0])
+    console.log(`[WHEP Manager] Race complete: ${raceResult.bestPath?.type || 'none'} won in ${Math.round(raceResult.raceTimeMs)}ms`)
+  }
+  
+  // Step 2: Create all connections in parallel (using cached best path)
+  console.log(`[WHEP Manager] Step 2: Creating ${cameraIds.length} connections...`)
   const connectionPromises = cameraIds.map(async (cameraId) => {
     try {
       await createConnection(cameraId)
@@ -497,6 +517,9 @@ export function getActiveConnections(): Map<string, { state: string; refCount: n
   })
   return result
 }
+
+// Re-export connection racer utilities
+export { invalidateConnectionCache, getCachedConnectionInfo } from './connectionRacer'
 
 // Export types
 export type { WHEPConnection }
