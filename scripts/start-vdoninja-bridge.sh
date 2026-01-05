@@ -127,12 +127,13 @@ start_chromium() {
         --disable-notifications \
         --disable-popup-blocking \
         --start-maximized \
-        $urls  # director removed - Electron app is the director \
+        $urls \
         >/dev/null 2>&1 &
+    # Note: director tab removed - Electron app is the director
     
     CHROMIUM_PID=$!
     log "Chromium started (PID: $CHROMIUM_PID), waiting for it to be ready..."
-    sleep 5
+    sleep 3  # Reduced from 5s (conservative reduction)
     
     # Wait for debugger to be available
     local max_attempts=30
