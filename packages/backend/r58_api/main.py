@@ -161,10 +161,19 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
     
-    # CORS middleware
+    # CORS middleware - restricted to known domains
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],  # Permissive for local network
+        allow_origins=[
+            "https://preke.no",
+            "https://*.preke.no",
+            "https://itagenten.no",
+            "https://*.itagenten.no",
+            "http://localhost:*",
+            "http://127.0.0.1:*",
+            "http://192.168.*.*:*",
+            "http://100.*.*.*:*",
+        ],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

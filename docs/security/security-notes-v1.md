@@ -104,8 +104,8 @@ The R58 system is designed for:
 | Risk | Description | Current Mitigation | Recommendation |
 |------|-------------|-------------------|----------------|
 | **No API Authentication** | Anyone with URL can control recording | VPS access limited | Add basic auth for v2 |
-| **Default SSH Password** | linaro/linaro is well-known | FRP uses key auth | Disable password auth |
-| **CORS Wildcard** | Any website can access streams | Trusted VPS | Accept for v1, add auth for v2 |
+| **SSH Password Auth** | Password authentication enabled | Root password changed from default | Disable password auth completely |
+| **CORS Wildcard** | Any website can access streams | Restricted to preke.no/itagenten.no | Add auth for public exposure |
 
 ### Medium Risk
 

@@ -33,6 +33,77 @@ curl -s http://localhost:8000/api/v1/health/detailed | jq
 
 ---
 
+## Log Management
+
+### Log Locations
+
+| Service | Log Location | Rotation |
+|---------|-------------|----------|
+| preke-recorder | `journalctl -u preke-recorder` | systemd (7 days) |
+| mediamtx | `journalctl -u mediamtx` | systemd (7 days) |
+| vdo-ninja | `journalctl -u vdo-ninja` | systemd (7 days) |
+| frpc | `journalctl -u frpc` | systemd (7 days) |
+| Application logs | `/var/log/r58/*.log` | logrotate (7 days) |
+
+### Log Rotation Configuration
+
+**Systemd journald** (automatic):
+```bash
+# View current settings
+journalctl --disk-usage
+
+# Configuration in /etc/systemd/journald.conf
+SystemMaxUse=500M      # Max disk usage
+SystemMaxFileSize=50M  # Max per file
+MaxRetentionSec=7day   # Keep 7 days
+```
+
+**Application logs** (logrotate):
+```bash
+# Configuration installed at /etc/logrotate.d/r58
+# Rotates daily, keeps 7 days, compresses old logs
+
+# Test rotation (dry run)
+sudo logrotate -d /etc/logrotate.d/r58
+
+# Force rotation
+sudo logrotate -f /etc/logrotate.d/r58
+```
+
+### Viewing Logs
+
+```bash
+# Recent logs (last 50 lines)
+sudo journalctl -u preke-recorder -n 50
+
+# Follow logs in real-time
+sudo journalctl -u preke-recorder -f
+
+# Logs from specific time
+sudo journalctl -u preke-recorder --since "2026-01-05 10:00"
+
+# Logs with specific priority (errors only)
+sudo journalctl -u preke-recorder -p err
+
+# Export logs to file
+sudo journalctl -u preke-recorder --since today > /tmp/preke-logs.txt
+```
+
+### Clearing Old Logs
+
+```bash
+# Clear logs older than 3 days
+sudo journalctl --vacuum-time=3d
+
+# Limit journal size to 100MB
+sudo journalctl --vacuum-size=100M
+
+# Verify disk usage after cleanup
+journalctl --disk-usage
+```
+
+---
+
 ## Common Issues and Resolutions
 
 ### Issue 1: API Not Responding

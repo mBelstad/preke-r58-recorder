@@ -1093,10 +1093,23 @@ async def proxy_whep(stream_path: str, request: Request):
     """
     # Handle OPTIONS preflight
     if request.method == "OPTIONS":
+        # Get origin from request
+        origin = request.headers.get("origin", "")
+        allowed_origins = [
+            "https://preke.no", "https://itagenten.no",
+            "http://localhost", "http://127.0.0.1",
+        ]
+        # Check if origin matches allowed patterns
+        allow_origin = "*"  # Fallback
+        for allowed in allowed_origins:
+            if origin.startswith(allowed) or "192.168." in origin or "100." in origin:
+                allow_origin = origin
+                break
+        
         return Response(
             status_code=200,
             headers={
-                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Origin": allow_origin,
                 "Access-Control-Allow-Methods": "POST, PATCH, OPTIONS",
                 "Access-Control-Allow-Headers": "Content-Type, Accept",
                 "Access-Control-Max-Age": "86400",

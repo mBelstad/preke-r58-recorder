@@ -25,6 +25,7 @@ from .state import PipelineState
 from .watchdog import get_watchdog
 from .ingest import IngestManager, IngestStatus, get_ingest_manager
 from .subscriber_recorder import SubscriberRecorder, get_subscriber_recorder
+from .integrity import RecordingIntegrityChecker
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +81,9 @@ class IPCServer:
         self.watchdog.on_stall = self._handle_stall
         self.watchdog.on_disk_low = self._handle_disk_low
         self.watchdog.on_progress = self._handle_progress
+        
+        # Recording integrity checker
+        self.integrity_checker = RecordingIntegrityChecker()
 
     def _on_ingest_status_change(self, cam_id: str, status: IngestStatus) -> None:
         """Handle ingest pipeline status changes."""
@@ -679,6 +683,10 @@ class IPCServer:
 
             logger.info(f"Recording stopped: session={final_state.session_id if final_state else 'none'}")
 
+            # Run integrity checks on recorded files (async, don't block response)
+            if final_state and final_state.inputs:
+                asyncio.create_task(self._check_recording_integrity(final_state))
+
             # Note: With TEE pipeline, preview is always running (no need to restart)
             # The valve just stops the recording branch, preview continues unaffected
             
@@ -1191,4 +1199,59 @@ class IPCServer:
 
         else:
             return {"error": f"Unknown command: {cmd}"}
+    
+    async def _check_recording_integrity(self, recording_state) -> None:
+        """Check integrity of recorded files after recording stops.
+        
+        This runs asynchronously and doesn't block the stop response.
+        Results are logged for monitoring.
+        
+        Args:
+            recording_state: RecordingState with file paths
+        """
+        try:
+            # Wait a bit for files to be fully flushed
+            await asyncio.sleep(2.0)
+            
+            # Calculate expected duration
+            if recording_state.started_at:
+                from datetime import datetime, timezone
+                duration = (datetime.now(timezone.utc) - recording_state.started_at).total_seconds()
+            else:
+                duration = None
+            
+            # Check each recording file
+            for input_id, file_path_str in recording_state.inputs.items():
+                file_path = Path(file_path_str)
+                
+                if not file_path.exists():
+                    logger.warning(f"Recording file not found for integrity check: {file_path}")
+                    continue
+                
+                logger.info(f"Checking integrity of {file_path.name}...")
+                result = await self.integrity_checker.validate(
+                    file_path,
+                    expected_duration=duration,
+                    duration_tolerance=5.0,  # Allow 5 second difference
+                )
+                
+                # Log the result
+                self.integrity_checker.log_result(result)
+                
+                # Queue event for API
+                self._queue_event("recording.integrity", {
+                    "input_id": input_id,
+                    "file_path": str(file_path),
+                    "valid": result.valid,
+                    "file_size_mb": round(result.file_size_bytes / 1024 / 1024, 2),
+                    "duration_seconds": result.duration_seconds,
+                    "has_video": result.has_video,
+                    "has_audio": result.has_audio,
+                    "video_codec": result.video_codec,
+                    "audio_codec": result.audio_codec,
+                    "error": result.error_message,
+                })
+        
+        except Exception as e:
+            logger.error(f"Error during integrity check: {e}")
 

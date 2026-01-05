@@ -1,6 +1,9 @@
 """Health check endpoints for observability"""
+import asyncio
 import logging
 import shutil
+import socket
+import subprocess
 from datetime import datetime
 from typing import Optional
 
@@ -54,6 +57,9 @@ async def check_service_health(name: str) -> ServiceStatus:
 
     elif name == "vdoninja":
         return await _check_vdoninja(settings)
+    
+    elif name == "frp_tunnel":
+        return await _check_frp_tunnel()
 
     # Default healthy status for unknown services
     return ServiceStatus(
@@ -207,6 +213,86 @@ async def _check_vdoninja(settings: Settings) -> ServiceStatus:
         )
 
 
+async def _check_frp_tunnel() -> ServiceStatus:
+    """
+    Check FRP tunnel health by verifying connection to VPS.
+    
+    Checks:
+    1. frpc systemd service is running
+    2. TCP connectivity to VPS port 10022
+    """
+    try:
+        # Check if frpc service is running
+        result = subprocess.run(
+            ["systemctl", "is-active", "frpc"],
+            capture_output=True,
+            text=True,
+            timeout=2.0,
+        )
+        
+        service_running = result.returncode == 0 and result.stdout.strip() == "active"
+        
+        if not service_running:
+            return ServiceStatus(
+                name="frp_tunnel",
+                status="unhealthy",
+                message="frpc service not running",
+            )
+        
+        # Test TCP connectivity to VPS
+        vps_host = "65.109.32.111"
+        vps_port = 10022
+        
+        try:
+            # Create socket with 3 second timeout
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(3.0)
+            
+            # Try to connect
+            result = sock.connect_ex((vps_host, vps_port))
+            sock.close()
+            
+            if result == 0:
+                return ServiceStatus(
+                    name="frp_tunnel",
+                    status="healthy",
+                    message=f"Connected to {vps_host}:{vps_port}",
+                )
+            else:
+                return ServiceStatus(
+                    name="frp_tunnel",
+                    status="degraded",
+                    message=f"Service running but port {vps_port} not reachable",
+                )
+        
+        except socket.timeout:
+            return ServiceStatus(
+                name="frp_tunnel",
+                status="degraded",
+                message="Connection timeout to VPS",
+            )
+        except Exception as e:
+            return ServiceStatus(
+                name="frp_tunnel",
+                status="degraded",
+                message=f"Connection test failed: {str(e)}",
+            )
+    
+    except subprocess.TimeoutExpired:
+        return ServiceStatus(
+            name="frp_tunnel",
+            status="unhealthy",
+            message="systemctl check timed out",
+        )
+    except Exception as e:
+        logger.warning(f"FRP tunnel health check failed: {e}")
+        return ServiceStatus(
+            name="frp_tunnel",
+            status="unhealthy",
+            message=str(e),
+        )
+
+
 def get_storage_status() -> StorageStatus:
     """Get current storage status"""
     try:
@@ -276,6 +362,7 @@ async def detailed_health_check(
         ServiceStatus(name="api", status="healthy"),  # If we're here, API is healthy
         await check_service_health("pipeline_manager"),
         await check_service_health("mediamtx"),
+        await check_service_health("frp_tunnel"),
     ]
 
     if settings.vdoninja_enabled:

@@ -15,7 +15,10 @@ const toast = useToast()
 const deviceName = ref('Preke Device')
 const vdoRoom = ref(VDO_ROOM)
 const vdoHost = ref(getVdoHost())
-const recordingPath = ref('/recordings')
+// Note: Recording path is configured in config.yml on R58 device
+// Default: /opt/r58/recordings/
+// This UI setting is for display/reference only
+const recordingPath = ref('/opt/r58/recordings')
 const autoCleanup = ref(false)
 const cleanupDays = ref(30)
 
@@ -134,7 +137,9 @@ onMounted(() => {
             readonly
             disabled
           />
-          <p class="text-xs text-r58-text-secondary mt-1">Location where recordings are saved on device</p>
+          <p class="text-xs text-r58-text-secondary mt-1">
+            Configured in config.yml on R58 device. Default: /opt/r58/recordings/
+          </p>
         </div>
         
         <div class="flex items-center justify-between">

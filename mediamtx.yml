@@ -19,14 +19,30 @@ hlsAlwaysRemux: yes
 hlsSegmentCount: 10         # 20-second buffer (10 x 2s) - prevents segment expiry under load
 hlsSegmentDuration: 2s      # Longer segments reduce generation frequency and CPU load
 hlsPartDuration: 400ms      # Balanced LL-HLS - still fast but more stable
-hlsAllowOrigin: "*"
+hlsAllowOrigin:
+  - "https://preke.no"
+  - "https://*.preke.no"
+  - "https://itagenten.no"
+  - "https://*.itagenten.no"
+  - "http://localhost:*"
+  - "http://127.0.0.1:*"
+  - "http://192.168.*.*:*"
+  - "http://100.*.*.*:*"
 
 # SRT settings
 srtAddress: :8890
 
 # WebRTC settings (low latency for live view)
 webrtcAddress: :8889
-webrtcAllowOrigins: ["*"]
+webrtcAllowOrigins:
+  - "https://preke.no"
+  - "https://*.preke.no"
+  - "https://itagenten.no"
+  - "https://*.itagenten.no"
+  - "http://localhost:*"
+  - "http://127.0.0.1:*"
+  - "http://192.168.*.*:*"
+  - "http://100.*.*.*:*"
 
 # TLS encryption for HTTPS compatibility (fixes "Mixed Content" errors)
 # When serving frontend over HTTPS, WebRTC/WHEP must also use TLS

@@ -47,7 +47,7 @@ This document provides the **essential information** you need to work with the R
 - **VPS**: 65.109.32.111
 - **Port**: 10022
 - **User**: linaro
-- **Password**: linaro
+- **Auth**: SSH key (credentials managed separately)
 - **Stability**: ✅ 100% tested
 
 ### R58 Device
