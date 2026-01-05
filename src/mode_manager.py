@@ -71,6 +71,45 @@ class ModeManager:
         self.config = config
         self._current_mode: str = "idle"
         self._load_state()
+        
+        # Cleanup: Ensure bridge is stopped on startup (prevents orphaned instances)
+        self._startup_cleanup()
+    
+    def _startup_cleanup(self):
+        """Clean up any orphaned bridge instances on startup.
+        
+        This runs synchronously at init time to ensure clean state.
+        """
+        try:
+            import subprocess
+            # Check if any Chromium processes are running
+            result = subprocess.run(
+                ["pgrep", "-c", "chromium"],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            count = int(result.stdout.strip()) if result.returncode == 0 else 0
+            
+            if count > 0:
+                logger.warning(f"Found {count} orphaned Chromium processes on startup, cleaning up...")
+                # Stop bridge service
+                subprocess.run(
+                    ["sudo", "systemctl", "stop", "vdoninja-bridge"],
+                    capture_output=True,
+                    timeout=15
+                )
+                # Force kill any remaining Chromium
+                subprocess.run(
+                    ["sudo", "pkill", "-9", "chromium"],
+                    capture_output=True,
+                    timeout=5
+                )
+                logger.info("Startup cleanup complete")
+            else:
+                logger.info("No orphaned bridge instances on startup")
+        except Exception as e:
+            logger.warning(f"Startup cleanup error: {e}")
     
     def _load_state(self):
         """Load mode state from file."""
@@ -331,6 +370,50 @@ class ModeManager:
             logger.warning(f"Error stopping vdoninja-bridge: {e}")
             return False
     
+    def _is_bridge_running(self) -> bool:
+        """Check if the VDO.ninja bridge is currently running.
+        
+        Returns:
+            True if Chromium processes from bridge are running
+        """
+        try:
+            import subprocess
+            result = subprocess.run(
+                ["pgrep", "-c", "chromium"],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            count = int(result.stdout.strip()) if result.returncode == 0 else 0
+            return count > 0
+        except Exception:
+            return False
+    
+    async def _cleanup_orphaned_bridge(self):
+        """Kill any orphaned Chromium processes from previous bridge instances.
+        
+        This prevents accumulation of zombie bridge tabs.
+        """
+        try:
+            import subprocess
+            # First try graceful stop via systemctl
+            subprocess.run(
+                ["sudo", "systemctl", "stop", "vdoninja-bridge"],
+                capture_output=True,
+                timeout=10
+            )
+            # If chromium still running, kill it
+            if self._is_bridge_running():
+                logger.warning("Orphaned Chromium processes found, killing...")
+                subprocess.run(
+                    ["sudo", "pkill", "-9", "chromium"],
+                    capture_output=True,
+                    timeout=5
+                )
+                logger.info("Orphaned Chromium processes killed")
+        except Exception as e:
+            logger.warning(f"Error during bridge cleanup: {e}")
+    
     async def _start_vdoninja_bridge(self) -> bool:
         """Start VDO.ninja bridge service for camera sharing in Mixer mode.
         
@@ -340,11 +423,19 @@ class ModeManager:
         Note: This is non-blocking - the bridge starts in the background and
         the API returns immediately. The frontend polls for bridge status.
         
+        Safety: Always cleans up any orphaned instances before starting.
+        
         Returns:
             True if command was issued successfully, False otherwise
         """
         try:
             import subprocess
+            
+            # Safety: Clean up any orphaned bridge instances first
+            if self._is_bridge_running():
+                logger.warning("Bridge already running, cleaning up first...")
+                await self._cleanup_orphaned_bridge()
+            
             logger.info("Starting vdoninja-bridge service (async)...")
             # Use Popen for non-blocking startup - don't wait for bridge
             # The systemd service handles the actual startup
