@@ -187,6 +187,103 @@ export function getVdoCssUrl(): string {
 }
 
 /**
+ * Build VDO.ninja theming parameters using official design parameters
+ * 
+ * Official VDO.ninja design parameters:
+ * - &darkmode - Enable built-in dark theme
+ * - &nologo - Hide VDO.ninja logo
+ * - &hideheader - Hide top header bar
+ * - &cleanoutput - Minimal UI for clean output
+ * - &css=<url> - External CSS injection
+ * - &bgimage=<url> - Custom background image
+ * - &cover - Video cover mode (fill container)
+ * - &style=<n> - Built-in style preset (0-9)
+ * 
+ * @param options - Theming options
+ * @returns Record of URL parameters for theming
+ */
+export function buildVdoThemeParams(options: {
+  darkMode?: boolean
+  hideBranding?: boolean
+  cleanOutput?: boolean
+  customCss?: boolean
+  coverMode?: boolean
+  style?: number
+} = {}): Record<string, string | boolean> {
+  const params: Record<string, string | boolean> = {}
+  
+  // Dark mode (matches R58 dark theme)
+  if (options.darkMode !== false) {
+    params.darkmode = true
+  }
+  
+  // Hide VDO.ninja branding for seamless integration
+  if (options.hideBranding !== false) {
+    params.nologo = true
+    params.hideheader = true
+  }
+  
+  // Clean output mode (minimal UI)
+  if (options.cleanOutput) {
+    params.cleanoutput = true
+  }
+  
+  // Custom CSS injection
+  if (options.customCss !== false) {
+    const cssUrl = getVdoCssUrl()
+    if (cssUrl) {
+      params.css = cssUrl
+    }
+  }
+  
+  // Cover mode for proper video scaling
+  if (options.coverMode) {
+    params.cover = true
+  }
+  
+  // Built-in style preset
+  if (typeof options.style === 'number') {
+    params.style = options.style.toString()
+  }
+  
+  return params
+}
+
+/**
+ * Apply theme parameters to existing URL params
+ * 
+ * @param profile - VDO.ninja profile
+ * @param additionalParams - Additional URL parameters
+ * @returns Combined parameters with theming
+ */
+export function applyVdoTheme(
+  profile: keyof typeof embedProfiles,
+  additionalParams: Record<string, string> = {}
+): Record<string, string> {
+  const themeParams = buildVdoThemeParams({
+    darkMode: true,
+    hideBranding: true,
+    cleanOutput: profile === 'scene' || profile === 'program' || profile === 'preview',
+    coverMode: profile === 'scene' || profile === 'program',
+  })
+  
+  // Convert boolean params to strings
+  const stringParams: Record<string, string> = {}
+  for (const [key, value] of Object.entries(themeParams)) {
+    if (typeof value === 'boolean') {
+      if (value) {
+        stringParams[key] = ''
+      }
+    } else {
+      stringParams[key] = value
+    }
+  }
+  
+  // Merge with additional params (additional params take precedence)
+  return { ...stringParams, ...additionalParams }
+}
+
+/**
  * Build a VDO.ninja URL from a profile and variable substitutions
  */
 export function buildVdoUrl(

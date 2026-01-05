@@ -3,9 +3,64 @@
 @tailwind utilities;
 
 /* Global styles */
+:root {
+  /* Backgrounds */
+  --r58-bg-primary: #0f172a;        /* Slate 900 */
+  --r58-bg-secondary: #1e293b;      /* Slate 800 */
+  --r58-bg-tertiary: #334155;       /* Slate 700 */
+  
+  /* Text */
+  --r58-text-primary: #f8fafc;      /* Slate 50 */
+  --r58-text-secondary: #94a3b8;    /* Slate 400 */
+  --r58-text-muted: #64748b;        /* Slate 500 */
+  
+  /* Accents */
+  --r58-accent-primary: #3b82f6;    /* Blue 500 */
+  --r58-accent-success: #22c55e;    /* Green 500 */
+  --r58-accent-danger: #ef4444;     /* Red 500 */
+  --r58-accent-warning: #f59e0b;    /* Amber 500 */
+  
+  /* Mode Colors */
+  --r58-mode-recorder: #1e40af;     /* Deep Blue */
+  --r58-mode-mixer: #7c3aed;        /* Rich Purple */
+  
+  /* Component Tokens */
+  --r58-border-radius: 8px;
+  --r58-border-color: var(--r58-bg-tertiary);
+  --r58-focus-ring: rgba(59, 130, 246, 0.5);
+
+  /* Typography Scale */
+  --r58-font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --r58-font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  
+  --r58-text-xs: 0.75rem;   /* 12px */
+  --r58-text-sm: 0.875rem;  /* 14px */
+  --r58-text-base: 1rem;    /* 16px */
+  --r58-text-lg: 1.125rem;  /* 18px */
+  --r58-text-xl: 1.25rem;   /* 20px */
+  --r58-text-2xl: 1.5rem;   /* 24px */
+
+  /* Electron window chrome spacing defaults */
+  --r58-titlebar-height: 0px;
+  --r58-window-controls-width: 0px;
+}
+
+/* Electron app specific overrides */
+.electron-app {
+  --r58-titlebar-height: 28px;
+  --r58-window-controls-width: 70px; /* macOS default */
+}
+
+.electron-app.is-windows {
+  --r58-window-controls-width: 138px;
+}
+
 html, body {
   height: 100%;
   overflow: hidden;
+  font-family: var(--r58-font-sans);
+  color: var(--r58-text-primary);
+  background-color: var(--r58-bg-primary);
 }
 
 #app {
@@ -19,20 +74,22 @@ html, body {
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-r58-bg-primary;
+  background-color: var(--r58-bg-primary);
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-r58-bg-tertiary rounded;
+  background-color: var(--r58-bg-tertiary);
+  border-radius: var(--r58-border-radius);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-r58-text-secondary;
+  background-color: var(--r58-text-secondary);
 }
 
 /* Focus styles */
 :focus-visible {
-  @apply outline-none ring-2 ring-r58-accent-primary ring-offset-2 ring-offset-r58-bg-primary;
+  outline: none;
+  box-shadow: 0 0 0 2px var(--r58-accent-primary), 0 0 0 4px var(--r58-bg-primary);
 }
 
 /* Transitions */
@@ -66,30 +123,69 @@ html, body {
    * Minimum 44px touch target for accessibility (WCAG 2.5.5)
    */
   .btn {
-    @apply px-4 py-2 rounded-r58 font-medium transition-all duration-150;
-    @apply bg-r58-bg-tertiary text-r58-text-primary;
-    @apply hover:bg-r58-accent-primary active:scale-[0.98];
+    @apply px-4 py-2 font-medium transition-all duration-150 inline-flex items-center justify-center gap-2;
+    border-radius: var(--r58-border-radius);
+    background-color: var(--r58-bg-tertiary);
+    color: var(--r58-text-primary);
+    
     /* Touch target minimum 44px */
     min-height: 44px;
     min-width: 44px;
+    
     /* Prevent text selection on touch */
     -webkit-user-select: none;
     user-select: none;
+    
     /* Better touch feedback */
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
   }
   
+  .btn:hover:not(:disabled) {
+    background-color: var(--r58-accent-primary);
+  }
+
+  .btn:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  
   .btn-primary {
-    @apply bg-r58-accent-primary hover:bg-blue-600;
+    background-color: var(--r58-accent-primary);
+  }
+  
+  .btn-primary:hover:not(:disabled) {
+    background-color: #2563eb; /* Blue 600 */
   }
   
   .btn-success {
-    @apply bg-r58-accent-success hover:bg-green-600;
+    background-color: var(--r58-accent-success);
+  }
+  
+  .btn-success:hover:not(:disabled) {
+    background-color: #16a34a; /* Green 600 */
   }
   
   .btn-danger {
-    @apply bg-r58-accent-danger hover:bg-red-600;
+    background-color: var(--r58-accent-danger);
+  }
+  
+  .btn-danger:hover:not(:disabled) {
+    background-color: #dc2626; /* Red 600 */
+  }
+
+  .btn-ghost {
+    background-color: transparent;
+    color: var(--r58-text-secondary);
+  }
+
+  .btn-ghost:hover:not(:disabled) {
+    background-color: var(--r58-bg-tertiary);
+    color: var(--r58-text-primary);
   }
   
   .btn-lg {
@@ -104,44 +200,188 @@ html, body {
   }
   
   .card {
-    @apply bg-r58-bg-secondary rounded-r58 border border-r58-bg-tertiary p-4;
+    background-color: var(--r58-bg-secondary);
+    border-radius: var(--r58-border-radius);
+    border: 1px solid var(--r58-bg-tertiary);
+    padding: 1rem;
   }
   
   .input {
-    @apply bg-r58-bg-tertiary border border-r58-bg-tertiary rounded-r58;
-    @apply px-4 py-2 text-r58-text-primary;
-    @apply focus:border-r58-accent-primary focus:ring-2 focus:ring-r58-accent-primary/20;
-    @apply outline-none transition-all;
-  }
-  
-  .badge {
-    @apply inline-flex items-center px-2 py-1 rounded text-xs font-semibold uppercase tracking-wide;
-  }
-  
-  .badge-success {
-    @apply bg-r58-accent-success/20 text-r58-accent-success;
-  }
-  
-  .badge-danger {
-    @apply bg-r58-accent-danger/20 text-r58-accent-danger;
-  }
-  
-  .badge-warning {
-    @apply bg-r58-accent-warning/20 text-r58-accent-warning;
-  }
-  
-  /* Touch-optimized input */
-  .input {
+    background-color: var(--r58-bg-tertiary);
+    border: 1px solid var(--r58-bg-tertiary);
+    border-radius: var(--r58-border-radius);
+    padding: 0.5rem 1rem;
+    color: var(--r58-text-primary);
+    outline: none;
+    transition: all 0.15s ease;
+    
+    /* Touch-optimized input */
     min-height: 44px;
     -webkit-user-select: text;
     user-select: text;
   }
+
+  .input:focus {
+    border-color: var(--r58-accent-primary);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+  }
+
+  .input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* Select dropdown */
+  select.input {
+    cursor: pointer;
+    padding-right: 2.5rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+    background-position: right 0.5rem center;
+    background-repeat: no-repeat;
+    background-size: 1.5em 1.5em;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+  }
+
+  /* Textarea */
+  textarea.input {
+    min-height: 100px;
+    resize: vertical;
+    line-height: 1.5;
+  }
+  
+  .badge {
+    @apply inline-flex items-center px-2 py-1 text-xs font-semibold uppercase tracking-wide;
+    border-radius: 4px;
+  }
+  
+  .badge-success {
+    background-color: rgba(34, 197, 94, 0.2);
+    color: var(--r58-accent-success);
+  }
+  
+  .badge-danger {
+    background-color: rgba(239, 68, 68, 0.2);
+    color: var(--r58-accent-danger);
+  }
+  
+  .badge-warning {
+    background-color: rgba(245, 158, 11, 0.2);
+    color: var(--r58-accent-warning);
+  }
+
+  .badge-info {
+    background-color: rgba(59, 130, 246, 0.2);
+    color: var(--r58-accent-primary);
+  }
+
+  /* Card variants */
+  .card-header {
+    padding: 1rem;
+    border-bottom: 1px solid var(--r58-bg-tertiary);
+    margin: -1rem -1rem 1rem -1rem;
+  }
+
+  .card-footer {
+    padding: 1rem;
+    border-top: 1px solid var(--r58-bg-tertiary);
+    margin: 1rem -1rem -1rem -1rem;
+  }
+
+  .card-title {
+    @apply text-lg font-semibold;
+    color: var(--r58-text-primary);
+    margin: 0;
+  }
+
+  .card-description {
+    @apply text-sm;
+    color: var(--r58-text-secondary);
+    margin: 0.25rem 0 0 0;
+  }
+
+  /* Tabs */
+  .tabs {
+    @apply flex gap-2;
+    border-bottom: 1px solid var(--r58-bg-tertiary);
+  }
+
+  .tab {
+    @apply px-4 py-2 font-medium text-sm transition-colors;
+    color: var(--r58-text-secondary);
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .tab:hover {
+    color: var(--r58-text-primary);
+    background-color: var(--r58-bg-tertiary);
+  }
+
+  .tab.active {
+    color: var(--r58-accent-primary);
+    border-bottom-color: var(--r58-accent-primary);
+  }
+
+  .tab:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* Alert/Notice boxes */
+  .alert {
+    padding: 1rem;
+    border-radius: var(--r58-border-radius);
+    border: 1px solid;
+    margin-bottom: 1rem;
+  }
+
+  .alert-info {
+    background-color: rgba(59, 130, 246, 0.1);
+    border-color: rgba(59, 130, 246, 0.3);
+    color: var(--r58-accent-primary);
+  }
+
+  .alert-success {
+    background-color: rgba(34, 197, 94, 0.1);
+    border-color: rgba(34, 197, 94, 0.3);
+    color: var(--r58-accent-success);
+  }
+
+  .alert-warning {
+    background-color: rgba(245, 158, 11, 0.1);
+    border-color: rgba(245, 158, 11, 0.3);
+    color: var(--r58-accent-warning);
+  }
+
+  .alert-danger {
+    background-color: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.3);
+    color: var(--r58-accent-danger);
+  }
+
+  /* Divider */
+  .divider {
+    height: 1px;
+    background-color: var(--r58-bg-tertiary);
+    margin: 1rem 0;
+  }
+
+  .divider-vertical {
+    width: 1px;
+    height: 100%;
+    background-color: var(--r58-bg-tertiary);
+  }
   
   /* Touch-optimized checkbox */
   .checkbox {
-    @apply w-5 h-5 rounded bg-r58-bg-tertiary border-2 border-r58-bg-tertiary;
-    @apply checked:bg-r58-accent-primary checked:border-r58-accent-primary;
-    @apply focus:ring-2 focus:ring-r58-accent-primary/50;
+    @apply w-5 h-5 border-2;
+    border-radius: 4px;
+    background-color: var(--r58-bg-tertiary);
+    border-color: var(--r58-bg-tertiary);
+    
     /* Minimum touch target */
     min-width: 44px;
     min-height: 44px;
@@ -149,6 +389,15 @@ html, body {
     display: grid;
     place-items: center;
     -webkit-tap-highlight-color: transparent;
+  }
+
+  .checkbox:checked {
+    background-color: var(--r58-accent-primary);
+    border-color: var(--r58-accent-primary);
+  }
+
+  .checkbox:focus {
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
   }
   
   /* Touch-friendly link/button areas */
@@ -212,4 +461,3 @@ html, body {
     animation-iteration-count: infinite !important;
   }
 }
-

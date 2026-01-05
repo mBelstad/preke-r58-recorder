@@ -84,27 +84,27 @@ async function fetchDevices() {
   }
 }
 
-function getStatusColor(status: string): string {
-  const colors: Record<string, string> = {
-    online: 'bg-emerald-500',
-    offline: 'bg-zinc-500',
-    updating: 'bg-amber-500',
-    error: 'bg-red-500',
-    maintenance: 'bg-blue-500',
-  }
-  return colors[status] || 'bg-zinc-400'
-}
+    function getStatusColor(status: string): string {
+      const colors: Record<string, string> = {
+        online: 'bg-r58-accent-success',
+        offline: 'bg-r58-text-muted',
+        updating: 'bg-r58-accent-warning',
+        error: 'bg-r58-accent-danger',
+        maintenance: 'bg-r58-accent-primary',
+      }
+      return colors[status] || 'bg-r58-text-muted'
+    }
 
-function getStatusTextColor(status: string): string {
-  const colors: Record<string, string> = {
-    online: 'text-emerald-400',
-    offline: 'text-zinc-400',
-    updating: 'text-amber-400',
-    error: 'text-red-400',
-    maintenance: 'text-blue-400',
-  }
-  return colors[status] || 'text-zinc-400'
-}
+    function getStatusTextColor(status: string): string {
+      const colors: Record<string, string> = {
+        online: 'text-r58-accent-success',
+        offline: 'text-r58-text-muted',
+        updating: 'text-r58-accent-warning',
+        error: 'text-r58-accent-danger',
+        maintenance: 'text-r58-accent-primary',
+      }
+      return colors[status] || 'text-r58-text-muted'
+    }
 
 function formatLastSeen(timestamp?: string): string {
   if (!timestamp) return 'Never'
@@ -143,19 +143,19 @@ onUnmounted(() => {
     <!-- Header -->
     <div class="flex items-center justify-between mb-6">
       <div>
-        <h1 class="text-2xl font-semibold text-zinc-100">Fleet Dashboard</h1>
-        <p class="text-sm text-zinc-400 mt-1">Manage and monitor all R58 devices</p>
+        <h1 class="text-2xl font-semibold text-r58-text-primary">Fleet Dashboard</h1>
+        <p class="text-sm text-r58-text-secondary mt-1">Manage and monitor all R58 devices</p>
       </div>
       <div class="flex items-center gap-3">
         <button 
           @click="fetchDevices"
-          class="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-lg transition-colors"
+          class="btn"
           :disabled="loading"
         >
           <span v-if="loading">Refreshing...</span>
           <span v-else>Refresh</span>
         </button>
-        <button class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-colors">
+        <button class="btn btn-success">
           + Add Device
         </button>
       </div>
@@ -167,16 +167,16 @@ onUnmounted(() => {
         v-for="(count, status) in statusCounts"
         :key="status"
         @click="statusFilter = statusFilter === status ? '' : status"
-        class="p-4 rounded-lg border transition-colors"
+        class="p-4 rounded-r58 border transition-colors"
         :class="statusFilter === status 
-          ? 'bg-zinc-800 border-zinc-600' 
-          : 'bg-zinc-900/50 border-zinc-800 hover:border-zinc-700'"
+          ? 'bg-r58-bg-tertiary border-r58-accent-primary' 
+          : 'bg-r58-bg-secondary border-r58-bg-tertiary hover:border-r58-text-secondary'"
       >
         <div class="flex items-center gap-2">
           <div :class="['w-2 h-2 rounded-full', getStatusColor(status)]"></div>
-          <span class="text-sm text-zinc-400 capitalize">{{ status }}</span>
+          <span class="text-sm text-r58-text-secondary capitalize">{{ status }}</span>
         </div>
-        <div class="text-2xl font-semibold text-zinc-100 mt-1">{{ count }}</div>
+        <div class="text-2xl font-semibold text-r58-text-primary mt-1">{{ count }}</div>
       </button>
     </div>
 
@@ -187,34 +187,34 @@ onUnmounted(() => {
           v-model="searchQuery"
           type="text"
           placeholder="Search devices..."
-          class="w-full px-4 py-2 pl-10 bg-zinc-900 border border-zinc-700 rounded-lg text-zinc-200 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+          class="input w-full pl-10"
         />
-        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-r58-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
         </svg>
       </div>
     </div>
 
     <!-- Error State -->
-    <div v-if="error" class="p-4 bg-red-900/20 border border-red-800 rounded-lg text-red-400 mb-6">
+    <div v-if="error" class="p-4 bg-r58-accent-danger/20 border border-r58-accent-danger rounded-r58 text-r58-accent-danger mb-6">
       {{ error }}
     </div>
 
     <!-- Loading State -->
     <div v-if="loading && devices.length === 0" class="text-center py-12">
-      <div class="animate-spin w-8 h-8 border-2 border-zinc-600 border-t-emerald-500 rounded-full mx-auto"></div>
-      <p class="text-zinc-400 mt-4">Loading devices...</p>
+      <div class="animate-spin w-8 h-8 border-2 border-r58-bg-tertiary border-t-r58-accent-primary rounded-full mx-auto"></div>
+      <p class="text-r58-text-secondary mt-4">Loading devices...</p>
     </div>
 
     <!-- Empty State -->
     <div v-else-if="filteredDevices.length === 0" class="text-center py-12">
-      <div class="w-16 h-16 bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4">
-        <svg class="w-8 h-8 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div class="w-16 h-16 bg-r58-bg-secondary rounded-full flex items-center justify-center mx-auto mb-4">
+        <svg class="w-8 h-8 text-r58-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2z" />
         </svg>
       </div>
-      <h3 class="text-lg font-medium text-zinc-200 mb-2">No devices found</h3>
-      <p class="text-zinc-400">
+      <h3 class="text-lg font-medium text-r58-text-primary mb-2">No devices found</h3>
+      <p class="text-r58-text-secondary">
         {{ searchQuery ? 'Try adjusting your search or filters' : 'Register your first device to get started' }}
       </p>
     </div>
@@ -225,20 +225,20 @@ onUnmounted(() => {
         v-for="device in filteredDevices"
         :key="device.id"
         @click="openDevice(device.device_id)"
-        class="p-4 bg-zinc-900/50 border border-zinc-800 rounded-lg hover:border-zinc-700 cursor-pointer transition-all group"
+        class="card hover:border-r58-text-secondary cursor-pointer transition-all group"
       >
         <!-- Header -->
         <div class="flex items-start justify-between mb-3">
           <div>
-            <h3 class="font-medium text-zinc-100 group-hover:text-emerald-400 transition-colors">
+            <h3 class="font-medium text-r58-text-primary group-hover:text-r58-accent-primary transition-colors">
               {{ device.name }}
             </h3>
-            <p class="text-sm text-zinc-500 font-mono">{{ device.device_id }}</p>
+            <p class="text-sm text-r58-text-secondary font-mono">{{ device.device_id }}</p>
           </div>
           <div class="flex items-center gap-2">
             <span 
               v-if="device.pending_commands && device.pending_commands > 0"
-              class="px-2 py-0.5 bg-amber-500/20 text-amber-400 text-xs rounded"
+              class="badge badge-warning"
             >
               {{ device.pending_commands }} pending
             </span>
@@ -252,36 +252,36 @@ onUnmounted(() => {
         </div>
 
         <!-- Version -->
-        <div class="flex items-center gap-2 text-sm text-zinc-400 mb-3">
+        <div class="flex items-center gap-2 text-sm text-r58-text-secondary mb-3">
           <span>v{{ device.current_version || 'unknown' }}</span>
-          <span v-if="device.target_version" class="text-amber-400">
+          <span v-if="device.target_version" class="text-r58-accent-warning">
             → v{{ device.target_version }}
           </span>
         </div>
 
         <!-- Metrics -->
         <div v-if="device.status === 'online'" class="grid grid-cols-4 gap-2 text-center">
-          <div class="p-2 bg-zinc-800/50 rounded">
-            <div class="text-xs text-zinc-500">CPU</div>
-            <div class="text-sm font-medium" :class="device.cpu_percent && device.cpu_percent > 80 ? 'text-red-400' : 'text-zinc-200'">
+          <div class="p-2 bg-r58-bg-tertiary rounded">
+            <div class="text-xs text-r58-text-secondary">CPU</div>
+            <div class="text-sm font-medium" :class="device.cpu_percent && device.cpu_percent > 80 ? 'text-r58-accent-danger' : 'text-r58-text-primary'">
               {{ device.cpu_percent?.toFixed(0) || '-' }}%
             </div>
           </div>
-          <div class="p-2 bg-zinc-800/50 rounded">
-            <div class="text-xs text-zinc-500">MEM</div>
-            <div class="text-sm font-medium" :class="device.mem_percent && device.mem_percent > 80 ? 'text-red-400' : 'text-zinc-200'">
+          <div class="p-2 bg-r58-bg-tertiary rounded">
+            <div class="text-xs text-r58-text-secondary">MEM</div>
+            <div class="text-sm font-medium" :class="device.mem_percent && device.mem_percent > 80 ? 'text-r58-accent-danger' : 'text-r58-text-primary'">
               {{ device.mem_percent?.toFixed(0) || '-' }}%
             </div>
           </div>
-          <div class="p-2 bg-zinc-800/50 rounded">
-            <div class="text-xs text-zinc-500">DISK</div>
-            <div class="text-sm font-medium" :class="device.disk_free_gb && device.disk_free_gb < 2 ? 'text-red-400' : 'text-zinc-200'">
+          <div class="p-2 bg-r58-bg-tertiary rounded">
+            <div class="text-xs text-r58-text-secondary">DISK</div>
+            <div class="text-sm font-medium" :class="device.disk_free_gb && device.disk_free_gb < 2 ? 'text-r58-accent-danger' : 'text-r58-text-primary'">
               {{ device.disk_free_gb?.toFixed(1) || '-' }}G
             </div>
           </div>
-          <div class="p-2 bg-zinc-800/50 rounded">
-            <div class="text-xs text-zinc-500">TEMP</div>
-            <div class="text-sm font-medium" :class="device.temperature_c && device.temperature_c > 70 ? 'text-red-400' : 'text-zinc-200'">
+          <div class="p-2 bg-r58-bg-tertiary rounded">
+            <div class="text-xs text-r58-text-secondary">TEMP</div>
+            <div class="text-sm font-medium" :class="device.temperature_c && device.temperature_c > 70 ? 'text-r58-accent-danger' : 'text-r58-text-primary'">
               {{ device.temperature_c?.toFixed(0) || '-' }}°
             </div>
           </div>
@@ -289,17 +289,17 @@ onUnmounted(() => {
 
         <!-- Activity Indicators -->
         <div v-if="device.recording_active || device.mixer_active" class="flex items-center gap-2 mt-3">
-          <span v-if="device.recording_active" class="px-2 py-0.5 bg-red-500/20 text-red-400 text-xs rounded flex items-center gap-1">
-            <span class="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></span>
+          <span v-if="device.recording_active" class="badge badge-danger flex items-center gap-1">
+            <span class="w-1.5 h-1.5 bg-current rounded-full animate-pulse"></span>
             Recording
           </span>
-          <span v-if="device.mixer_active" class="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-xs rounded">
+          <span v-if="device.mixer_active" class="badge badge-success">
             Mixer Active
           </span>
         </div>
 
         <!-- Footer -->
-        <div class="flex items-center justify-between mt-3 pt-3 border-t border-zinc-800 text-xs text-zinc-500">
+        <div class="flex items-center justify-between mt-3 pt-3 border-t border-r58-bg-tertiary text-xs text-r58-text-secondary">
           <span v-if="device.location">{{ device.location }}</span>
           <span v-else>-</span>
           <span>{{ formatLastSeen(device.last_heartbeat) }}</span>

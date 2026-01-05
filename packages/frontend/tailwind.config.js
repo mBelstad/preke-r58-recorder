@@ -10,35 +10,39 @@ export default {
         // R58 Design System Colors
         r58: {
           bg: {
-            primary: '#0f172a',    // Slate 900
-            secondary: '#1e293b',  // Slate 800
-            tertiary: '#334155',   // Slate 700
+            primary: 'var(--r58-bg-primary)',
+            secondary: 'var(--r58-bg-secondary)',
+            tertiary: 'var(--r58-bg-tertiary)',
           },
           text: {
-            primary: '#f8fafc',    // Slate 50
-            secondary: '#94a3b8',  // Slate 400
+            primary: 'var(--r58-text-primary)',
+            secondary: 'var(--r58-text-secondary)',
+            muted: 'var(--r58-text-muted)',
           },
           accent: {
-            primary: '#3b82f6',    // Blue 500
-            success: '#22c55e',    // Green 500
-            danger: '#ef4444',     // Red 500
-            warning: '#f59e0b',    // Amber 500
+            primary: 'var(--r58-accent-primary)',
+            success: 'var(--r58-accent-success)',
+            danger: 'var(--r58-accent-danger)',
+            warning: 'var(--r58-accent-warning)',
           },
           // Mode-specific colors
-          recorder: '#1e40af',     // Deep Blue
-          mixer: '#7c3aed',        // Rich Purple
+          recorder: 'var(--r58-mode-recorder)',
+          mixer: 'var(--r58-mode-mixer)',
         }
       },
       fontFamily: {
-        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
-        mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
+        sans: ['var(--r58-font-sans)', 'sans-serif'],
+        mono: ['var(--r58-font-mono)', 'monospace'],
       },
       borderRadius: {
-        'r58': '8px',
+        'r58': 'var(--r58-border-radius)',
       },
       spacing: {
         '18': '4.5rem',
         '88': '22rem',
+        // Electron chrome spacing
+        'titlebar': 'var(--r58-titlebar-height)',
+        'window-controls': 'var(--r58-window-controls-width)',
       },
       animation: {
         'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
@@ -54,4 +58,3 @@ export default {
   },
   plugins: [],
 }
-

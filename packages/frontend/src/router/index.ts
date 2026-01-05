@@ -71,6 +71,12 @@ const router = createRouter({
       component: () => import('@/views/StreamTestView.vue'),
       meta: { title: 'Stream Test' }
     },
+    {
+      path: '/style-guide',
+      name: 'style-guide',
+      component: () => import('@/views/StyleGuideView.vue'),
+      meta: { title: 'Style Guide' }
+    },
   ]
 })
 

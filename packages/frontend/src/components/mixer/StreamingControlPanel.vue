@@ -145,10 +145,10 @@ function getQuickPlatformIcon(): string {
 // Status color helper
 function getStatusColor(): string {
   switch (streamingStatus.value) {
-    case 'live': return 'bg-red-500'
-    case 'connecting': return 'bg-amber-500 animate-pulse'
-    case 'error': return 'bg-red-500'
-    default: return 'bg-gray-500'
+    case 'live': return 'bg-r58-accent-danger'
+    case 'connecting': return 'bg-r58-accent-warning animate-pulse'
+    case 'error': return 'bg-r58-accent-danger'
+    default: return 'bg-r58-text-secondary'
   }
 }
 
@@ -181,8 +181,8 @@ function getStatusText(): string {
         :class="[
           'px-4 py-2 rounded-lg font-medium text-sm transition-all',
           isStreaming 
-            ? 'bg-red-600 hover:bg-red-500 text-white' 
-            : 'bg-emerald-600 hover:bg-emerald-500 text-white'
+            ? 'bg-r58-accent-danger hover:bg-red-600 text-white' 
+            : 'bg-r58-accent-success hover:bg-green-600 text-white'
         ]"
       >
         {{ isStreaming ? '⏹ Stop Streaming' : '▶ Start Streaming' }}

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import BaseModal from './BaseModal.vue'
 
 const props = defineProps<{
   title: string
@@ -14,14 +15,14 @@ const emit = defineEmits<{
   (e: 'cancel'): void
 }>()
 
-const isOpen = ref(false)
+const modalRef = ref<InstanceType<typeof BaseModal> | null>(null)
 
 function open() {
-  isOpen.value = true
+  modalRef.value?.open()
 }
 
 function close() {
-  isOpen.value = false
+  modalRef.value?.close()
 }
 
 function confirm() {
@@ -38,35 +39,29 @@ defineExpose({ open, close })
 </script>
 
 <template>
-  <Teleport to="body">
-    <Transition name="fade">
-      <div 
-        v-if="isOpen"
-        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
-        @click.self="cancel"
+  <BaseModal 
+    ref="modalRef" 
+    :title="title"
+    @close="cancel"
+  >
+    <p class="text-r58-text-secondary">{{ message }}</p>
+    
+    <template #footer>
+      <button 
+        @click="cancel"
+        class="btn"
       >
-        <div class="bg-r58-bg-secondary rounded-lg shadow-xl max-w-md w-full p-6">
-          <h2 class="text-lg font-semibold mb-2">{{ title }}</h2>
-          <p class="text-r58-text-secondary mb-6">{{ message }}</p>
-          
-          <div class="flex justify-end gap-3">
-            <button 
-              @click="cancel"
-              class="btn"
-            >
-              {{ cancelText || 'Cancel' }}
-            </button>
-            <button 
-              @click="confirm"
-              class="btn"
-              :class="danger ? 'btn-danger' : 'btn-primary'"
-            >
-              {{ confirmText || 'Confirm' }}
-            </button>
-          </div>
-        </div>
-      </div>
-    </Transition>
-  </Teleport>
+        {{ cancelText || 'Cancel' }}
+      </button>
+      <button 
+        @click="confirm"
+        class="btn"
+        :class="danger ? 'btn-danger' : 'btn-primary'"
+      >
+        {{ confirmText || 'Confirm' }}
+      </button>
+    </template>
+  </BaseModal>
 </template>
+
 

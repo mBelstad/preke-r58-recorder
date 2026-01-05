@@ -42,15 +42,15 @@ const formattedDate = () => {
 const connectionDotClass = computed(() => {
   switch (statusColor.value) {
     case 'emerald':
-      return 'bg-emerald-500'
+      return 'bg-r58-accent-success'
     case 'amber':
-      return 'bg-amber-500 animate-pulse'
+      return 'bg-r58-accent-warning animate-pulse'
     case 'orange':
-      return 'bg-orange-500'
+      return 'bg-r58-accent-warning'
     case 'red':
-      return 'bg-red-500 animate-pulse'
+      return 'bg-r58-accent-danger animate-pulse'
     default:
-      return 'bg-zinc-500'
+      return 'bg-r58-text-secondary'
   }
 })
 
@@ -113,10 +113,10 @@ const connectionMethodTooltip = computed(() => {
         <span 
           :class="[
             'text-xs px-1.5 py-0.5 rounded',
-            state === 'connected' ? 'text-emerald-400' : '',
-            state === 'degraded' ? 'text-orange-400 bg-orange-500/10' : '',
-            state === 'connecting' ? 'text-amber-400' : '',
-            state === 'disconnected' ? 'text-red-400 bg-red-500/10' : '',
+            state === 'connected' ? 'text-r58-accent-success' : '',
+            state === 'degraded' ? 'text-r58-accent-warning bg-r58-accent-warning/10' : '',
+            state === 'connecting' ? 'text-r58-accent-warning' : '',
+            state === 'disconnected' ? 'text-r58-accent-danger bg-r58-accent-danger/10' : '',
           ]"
         >
           {{ displayStatusLabel }}
@@ -125,7 +125,7 @@ const connectionMethodTooltip = computed(() => {
         <span 
           v-if="connectionMethod !== 'unknown'"
           :class="[
-            'text-xs px-1.5 py-0.5 rounded bg-zinc-800/50 flex items-center gap-1',
+            'text-xs px-1.5 py-0.5 rounded bg-r58-bg-tertiary/50 flex items-center gap-1',
             connectionColor
           ]"
           :title="connectionMethodTooltip"
