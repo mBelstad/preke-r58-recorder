@@ -139,12 +139,14 @@ async function selectMode(mode: 'recorder' | 'mixer') {
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            <!-- Video mixer icon (multi-screen layout) -->
+            <!-- Video mixer icon (grid layout with broadcast symbol) -->
             <svg v-else fill="none" stroke="currentColor" viewBox="0 0 24 24" width="32" height="32" stroke-width="1.8">
-              <rect x="2" y="2" width="9" height="9" rx="1"/>
+              <rect x="2" y="2" width="9" height="6" rx="1"/>
               <rect x="13" y="2" width="9" height="6" rx="1"/>
+              <rect x="2" y="10" width="9" height="6" rx="1"/>
               <rect x="13" y="10" width="9" height="6" rx="1"/>
-              <rect x="2" y="13" width="9" height="9" rx="1"/>
+              <circle cx="12" cy="20" r="2" fill="currentColor"/>
+              <path d="M9 19.5a4 4 0 0 1 6 0" stroke-linecap="round"/>
             </svg>
           </div>
           <div class="studio__mode-info">

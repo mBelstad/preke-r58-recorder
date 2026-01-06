@@ -23,6 +23,16 @@ async function initApp() {
   if (isElectron()) {
     console.log('[App] Running in Electron mode')
     
+    // Add class to body for CSS targeting (e.g., traffic light spacer)
+    document.body.classList.add('electron-app')
+    document.documentElement.classList.add('electron-app')
+    
+    // Detect Windows for different window chrome spacing
+    if (navigator.platform.includes('Win')) {
+      document.body.classList.add('is-windows')
+      document.documentElement.classList.add('is-windows')
+    }
+    
     // Initialize device URL before mounting
     const deviceUrl = await initializeDeviceUrl()
     

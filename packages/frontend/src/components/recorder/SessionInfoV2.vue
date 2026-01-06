@@ -6,10 +6,70 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useRecorderStore } from '@/stores/recorder'
 import { useCapabilitiesStore } from '@/stores/capabilities'
+import { useConnectionStatus } from '@/composables/useConnectionStatus'
+import { useTailscaleStatus } from '@/composables/useTailscaleStatus'
 
 const router = useRouter()
 const recorderStore = useRecorderStore()
 const capabilitiesStore = useCapabilitiesStore()
+
+// Connection status
+const { state, latencyMs } = useConnectionStatus()
+const { connectionMethod, connectionLabel } = useTailscaleStatus()
+
+// Connection display info
+const connectionInfo = computed(() => {
+  const isConnected = state.value === 'connected'
+  const isConnecting = state.value === 'connecting'
+  const isDegraded = state.value === 'degraded'
+  
+  if (isConnected) {
+    let methodLabel = ''
+    if (connectionMethod.value === 'relay') {
+      methodLabel = 'Relay'
+    } else if (connectionMethod.value === 'p2p') {
+      methodLabel = 'P2P'
+    } else if (connectionMethod.value === 'local') {
+      methodLabel = 'Local'
+    }
+    
+    return {
+      status: 'online',
+      color: 'green',
+      label: methodLabel || 'Connected',
+      latency: latencyMs.value,
+      pulse: false
+    }
+  }
+  
+  if (isConnecting) {
+    return {
+      status: 'connecting',
+      color: 'amber',
+      label: 'Connecting...',
+      latency: null,
+      pulse: true
+    }
+  }
+  
+  if (isDegraded) {
+    return {
+      status: 'degraded',
+      color: 'amber',
+      label: 'Slow',
+      latency: latencyMs.value,
+      pulse: false
+    }
+  }
+  
+  return {
+    status: 'offline',
+    color: 'red',
+    label: 'Offline',
+    latency: null,
+    pulse: true
+  }
+})
 
 const currentSession = computed(() => recorderStore.currentSession)
 const activeInputs = computed(() => recorderStore.activeInputs)
@@ -82,8 +142,29 @@ function openInputConfig() {
 
 <template>
   <div class="sidebar">
-    <!-- Session Name -->
-    <div class="sidebar__card">
+    <!-- Connection Status + Session Name (combined) -->
+    <div class="sidebar__card sidebar__card--header">
+      <!-- Connection status row -->
+      <div class="connection-row">
+        <div class="connection-status">
+          <span 
+            class="connection-dot" 
+            :class="[
+              `connection-dot--${connectionInfo.color}`,
+              { 'connection-dot--pulse': connectionInfo.pulse }
+            ]"
+          ></span>
+          <span class="connection-label">{{ connectionInfo.label }}</span>
+          <span v-if="connectionInfo.latency" class="connection-latency">
+            {{ connectionInfo.latency }}ms
+          </span>
+        </div>
+      </div>
+      
+      <!-- Divider -->
+      <div class="sidebar__divider"></div>
+      
+      <!-- Session name -->
       <label class="sidebar__label">Session Name</label>
       <input 
         v-model="sessionName"
@@ -246,10 +327,77 @@ function openInputConfig() {
   padding: 12px;
 }
 
+.sidebar__card--header {
+  padding: 14px;
+}
+
 .sidebar__card--recording {
   background: rgba(212, 90, 90, 0.1);
   border-color: rgba(212, 90, 90, 0.3);
   text-align: center;
+}
+
+/* Connection status row */
+.connection-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.connection-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.connection-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.connection-dot--green {
+  background: var(--preke-green);
+  box-shadow: 0 0 8px var(--preke-green);
+}
+
+.connection-dot--amber {
+  background: var(--preke-amber);
+  box-shadow: 0 0 8px var(--preke-amber);
+}
+
+.connection-dot--red {
+  background: var(--preke-red);
+  box-shadow: 0 0 8px var(--preke-red);
+}
+
+.connection-dot--pulse {
+  animation: dot-pulse 2s ease-in-out infinite;
+}
+
+@keyframes dot-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.85); }
+}
+
+.connection-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--preke-text-dim, #ccc);
+}
+
+.connection-latency {
+  font-size: 11px;
+  color: var(--preke-text-muted, #888);
+  font-family: var(--preke-font-mono, monospace);
+}
+
+.sidebar__divider {
+  height: 1px;
+  background: var(--preke-border, rgba(255,255,255,0.1));
+  margin: 10px 0;
 }
 
 .sidebar__card--warning {

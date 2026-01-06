@@ -164,7 +164,9 @@ onUnmounted(() => {
             :class="{
               'sidebar__nav-item--active': isActive(item.path),
               'sidebar__nav-item--mode-active': isModeActive(item),
-              'sidebar__nav-item--switching': switching && item.requiresMode
+              'sidebar__nav-item--switching': switching && item.requiresMode,
+              'sidebar__nav-item--recorder': item.requiresMode === 'recorder',
+              'sidebar__nav-item--mixer': item.requiresMode === 'mixer'
             }"
           >
             <!-- Glow effect for active -->
@@ -297,7 +299,7 @@ onUnmounted(() => {
     0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-/* Active state - gold accent with glow */
+/* Active state - default gold accent */
 .sidebar__nav-item--active {
   color: var(--preke-gold);
   background: linear-gradient(
@@ -322,6 +324,56 @@ onUnmounted(() => {
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
+/* Recorder mode active state - red accent (matches top bar) */
+.sidebar__nav-item--active.sidebar__nav-item--recorder {
+  color: var(--preke-red);
+  background: linear-gradient(
+    135deg,
+    rgba(212, 90, 90, 0.15) 0%,
+    rgba(212, 90, 90, 0.08) 100%
+  );
+  border: 1px solid rgba(212, 90, 90, 0.3);
+  box-shadow: 
+    0 0 20px rgba(212, 90, 90, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.sidebar__nav-item--active.sidebar__nav-item--recorder:hover {
+  background: linear-gradient(
+    135deg,
+    rgba(212, 90, 90, 0.2) 0%,
+    rgba(212, 90, 90, 0.1) 100%
+  );
+  box-shadow: 
+    0 0 25px rgba(212, 90, 90, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* Mixer mode active state - violet accent (matches top bar) */
+.sidebar__nav-item--active.sidebar__nav-item--mixer {
+  color: #a78bfa;
+  background: linear-gradient(
+    135deg,
+    rgba(124, 58, 237, 0.15) 0%,
+    rgba(124, 58, 237, 0.08) 100%
+  );
+  border: 1px solid rgba(124, 58, 237, 0.3);
+  box-shadow: 
+    0 0 20px rgba(124, 58, 237, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.sidebar__nav-item--active.sidebar__nav-item--mixer:hover {
+  background: linear-gradient(
+    135deg,
+    rgba(124, 58, 237, 0.2) 0%,
+    rgba(124, 58, 237, 0.1) 100%
+  );
+  box-shadow: 
+    0 0 25px rgba(124, 58, 237, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
 /* Glow effect behind active item */
 .sidebar__nav-glow {
   position: absolute;
@@ -333,6 +385,24 @@ onUnmounted(() => {
   );
   pointer-events: none;
   animation: glow-pulse 3s ease-in-out infinite;
+}
+
+/* Recorder glow */
+.sidebar__nav-item--recorder .sidebar__nav-glow {
+  background: radial-gradient(
+    ellipse at center,
+    rgba(212, 90, 90, 0.2) 0%,
+    transparent 70%
+  );
+}
+
+/* Mixer glow */
+.sidebar__nav-item--mixer .sidebar__nav-glow {
+  background: radial-gradient(
+    ellipse at center,
+    rgba(124, 58, 237, 0.2) 0%,
+    transparent 70%
+  );
 }
 
 @keyframes glow-pulse {

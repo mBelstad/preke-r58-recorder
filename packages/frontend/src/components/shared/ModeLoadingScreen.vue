@@ -47,8 +47,9 @@ watch(() => props.contentReady, (ready) => {
   }
 })
 
-// Mode-specific styling
-const modeColor = computed(() => props.mode === 'recorder' ? '#ef4444' : '#3b82f6')
+// Mode-specific styling - uses Preke design system colors
+// Recorder: preke-red (#d45a5a), Mixer: preke-purple (#7c3aed)
+const modeColor = computed(() => props.mode === 'recorder' ? '#d45a5a' : '#7c3aed')
 const modeName = computed(() => props.mode === 'recorder' ? 'Recorder' : 'Mixer')
 const modeTagline = computed(() => props.mode === 'recorder' ? 'Multi-cam ISO Recording' : 'Live Switching & Streaming')
 
@@ -136,17 +137,20 @@ onUnmounted(() => {
             ></div>
           </div>
           
-          <!-- Mixer icon with animated soundwave bars -->
-          <div v-else class="flex items-end gap-1.5 h-14">
+          <!-- Mixer icon (grid layout with broadcast symbol) -->
+          <div v-else class="relative">
+            <svg class="w-16 h-16" :style="{ color: modeColor }" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8">
+              <rect x="2" y="2" width="9" height="6" rx="1" class="animate-pulse"/>
+              <rect x="13" y="2" width="9" height="6" rx="1" class="animate-pulse" style="animation-delay: 0.1s"/>
+              <rect x="2" y="10" width="9" height="6" rx="1" class="animate-pulse" style="animation-delay: 0.2s"/>
+              <rect x="13" y="10" width="9" height="6" rx="1" class="animate-pulse" style="animation-delay: 0.3s"/>
+              <circle cx="12" cy="20" r="2" fill="currentColor"/>
+              <path d="M9 19.5a4 4 0 0 1 6 0" stroke-linecap="round"/>
+            </svg>
+            <!-- Broadcast ring -->
             <div 
-              v-for="(height, i) in bars" 
-              :key="i"
-              class="w-2 rounded-full transition-all duration-75"
-              :style="{ 
-                height: `${height * 100}%`, 
-                backgroundColor: modeColor,
-                opacity: 0.6 + height * 0.4
-              }"
+              class="absolute inset-0 rounded-full animate-spin-slow"
+              :style="{ border: `3px solid ${modeColor}`, borderTopColor: 'transparent' }"
             ></div>
           </div>
         </div>

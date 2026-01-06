@@ -243,15 +243,28 @@ const modeInfo = computed(() => {
 }
 
 /* In Electron on macOS, make space for traffic light buttons */
-:global(.electron-app) .header__spacer,
-:global(html.electron-app) .header__spacer,
+/* Use multiple selectors to ensure it works in all contexts */
+:global(.electron-app) .header__spacer {
+  width: 70px; /* Space for traffic lights */
+}
+
+:global(html.electron-app) .header__spacer {
+  width: 70px;
+}
+
 :global(body.electron-app) .header__spacer {
-  width: 78px; /* 70px for traffic lights + 8px padding */
+  width: 70px;
+}
+
+/* Also check for data attribute */
+:global([data-electron="true"]) .header__spacer {
+  width: 70px;
 }
 
 /* On Windows, no spacer needed */
 :global(.electron-app.is-windows) .header__spacer,
-:global(html.electron-app.is-windows) .header__spacer {
+:global(html.electron-app.is-windows) .header__spacer,
+:global(.is-windows) .header__spacer {
   width: 0;
 }
 
