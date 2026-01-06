@@ -149,23 +149,9 @@ onMounted(async () => {
   
   <!-- Content fades in when loading complete -->
   <Transition name="content-fade">
-    <div v-show="!isLoading" class="h-full flex flex-col bg-r58-bg-primary">
-    <!-- Minimal Header -->
-    <header class="flex items-center justify-between px-4 py-2 border-b border-r58-bg-tertiary bg-r58-bg-secondary">
-      <div class="flex items-center gap-3">
-        <span class="text-lg font-semibold text-r58-mixer">Mixer</span>
-        <span class="text-sm text-r58-text-secondary">
-          {{ activeCameras.length }} camera{{ activeCameras.length !== 1 ? 's' : '' }} detected
-        </span>
-      </div>
-      
-      <div class="flex items-center gap-2 text-xs text-r58-text-secondary">
-        <span class="px-2 py-1 bg-r58-bg-tertiary rounded">Room: {{ VDO_ROOM }}</span>
-      </div>
-    </header>
-    
-    <!-- Streaming Control Panel -->
-    <StreamingControlPanel />
+    <div v-show="!isLoading" class="h-full flex flex-col bg-preke-bg">
+    <!-- Streaming Control Panel (with room info integrated) -->
+    <StreamingControlPanel :room-name="VDO_ROOM" :camera-count="activeCameras.length" />
     
     <!-- VDO.ninja Mixer (full height) -->
     <div class="flex-1 relative">
@@ -180,12 +166,12 @@ onMounted(async () => {
       <!-- Loading overlay -->
       <div 
         v-if="!iframeLoaded"
-        class="absolute inset-0 flex items-center justify-center bg-r58-bg-primary"
+        class="absolute inset-0 flex items-center justify-center bg-preke-bg"
       >
         <div class="flex flex-col items-center gap-4">
-          <div class="w-8 h-8 border-2 border-r58-accent-primary border-t-transparent rounded-full animate-spin"></div>
-          <span class="text-r58-text-secondary">Loading VDO.ninja mixer...</span>
-          <span class="text-xs text-r58-text-secondary/60">Cameras will appear when bridge is running</span>
+          <div class="w-8 h-8 border-2 border-preke-gold border-t-transparent rounded-full animate-spin"></div>
+          <span class="text-preke-text-muted">Loading VDO.ninja mixer...</span>
+          <span class="text-xs text-preke-text-subtle">Cameras will appear when bridge is running</span>
         </div>
         </div>
         </div>

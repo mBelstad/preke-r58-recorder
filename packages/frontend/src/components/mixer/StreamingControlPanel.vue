@@ -17,6 +17,14 @@ import { toast } from '@/composables/useToast'
 import StreamingSettings from './StreamingSettings.vue'
 import ProgramOutput from './ProgramOutput.vue'
 
+const props = withDefaults(defineProps<{
+  roomName?: string
+  cameraCount?: number
+}>(), {
+  roomName: '',
+  cameraCount: 0
+})
+
 const mixerStore = useMixerStore()
 const streamingStore = useStreamingStore()
 
@@ -145,10 +153,10 @@ function getQuickPlatformIcon(): string {
 // Status color helper
 function getStatusColor(): string {
   switch (streamingStatus.value) {
-    case 'live': return 'bg-r58-accent-danger'
-    case 'connecting': return 'bg-r58-accent-warning animate-pulse'
-    case 'error': return 'bg-r58-accent-danger'
-    default: return 'bg-r58-text-secondary'
+    case 'live': return 'control-bar__dot--live'
+    case 'connecting': return 'control-bar__dot--connecting'
+    case 'error': return 'control-bar__dot--error'
+    default: return 'control-bar__dot--idle'
   }
 }
 
@@ -165,27 +173,37 @@ function getStatusText(): string {
 <template>
   <div class="streaming-control-panel">
     <!-- Main Control Bar -->
-    <div class="flex items-center gap-3 px-4 py-2 bg-r58-bg-secondary border-b border-r58-bg-tertiary">
-      <!-- Status Indicator -->
-      <div class="flex items-center gap-2">
-        <span :class="['w-2 h-2 rounded-full', getStatusColor()]"></span>
-        <span class="text-sm font-medium">{{ getStatusText() }}</span>
+    <div class="control-bar">
+      <!-- Room Info (left) -->
+      <div v-if="props.roomName" class="control-bar__room">
+        <span class="control-bar__room-label">Room</span>
+        <span class="control-bar__room-name">{{ props.roomName }}</span>
+        <span v-if="props.cameraCount > 0" class="control-bar__camera-count">
+          {{ props.cameraCount }} cam{{ props.cameraCount !== 1 ? 's' : '' }}
+        </span>
       </div>
       
       <!-- Divider -->
-      <div class="h-6 w-px bg-r58-bg-tertiary"></div>
+      <div v-if="props.roomName" class="control-bar__divider"></div>
+      
+      <!-- Status Indicator -->
+      <div class="control-bar__status">
+        <span :class="['control-bar__dot', getStatusColor()]"></span>
+        <span class="control-bar__status-text">{{ getStatusText() }}</span>
+      </div>
+      
+      <!-- Divider -->
+      <div class="control-bar__divider"></div>
       
       <!-- Start/Stop Streaming Button -->
       <button
         @click="toggleStreaming"
         :class="[
-          'px-4 py-2 rounded-lg font-medium text-sm transition-all',
-          isStreaming 
-            ? 'bg-r58-accent-danger hover:bg-red-600 text-white' 
-            : 'bg-r58-accent-success hover:bg-green-600 text-white'
+          'control-bar__btn',
+          isStreaming ? 'control-bar__btn--stop' : 'control-bar__btn--start'
         ]"
       >
-        {{ isStreaming ? '⏹ Stop Streaming' : '▶ Start Streaming' }}
+        {{ isStreaming ? '⏹ Stop' : '▶ Start Streaming' }}
       </button>
       
       <!-- Quick Setup Button (shows when no destinations) -->
@@ -193,10 +211,8 @@ function getStatusText(): string {
         v-if="!hasDestinations"
         @click="toggleQuickSetup"
         :class="[
-          'px-4 py-2 rounded-lg font-medium text-sm transition-all border-2 border-dashed',
-          showQuickSetup 
-            ? 'bg-amber-600/20 border-amber-500 text-amber-400' 
-            : 'bg-transparent border-r58-bg-tertiary hover:border-amber-500 text-r58-text-secondary hover:text-amber-400'
+          'control-bar__btn control-bar__btn--dashed',
+          showQuickSetup ? 'control-bar__btn--active' : ''
         ]"
       >
         🔑 Add Stream Key
@@ -205,35 +221,32 @@ function getStatusText(): string {
       <!-- Watch Program Button -->
       <button
         @click="watchProgram"
-        class="px-4 py-2 rounded-lg font-medium text-sm bg-r58-bg-tertiary hover:bg-r58-accent-primary text-r58-text-primary transition-colors"
+        class="control-bar__btn control-bar__btn--secondary"
         title="Open program output in new window"
       >
-        👁 Watch Program
+        👁 Watch
       </button>
       
       <!-- Streaming Settings Button -->
       <button
         @click="openStreamingSettings"
-        class="px-4 py-2 rounded-lg font-medium text-sm bg-r58-bg-tertiary hover:bg-r58-accent-primary text-r58-text-primary transition-colors"
+        class="control-bar__btn control-bar__btn--secondary"
         title="Configure streaming destinations"
       >
-        ⚙️ Settings
+        ⚙️
       </button>
       
       <!-- Active Destinations Indicator -->
-      <div v-if="hasEnabledDestinations" class="flex items-center gap-2 ml-auto">
-        <span class="text-xs text-r58-text-secondary">
-          Streaming to:
-        </span>
-        <div class="flex items-center gap-1">
+      <div v-if="hasEnabledDestinations" class="control-bar__destinations">
+        <span class="control-bar__destinations-label">To:</span>
+        <div class="control-bar__destinations-list">
           <span
             v-for="dest in streamingStore.enabledDestinations"
             :key="dest.id"
-            class="px-2 py-1 bg-r58-bg-tertiary rounded text-xs"
+            class="control-bar__destination"
             :title="dest.name"
           >
             {{ dest.platformId === 'youtube' ? '▶️' : dest.platformId === 'twitch' ? '📺' : '🔴' }}
-            {{ dest.name }}
           </span>
         </div>
       </div>
@@ -241,62 +254,38 @@ function getStatusText(): string {
     
     <!-- Quick Setup Panel (slides down) -->
     <transition name="slide">
-      <div v-if="showQuickSetup" class="px-4 py-3 bg-r58-bg-tertiary/50 border-b border-r58-bg-tertiary">
-        <div class="flex items-center gap-4 max-w-4xl">
+      <div v-if="showQuickSetup" class="quick-setup">
+        <div class="quick-setup__form">
           <!-- Platform Selector -->
-          <div class="flex items-center gap-2">
-            <span class="text-2xl">{{ getQuickPlatformIcon() }}</span>
-            <select
-              v-model="quickPlatform"
-              class="px-3 py-2 bg-r58-bg-secondary border border-r58-bg-tertiary rounded-lg text-sm focus:border-amber-500 focus:outline-none"
-            >
-              <option value="youtube">YouTube Live</option>
+          <div class="quick-setup__platform">
+            <span class="quick-setup__platform-icon">{{ getQuickPlatformIcon() }}</span>
+            <select v-model="quickPlatform" class="quick-setup__select">
+              <option value="youtube">YouTube</option>
               <option value="twitch">Twitch</option>
-              <option value="facebook">Facebook Live</option>
+              <option value="facebook">Facebook</option>
               <option value="restream">Restream</option>
             </select>
           </div>
           
           <!-- Stream Key Input -->
-          <div class="flex-1 relative">
+          <div class="quick-setup__input-wrap">
             <input
               v-model="quickStreamKey"
               type="password"
               :placeholder="getQuickPlatformPlaceholder()"
-              class="w-full px-4 py-2 bg-r58-bg-secondary border border-r58-bg-tertiary rounded-lg text-sm font-mono focus:border-amber-500 focus:outline-none"
+              class="quick-setup__input"
               @keyup.enter="quickSetupAndStream"
             />
-            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-r58-text-secondary">
-              🔒 Stored locally
-            </span>
           </div>
           
           <!-- Go Live Button -->
-          <button
-            @click="quickSetupAndStream"
-            class="px-6 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
-          >
+          <button @click="quickSetupAndStream" class="quick-setup__go-live">
             🔴 Go Live
           </button>
           
           <!-- Cancel -->
-          <button
-            @click="showQuickSetup = false"
-            class="px-3 py-2 text-r58-text-secondary hover:text-r58-text-primary"
-          >
-            ✕
-          </button>
+          <button @click="showQuickSetup = false" class="quick-setup__cancel">✕</button>
         </div>
-        
-        <!-- Help text -->
-        <p class="text-xs text-r58-text-secondary mt-2">
-          Paste your stream key from 
-          <a v-if="quickPlatform === 'youtube'" href="https://studio.youtube.com" target="_blank" class="text-amber-400 hover:underline">YouTube Studio → Go Live → Stream Settings</a>
-          <a v-else-if="quickPlatform === 'twitch'" href="https://dashboard.twitch.tv/settings/stream" target="_blank" class="text-amber-400 hover:underline">Twitch Dashboard → Stream Key</a>
-          <a v-else-if="quickPlatform === 'facebook'" href="https://facebook.com/live/producer" target="_blank" class="text-amber-400 hover:underline">Facebook Live Producer</a>
-          <a v-else-if="quickPlatform === 'restream'" href="https://app.restream.io" target="_blank" class="text-amber-400 hover:underline">Restream Dashboard</a>
-          <span v-else>your streaming platform</span>
-        </p>
       </div>
     </transition>
     
@@ -311,11 +300,258 @@ function getStatusText(): string {
 </template>
 
 <style scoped>
-/* Slide transition for quick setup panel */
+/* Control Bar */
+.control-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: var(--preke-surface);
+  border-bottom: 1px solid var(--preke-surface-border);
+}
+
+.control-bar__room {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.control-bar__room-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--preke-text-subtle);
+}
+
+.control-bar__room-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--preke-text);
+  padding: 4px 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+}
+
+.control-bar__camera-count {
+  font-size: 11px;
+  color: var(--preke-green);
+}
+
+.control-bar__divider {
+  width: 1px;
+  height: 24px;
+  background: var(--preke-border);
+}
+
+.control-bar__status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.control-bar__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.control-bar__dot--live {
+  background: var(--preke-red);
+  box-shadow: 0 0 8px var(--preke-red);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.control-bar__dot--connecting {
+  background: var(--preke-amber);
+  animation: pulse 1s ease-in-out infinite;
+}
+
+.control-bar__dot--error {
+  background: var(--preke-red);
+}
+
+.control-bar__dot--idle {
+  background: var(--preke-text-subtle);
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.85); }
+}
+
+.control-bar__status-text {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--preke-text-muted);
+}
+
+/* Buttons */
+.control-bar__btn {
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.control-bar__btn--start {
+  background: var(--preke-green);
+  color: white;
+}
+
+.control-bar__btn--start:hover {
+  filter: brightness(1.1);
+}
+
+.control-bar__btn--stop {
+  background: var(--preke-red);
+  color: white;
+}
+
+.control-bar__btn--stop:hover {
+  filter: brightness(1.1);
+}
+
+.control-bar__btn--secondary {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--preke-text-muted);
+  border: 1px solid var(--preke-border);
+}
+
+.control-bar__btn--secondary:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--preke-text);
+}
+
+.control-bar__btn--dashed {
+  background: transparent;
+  color: var(--preke-text-muted);
+  border: 2px dashed var(--preke-border);
+}
+
+.control-bar__btn--dashed:hover,
+.control-bar__btn--active {
+  border-color: var(--preke-gold);
+  color: var(--preke-gold);
+}
+
+.control-bar__destinations {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.control-bar__destinations-label {
+  font-size: 10px;
+  color: var(--preke-text-subtle);
+}
+
+.control-bar__destinations-list {
+  display: flex;
+  gap: 4px;
+}
+
+.control-bar__destination {
+  padding: 2px 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+/* Quick Setup */
+.quick-setup {
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--preke-surface-border);
+}
+
+.quick-setup__form {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.quick-setup__platform {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.quick-setup__platform-icon {
+  font-size: 20px;
+}
+
+.quick-setup__select {
+  padding: 8px 12px;
+  background: var(--preke-bg);
+  border: 1px solid var(--preke-border);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--preke-text);
+}
+
+.quick-setup__select:focus {
+  outline: none;
+  border-color: var(--preke-gold);
+}
+
+.quick-setup__input-wrap {
+  flex: 1;
+}
+
+.quick-setup__input {
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--preke-bg);
+  border: 1px solid var(--preke-border);
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: monospace;
+  color: var(--preke-text);
+}
+
+.quick-setup__input:focus {
+  outline: none;
+  border-color: var(--preke-gold);
+}
+
+.quick-setup__go-live {
+  padding: 8px 16px;
+  background: var(--preke-red);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.quick-setup__go-live:hover {
+  filter: brightness(1.1);
+}
+
+.quick-setup__cancel {
+  padding: 8px;
+  background: transparent;
+  border: none;
+  color: var(--preke-text-muted);
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.quick-setup__cancel:hover {
+  color: var(--preke-text);
+}
+
+/* Slide transition */
 .slide-enter-active,
 .slide-leave-active {
   transition: all 0.2s ease-out;
-  max-height: 100px;
+  max-height: 80px;
   overflow: hidden;
 }
 

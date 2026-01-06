@@ -12,15 +12,15 @@ const isVisible = ref(true)
 const isAnimating = ref(true)
 
 onMounted(() => {
-  // Animation runs for 4 seconds total (longer)
+  // Animation runs for 4.5 seconds total
   setTimeout(() => {
     isAnimating.value = false
-  }, 3500)
+  }, 4000)
   
   // Hide completely after fade out
   setTimeout(() => {
     isVisible.value = false
-  }, 4000)
+  }, 4500)
 })
 </script>
 
@@ -36,7 +36,7 @@ onMounted(() => {
       <div class="splash__orb splash__orb--2"></div>
       <div class="splash__orb splash__orb--3"></div>
       
-      <!-- Logo -->
+      <!-- Logo - much bigger -->
       <div class="splash__logo-container">
         <img 
           :src="logoStacked" 
@@ -81,54 +81,54 @@ onMounted(() => {
 .splash__orb {
   position: absolute;
   border-radius: 50%;
-  filter: blur(120px);
-  opacity: 0.5;
+  filter: blur(150px);
+  opacity: 0.6;
   pointer-events: none;
-  animation: orb-float 5s ease-in-out infinite;
+  animation: orb-float 6s ease-in-out infinite;
 }
 
 .splash__orb--1 {
-  width: 500px;
-  height: 500px;
-  top: -150px;
-  right: -150px;
+  width: 600px;
+  height: 600px;
+  top: -200px;
+  right: -200px;
   background: radial-gradient(circle, rgba(224, 160, 48, 0.5) 0%, transparent 70%);
   animation-delay: 0s;
 }
 
 .splash__orb--2 {
-  width: 400px;
-  height: 400px;
-  bottom: -100px;
-  left: -100px;
-  background: radial-gradient(circle, rgba(168, 153, 104, 0.25) 0%, transparent 70%);
+  width: 500px;
+  height: 500px;
+  bottom: -150px;
+  left: -150px;
+  background: radial-gradient(circle, rgba(168, 153, 104, 0.3) 0%, transparent 70%);
   animation-delay: 1s;
 }
 
 .splash__orb--3 {
-  width: 300px;
-  height: 300px;
-  top: 35%;
-  left: 55%;
-  background: radial-gradient(circle, rgba(224, 160, 48, 0.25) 0%, transparent 70%);
+  width: 400px;
+  height: 400px;
+  top: 30%;
+  left: 50%;
+  background: radial-gradient(circle, rgba(224, 160, 48, 0.3) 0%, transparent 70%);
   animation-delay: 2s;
 }
 
 @keyframes orb-float {
   0%, 100% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(30px, -30px) scale(1.05); }
+  50% { transform: translate(40px, -40px) scale(1.1); }
 }
 
 /* Logo container */
 .splash__logo-container {
   opacity: 0;
-  animation: logo-enter 1s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s forwards;
+  animation: logo-enter 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s forwards;
 }
 
 @keyframes logo-enter {
   0% {
     opacity: 0;
-    transform: scale(0.7) translateY(30px);
+    transform: scale(0.6) translateY(40px);
   }
   100% {
     opacity: 1;
@@ -136,32 +136,32 @@ onMounted(() => {
   }
 }
 
-/* Stacked logo - MUCH BIGGER */
+/* Stacked logo - VERY BIG */
 .splash__logo {
-  height: 280px;
-  width: auto;
-  filter: drop-shadow(0 0 40px rgba(224, 160, 48, 0.4));
-  animation: logo-glow 3s ease-in-out 1s infinite;
+  width: 420px;
+  height: auto;
+  filter: drop-shadow(0 0 60px rgba(224, 160, 48, 0.5));
+  animation: logo-glow 3s ease-in-out 1.5s infinite;
 }
 
 @keyframes logo-glow {
-  0%, 100% { filter: drop-shadow(0 0 40px rgba(224, 160, 48, 0.4)); }
-  50% { filter: drop-shadow(0 0 70px rgba(224, 160, 48, 0.6)); }
+  0%, 100% { filter: drop-shadow(0 0 60px rgba(224, 160, 48, 0.5)); }
+  50% { filter: drop-shadow(0 0 100px rgba(224, 160, 48, 0.7)); }
 }
 
 /* Tagline */
 .splash__tagline {
-  margin-top: 2.5rem;
-  font-size: 1rem;
+  margin-top: 3rem;
+  font-size: 1.125rem;
   color: #a8a8a8;
   opacity: 0;
-  animation: tagline-enter 0.6s ease-out 0.9s forwards;
+  animation: tagline-enter 0.6s ease-out 1.2s forwards;
 }
 
 @keyframes tagline-enter {
   0% {
     opacity: 0;
-    transform: translateY(15px);
+    transform: translateY(20px);
   }
   100% {
     opacity: 1;
@@ -172,45 +172,47 @@ onMounted(() => {
 /* Loading bar */
 .splash__loader {
   position: absolute;
-  bottom: 80px;
-  width: 240px;
+  bottom: 100px;
+  width: 280px;
   height: 4px;
   background: rgba(255, 255, 255, 0.1);
   border-radius: 2px;
   overflow: hidden;
   opacity: 0;
-  animation: loader-enter 0.3s ease-out 1.2s forwards;
+  animation: loader-enter 0.3s ease-out 1.5s forwards;
 }
 
 @keyframes loader-enter {
-  from { opacity: 0; }
   to { opacity: 1; }
 }
 
 .splash__loader-bar {
-  width: 0%;
   height: 100%;
   background: linear-gradient(90deg, #e0a030, #f5c04a);
   border-radius: 2px;
-  animation: loader-progress 2.5s ease-out 1.3s forwards;
-  box-shadow: 0 0 15px rgba(224, 160, 48, 0.6);
+  animation: loader-progress 2.5s ease-out 1.6s forwards;
+  box-shadow: 0 0 20px rgba(224, 160, 48, 0.6);
 }
 
 @keyframes loader-progress {
-  0% { width: 0%; }
-  100% { width: 100%; }
+  from { width: 0; }
+  to { width: 100%; }
 }
 
 /* Responsive */
-@media (max-width: 480px) {
+@media (max-width: 600px) {
   .splash__logo {
-    height: 180px;
+    width: 280px;
   }
   
   .splash__tagline {
-    font-size: 0.875rem;
+    font-size: 0.9375rem;
     text-align: center;
     padding: 0 1rem;
+  }
+  
+  .splash__loader {
+    width: 200px;
   }
 }
 </style>

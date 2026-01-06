@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * StatusBar v2 - Full-width header with logo anchored after traffic lights
+ * StatusBar v2 - Full-width header with logo properly positioned
  */
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useConnectionStatus } from '@/composables/useConnectionStatus'
@@ -46,7 +46,7 @@ const cameraSlots = computed(() => {
   for (let i = 0; i < 4; i++) {
     const input = inputs[i]
     slots.push({
-      id: i + 1, // 1-based for display
+      id: i + 1,
       hasSignal: input?.hasSignal || false,
       isRecording: input?.isRecording || false,
       label: input?.label || `CAM ${i + 1}`
@@ -108,13 +108,13 @@ const statusInfo = computed(() => {
   return { dot: 'red', text: 'Offline', showDetails: false, pulse: true }
 })
 
-// Mode info for display
+// Mode info for display - MIXER not MIX
 const modeInfo = computed(() => {
   if (currentMode.value === 'recorder') {
     return { label: 'REC', color: 'red', pulse: true }
   }
   if (currentMode.value === 'mixer') {
-    return { label: 'MIX', color: 'violet', pulse: false }
+    return { label: 'MIXER', color: 'violet', pulse: false }
   }
   return null
 })
@@ -122,10 +122,11 @@ const modeInfo = computed(() => {
 
 <template>
   <header class="header">
-    <!-- Fixed left section: traffic lights space + logo -->
-    <div class="header__left">
-      <img :src="logoHorizontal" alt="Preke Studio" class="header__logo" />
-    </div>
+    <!-- Spacer for macOS traffic lights (only in Electron) -->
+    <div class="header__spacer"></div>
+    
+    <!-- Logo - positioned after spacer, not constrained -->
+    <img :src="logoHorizontal" alt="Preke Studio" class="header__logo" />
     
     <!-- Center: Status indicators -->
     <div class="header__center">
@@ -154,7 +155,6 @@ const modeInfo = computed(() => {
       
       <!-- Stats when connected -->
       <template v-if="statusInfo.showDetails">
-        <!-- Divider -->
         <div class="header__divider"></div>
         
         <!-- Camera slots (4 numbered placeholders) -->
@@ -173,12 +173,10 @@ const modeInfo = computed(() => {
           </div>
         </div>
         
-        <!-- Divider -->
         <div class="header__divider"></div>
         
-        <!-- Storage bar with HDD icon -->
+        <!-- Storage bar -->
         <div class="header__storage" :title="`${storageInfo.freeGB} GB free`">
-          <!-- Hard drive / save icon -->
           <svg class="header__storage-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
             <rect x="4" y="4" width="16" height="16" rx="2"/>
             <path d="M4 14h16"/>
@@ -209,14 +207,14 @@ const modeInfo = computed(() => {
 
 <style scoped>
 .header {
-  height: 64px;
-  min-height: 64px;
+  height: 56px;
+  min-height: 56px;
   background: var(--preke-surface);
   border-bottom: 1px solid var(--preke-surface-border);
   display: flex;
   align-items: center;
-  padding: 0 24px;
-  gap: 24px;
+  padding: 0 20px;
+  gap: 20px;
   -webkit-app-region: drag;
 }
 
@@ -227,29 +225,25 @@ const modeInfo = computed(() => {
   -webkit-app-region: no-drag;
 }
 
-/* Left section - fixed width to match sidebar + traffic lights */
-.header__left {
-  /* Traffic lights (70px on macOS) + sidebar width (72px) - padding */
-  width: 72px; /* Match sidebar width */
-  margin-left: 0;
+/* Spacer for macOS traffic lights */
+.header__spacer {
+  width: 0;
   flex-shrink: 0;
-  display: flex;
-  align-items: center;
 }
 
-/* In Electron on macOS, add space for traffic lights */
-:global(.electron-app) .header__left {
-  margin-left: 70px; /* Space for macOS traffic lights */
+:global(.electron-app) .header__spacer {
+  width: 70px;
 }
 
-:global(.electron-app.is-windows) .header__left {
-  margin-left: 0;
+:global(.electron-app.is-windows) .header__spacer {
+  width: 0;
 }
 
-/* Logo - bigger */
+/* Logo - not constrained, natural size */
 .header__logo {
-  height: 48px;
+  height: 32px;
   width: auto;
+  flex-shrink: 0;
 }
 
 /* Center section */
@@ -347,7 +341,7 @@ const modeInfo = computed(() => {
 }
 
 .header__status-text {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--preke-text-muted);
 }
@@ -355,19 +349,19 @@ const modeInfo = computed(() => {
 /* Divider */
 .header__divider {
   width: 1px;
-  height: 28px;
+  height: 24px;
   background: var(--preke-border);
 }
 
-/* Camera slots with numbers */
+/* Camera slots */
 .header__cameras {
   display: flex;
   gap: 4px;
 }
 
 .header__camera {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   border-radius: 4px;
   background: var(--preke-bg);
   border: 1px solid var(--preke-border);
@@ -378,7 +372,7 @@ const modeInfo = computed(() => {
 }
 
 .header__camera-num {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   color: var(--preke-text-subtle);
 }
@@ -415,23 +409,23 @@ const modeInfo = computed(() => {
 }
 
 .header__storage-icon {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   color: var(--preke-text-subtle);
 }
 
 .header__storage-track {
-  width: 60px;
-  height: 8px;
+  width: 50px;
+  height: 6px;
   background: var(--preke-bg);
-  border-radius: 4px;
+  border-radius: 3px;
   overflow: hidden;
   border: 1px solid var(--preke-border);
 }
 
 .header__storage-fill {
   height: 100%;
-  border-radius: 3px;
+  border-radius: 2px;
   transition: width 0.5s ease;
 }
 
@@ -445,19 +439,13 @@ const modeInfo = computed(() => {
 
 .header__storage-fill--critical {
   background: linear-gradient(90deg, var(--preke-red), var(--preke-red-light, var(--preke-red)));
-  animation: storage-critical 1s ease-in-out infinite;
-}
-
-@keyframes storage-critical {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
 }
 
 .header__storage-text {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--preke-text-muted);
-  min-width: 36px;
+  min-width: 32px;
 }
 
 /* Right section */
@@ -467,7 +455,7 @@ const modeInfo = computed(() => {
 
 .header__time {
   font-family: var(--preke-font-mono);
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--preke-text-muted);
   letter-spacing: 0.05em;

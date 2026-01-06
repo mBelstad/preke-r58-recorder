@@ -1,13 +1,11 @@
 <script setup lang="ts">
 /**
- * SessionInfo v2 - Clean sidebar for recorder
- * Shows contextual info: session details during recording, helpful tips when idle
+ * SessionInfo v2 - Recorder sidebar with session naming and camera controls
  */
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useRecorderStore } from '@/stores/recorder'
 import { useCapabilitiesStore } from '@/stores/capabilities'
-import SettingsPanel from '@/components/shared/SettingsPanel.vue'
 
 const router = useRouter()
 const recorderStore = useRecorderStore()
@@ -18,8 +16,35 @@ const activeInputs = computed(() => recorderStore.activeInputs)
 const isRecording = computed(() => recorderStore.isRecording)
 const recordingInputs = computed(() => recorderStore.inputs.filter(i => i.isRecording))
 
-// Settings panel visibility
-const showSettings = ref(false)
+// Session name
+const sessionName = ref('')
+
+// Generate default session name with date/time
+onMounted(() => {
+  const now = new Date()
+  const dateStr = now.toLocaleDateString('en-GB', { 
+    day: '2-digit', 
+    month: '2-digit', 
+    year: 'numeric' 
+  }).replace(/\//g, '.')
+  sessionName.value = `Session ${dateStr}`
+})
+
+// Camera controls (placeholder values)
+const cameraControls = ref([
+  { id: 'cam1', name: 'CAM 1', focus: 'auto', wb: 'auto', shutter: 'auto', aperture: 'auto' },
+  { id: 'cam2', name: 'CAM 2', focus: 'auto', wb: 'auto', shutter: 'auto', aperture: 'auto' },
+  { id: 'cam3', name: 'CAM 3', focus: 'auto', wb: 'auto', shutter: 'auto', aperture: 'auto' },
+  { id: 'cam4', name: 'CAM 4', focus: 'auto', wb: 'auto', shutter: 'auto', aperture: 'auto' },
+])
+
+// Toggle a setting to auto
+function toggleAuto(camIndex: number, setting: 'focus' | 'wb' | 'shutter' | 'aperture') {
+  const cam = cameraControls.value[camIndex]
+  if (cam) {
+    cam[setting] = cam[setting] === 'auto' ? 'manual' : 'auto'
+  }
+}
 
 // Storage info
 const storageInfo = computed(() => {
@@ -30,8 +55,6 @@ const storageInfo = computed(() => {
   const totalGB = caps.storage_total_gb || 1
   const freeGB = totalGB - usedGB
   const percent = Math.round((usedGB / totalGB) * 100)
-  
-  // Estimate recording time at ~10GB/hour for 4K
   const hoursRemaining = freeGB / 10
   
   return {
@@ -58,335 +81,431 @@ function openInputConfig() {
 </script>
 
 <template>
-  <div class="session-sidebar">
+  <div class="sidebar">
+    <!-- Session Name -->
+    <div class="sidebar__card">
+      <label class="sidebar__label">Session Name</label>
+      <input 
+        v-model="sessionName"
+        type="text"
+        class="sidebar__input"
+        placeholder="Session 06.01.2026"
+        :disabled="isRecording"
+      />
+    </div>
     
-    <!-- RECORDING STATE: Show active recording info -->
+    <!-- RECORDING STATE -->
     <template v-if="isRecording">
-      <!-- Recording Status -->
-      <section class="sidebar-card sidebar-card--recording">
-        <div class="recording-header">
-          <span class="recording-dot"></span>
-          <span class="recording-label">Recording</span>
+      <div class="sidebar__card sidebar__card--recording">
+        <div class="recording__header">
+          <span class="recording__dot"></span>
+          <span class="recording__label">Recording</span>
         </div>
-        <div class="recording-duration">{{ recorderStore.formattedDuration }}</div>
-        <div class="recording-meta">
+        <div class="recording__duration">{{ recorderStore.formattedDuration }}</div>
+        <div class="recording__meta">
           {{ recordingInputs.length }} camera{{ recordingInputs.length !== 1 ? 's' : '' }} recording
         </div>
-      </section>
+      </div>
       
       <!-- Recording Stats -->
-      <section class="sidebar-card">
-        <h3 class="sidebar-title">Recording Stats</h3>
-        <div class="stats-grid">
+      <div class="sidebar__card">
+        <div class="sidebar__label">Recording Stats</div>
+        <div class="stats">
           <div 
             v-for="input in recordingInputs" 
             :key="input.id"
-            class="stat-item"
+            class="stats__item"
           >
-            <span class="stat-label">{{ input.label }}</span>
-            <span class="stat-value">{{ formatBytes(input.bytesWritten) }}</span>
+            <span class="stats__label">{{ input.label }}</span>
+            <span class="stats__value">{{ formatBytes(input.bytesWritten) }}</span>
           </div>
         </div>
-      </section>
+      </div>
       
-      <!-- Storage Warning (only show if low) -->
-      <section v-if="storageInfo?.isLow" class="sidebar-card sidebar-card--warning">
-        <div class="warning-icon">⚠️</div>
-        <div class="warning-text">
+      <!-- Storage Warning -->
+      <div v-if="storageInfo?.isLow" class="sidebar__card sidebar__card--warning">
+        <span class="warning__icon">⚠️</span>
+        <div class="warning__text">
           <strong>Low storage</strong>
-          <span>{{ storageInfo.freeGB }} GB remaining (~{{ storageInfo.hoursRemaining }}h)</span>
+          <span>{{ storageInfo.freeGB }} GB remaining</span>
         </div>
-      </section>
+      </div>
     </template>
     
-    <!-- IDLE STATE: Show helpful info and actions -->
+    <!-- IDLE STATE -->
     <template v-else>
-      <!-- Ready to Record -->
-      <section class="sidebar-card">
-        <h3 class="sidebar-title">Ready to Record</h3>
-        <p class="sidebar-hint">
-          {{ activeInputs.length }} input{{ activeInputs.length !== 1 ? 's' : '' }} with signal detected.
-          Press <kbd>Space</kbd> or click Start Recording to begin.
+      <!-- Status -->
+      <div class="sidebar__card">
+        <div class="sidebar__label">Status</div>
+        <p class="sidebar__hint">
+          {{ activeInputs.length }} input{{ activeInputs.length !== 1 ? 's' : '' }} with signal.
+          Press <kbd>Space</kbd> to start recording.
         </p>
-      </section>
+      </div>
       
-      <!-- Storage Overview -->
-      <section v-if="storageInfo" class="sidebar-card">
-        <h3 class="sidebar-title">Storage</h3>
-        <div class="storage-info">
-          <div class="storage-bar">
+      <!-- Camera Controls -->
+      <div class="sidebar__card">
+        <div class="sidebar__label">Camera Controls</div>
+        <div class="cameras">
+          <div 
+            v-for="(cam, index) in cameraControls" 
+            :key="cam.id"
+            class="camera"
+          >
+            <div class="camera__header">{{ cam.name }}</div>
+            <div class="camera__controls">
+              <button 
+                class="camera__btn"
+                :class="{ 'camera__btn--auto': cam.focus === 'auto' }"
+                @click="toggleAuto(index, 'focus')"
+                title="Focus"
+              >
+                <span class="camera__btn-icon">◎</span>
+                <span class="camera__btn-label">{{ cam.focus === 'auto' ? 'A' : 'M' }}</span>
+              </button>
+              <button 
+                class="camera__btn"
+                :class="{ 'camera__btn--auto': cam.wb === 'auto' }"
+                @click="toggleAuto(index, 'wb')"
+                title="White Balance"
+              >
+                <span class="camera__btn-icon">☀</span>
+                <span class="camera__btn-label">{{ cam.wb === 'auto' ? 'A' : 'M' }}</span>
+              </button>
+              <button 
+                class="camera__btn"
+                :class="{ 'camera__btn--auto': cam.shutter === 'auto' }"
+                @click="toggleAuto(index, 'shutter')"
+                title="Shutter"
+              >
+                <span class="camera__btn-icon">⏱</span>
+                <span class="camera__btn-label">{{ cam.shutter === 'auto' ? 'A' : 'M' }}</span>
+              </button>
+              <button 
+                class="camera__btn"
+                :class="{ 'camera__btn--auto': cam.aperture === 'auto' }"
+                @click="toggleAuto(index, 'aperture')"
+                title="Aperture"
+              >
+                <span class="camera__btn-icon">◐</span>
+                <span class="camera__btn-label">{{ cam.aperture === 'auto' ? 'A' : 'M' }}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Storage -->
+      <div v-if="storageInfo" class="sidebar__card">
+        <div class="sidebar__label">Storage</div>
+        <div class="storage">
+          <div class="storage__bar">
             <div 
-              class="storage-fill"
+              class="storage__fill"
               :class="{
-                'storage-fill--ok': !storageInfo.isLow,
-                'storage-fill--low': storageInfo.isLow && !storageInfo.isCritical,
-                'storage-fill--critical': storageInfo.isCritical
+                'storage__fill--ok': !storageInfo.isLow,
+                'storage__fill--low': storageInfo.isLow && !storageInfo.isCritical,
+                'storage__fill--critical': storageInfo.isCritical
               }"
               :style="{ width: `${storageInfo.percent}%` }"
             ></div>
           </div>
-          <div class="storage-text">
-            <span class="storage-free">{{ storageInfo.freeGB }} GB free</span>
-            <span class="storage-estimate">~{{ storageInfo.hoursRemaining }}h recording</span>
+          <div class="storage__info">
+            <span>{{ storageInfo.freeGB }} GB free</span>
+            <span class="storage__estimate">~{{ storageInfo.hoursRemaining }}h</span>
           </div>
         </div>
-      </section>
+      </div>
       
       <!-- Quick Actions -->
-      <section class="sidebar-card">
-        <h3 class="sidebar-title">Quick Actions</h3>
-        <div class="action-buttons">
-          <button 
-            @click="openInputConfig"
-            class="action-btn"
-          >
-            ⚙️ Configure Inputs
-          </button>
-          <button 
-            @click="showSettings = !showSettings"
-            class="action-btn"
-          >
-            {{ showSettings ? '✕ Hide Settings' : '🎨 Interface Settings' }}
-          </button>
-        </div>
-      </section>
-      
-      <!-- Settings Panel (collapsible) -->
-      <Transition name="slide-fade">
-        <section v-if="showSettings" class="sidebar-card">
-          <SettingsPanel />
-        </section>
-      </Transition>
+      <div class="sidebar__card">
+        <div class="sidebar__label">Quick Actions</div>
+        <button @click="openInputConfig" class="sidebar__btn">
+          ⚙️ Configure Inputs
+        </button>
+      </div>
     </template>
   </div>
 </template>
 
 <style scoped>
-@import '@/styles/design-system-v2.css';
-
-.session-sidebar {
+.sidebar {
   display: flex;
   flex-direction: column;
-  gap: var(--preke-space-md);
+  gap: 12px;
 }
 
-.sidebar-card {
-  background: var(--preke-glass-bg-light);
-  border: 1px solid var(--preke-border);
-  border-radius: var(--preke-radius-lg);
-  padding: var(--preke-space-md);
+.sidebar__card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--preke-border, rgba(255,255,255,0.1));
+  border-radius: 10px;
+  padding: 12px;
 }
 
-.sidebar-card--recording {
-  background: linear-gradient(135deg, rgba(212, 90, 90, 0.15) 0%, rgba(212, 90, 90, 0.05) 100%);
+.sidebar__card--recording {
+  background: rgba(212, 90, 90, 0.1);
   border-color: rgba(212, 90, 90, 0.3);
   text-align: center;
 }
 
-.sidebar-card--warning {
+.sidebar__card--warning {
   background: rgba(245, 158, 11, 0.1);
   border-color: rgba(245, 158, 11, 0.3);
   display: flex;
-  align-items: flex-start;
-  gap: var(--preke-space-sm);
+  align-items: center;
+  gap: 10px;
 }
 
-.sidebar-title {
-  font-size: var(--preke-text-xs);
+.sidebar__label {
+  font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--preke-text-muted);
-  margin-bottom: var(--preke-space-sm);
+  color: var(--preke-text-muted, #888);
+  margin-bottom: 8px;
 }
 
-.sidebar-hint {
-  font-size: var(--preke-text-sm);
-  color: var(--preke-text-dim);
+.sidebar__input {
+  width: 100%;
+  padding: 8px 10px;
+  font-size: 13px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--preke-border, rgba(255,255,255,0.1));
+  border-radius: 6px;
+  color: var(--preke-text, #fff);
+}
+
+.sidebar__input:focus {
+  outline: none;
+  border-color: var(--preke-gold, #e0a030);
+}
+
+.sidebar__input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.sidebar__hint {
+  font-size: 12px;
+  color: var(--preke-text-muted, #888);
   line-height: 1.5;
 }
 
-.sidebar-hint kbd {
+.sidebar__hint kbd {
   display: inline-block;
   padding: 2px 6px;
-  font-family: var(--preke-font-mono);
-  font-size: var(--preke-text-xs);
-  background: var(--preke-bg-base);
-  border: 1px solid var(--preke-border);
-  border-radius: var(--preke-radius-sm);
+  font-family: monospace;
+  font-size: 11px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--preke-border, rgba(255,255,255,0.1));
+  border-radius: 4px;
 }
 
-/* Recording state */
-.recording-header {
+.sidebar__btn {
+  width: 100%;
+  padding: 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--preke-text-muted, #888);
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--preke-border, rgba(255,255,255,0.1));
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sidebar__btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--preke-text, #fff);
+}
+
+/* Recording */
+.recording__header {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--preke-space-sm);
-  margin-bottom: var(--preke-space-xs);
+  gap: 8px;
+  margin-bottom: 4px;
 }
 
-.recording-dot {
+.recording__dot {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: var(--preke-red);
-  animation: pulse-recording 1.5s ease-in-out infinite;
+  background: var(--preke-red, #d45a5a);
+  animation: pulse 1.5s ease-in-out infinite;
 }
 
-@keyframes pulse-recording {
+@keyframes pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.6; transform: scale(0.9); }
+  50% { opacity: 0.5; transform: scale(0.85); }
 }
 
-.recording-label {
-  font-size: var(--preke-text-sm);
+.recording__label {
+  font-size: 11px;
   font-weight: 600;
-  color: var(--preke-red);
+  color: var(--preke-red, #d45a5a);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
-.recording-duration {
-  font-family: var(--preke-font-mono);
-  font-size: var(--preke-text-3xl);
+.recording__duration {
+  font-family: monospace;
+  font-size: 28px;
   font-weight: 700;
-  color: var(--preke-text-primary);
-  margin: var(--preke-space-sm) 0;
+  color: var(--preke-text, #fff);
+  margin: 8px 0;
 }
 
-.recording-meta {
-  font-size: var(--preke-text-sm);
-  color: var(--preke-text-muted);
+.recording__meta {
+  font-size: 12px;
+  color: var(--preke-text-muted, #888);
 }
 
-/* Stats grid */
-.stats-grid {
+/* Stats */
+.stats {
   display: flex;
   flex-direction: column;
-  gap: var(--preke-space-sm);
+  gap: 6px;
 }
 
-.stat-item {
+.stats__item {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  padding: var(--preke-space-xs) 0;
-  border-bottom: 1px solid var(--preke-border);
+  padding: 4px 0;
+  border-bottom: 1px solid var(--preke-border, rgba(255,255,255,0.05));
 }
 
-.stat-item:last-child {
+.stats__item:last-child {
   border-bottom: none;
 }
 
-.stat-label {
-  font-size: var(--preke-text-sm);
-  color: var(--preke-text-dim);
+.stats__label {
+  font-size: 12px;
+  color: var(--preke-text-muted, #888);
 }
 
-.stat-value {
-  font-family: var(--preke-font-mono);
-  font-size: var(--preke-text-sm);
-  color: var(--preke-text-primary);
+.stats__value {
+  font-family: monospace;
+  font-size: 12px;
+  color: var(--preke-text, #fff);
 }
 
 /* Warning */
-.warning-icon {
-  font-size: 20px;
-  flex-shrink: 0;
+.warning__icon {
+  font-size: 18px;
 }
 
-.warning-text {
+.warning__text {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  font-size: var(--preke-text-sm);
+  font-size: 12px;
 }
 
-.warning-text strong {
-  color: var(--preke-amber);
+.warning__text strong {
+  color: var(--preke-amber, #f59e0b);
 }
 
-.warning-text span {
-  color: var(--preke-text-muted);
+.warning__text span {
+  color: var(--preke-text-muted, #888);
+}
+
+/* Camera Controls */
+.cameras {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.camera {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  padding: 8px;
+}
+
+.camera__header {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--preke-text-muted, #888);
+  margin-bottom: 6px;
+}
+
+.camera__controls {
+  display: flex;
+  gap: 4px;
+}
+
+.camera__btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 4px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--preke-border, rgba(255,255,255,0.1));
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.camera__btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.camera__btn--auto {
+  background: rgba(34, 197, 94, 0.15);
+  border-color: rgba(34, 197, 94, 0.3);
+}
+
+.camera__btn--auto .camera__btn-label {
+  color: var(--preke-green, #22c55e);
+}
+
+.camera__btn-icon {
+  font-size: 12px;
+  color: var(--preke-text-muted, #888);
+}
+
+.camera__btn-label {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--preke-text-muted, #888);
 }
 
 /* Storage */
-.storage-info {
+.storage {
   display: flex;
   flex-direction: column;
-  gap: var(--preke-space-sm);
+  gap: 6px;
 }
 
-.storage-bar {
+.storage__bar {
   height: 6px;
-  background: var(--preke-bg-base);
+  background: rgba(0, 0, 0, 0.3);
   border-radius: 3px;
   overflow: hidden;
 }
 
-.storage-fill {
+.storage__fill {
   height: 100%;
   border-radius: 3px;
   transition: width 0.3s ease;
 }
 
-.storage-fill--ok { background: var(--preke-green); }
-.storage-fill--low { background: var(--preke-amber); }
-.storage-fill--critical { background: var(--preke-red); }
+.storage__fill--ok { background: var(--preke-green, #22c55e); }
+.storage__fill--low { background: var(--preke-amber, #f59e0b); }
+.storage__fill--critical { background: var(--preke-red, #d45a5a); }
 
-.storage-text {
+.storage__info {
   display: flex;
   justify-content: space-between;
-  font-size: var(--preke-text-xs);
+  font-size: 11px;
+  color: var(--preke-text-muted, #888);
 }
 
-.storage-free {
-  color: var(--preke-text-dim);
-}
-
-.storage-estimate {
-  color: var(--preke-text-muted);
-}
-
-/* Action buttons */
-.action-buttons {
-  display: flex;
-  flex-direction: column;
-  gap: var(--preke-space-sm);
-}
-
-.action-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--preke-space-sm);
-  padding: var(--preke-space-sm) var(--preke-space-md);
-  font-size: var(--preke-text-sm);
-  font-weight: 500;
-  color: var(--preke-text-dim);
-  background: var(--preke-glass-bg-light);
-  border: 1px solid var(--preke-border);
-  border-radius: var(--preke-radius-md);
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.action-btn:hover {
-  background: var(--preke-glass-bg-hover);
-  color: var(--preke-text-primary);
-}
-
-/* Slide fade transition */
-.slide-fade-enter-active {
-  transition: all 0.2s ease-out;
-}
-.slide-fade-leave-active {
-  transition: all 0.15s ease-in;
-}
-.slide-fade-enter-from,
-.slide-fade-leave-to {
-  opacity: 0;
-  transform: translateY(-10px);
+.storage__estimate {
+  color: var(--preke-text-subtle, #666);
 }
 </style>
-

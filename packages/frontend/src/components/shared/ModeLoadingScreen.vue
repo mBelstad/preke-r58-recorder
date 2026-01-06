@@ -83,7 +83,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-r58-bg-primary overflow-hidden">
+  <div class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-preke-bg overflow-hidden">
     <!-- Animated background -->
     <div class="absolute inset-0">
       <!-- Gradient orbs -->
@@ -148,7 +148,7 @@ onUnmounted(() => {
         <h2 class="text-4xl font-bold mb-3 tracking-tight" :style="{ color: modeColor }">
           {{ modeName }}
         </h2>
-        <p class="text-r58-text-secondary text-lg">
+        <p class="text-preke-text-muted text-lg">
           {{ modeTagline }}
         </p>
       </div>
