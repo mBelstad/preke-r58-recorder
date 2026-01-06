@@ -818,11 +818,11 @@ async function selectMode(mode: 'recorder' | 'mixer') {
 
 /* Cards */
 .studio__card {
-  padding: 4rem 5rem;
+  padding: 2.5rem 3rem;
   background: rgba(0, 0, 0, 0.25);
   backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 24px;
+  border-radius: 20px;
   text-align: center;
   transition: all 0.4s ease;
   cursor: pointer;
@@ -863,9 +863,9 @@ async function selectMode(mode: 'recorder' | 'mixer') {
 
 /* Icons */
 .studio__icon {
-  width: 100px;
-  height: 100px;
-  margin: 0 auto 1.5rem;
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 1rem;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -874,8 +874,8 @@ async function selectMode(mode: 'recorder' | 'mixer') {
 }
 
 .studio__icon svg {
-  width: 44px;
-  height: 44px;
+  width: 36px;
+  height: 36px;
 }
 
 .studio__icon--recorder {
@@ -899,14 +899,14 @@ async function selectMode(mode: 'recorder' | 'mixer') {
 }
 
 .studio__card h3 {
-  font-size: 1.875rem;
+  font-size: 1.5rem;
   font-weight: 600;
   color: var(--preke-text);
   margin-bottom: 0.5rem;
 }
 
 .studio__card p {
-  font-size: 1rem;
+  font-size: 0.875rem;
   color: var(--preke-text-muted);
 }
 
