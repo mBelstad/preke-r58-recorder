@@ -800,16 +800,19 @@ async function selectMode(mode: 'recorder' | 'mixer') {
   z-index: 10;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
   gap: 3rem;
   width: 100%;
+  max-width: 100%;
   padding: 2rem;
+  box-sizing: border-box;
 }
 
 .studio__side {
   flex: 1;
   display: flex;
   justify-content: center;
+  min-width: 0; /* Allow flex items to shrink if needed */
 }
 
 /* Cards */
@@ -822,6 +825,9 @@ async function selectMode(mode: 'recorder' | 'mixer') {
   text-align: center;
   transition: all 0.4s ease;
   cursor: pointer;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .studio__side:hover .studio__card:not(:disabled) {
