@@ -141,7 +141,7 @@ const modeInfo = computed(() => {
     <div v-if="isElectron && isMacOS" class="header__spacer"></div>
     
     <!-- Logo - positioned after spacer in Electron, at left in web -->
-    <PrekeStudioLogo :height="36" class="header__logo" />
+    <PrekeStudioLogo class="header__logo" />
     
     <!-- Center: Status indicators -->
     <div class="header__center">
