@@ -3,7 +3,8 @@
  * Preke Studio Logo Component
  * Combines the Preke logo with "studio" text for better visual balance
  */
-import logoPreke from '@/assets/logo-preke-only.svg'
+// Using the main preke-logo.svg from the root
+const logoPreke = '/preke-logo.svg'
 
 defineProps<{
   height?: number
@@ -21,7 +22,7 @@ defineProps<{
 .preke-studio-logo {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   flex-shrink: 0;
 }
 
@@ -33,12 +34,12 @@ defineProps<{
 
 .preke-studio-logo__text {
   font-family: var(--preke-font-sans);
-  font-size: 1.35em; /* Relative to container height */
+  font-size: 0.95em; /* Sized to match the "Preke" text in the SVG */
   font-weight: 700;
   color: var(--preke-gold);
   letter-spacing: 0.02em;
   line-height: 1;
-  margin-top: 0.05em; /* Slight optical adjustment for vertical centering */
+  margin-top: 0.02em; /* Slight optical adjustment for vertical centering */
 }
 </style>
 
