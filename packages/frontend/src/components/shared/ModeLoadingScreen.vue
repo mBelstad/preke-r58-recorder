@@ -74,9 +74,17 @@ onUnmounted(() => {
     <div class="loading-content">
       <!-- Mode Icon - clean, no box -->
       <div class="loading-icon" :style="{ color: modeColor }">
-        <!-- Recorder icon -->
-        <svg v-if="mode === 'recorder'" viewBox="0 0 24 24" fill="currentColor">
-          <circle cx="12" cy="12" r="8"/>
+        <!-- Recorder icon (multi-track with lens and rec indicator) -->
+        <svg v-if="mode === 'recorder'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <!-- Multi-track recording bars -->
+          <rect x="2" y="4" width="14" height="4" rx="1"/>
+          <rect x="2" y="10" width="14" height="4" rx="1"/>
+          <rect x="2" y="16" width="14" height="4" rx="1"/>
+          <!-- Recording indicator circle -->
+          <circle cx="20" cy="6" r="3" fill="currentColor" stroke="none"/>
+          <!-- Camera lens element -->
+          <circle cx="20" cy="15" r="3"/>
+          <circle cx="20" cy="15" r="1.5" fill="currentColor" stroke="none"/>
         </svg>
         
         <!-- Mixer icon -->

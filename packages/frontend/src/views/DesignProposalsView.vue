@@ -55,8 +55,13 @@ function selectMode(mode: 'recorder' | 'mixer') {
         </div>
         <div class="split-home__content">
           <div class="split-home__icon split-home__icon--recorder">
-            <svg viewBox="0 0 24 24" fill="currentColor">
-              <circle cx="12" cy="12" r="8"/>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <rect x="2" y="4" width="14" height="4" rx="1"/>
+              <rect x="2" y="10" width="14" height="4" rx="1"/>
+              <rect x="2" y="16" width="14" height="4" rx="1"/>
+              <circle cx="20" cy="6" r="3" fill="currentColor" stroke="none"/>
+              <circle cx="20" cy="15" r="3"/>
+              <circle cx="20" cy="15" r="1.5" fill="currentColor" stroke="none"/>
             </svg>
           </div>
           <h2 class="split-home__title">Recorder</h2>
@@ -191,8 +196,13 @@ function selectMode(mode: 'recorder' | 'mixer') {
         <div class="combined__side combined__side--left" @click="selectMode('recorder')">
           <div class="combined__card">
             <div class="combined__icon combined__icon--recorder">
-              <svg viewBox="0 0 24 24" fill="currentColor">
-                <circle cx="12" cy="12" r="8"/>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <rect x="2" y="4" width="14" height="4" rx="1"/>
+                <rect x="2" y="10" width="14" height="4" rx="1"/>
+                <rect x="2" y="16" width="14" height="4" rx="1"/>
+                <circle cx="20" cy="6" r="3" fill="currentColor" stroke="none"/>
+                <circle cx="20" cy="15" r="3"/>
+                <circle cx="20" cy="15" r="1.5" fill="currentColor" stroke="none"/>
               </svg>
             </div>
             <h3>Recorder</h3>
@@ -267,8 +277,13 @@ function selectMode(mode: 'recorder' | 'mixer') {
         <div class="ribbons__side ribbons__side--left" @click="selectMode('recorder')">
           <div class="ribbons__card">
             <div class="ribbons__icon ribbons__icon--recorder">
-              <svg viewBox="0 0 24 24" fill="currentColor">
-                <circle cx="12" cy="12" r="8"/>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <rect x="2" y="4" width="14" height="4" rx="1"/>
+                <rect x="2" y="10" width="14" height="4" rx="1"/>
+                <rect x="2" y="16" width="14" height="4" rx="1"/>
+                <circle cx="20" cy="6" r="3" fill="currentColor" stroke="none"/>
+                <circle cx="20" cy="15" r="3"/>
+                <circle cx="20" cy="15" r="1.5" fill="currentColor" stroke="none"/>
               </svg>
             </div>
             <h3>Recorder</h3>
@@ -318,8 +333,13 @@ function selectMode(mode: 'recorder' | 'mixer') {
         <div class="stock-image__side stock-image__side--left" @click="selectMode('recorder')">
           <div class="stock-image__card">
             <div class="stock-image__icon stock-image__icon--recorder">
-              <svg viewBox="0 0 24 24" fill="currentColor">
-                <circle cx="12" cy="12" r="8"/>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <rect x="2" y="4" width="14" height="4" rx="1"/>
+                <rect x="2" y="10" width="14" height="4" rx="1"/>
+                <rect x="2" y="16" width="14" height="4" rx="1"/>
+                <circle cx="20" cy="6" r="3" fill="currentColor" stroke="none"/>
+                <circle cx="20" cy="15" r="3"/>
+                <circle cx="20" cy="15" r="1.5" fill="currentColor" stroke="none"/>
               </svg>
             </div>
             <h3>Recorder</h3>
@@ -386,8 +406,13 @@ function selectMode(mode: 'recorder' | 'mixer') {
         <div class="cyber__side cyber__side--left" @click="selectMode('recorder')">
           <div class="cyber__card">
             <div class="cyber__icon cyber__icon--recorder">
-              <svg viewBox="0 0 24 24" fill="currentColor">
-                <circle cx="12" cy="12" r="8"/>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <rect x="2" y="4" width="14" height="4" rx="1"/>
+                <rect x="2" y="10" width="14" height="4" rx="1"/>
+                <rect x="2" y="16" width="14" height="4" rx="1"/>
+                <circle cx="20" cy="6" r="3" fill="currentColor" stroke="none"/>
+                <circle cx="20" cy="15" r="3"/>
+                <circle cx="20" cy="15" r="1.5" fill="currentColor" stroke="none"/>
               </svg>
             </div>
             <h3>Recorder</h3>
