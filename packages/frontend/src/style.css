@@ -1,9 +1,9 @@
+/* Import the Preke Design System */
+@import './styles/preke-design-system.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* Import the Preke Design System */
-@import './styles/preke-design-system.css';
 
 /* =================================================================
    GLOBAL STYLES - Using Preke Design System Variables
