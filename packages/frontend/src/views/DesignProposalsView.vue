@@ -880,166 +880,164 @@ function selectMode(mode: 'recorder' | 'mixer') {
   50% { transform: translate(5px, -3px); opacity: 0.95; }
 }
 
-/* Additional shapes for Combined proposal (8-12) */
+/* Additional shapes for Combined proposal (8-17) - 45° rotated, evenly spread */
 .geo-shape--8 {
-  width: 25%;
-  height: 20%;
-  top: 70%;
+  width: 18%;
+  height: 18%;
+  top: 5%;
   left: 5%;
   background: linear-gradient(135deg, #101012 0%, #0a0a0c 100%);
-  clip-path: polygon(10% 0%, 100% 10%, 90% 100%, 0% 90%);
+  transform: rotate(45deg);
   animation: shape-breathe-8 11s ease-in-out infinite;
 }
 
 .geo-shape--9 {
-  width: 35%;
-  height: 25%;
+  width: 20%;
+  height: 20%;
   top: 5%;
   right: 5%;
   background: linear-gradient(135deg, #0e0e10 0%, #090909 100%);
-  clip-path: polygon(5% 5%, 95% 0%, 100% 95%, 0% 100%);
+  transform: rotate(45deg);
   animation: shape-breathe-9 14s ease-in-out infinite;
 }
 
 .geo-shape--10 {
-  width: 20%;
-  height: 30%;
-  bottom: 10%;
-  right: 10%;
+  width: 16%;
+  height: 16%;
+  bottom: 5%;
+  right: 5%;
   background: linear-gradient(135deg, #181818 0%, #121214 100%);
-  clip-path: polygon(0% 10%, 100% 0%, 90% 100%, 5% 90%);
+  transform: rotate(45deg);
   animation: shape-breathe-10 10s ease-in-out infinite;
   box-shadow: inset 0 1px 0 rgba(224, 160, 48, 0.05);
 }
 
 .geo-shape--11 {
-  width: 28%;
+  width: 18%;
   height: 18%;
-  top: 15%;
-  left: 35%;
+  bottom: 5%;
+  left: 5%;
   background: linear-gradient(135deg, #141416 0%, #0e0e10 100%);
-  clip-path: polygon(8% 0%, 100% 8%, 92% 100%, 0% 92%);
+  transform: rotate(45deg);
   animation: shape-breathe-11 12s ease-in-out infinite;
   box-shadow: inset 0 1px 0 rgba(224, 160, 48, 0.04);
 }
 
 .geo-shape--12 {
-  width: 22%;
-  height: 22%;
-  bottom: 25%;
-  left: 15%;
+  width: 14%;
+  height: 14%;
+  top: 50%;
+  left: -3%;
   background: linear-gradient(135deg, #1e1e22 0%, #151518 100%);
-  clip-path: polygon(5% 5%, 95% 0%, 100% 95%, 0% 100%);
+  transform: rotate(45deg) translateY(-50%);
   animation: shape-breathe-12 8s ease-in-out infinite;
   box-shadow: 
     inset 0 1px 0 rgba(224, 160, 48, 0.08),
     0 0 80px rgba(0, 0, 0, 0.6);
 }
 
-@keyframes shape-breathe-8 {
-  0%, 100% { transform: translate(0, 0); opacity: 0.7; }
-  50% { transform: translate(6px, 4px); opacity: 0.8; }
-}
-
-@keyframes shape-breathe-9 {
-  0%, 100% { transform: translate(0, 0) rotate(0deg); opacity: 0.65; }
-  50% { transform: translate(-5px, 5px) rotate(-0.2deg); opacity: 0.75; }
-}
-
-@keyframes shape-breathe-10 {
-  0%, 100% { transform: translate(0, 0); opacity: 0.8; }
-  50% { transform: translate(4px, -6px); opacity: 0.9; }
-}
-
-@keyframes shape-breathe-11 {
-  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.75; }
-  50% { transform: translate(-3px, 4px) scale(1.01); opacity: 0.85; }
-}
-
-@keyframes shape-breathe-12 {
-  0%, 100% { transform: translate(0, 0); opacity: 0.85; }
-  50% { transform: translate(5px, 3px); opacity: 0.95; }
-}
-
-/* Edge shapes (13-17) for Combined proposal */
 .geo-shape--13 {
-  width: 30%;
-  height: 20%;
-  top: -5%;
-  left: -5%;
+  width: 14%;
+  height: 14%;
+  top: 50%;
+  right: -3%;
   background: linear-gradient(135deg, #0c0c0e 0%, #080808 100%);
-  clip-path: polygon(0% 0%, 100% 10%, 95% 100%, 5% 90%);
+  transform: rotate(45deg) translateY(-50%);
   animation: shape-breathe-13 14s ease-in-out infinite;
 }
 
 .geo-shape--14 {
-  width: 25%;
-  height: 25%;
-  bottom: -5%;
-  right: -5%;
-  background: linear-gradient(135deg, #0a0a0c 0%, #060606 100%);
-  clip-path: polygon(10% 5%, 100% 0%, 95% 95%, 0% 100%);
-  animation: shape-breathe-14 12s ease-in-out infinite;
+  width: 12%;
+  height: 12%;
+  top: -3%;
+  left: 50%;
+  background: linear-gradient(135deg, #121214 0%, #0c0c0e 100%);
+  transform: rotate(45deg) translateX(-50%);
+  animation: shape-breathe-14 13s ease-in-out infinite;
 }
 
 .geo-shape--15 {
-  width: 22%;
-  height: 18%;
-  top: -3%;
-  right: 30%;
-  background: linear-gradient(135deg, #121214 0%, #0c0c0e 100%);
-  clip-path: polygon(5% 0%, 95% 5%, 100% 100%, 0% 95%);
+  width: 12%;
+  height: 12%;
+  bottom: -3%;
+  left: 50%;
+  background: linear-gradient(135deg, #0f0f11 0%, #0a0a0c 100%);
+  transform: rotate(45deg) translateX(-50%);
   animation: shape-breathe-15 11s ease-in-out infinite;
   box-shadow: inset 0 1px 0 rgba(224, 160, 48, 0.03);
 }
 
 .geo-shape--16 {
-  width: 20%;
-  height: 22%;
-  bottom: -3%;
+  width: 10%;
+  height: 10%;
+  top: 25%;
   left: 25%;
-  background: linear-gradient(135deg, #0e0e10 0%, #0a0a0c 100%);
-  clip-path: polygon(0% 5%, 100% 0%, 95% 95%, 5% 100%);
-  animation: shape-breathe-16 13s ease-in-out infinite;
-  box-shadow: inset 0 1px 0 rgba(224, 160, 48, 0.04);
+  background: linear-gradient(135deg, #161618 0%, #101012 100%);
+  transform: rotate(45deg);
+  animation: shape-breathe-16 15s ease-in-out infinite;
 }
 
 .geo-shape--17 {
-  width: 18%;
-  height: 30%;
-  left: -3%;
-  top: 40%;
-  background: linear-gradient(135deg, #161618 0%, #101012 100%);
-  clip-path: polygon(0% 5%, 95% 0%, 100% 95%, 5% 100%);
-  animation: shape-breathe-17 10s ease-in-out infinite;
+  width: 10%;
+  height: 10%;
+  bottom: 25%;
+  right: 25%;
+  background: linear-gradient(135deg, #1a1a1c 0%, #131315 100%);
+  transform: rotate(45deg);
+  animation: shape-breathe-17 12s ease-in-out infinite;
   box-shadow: 
     inset 0 1px 0 rgba(224, 160, 48, 0.06),
     0 0 60px rgba(0, 0, 0, 0.5);
 }
 
+@keyframes shape-breathe-8 {
+  0%, 100% { transform: rotate(45deg) translate(0, 0); opacity: 0.7; }
+  50% { transform: rotate(45deg) translate(6px, 4px); opacity: 0.8; }
+}
+
+@keyframes shape-breathe-9 {
+  0%, 100% { transform: rotate(45deg) translate(0, 0); opacity: 0.65; }
+  50% { transform: rotate(45deg) translate(-5px, 5px); opacity: 0.75; }
+}
+
+@keyframes shape-breathe-10 {
+  0%, 100% { transform: rotate(45deg) translate(0, 0); opacity: 0.8; }
+  50% { transform: rotate(45deg) translate(4px, -6px); opacity: 0.9; }
+}
+
+@keyframes shape-breathe-11 {
+  0%, 100% { transform: rotate(45deg) translate(0, 0); opacity: 0.75; }
+  50% { transform: rotate(45deg) translate(-3px, 4px); opacity: 0.85; }
+}
+
+@keyframes shape-breathe-12 {
+  0%, 100% { transform: rotate(45deg) translateY(-50%) translate(0, 0); opacity: 0.85; }
+  50% { transform: rotate(45deg) translateY(-50%) translate(5px, 3px); opacity: 0.95; }
+}
+
 @keyframes shape-breathe-13 {
-  0%, 100% { transform: translate(0, 0); opacity: 0.6; }
-  50% { transform: translate(5px, 3px); opacity: 0.7; }
+  0%, 100% { transform: rotate(45deg) translateY(-50%) translate(0, 0); opacity: 0.6; }
+  50% { transform: rotate(45deg) translateY(-50%) translate(-4px, 3px); opacity: 0.7; }
 }
 
 @keyframes shape-breathe-14 {
-  0%, 100% { transform: translate(0, 0); opacity: 0.65; }
-  50% { transform: translate(-4px, -3px); opacity: 0.75; }
+  0%, 100% { transform: rotate(45deg) translateX(-50%) translate(0, 0); opacity: 0.65; }
+  50% { transform: rotate(45deg) translateX(-50%) translate(3px, 4px); opacity: 0.75; }
 }
 
 @keyframes shape-breathe-15 {
-  0%, 100% { transform: translate(0, 0) rotate(0deg); opacity: 0.7; }
-  50% { transform: translate(3px, 4px) rotate(0.2deg); opacity: 0.8; }
+  0%, 100% { transform: rotate(45deg) translateX(-50%) translate(0, 0); opacity: 0.68; }
+  50% { transform: rotate(45deg) translateX(-50%) translate(-3px, -4px); opacity: 0.78; }
 }
 
 @keyframes shape-breathe-16 {
-  0%, 100% { transform: translate(0, 0); opacity: 0.68; }
-  50% { transform: translate(-3px, -4px); opacity: 0.78; }
+  0%, 100% { transform: rotate(45deg) translate(0, 0); opacity: 0.7; }
+  50% { transform: rotate(45deg) translate(4px, 2px); opacity: 0.8; }
 }
 
 @keyframes shape-breathe-17 {
-  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.75; }
-  50% { transform: translate(4px, 2px) scale(1.01); opacity: 0.85; }
+  0%, 100% { transform: rotate(45deg) translate(0, 0); opacity: 0.75; }
+  50% { transform: rotate(45deg) translate(-4px, -2px); opacity: 0.85; }
 }
 
 /* Gold glimmer effects - behind shapes, casting light on them */
@@ -1049,6 +1047,35 @@ function selectMode(mode: 'recorder' | 'mixer') {
   z-index: 0;
   filter: blur(8px);
   box-shadow: 0 0 40px rgba(224, 160, 48, 0.4), 0 0 80px rgba(224, 160, 48, 0.2);
+}
+
+.geo-glimmer--1 {
+  width: 300px;
+  height: 30px;
+  top: 38%;
+  left: 25%;
+  background: radial-gradient(ellipse, 
+    rgba(224, 160, 48, 0.6) 0%,
+    rgba(224, 160, 48, 0.3) 40%,
+    transparent 70%
+  );
+  transform: rotate(-5deg);
+  animation: glimmer-1 8s ease-in-out infinite;
+}
+
+.geo-glimmer--2 {
+  width: 250px;
+  height: 25px;
+  top: 52%;
+  right: 22%;
+  background: radial-gradient(ellipse, 
+    rgba(224, 160, 48, 0.5) 0%,
+    rgba(224, 160, 48, 0.25) 40%,
+    transparent 70%
+  );
+  transform: rotate(8deg);
+  animation: glimmer-2 10s ease-in-out infinite;
+  animation-delay: 2s;
 }
 
 .geo-glimmer--1 {
@@ -1758,8 +1785,8 @@ function selectMode(mode: 'recorder' | 'mixer') {
   background-image: url('@/assets/stock-background.jpeg');
   background-size: cover;
   background-position: center;
-  opacity: 0.4;
-  filter: contrast(1.3) brightness(0.9);
+  opacity: 0.35;
+  filter: contrast(1.5) saturate(0.7);
   z-index: 2;
 }
 
