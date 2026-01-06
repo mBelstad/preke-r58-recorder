@@ -218,8 +218,10 @@ const modeInfo = computed(() => {
 
 <style scoped>
 .header {
+  width: 100%;
   height: 56px;
   min-height: 56px;
+  flex-shrink: 0;
   background: var(--preke-surface);
   border-bottom: 1px solid var(--preke-surface-border);
   display: flex;
