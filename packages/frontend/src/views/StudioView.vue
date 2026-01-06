@@ -168,6 +168,12 @@ async function selectMode(mode: 'recorder' | 'mixer') {
         <div class="soundwave__bar" style="--i: 8; --h: 0.5"></div>
         <div class="soundwave__bar" style="--i: 9; --h: 0.7"></div>
       </div>
+      
+      <!-- Subtle purple background lights -->
+      <div class="purple-light purple-light--1"></div>
+      <div class="purple-light purple-light--2"></div>
+      <div class="purple-light purple-light--3"></div>
+      <div class="purple-light purple-light--4"></div>
     </div>
     
     <!-- Content overlay -->
@@ -660,6 +666,131 @@ async function selectMode(mode: 'recorder' | 'mixer') {
   40%, 60% {
     opacity: 0.85;
     transform: rotate(var(--rotation, 0deg)) translateX(0);
+  }
+}
+
+/* Subtle purple background lights */
+.purple-light {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  pointer-events: none;
+  z-index: -1; /* Behind shapes and soundwaves */
+  opacity: 0.3;
+}
+
+.purple-light--1 {
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(124, 58, 237, 0.4) 0%, rgba(124, 58, 237, 0.1) 50%, transparent 80%);
+  top: 15%;
+  left: -10%;
+  animation: purple-float-1 25s ease-in-out infinite;
+}
+
+.purple-light--2 {
+  width: 350px;
+  height: 350px;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.35) 0%, rgba(139, 92, 246, 0.1) 50%, transparent 80%);
+  top: 60%;
+  right: -8%;
+  animation: purple-float-2 30s ease-in-out infinite;
+  animation-delay: 5s;
+}
+
+.purple-light--3 {
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(circle, rgba(167, 139, 250, 0.3) 0%, rgba(167, 139, 250, 0.08) 50%, transparent 80%);
+  bottom: 20%;
+  left: 15%;
+  animation: purple-float-3 28s ease-in-out infinite;
+  animation-delay: 10s;
+}
+
+.purple-light--4 {
+  width: 450px;
+  height: 450px;
+  background: radial-gradient(circle, rgba(124, 58, 237, 0.25) 0%, rgba(124, 58, 237, 0.08) 50%, transparent 80%);
+  top: 40%;
+  left: 50%;
+  animation: purple-float-4 35s ease-in-out infinite;
+  animation-delay: 15s;
+}
+
+@keyframes purple-float-1 {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.2;
+  }
+  25% {
+    transform: translate(120px, 80px) scale(1.1);
+    opacity: 0.35;
+  }
+  50% {
+    transform: translate(200px, 40px) scale(0.9);
+    opacity: 0.3;
+  }
+  75% {
+    transform: translate(80px, 120px) scale(1.05);
+    opacity: 0.4;
+  }
+}
+
+@keyframes purple-float-2 {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.25;
+  }
+  25% {
+    transform: translate(-100px, -60px) scale(1.15);
+    opacity: 0.35;
+  }
+  50% {
+    transform: translate(-180px, -100px) scale(0.85);
+    opacity: 0.2;
+  }
+  75% {
+    transform: translate(-60px, -80px) scale(1.1);
+    opacity: 0.3;
+  }
+}
+
+@keyframes purple-float-3 {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.2;
+  }
+  33% {
+    transform: translate(60px, -40px) scale(1.2);
+    opacity: 0.3;
+  }
+  66% {
+    transform: translate(-40px, 60px) scale(0.9);
+    opacity: 0.25;
+  }
+}
+
+@keyframes purple-float-4 {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.15;
+  }
+  20% {
+    transform: translate(-80px, 50px) scale(1.1);
+    opacity: 0.25;
+  }
+  40% {
+    transform: translate(-120px, -30px) scale(0.95);
+    opacity: 0.2;
+  }
+  60% {
+    transform: translate(-40px, -80px) scale(1.15);
+    opacity: 0.3;
+  }
+  80% {
+    transform: translate(30px, 40px) scale(1);
+    opacity: 0.2;
   }
 }
 
