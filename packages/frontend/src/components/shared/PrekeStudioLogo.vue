@@ -2,9 +2,9 @@
 /**
  * Preke Studio Logo Component
  * White version of the Preke logo with "studio" text
- * The actual "Preke" text height matches the "studio" text height
+ * Uses cropped SVG with no empty space for better sizing
  */
-import logoWhite from '@/assets/logo-white.svg'
+import logoWhiteCropped from '@/assets/logo-white-cropped.svg'
 
 defineProps<{
   height?: number
@@ -13,7 +13,7 @@ defineProps<{
 
 <template>
   <div class="preke-studio-logo">
-    <img :src="logoWhite" alt="Preke" class="preke-studio-logo__image" />
+    <img :src="logoWhiteCropped" alt="Preke" class="preke-studio-logo__image" />
     <span class="preke-studio-logo__text">studio</span>
   </div>
 </template>
@@ -22,14 +22,13 @@ defineProps<{
 .preke-studio-logo {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   flex-shrink: 0;
-  height: 46px; /* 30% bigger than original 36px */
+  height: 32px; /* Actual visible height - cropped SVG makes this much more visible */
 }
 
 .preke-studio-logo__image {
-  /* The SVG has a lot of empty space. Scale it so the actual "Preke" text 
-     matches the height of the "studio" text */
+  /* Cropped SVG with no empty space - scales perfectly */
   height: 100%;
   width: auto;
   object-fit: contain;
@@ -37,7 +36,7 @@ defineProps<{
 
 .preke-studio-logo__text {
   font-family: var(--preke-font-sans);
-  font-size: 24px; /* Fixed size to match the "Preke" text in the logo */
+  font-size: 32px; /* Match the actual text height in the cropped logo */
   font-weight: 800;
   color: var(--preke-gold);
   letter-spacing: 0.02em;
