@@ -15,6 +15,7 @@ const proposals = [
   { id: 3, name: 'Combined', desc: 'Split + geometric together' },
   { id: 4, name: 'Ribbons', desc: 'Complex intersecting ribbons' },
   { id: 5, name: 'Stock Image', desc: 'Photo background with light effects' },
+  { id: 6, name: 'Cyberpunk', desc: 'Neon circuits with glowing edges' },
 ]
 
 // Simulated mode selection (for demo)
@@ -322,6 +323,74 @@ function selectMode(mode: 'recorder' | 'mixer') {
         <div class="stock-image__side stock-image__side--right" @click="selectMode('mixer')">
           <div class="stock-image__card">
             <div class="stock-image__icon stock-image__icon--mixer">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <rect x="2" y="2" width="9" height="6" rx="1"/>
+                <rect x="13" y="2" width="9" height="6" rx="1"/>
+                <rect x="2" y="10" width="9" height="6" rx="1"/>
+                <rect x="13" y="10" width="9" height="6" rx="1"/>
+                <circle cx="12" cy="20" r="2" fill="currentColor"/>
+                <path d="M9 19.5a4 4 0 0 1 6 0" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <h3>Mixer</h3>
+            <p>Live Switching</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════
+         PROPOSAL 6: CYBERPUNK
+         Neon circuits with glowing orange edges
+         Inspired by sci-fi tech aesthetics
+         ═══════════════════════════════════════════ -->
+    <div v-show="activeProposal === 6" class="proposal cyberpunk">
+      <!-- Circuit pattern background -->
+      <div class="cyber__circuits"></div>
+      
+      <!-- Glowing neon lines -->
+      <div class="cyber__neon cyber__neon--1"></div>
+      <div class="cyber__neon cyber__neon--2"></div>
+      <div class="cyber__neon cyber__neon--3"></div>
+      <div class="cyber__neon cyber__neon--4"></div>
+      <div class="cyber__neon cyber__neon--5"></div>
+      
+      <!-- Floating sparks -->
+      <div class="cyber__sparks">
+        <div class="cyber__spark cyber__spark--1"></div>
+        <div class="cyber__spark cyber__spark--2"></div>
+        <div class="cyber__spark cyber__spark--3"></div>
+        <div class="cyber__spark cyber__spark--4"></div>
+        <div class="cyber__spark cyber__spark--5"></div>
+        <div class="cyber__spark cyber__spark--6"></div>
+        <div class="cyber__spark cyber__spark--7"></div>
+        <div class="cyber__spark cyber__spark--8"></div>
+      </div>
+      
+      <!-- Ambient glow -->
+      <div class="cyber__glow"></div>
+      
+      <!-- Content -->
+      <div class="cyber__content">
+        <div class="cyber__side cyber__side--left" @click="selectMode('recorder')">
+          <div class="cyber__card">
+            <div class="cyber__icon cyber__icon--recorder">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <circle cx="12" cy="12" r="8"/>
+              </svg>
+            </div>
+            <h3>Recorder</h3>
+            <p>Multi-cam ISO</p>
+          </div>
+        </div>
+        
+        <div class="cyber__center">
+          <span class="cyber__logo">Preke Studio</span>
+        </div>
+        
+        <div class="cyber__side cyber__side--right" @click="selectMode('mixer')">
+          <div class="cyber__card">
+            <div class="cyber__icon cyber__icon--mixer">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                 <rect x="2" y="2" width="9" height="6" rx="1"/>
                 <rect x="13" y="2" width="9" height="6" rx="1"/>
@@ -1663,6 +1732,373 @@ function selectMode(mode: 'recorder' | 'mixer') {
   padding: 0.5rem 1rem;
   border-radius: 100px;
   border: 1px solid rgba(224, 160, 48, 0.2);
+}
+
+/* ═══════════════════════════════════════════
+   PROPOSAL 6: CYBERPUNK
+   Neon circuits with glowing orange edges
+   ═══════════════════════════════════════════ */
+.cyberpunk {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #050507;
+  overflow: hidden;
+}
+
+/* Circuit pattern background */
+.cyber__circuits {
+  position: absolute;
+  inset: 0;
+  background: 
+    /* Horizontal lines */
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 40px,
+      rgba(255, 100, 50, 0.03) 40px,
+      rgba(255, 100, 50, 0.03) 41px
+    ),
+    /* Vertical lines */
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 60px,
+      rgba(255, 100, 50, 0.02) 60px,
+      rgba(255, 100, 50, 0.02) 61px
+    ),
+    /* Diagonal accent */
+    repeating-linear-gradient(
+      -45deg,
+      transparent,
+      transparent 80px,
+      rgba(255, 80, 30, 0.015) 80px,
+      rgba(255, 80, 30, 0.015) 81px
+    );
+  opacity: 0.8;
+}
+
+/* Glowing neon lines */
+.cyber__neon {
+  position: absolute;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 100, 40, 0.8) 20%,
+    rgba(255, 140, 60, 1) 50%,
+    rgba(255, 100, 40, 0.8) 80%,
+    transparent 100%
+  );
+  filter: blur(1px);
+  box-shadow: 
+    0 0 10px rgba(255, 100, 40, 0.6),
+    0 0 20px rgba(255, 80, 30, 0.4),
+    0 0 40px rgba(255, 60, 20, 0.2);
+  z-index: 2;
+}
+
+.cyber__neon--1 {
+  width: 200px;
+  height: 3px;
+  top: 25%;
+  left: 10%;
+  transform: rotate(-15deg);
+  animation: neon-pulse 4s ease-in-out infinite;
+}
+
+.cyber__neon--2 {
+  width: 150px;
+  height: 2px;
+  top: 40%;
+  right: 15%;
+  transform: rotate(20deg);
+  animation: neon-pulse 5s ease-in-out infinite;
+  animation-delay: 1s;
+}
+
+.cyber__neon--3 {
+  width: 180px;
+  height: 3px;
+  bottom: 35%;
+  left: 20%;
+  transform: rotate(-8deg);
+  animation: neon-pulse 3.5s ease-in-out infinite;
+  animation-delay: 0.5s;
+}
+
+.cyber__neon--4 {
+  width: 120px;
+  height: 2px;
+  bottom: 25%;
+  right: 25%;
+  transform: rotate(12deg);
+  animation: neon-pulse 4.5s ease-in-out infinite;
+  animation-delay: 2s;
+}
+
+.cyber__neon--5 {
+  width: 100px;
+  height: 2px;
+  top: 60%;
+  left: 40%;
+  transform: rotate(-25deg);
+  animation: neon-pulse 6s ease-in-out infinite;
+  animation-delay: 1.5s;
+}
+
+@keyframes neon-pulse {
+  0%, 100% { opacity: 0.4; filter: blur(1px); }
+  50% { opacity: 1; filter: blur(0.5px); }
+}
+
+/* Floating sparks */
+.cyber__sparks {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.cyber__spark {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  background: rgba(255, 120, 50, 0.9);
+  border-radius: 50%;
+  box-shadow: 
+    0 0 6px rgba(255, 100, 40, 0.8),
+    0 0 12px rgba(255, 80, 30, 0.5);
+  animation: spark-float 8s linear infinite;
+}
+
+.cyber__spark--1 { left: 15%; animation-delay: 0s; }
+.cyber__spark--2 { left: 30%; animation-delay: 1s; }
+.cyber__spark--3 { left: 45%; animation-delay: 2s; }
+.cyber__spark--4 { left: 60%; animation-delay: 0.5s; }
+.cyber__spark--5 { left: 75%; animation-delay: 1.5s; }
+.cyber__spark--6 { left: 85%; animation-delay: 2.5s; }
+.cyber__spark--7 { left: 25%; animation-delay: 3s; }
+.cyber__spark--8 { left: 55%; animation-delay: 3.5s; }
+
+@keyframes spark-float {
+  0% { 
+    bottom: -5%; 
+    opacity: 0;
+    transform: translateX(0) scale(0.5);
+  }
+  10% { opacity: 1; transform: scale(1); }
+  90% { opacity: 1; }
+  100% { 
+    bottom: 105%; 
+    opacity: 0;
+    transform: translateX(20px) scale(0.3);
+  }
+}
+
+/* Ambient glow */
+.cyber__glow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse at 30% 40%,
+    rgba(255, 80, 30, 0.15) 0%,
+    transparent 50%
+  ),
+  radial-gradient(
+    ellipse at 70% 60%,
+    rgba(255, 100, 40, 0.1) 0%,
+    transparent 40%
+  );
+  animation: glow-shift 12s ease-in-out infinite;
+  z-index: 1;
+}
+
+@keyframes glow-shift {
+  0%, 100% {
+    background: radial-gradient(
+      ellipse at 30% 40%,
+      rgba(255, 80, 30, 0.15) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      ellipse at 70% 60%,
+      rgba(255, 100, 40, 0.1) 0%,
+      transparent 40%
+    );
+  }
+  50% {
+    background: radial-gradient(
+      ellipse at 60% 30%,
+      rgba(255, 80, 30, 0.12) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      ellipse at 40% 70%,
+      rgba(255, 100, 40, 0.15) 0%,
+      transparent 40%
+    );
+  }
+}
+
+/* Content layer */
+.cyber__content {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3rem;
+  width: 100%;
+  max-width: 900px;
+  padding: 2rem;
+}
+
+.cyber__side {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.cyber__card {
+  padding: 2.5rem 3rem;
+  background: rgba(255, 100, 40, 0.03);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 100, 40, 0.15);
+  border-radius: 4px;
+  text-align: center;
+  transition: all 0.4s ease;
+  position: relative;
+}
+
+/* Neon corner accents */
+.cyber__card::before,
+.cyber__card::after {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-color: rgba(255, 100, 40, 0.5);
+  border-style: solid;
+  border-width: 0;
+  transition: all 0.3s ease;
+}
+
+.cyber__card::before {
+  top: -1px;
+  left: -1px;
+  border-top-width: 2px;
+  border-left-width: 2px;
+}
+
+.cyber__card::after {
+  bottom: -1px;
+  right: -1px;
+  border-bottom-width: 2px;
+  border-right-width: 2px;
+}
+
+.cyber__side:hover .cyber__card {
+  transform: translateY(-8px);
+  background: rgba(255, 100, 40, 0.06);
+  box-shadow: 
+    0 30px 60px rgba(0, 0, 0, 0.4),
+    0 0 30px rgba(255, 80, 30, 0.1);
+}
+
+.cyber__side:hover .cyber__card::before,
+.cyber__side:hover .cyber__card::after {
+  width: 30px;
+  height: 30px;
+  border-color: rgba(255, 100, 40, 0.8);
+}
+
+.cyber__side--left:hover .cyber__card {
+  border-color: rgba(212, 90, 90, 0.4);
+}
+
+.cyber__side--right:hover .cyber__card {
+  border-color: rgba(124, 58, 237, 0.4);
+}
+
+.cyber__icon {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 1rem;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.cyber__icon svg {
+  width: 36px;
+  height: 36px;
+}
+
+.cyber__icon--recorder {
+  background: rgba(212, 90, 90, 0.15);
+  color: #d45a5a;
+  border: 1px solid rgba(212, 90, 90, 0.2);
+}
+
+.cyber__side:hover .cyber__icon--recorder {
+  background: rgba(212, 90, 90, 0.25);
+  box-shadow: 
+    0 0 20px rgba(212, 90, 90, 0.3),
+    inset 0 0 20px rgba(212, 90, 90, 0.1);
+}
+
+.cyber__icon--mixer {
+  background: rgba(124, 58, 237, 0.15);
+  color: #a78bfa;
+  border: 1px solid rgba(124, 58, 237, 0.2);
+}
+
+.cyber__side:hover .cyber__icon--mixer {
+  background: rgba(124, 58, 237, 0.25);
+  box-shadow: 
+    0 0 20px rgba(124, 58, 237, 0.3),
+    inset 0 0 20px rgba(124, 58, 237, 0.1);
+}
+
+.cyber__card h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--preke-text);
+  margin-bottom: 0.25rem;
+  text-shadow: 0 0 20px rgba(255, 100, 40, 0.3);
+}
+
+.cyber__card p {
+  font-size: 0.875rem;
+  color: var(--preke-text-muted);
+}
+
+.cyber__center {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+}
+
+.cyber__logo {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #ff7030;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  background: rgba(5, 5, 7, 0.95);
+  padding: 0.5rem 1rem;
+  border-radius: 2px;
+  border: 1px solid rgba(255, 100, 40, 0.3);
+  text-shadow: 0 0 10px rgba(255, 100, 40, 0.5);
+  box-shadow: 
+    0 0 20px rgba(255, 80, 30, 0.15),
+    inset 0 0 10px rgba(255, 100, 40, 0.05);
 }
 </style>
 
