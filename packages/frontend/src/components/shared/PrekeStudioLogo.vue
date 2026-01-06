@@ -3,8 +3,7 @@
  * Preke Studio Logo Component
  * Combines the Preke logo with "studio" text for better visual balance
  */
-// Using the main preke-logo.svg from the root
-const logoPreke = '/preke-logo.svg'
+import logoPreke from '@/assets/logo-preke.svg'
 
 defineProps<{
   height?: number
