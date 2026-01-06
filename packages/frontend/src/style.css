@@ -2,43 +2,46 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Global styles */
-:root {
-  /* Backgrounds */
-  --r58-bg-primary: #0f172a;        /* Slate 900 */
-  --r58-bg-secondary: #1e293b;      /* Slate 800 */
-  --r58-bg-tertiary: #334155;       /* Slate 700 */
-  
-  /* Text */
-  --r58-text-primary: #f8fafc;      /* Slate 50 */
-  --r58-text-secondary: #94a3b8;    /* Slate 400 */
-  --r58-text-muted: #64748b;        /* Slate 500 */
-  
-  /* Accents */
-  --r58-accent-primary: #3b82f6;    /* Blue 500 */
-  --r58-accent-success: #22c55e;    /* Green 500 */
-  --r58-accent-danger: #ef4444;     /* Red 500 */
-  --r58-accent-warning: #f59e0b;    /* Amber 500 */
-  
-  /* Mode Colors */
-  --r58-mode-recorder: #1e40af;     /* Deep Blue */
-  --r58-mode-mixer: #7c3aed;        /* Rich Purple */
-  
-  /* Component Tokens */
-  --r58-border-radius: 8px;
-  --r58-border-color: var(--r58-bg-tertiary);
-  --r58-focus-ring: rgba(59, 130, 246, 0.5);
+/* Import the Preke Design System */
+@import './styles/preke-design-system.css';
 
-  /* Typography Scale */
-  --r58-font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --r58-font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+/* =================================================================
+   GLOBAL STYLES - Using Preke Design System Variables
+   ================================================================= */
+
+/* Legacy r58 variable aliases for backward compatibility during migration */
+:root {
+  /* Map old r58 variables to new Preke variables */
+  --r58-bg-primary: var(--preke-bg);
+  --r58-bg-secondary: var(--preke-surface);
+  --r58-bg-tertiary: var(--preke-surface-elevated);
   
-  --r58-text-xs: 0.75rem;   /* 12px */
-  --r58-text-sm: 0.875rem;  /* 14px */
-  --r58-text-base: 1rem;    /* 16px */
-  --r58-text-lg: 1.125rem;  /* 18px */
-  --r58-text-xl: 1.25rem;   /* 20px */
-  --r58-text-2xl: 1.5rem;   /* 24px */
+  --r58-text-primary: var(--preke-text);
+  --r58-text-secondary: var(--preke-text-muted);
+  --r58-text-muted: var(--preke-text-subtle);
+  
+  --r58-accent-primary: var(--preke-gold);
+  --r58-accent-success: var(--preke-green);
+  --r58-accent-danger: var(--preke-red);
+  --r58-accent-warning: var(--preke-amber);
+  
+  --r58-mode-recorder: var(--preke-red);
+  --r58-mode-mixer: #7c3aed;
+  
+  --r58-border-radius: var(--preke-radius-md);
+  --r58-border-color: var(--preke-border);
+  --r58-focus-ring: rgba(224, 160, 48, 0.5);
+
+  /* Typography (mapped to Preke) */
+  --r58-font-sans: var(--preke-font-sans);
+  --r58-font-mono: var(--preke-font-mono);
+  
+  --r58-text-xs: var(--preke-text-xs);
+  --r58-text-sm: var(--preke-text-sm);
+  --r58-text-base: var(--preke-text-base);
+  --r58-text-lg: var(--preke-text-lg);
+  --r58-text-xl: var(--preke-text-xl);
+  --r58-text-2xl: var(--preke-text-2xl);
 
   /* Electron window chrome spacing defaults */
   --r58-titlebar-height: 0px;
@@ -48,51 +51,58 @@
 /* Electron app specific overrides */
 .electron-app {
   --r58-titlebar-height: 28px;
-  --r58-window-controls-width: 70px; /* macOS default */
+  --r58-window-controls-width: 70px;
 }
 
 .electron-app.is-windows {
   --r58-window-controls-width: 138px;
 }
 
+/* =================================================================
+   BASE STYLES
+   ================================================================= */
+
 html, body {
   height: 100%;
   overflow: hidden;
-  font-family: var(--r58-font-sans);
-  color: var(--r58-text-primary);
-  background-color: var(--r58-bg-primary);
+  font-family: var(--preke-font-sans);
+  color: var(--preke-text);
+  background-color: var(--preke-bg);
 }
 
 #app {
   height: 100%;
 }
 
-/* Custom scrollbar */
+/* Custom scrollbar - Preke styled */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background-color: var(--r58-bg-primary);
+  background-color: var(--preke-bg);
 }
 
 ::-webkit-scrollbar-thumb {
-  background-color: var(--r58-bg-tertiary);
-  border-radius: var(--r58-border-radius);
+  background-color: var(--preke-surface-elevated);
+  border-radius: var(--preke-radius-md);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background-color: var(--r58-text-secondary);
+  background-color: var(--preke-gold);
 }
 
-/* Focus styles */
+/* Focus styles - Gold accent */
 :focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px var(--r58-accent-primary), 0 0 0 4px var(--r58-bg-primary);
+  box-shadow: 0 0 0 2px var(--preke-gold), 0 0 0 4px var(--preke-bg);
 }
 
-/* Transitions */
+/* =================================================================
+   TRANSITIONS
+   ================================================================= */
+
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.2s ease;
@@ -116,33 +126,40 @@ html, body {
   transform: translateX(-100%);
 }
 
-/* Utility classes */
+/* Content fade for loading screens */
+.content-fade-enter-active {
+  transition: opacity 0.4s ease-out;
+}
+
+.content-fade-enter-from {
+  opacity: 0;
+}
+
+/* =================================================================
+   LEGACY COMPONENT CLASSES (for backward compatibility)
+   Prefer using .btn-v2, .glass-card, etc from preke-design-system.css
+   ================================================================= */
+
 @layer components {
   /* 
-   * Touch-optimized buttons
-   * Minimum 44px touch target for accessibility (WCAG 2.5.5)
+   * Legacy button - mapped to new system
    */
   .btn {
     @apply px-4 py-2 font-medium transition-all duration-150 inline-flex items-center justify-center gap-2;
-    border-radius: var(--r58-border-radius);
-    background-color: var(--r58-bg-tertiary);
-    color: var(--r58-text-primary);
-    
-    /* Touch target minimum 44px */
+    border-radius: var(--preke-radius-md);
+    background-color: var(--preke-surface-elevated);
+    color: var(--preke-text);
     min-height: 44px;
     min-width: 44px;
-    
-    /* Prevent text selection on touch */
     -webkit-user-select: none;
     user-select: none;
-    
-    /* Better touch feedback */
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
   }
   
   .btn:hover:not(:disabled) {
-    background-color: var(--r58-accent-primary);
+    background-color: var(--preke-gold);
+    color: var(--preke-bg);
   }
 
   .btn:active:not(:disabled) {
@@ -155,37 +172,55 @@ html, body {
   }
   
   .btn-primary {
-    background-color: var(--r58-accent-primary);
+    background-color: var(--preke-gold);
+    color: var(--preke-bg);
   }
   
   .btn-primary:hover:not(:disabled) {
-    background-color: #2563eb; /* Blue 600 */
+    background-color: var(--preke-gold-bright);
+  }
+  
+  .btn-secondary {
+    background-color: var(--preke-surface);
+    border: 1px solid var(--preke-border);
+  }
+  
+  .btn-secondary:hover:not(:disabled) {
+    background-color: var(--preke-surface-elevated);
+    border-color: var(--preke-gold);
   }
   
   .btn-success {
-    background-color: var(--r58-accent-success);
+    background-color: var(--preke-green);
+    color: white;
   }
   
   .btn-success:hover:not(:disabled) {
-    background-color: #16a34a; /* Green 600 */
+    background-color: #16a34a;
   }
   
   .btn-danger {
-    background-color: var(--r58-accent-danger);
+    background-color: var(--preke-red);
+    color: white;
   }
   
   .btn-danger:hover:not(:disabled) {
-    background-color: #dc2626; /* Red 600 */
+    background-color: #dc2626;
   }
 
   .btn-ghost {
     background-color: transparent;
-    color: var(--r58-text-secondary);
+    color: var(--preke-text-muted);
   }
 
   .btn-ghost:hover:not(:disabled) {
-    background-color: var(--r58-bg-tertiary);
-    color: var(--r58-text-primary);
+    background-color: var(--preke-surface);
+    color: var(--preke-text);
+  }
+  
+  .btn-sm {
+    @apply px-3 py-1.5 text-sm;
+    min-height: 36px;
   }
   
   .btn-lg {
@@ -193,37 +228,37 @@ html, body {
     min-height: 56px;
   }
   
-  /* Extra large button for kiosk mode */
   .btn-xl {
     @apply px-8 py-4 text-xl font-semibold;
     min-height: 64px;
   }
   
+  /* Legacy card - prefer .glass-card */
   .card {
-    background-color: var(--r58-bg-secondary);
-    border-radius: var(--r58-border-radius);
-    border: 1px solid var(--r58-bg-tertiary);
+    background-color: var(--preke-surface);
+    border-radius: var(--preke-radius-lg);
+    border: 1px solid var(--preke-surface-border);
     padding: 1rem;
+    backdrop-filter: blur(8px);
   }
   
+  /* Input fields */
   .input {
-    background-color: var(--r58-bg-tertiary);
-    border: 1px solid var(--r58-bg-tertiary);
-    border-radius: var(--r58-border-radius);
+    background-color: var(--preke-surface);
+    border: 1px solid var(--preke-border);
+    border-radius: var(--preke-radius-md);
     padding: 0.5rem 1rem;
-    color: var(--r58-text-primary);
+    color: var(--preke-text);
     outline: none;
     transition: all 0.15s ease;
-    
-    /* Touch-optimized input */
     min-height: 44px;
     -webkit-user-select: text;
     user-select: text;
   }
 
   .input:focus {
-    border-color: var(--r58-accent-primary);
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+    border-color: var(--preke-gold);
+    box-shadow: 0 0 0 2px rgba(224, 160, 48, 0.2);
   }
 
   .input:disabled {
@@ -231,11 +266,10 @@ html, body {
     cursor: not-allowed;
   }
 
-  /* Select dropdown */
   select.input {
     cursor: pointer;
     padding-right: 2.5rem;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
     background-position: right 0.5rem center;
     background-repeat: no-repeat;
     background-size: 1.5em 1.5em;
@@ -244,85 +278,85 @@ html, body {
     appearance: none;
   }
 
-  /* Textarea */
   textarea.input {
     min-height: 100px;
     resize: vertical;
     line-height: 1.5;
   }
   
+  /* Badges */
   .badge {
     @apply inline-flex items-center px-2 py-1 text-xs font-semibold uppercase tracking-wide;
     border-radius: 4px;
   }
   
   .badge-success {
-    background-color: rgba(34, 197, 94, 0.2);
-    color: var(--r58-accent-success);
+    background-color: rgba(74, 222, 128, 0.2);
+    color: var(--preke-green);
   }
   
   .badge-danger {
-    background-color: rgba(239, 68, 68, 0.2);
-    color: var(--r58-accent-danger);
+    background-color: rgba(212, 90, 90, 0.2);
+    color: var(--preke-red);
   }
   
   .badge-warning {
-    background-color: rgba(245, 158, 11, 0.2);
-    color: var(--r58-accent-warning);
+    background-color: rgba(224, 160, 48, 0.2);
+    color: var(--preke-amber);
   }
 
   .badge-info {
-    background-color: rgba(59, 130, 246, 0.2);
-    color: var(--r58-accent-primary);
+    background-color: rgba(224, 160, 48, 0.2);
+    color: var(--preke-gold);
   }
 
-  /* Card variants */
+  /* Card header/footer */
   .card-header {
     padding: 1rem;
-    border-bottom: 1px solid var(--r58-bg-tertiary);
+    border-bottom: 1px solid var(--preke-surface-border);
     margin: -1rem -1rem 1rem -1rem;
   }
 
   .card-footer {
     padding: 1rem;
-    border-top: 1px solid var(--r58-bg-tertiary);
+    border-top: 1px solid var(--preke-surface-border);
     margin: 1rem -1rem -1rem -1rem;
   }
 
   .card-title {
     @apply text-lg font-semibold;
-    color: var(--r58-text-primary);
+    color: var(--preke-text);
     margin: 0;
   }
 
   .card-description {
     @apply text-sm;
-    color: var(--r58-text-secondary);
+    color: var(--preke-text-muted);
     margin: 0.25rem 0 0 0;
   }
 
   /* Tabs */
   .tabs {
     @apply flex gap-2;
-    border-bottom: 1px solid var(--r58-bg-tertiary);
+    border-bottom: 1px solid var(--preke-border);
   }
 
   .tab {
     @apply px-4 py-2 font-medium text-sm transition-colors;
-    color: var(--r58-text-secondary);
+    color: var(--preke-text-muted);
     border-bottom: 2px solid transparent;
     cursor: pointer;
     user-select: none;
   }
 
   .tab:hover {
-    color: var(--r58-text-primary);
-    background-color: var(--r58-bg-tertiary);
+    color: var(--preke-text);
+    background-color: var(--preke-surface);
   }
 
   .tab.active {
-    color: var(--r58-accent-primary);
-    border-bottom-color: var(--r58-accent-primary);
+    color: var(--preke-gold);
+    border-bottom-color: var(--preke-gold);
   }
 
   .tab:disabled {
@@ -330,77 +364,74 @@ html, body {
     cursor: not-allowed;
   }
 
-  /* Alert/Notice boxes */
+  /* Alerts */
   .alert {
     padding: 1rem;
-    border-radius: var(--r58-border-radius);
+    border-radius: var(--preke-radius-md);
     border: 1px solid;
     margin-bottom: 1rem;
+    backdrop-filter: blur(8px);
   }
 
   .alert-info {
-    background-color: rgba(59, 130, 246, 0.1);
-    border-color: rgba(59, 130, 246, 0.3);
-    color: var(--r58-accent-primary);
+    background-color: rgba(224, 160, 48, 0.1);
+    border-color: rgba(224, 160, 48, 0.3);
+    color: var(--preke-gold);
   }
 
   .alert-success {
-    background-color: rgba(34, 197, 94, 0.1);
-    border-color: rgba(34, 197, 94, 0.3);
-    color: var(--r58-accent-success);
+    background-color: rgba(74, 222, 128, 0.1);
+    border-color: rgba(74, 222, 128, 0.3);
+    color: var(--preke-green);
   }
 
   .alert-warning {
-    background-color: rgba(245, 158, 11, 0.1);
-    border-color: rgba(245, 158, 11, 0.3);
-    color: var(--r58-accent-warning);
+    background-color: rgba(224, 160, 48, 0.1);
+    border-color: rgba(224, 160, 48, 0.3);
+    color: var(--preke-amber);
   }
 
   .alert-danger {
-    background-color: rgba(239, 68, 68, 0.1);
-    border-color: rgba(239, 68, 68, 0.3);
-    color: var(--r58-accent-danger);
+    background-color: rgba(212, 90, 90, 0.1);
+    border-color: rgba(212, 90, 90, 0.3);
+    color: var(--preke-red);
   }
 
-  /* Divider */
+  /* Dividers */
   .divider {
     height: 1px;
-    background-color: var(--r58-bg-tertiary);
+    background-color: var(--preke-border);
     margin: 1rem 0;
   }
 
   .divider-vertical {
     width: 1px;
     height: 100%;
-    background-color: var(--r58-bg-tertiary);
+    background-color: var(--preke-border);
   }
   
-  /* Touch-optimized checkbox */
+  /* Checkbox */
   .checkbox {
     @apply w-5 h-5 border-2;
     border-radius: 4px;
-    background-color: var(--r58-bg-tertiary);
-    border-color: var(--r58-bg-tertiary);
-    
-    /* Minimum touch target */
+    background-color: var(--preke-surface);
+    border-color: var(--preke-border);
     min-width: 44px;
     min-height: 44px;
-    /* Center the actual checkbox */
     display: grid;
     place-items: center;
     -webkit-tap-highlight-color: transparent;
   }
 
   .checkbox:checked {
-    background-color: var(--r58-accent-primary);
-    border-color: var(--r58-accent-primary);
+    background-color: var(--preke-gold);
+    border-color: var(--preke-gold);
   }
 
   .checkbox:focus {
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+    box-shadow: 0 0 0 2px rgba(224, 160, 48, 0.5);
   }
   
-  /* Touch-friendly link/button areas */
   .touch-target {
     position: relative;
   }
@@ -416,28 +447,26 @@ html, body {
   }
 }
 
-/* Kiosk/Touch mode optimizations */
+/* =================================================================
+   UTILITY CLASSES
+   ================================================================= */
+
 @layer utilities {
-  /* Apply to body when in kiosk/touch mode */
+  /* Touch mode */
   .touch-mode {
-    /* Disable text selection globally */
     -webkit-user-select: none;
     user-select: none;
-    /* Disable context menu */
     -webkit-touch-callout: none;
-    /* Smooth scrolling */
     scroll-behavior: smooth;
     -webkit-overflow-scrolling: touch;
   }
   
   .touch-mode input,
   .touch-mode textarea {
-    /* Re-enable selection for inputs */
     -webkit-user-select: text;
     user-select: text;
   }
   
-  /* Larger touch targets for all interactive elements */
   .touch-mode button,
   .touch-mode [role="button"],
   .touch-mode a,
@@ -447,14 +476,13 @@ html, body {
     min-width: 44px;
   }
   
-  /* Performance mode - reduce animations */
+  /* Performance mode */
   .performance-mode * {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }
   
-  /* Keep essential animations */
   .performance-mode .animate-spin,
   .performance-mode .animate-recording {
     animation-duration: 1s !important;

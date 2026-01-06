@@ -44,19 +44,19 @@ defineExpose({ open, close })
     :title="title"
     @close="cancel"
   >
-    <p class="text-r58-text-secondary">{{ message }}</p>
+    <p class="text-preke-text-muted">{{ message }}</p>
     
     <template #footer>
       <button 
         @click="cancel"
-        class="btn"
+        class="btn-v2 btn-v2--secondary"
       >
         {{ cancelText || 'Cancel' }}
       </button>
       <button 
         @click="confirm"
-        class="btn"
-        :class="danger ? 'btn-danger' : 'btn-primary'"
+        class="btn-v2"
+        :class="danger ? 'btn-v2--danger' : 'btn-v2--primary'"
       >
         {{ confirmText || 'Confirm' }}
       </button>

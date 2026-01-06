@@ -86,7 +86,7 @@ const sizeClasses = {
           <div 
             v-if="isOpen"
             :class="[
-              'bg-r58-bg-secondary rounded-lg shadow-xl w-full',
+              'glass-card rounded-xl shadow-2xl w-full border border-preke-surface-border',
               sizeClasses[size]
             ]"
             @click.stop
@@ -94,16 +94,16 @@ const sizeClasses = {
             <!-- Header -->
             <div 
               v-if="title || $slots.header"
-              class="flex items-center justify-between px-6 py-4 border-b border-r58-bg-tertiary"
+              class="flex items-center justify-between px-6 py-4 border-b border-preke-surface-border"
             >
               <slot name="header">
-                <h2 class="text-lg font-semibold text-r58-text-primary">
+                <h2 class="text-lg font-semibold text-preke-text">
                   {{ title }}
                 </h2>
               </slot>
               <button
                 @click="close"
-                class="p-2 rounded-lg text-r58-text-secondary hover:text-r58-text-primary hover:bg-r58-bg-tertiary transition-colors"
+                class="p-2 rounded-lg text-preke-text-muted hover:text-preke-text hover:bg-preke-surface transition-colors"
                 aria-label="Close modal"
               >
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -120,7 +120,7 @@ const sizeClasses = {
             <!-- Footer -->
             <div 
               v-if="$slots.footer"
-              class="flex items-center justify-end gap-3 px-6 py-4 border-t border-r58-bg-tertiary"
+              class="flex items-center justify-end gap-3 px-6 py-4 border-t border-preke-surface-border"
             >
               <slot name="footer" :close="close" />
             </div>

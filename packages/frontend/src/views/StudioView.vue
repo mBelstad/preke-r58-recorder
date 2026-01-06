@@ -55,36 +55,36 @@ async function selectMode(mode: 'recorder' | 'mixer') {
 </script>
 
 <template>
-  <div class="h-full flex flex-col items-center justify-center p-8">
-    <h1 class="text-4xl font-bold mb-2">Preke Studio</h1>
-    <p class="text-r58-text-secondary mb-12">Select a mode to begin</p>
+  <div class="h-full flex flex-col items-center justify-center p-8 bg-preke-bg">
+    <h1 class="text-4xl font-bold mb-2 text-preke-text">Preke Studio</h1>
+    <p class="text-preke-text-muted mb-12">Select a mode to begin</p>
     
     <div class="flex gap-6">
       <!-- Recorder Mode -->
       <button
         @click="selectMode('recorder')"
         :disabled="switching"
-        class="group relative w-64 h-48 rounded-2xl border-2 transition-all duration-300 disabled:opacity-60 disabled:cursor-wait"
+        class="group relative w-64 h-48 rounded-2xl border-2 transition-all duration-300 disabled:opacity-60 disabled:cursor-wait backdrop-blur-sm"
         :class="[
           selectedMode === 'recorder' 
-            ? 'border-r58-recorder bg-r58-recorder/10' 
-            : 'border-r58-bg-tertiary hover:border-r58-recorder/50 hover:bg-r58-bg-secondary'
+            ? 'border-preke-red bg-preke-red/10 shadow-lg shadow-preke-red/20' 
+            : 'border-preke-surface-border hover:border-preke-red/50 hover:bg-preke-surface/50'
         ]"
       >
         <div class="h-full flex flex-col items-center justify-center gap-4">
           <!-- Recording icon / Loading spinner -->
-          <div class="w-16 h-16 rounded-full bg-r58-recorder/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-            <svg v-if="switching && selectedMode === 'recorder'" class="w-8 h-8 text-r58-recorder animate-spin" fill="none" viewBox="0 0 24 24">
+          <div class="w-16 h-16 rounded-full bg-preke-red/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+            <svg v-if="switching && selectedMode === 'recorder'" class="w-8 h-8 text-preke-red animate-spin" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            <svg v-else class="w-8 h-8 text-r58-recorder" fill="currentColor" viewBox="0 0 24 24">
+            <svg v-else class="w-8 h-8 text-preke-red" fill="currentColor" viewBox="0 0 24 24">
               <circle cx="12" cy="12" r="8"/>
             </svg>
           </div>
           <div class="text-center">
-            <h3 class="text-xl font-semibold">Recorder</h3>
-            <p class="text-sm text-r58-text-secondary">
+            <h3 class="text-xl font-semibold text-preke-text">Recorder</h3>
+            <p class="text-sm text-preke-text-muted">
               {{ switching && selectedMode === 'recorder' ? 'Switching mode...' : 'Multi-cam ISO recording' }}
             </p>
           </div>
@@ -95,21 +95,21 @@ async function selectMode(mode: 'recorder' | 'mixer') {
       <button
         @click="selectMode('mixer')"
         :disabled="switching"
-        class="group relative w-64 h-48 rounded-2xl border-2 transition-all duration-300 disabled:opacity-60 disabled:cursor-wait"
+        class="group relative w-64 h-48 rounded-2xl border-2 transition-all duration-300 disabled:opacity-60 disabled:cursor-wait backdrop-blur-sm"
         :class="[
           selectedMode === 'mixer' 
-            ? 'border-r58-mixer bg-r58-mixer/10' 
-            : 'border-r58-bg-tertiary hover:border-r58-mixer/50 hover:bg-r58-bg-secondary'
+            ? 'border-violet-500 bg-violet-500/10 shadow-lg shadow-violet-500/20' 
+            : 'border-preke-surface-border hover:border-violet-500/50 hover:bg-preke-surface/50'
         ]"
       >
         <div class="h-full flex flex-col items-center justify-center gap-4">
           <!-- Mixer icon / Loading spinner -->
-          <div class="w-16 h-16 rounded-full bg-r58-mixer/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-            <svg v-if="switching && selectedMode === 'mixer'" class="w-8 h-8 text-r58-mixer animate-spin" fill="none" viewBox="0 0 24 24">
+          <div class="w-16 h-16 rounded-full bg-violet-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+            <svg v-if="switching && selectedMode === 'mixer'" class="w-8 h-8 text-violet-500 animate-spin" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            <svg v-else class="w-8 h-8 text-r58-mixer" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+            <svg v-else class="w-8 h-8 text-violet-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16m-7 6h7"/>
               <circle cx="8" cy="6" r="2" fill="currentColor"/>
               <circle cx="16" cy="12" r="2" fill="currentColor"/>
@@ -117,8 +117,8 @@ async function selectMode(mode: 'recorder' | 'mixer') {
             </svg>
           </div>
           <div class="text-center">
-            <h3 class="text-xl font-semibold">Mixer</h3>
-            <p class="text-sm text-r58-text-secondary">
+            <h3 class="text-xl font-semibold text-preke-text">Mixer</h3>
+            <p class="text-sm text-preke-text-muted">
               {{ switching && selectedMode === 'mixer' ? 'Switching mode...' : 'Live switching & streaming' }}
             </p>
           </div>
@@ -127,18 +127,18 @@ async function selectMode(mode: 'recorder' | 'mixer') {
     </div>
     
     <!-- Error message -->
-    <div v-if="switchError" class="mt-4 text-r58-accent-danger text-sm">
+    <div v-if="switchError" class="mt-4 text-preke-red text-sm">
       {{ switchError }}
     </div>
     
     <!-- Quick status -->
-    <div class="mt-12 flex gap-8 text-sm text-r58-text-secondary">
+    <div class="mt-12 flex gap-8 text-sm text-preke-text-muted">
       <div class="flex items-center gap-2">
-        <span class="w-2 h-2 rounded-full bg-r58-accent-success"></span>
+        <span class="w-2 h-2 rounded-full bg-preke-green"></span>
         <span>4 inputs available</span>
       </div>
       <div class="flex items-center gap-2">
-        <span class="w-2 h-2 rounded-full bg-r58-accent-success"></span>
+        <span class="w-2 h-2 rounded-full bg-preke-green"></span>
         <span>Storage: 256 GB free</span>
       </div>
     </div>

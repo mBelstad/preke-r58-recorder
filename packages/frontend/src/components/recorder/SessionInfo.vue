@@ -29,61 +29,61 @@ function openInputConfig() {
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="space-y-4">
     <!-- Session info -->
-    <div v-if="currentSession" class="card">
-      <h3 class="text-sm font-semibold text-r58-text-secondary uppercase tracking-wide mb-3">Current Session</h3>
+    <div v-if="currentSession" class="glass-card p-4 rounded-lg">
+      <h3 class="text-xs font-semibold text-preke-text-muted uppercase tracking-wide mb-3">Current Session</h3>
       <div class="space-y-2">
-        <div class="flex justify-between">
-          <span class="text-r58-text-secondary">Started</span>
-          <span>{{ currentSession.startedAt.toLocaleTimeString() }}</span>
+        <div class="flex justify-between text-sm">
+          <span class="text-preke-text-muted">Started</span>
+          <span class="text-preke-text">{{ currentSession.startedAt.toLocaleTimeString() }}</span>
         </div>
-        <div class="flex justify-between">
-          <span class="text-r58-text-secondary">Duration</span>
-          <span class="font-mono">{{ recorderStore.formattedDuration }}</span>
+        <div class="flex justify-between text-sm">
+          <span class="text-preke-text-muted">Duration</span>
+          <span class="font-mono text-preke-gold">{{ recorderStore.formattedDuration }}</span>
         </div>
-        <div class="flex justify-between">
-          <span class="text-r58-text-secondary">Inputs</span>
-          <span>{{ activeInputs.length }} active</span>
+        <div class="flex justify-between text-sm">
+          <span class="text-preke-text-muted">Inputs</span>
+          <span class="text-preke-text">{{ activeInputs.length }} active</span>
         </div>
       </div>
     </div>
     
     <!-- Input status -->
-    <div class="card">
-      <h3 class="text-sm font-semibold text-r58-text-secondary uppercase tracking-wide mb-3">Input Status</h3>
+    <div class="glass-card p-4 rounded-lg">
+      <h3 class="text-xs font-semibold text-preke-text-muted uppercase tracking-wide mb-3">Input Status</h3>
       <div class="space-y-3">
         <div
           v-for="input in recorderStore.inputs"
           :key="input.id"
-          class="flex items-center justify-between py-2 border-b border-r58-bg-tertiary last:border-0"
+          class="flex items-center justify-between py-2 border-b border-preke-surface-border last:border-0"
         >
           <div class="flex items-center gap-2">
             <span
               class="w-2 h-2 rounded-full"
-              :class="input.hasSignal ? 'bg-r58-accent-success' : 'bg-r58-text-secondary'"
+              :class="input.hasSignal ? 'bg-preke-green' : 'bg-preke-text-muted'"
             ></span>
-            <span :class="input.hasSignal ? '' : 'text-r58-text-secondary'">{{ input.label }}</span>
+            <span class="text-sm" :class="input.hasSignal ? 'text-preke-text' : 'text-preke-text-muted'">{{ input.label }}</span>
           </div>
           
-          <div v-if="input.hasSignal" class="text-sm text-r58-text-secondary">
-            <span v-if="input.isRecording" class="text-r58-accent-danger">
+          <div v-if="input.hasSignal" class="text-sm text-preke-text-muted">
+            <span v-if="input.isRecording" class="text-preke-red font-mono">
               {{ formatBytes(input.bytesWritten) }}
             </span>
             <span v-else>{{ input.resolution }}</span>
           </div>
-          <span v-else class="text-sm text-r58-text-secondary">No signal</span>
+          <span v-else class="text-xs text-preke-text-muted">No signal</span>
         </div>
       </div>
     </div>
     
     <!-- Quick actions -->
-    <div class="card">
-      <h3 class="text-sm font-semibold text-r58-text-secondary uppercase tracking-wide mb-3">Quick Actions</h3>
+    <div class="glass-card p-4 rounded-lg">
+      <h3 class="text-xs font-semibold text-preke-text-muted uppercase tracking-wide mb-3">Quick Actions</h3>
       <div class="space-y-2">
         <button 
           @click="openInputConfig"
-          class="btn w-full justify-center disabled:opacity-50 disabled:cursor-not-allowed group relative" 
+          class="btn-v2 btn-v2--secondary w-full justify-center disabled:opacity-50 disabled:cursor-not-allowed group relative" 
           :disabled="isRecording"
           :title="isRecording ? 'Cannot configure while recording' : 'Open input configuration'"
         >
@@ -91,14 +91,14 @@ function openInputConfig() {
           <!-- Disabled reason tooltip -->
           <span 
             v-if="isRecording"
-            class="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-r58-bg-tertiary text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none"
+            class="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-preke-surface text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none"
           >
             Stop recording first
           </span>
         </button>
         <button 
           @click="showSettings = !showSettings"
-          class="btn w-full justify-center"
+          class="btn-v2 btn-v2--secondary w-full justify-center"
         >
           {{ showSettings ? 'Hide Settings' : 'Interface Settings' }}
         </button>
@@ -107,7 +107,7 @@ function openInputConfig() {
     
     <!-- Settings Panel (collapsible) -->
     <Transition name="slide-fade">
-      <div v-if="showSettings" class="card">
+      <div v-if="showSettings" class="glass-card p-4 rounded-lg">
         <SettingsPanel />
       </div>
     </Transition>

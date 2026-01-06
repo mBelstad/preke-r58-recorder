@@ -76,81 +76,81 @@ onMounted(() => {
 <template>
   <div class="space-y-6">
     <!-- Device Settings -->
-    <div class="card">
-      <h3 class="text-sm font-semibold text-r58-text-secondary uppercase tracking-wide mb-4">Device</h3>
+    <div class="glass-card p-4 rounded-xl">
+      <h3 class="text-xs font-semibold text-preke-text-muted uppercase tracking-wide mb-4">Device</h3>
       
       <div class="space-y-4">
         <div>
-          <label class="block text-sm font-medium mb-2">Device Name</label>
+          <label class="block text-sm font-medium text-preke-text mb-2">Device Name</label>
           <input 
             v-model="deviceName"
             type="text"
             class="input w-full"
             placeholder="My Preke Device"
           />
-          <p class="text-xs text-r58-text-secondary mt-1">Display name for this device in the app</p>
+          <p class="text-xs text-preke-text-muted mt-1">Display name for this device in the app</p>
         </div>
       </div>
     </div>
     
     <!-- VDO.ninja Settings -->
-    <div class="card">
-      <h3 class="text-sm font-semibold text-r58-text-secondary uppercase tracking-wide mb-4">VDO.ninja / Mixer</h3>
+    <div class="glass-card p-4 rounded-xl">
+      <h3 class="text-xs font-semibold text-preke-text-muted uppercase tracking-wide mb-4">VDO.ninja / Mixer</h3>
       
       <div class="space-y-4">
         <div>
-          <label class="block text-sm font-medium mb-2">Room Name</label>
+          <label class="block text-sm font-medium text-preke-text mb-2">Room Name</label>
           <input 
             v-model="vdoRoom"
             type="text"
             class="input w-full"
             placeholder="r58studio"
           />
-          <p class="text-xs text-r58-text-secondary mt-1">VDO.ninja room for video mixing</p>
+          <p class="text-xs text-preke-text-muted mt-1">VDO.ninja room for video mixing</p>
         </div>
         
         <div>
-          <label class="block text-sm font-medium mb-2">VDO Host</label>
+          <label class="block text-sm font-medium text-preke-text mb-2">VDO Host</label>
           <input 
             :value="vdoHost"
             type="text"
-            class="input w-full bg-r58-bg-tertiary"
+            class="input w-full bg-preke-surface opacity-60"
             readonly
             disabled
           />
-          <p class="text-xs text-r58-text-secondary mt-1">VDO.ninja server (read-only)</p>
+          <p class="text-xs text-preke-text-muted mt-1">VDO.ninja server (read-only)</p>
         </div>
       </div>
     </div>
     
     <!-- Storage Settings -->
-    <div class="card">
-      <h3 class="text-sm font-semibold text-r58-text-secondary uppercase tracking-wide mb-4">Storage</h3>
+    <div class="glass-card p-4 rounded-xl">
+      <h3 class="text-xs font-semibold text-preke-text-muted uppercase tracking-wide mb-4">Storage</h3>
       
       <div class="space-y-4">
         <div>
-          <label class="block text-sm font-medium mb-2">Recording Path</label>
+          <label class="block text-sm font-medium text-preke-text mb-2">Recording Path</label>
           <input 
             :value="recordingPath"
             type="text"
-            class="input w-full bg-r58-bg-tertiary"
+            class="input w-full bg-preke-surface opacity-60"
             readonly
             disabled
           />
-          <p class="text-xs text-r58-text-secondary mt-1">
+          <p class="text-xs text-preke-text-muted mt-1">
             Configured in config.yml on R58 device. Default: /opt/r58/recordings/
           </p>
         </div>
         
         <div class="flex items-center justify-between">
           <div>
-            <label class="block text-sm font-medium">Auto-cleanup old recordings</label>
-            <p class="text-xs text-r58-text-secondary">Automatically delete recordings older than specified days</p>
+            <label class="block text-sm font-medium text-preke-text">Auto-cleanup old recordings</label>
+            <p class="text-xs text-preke-text-muted">Automatically delete recordings older than specified days</p>
           </div>
           <button
             @click="autoCleanup = !autoCleanup"
             class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
-            :class="autoCleanup ? 'bg-r58-accent-primary' : 'bg-r58-bg-tertiary'"
+            :class="autoCleanup ? 'bg-preke-gold' : 'bg-preke-surface-elevated'"
           >
             <span
               class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
@@ -160,7 +160,7 @@ onMounted(() => {
         </div>
         
         <div v-if="autoCleanup">
-          <label class="block text-sm font-medium mb-2">Keep recordings for (days)</label>
+          <label class="block text-sm font-medium text-preke-text mb-2">Keep recordings for (days)</label>
           <input 
             v-model.number="cleanupDays"
             type="number"
@@ -176,31 +176,31 @@ onMounted(() => {
     <div class="flex items-center justify-between">
       <button 
         @click="resetToDefaults"
-        class="btn btn-secondary"
+        class="btn-v2 btn-v2--secondary"
       >
         Reset to Defaults
       </button>
       
       <button 
         @click="saveSettings"
-        class="btn btn-primary"
+        class="btn-v2 btn-v2--primary"
       >
         Save Settings
       </button>
     </div>
     
     <!-- App Info -->
-    <div class="card bg-r58-bg-tertiary/50">
-      <h3 class="text-sm font-semibold text-r58-text-secondary uppercase tracking-wide mb-4">About</h3>
+    <div class="glass-card p-4 rounded-xl bg-preke-surface/30">
+      <h3 class="text-xs font-semibold text-preke-text-muted uppercase tracking-wide mb-4">About</h3>
       
       <div class="space-y-2 text-sm">
         <div class="flex justify-between">
-          <span class="text-r58-text-secondary">App Version</span>
-          <span>2.0.0</span>
+          <span class="text-preke-text-muted">App Version</span>
+          <span class="text-preke-text">2.0.0</span>
         </div>
         <div class="flex justify-between">
-          <span class="text-r58-text-secondary">Platform</span>
-          <span>{{ inElectron ? 'Desktop (Electron)' : 'Web Browser' }}</span>
+          <span class="text-preke-text-muted">Platform</span>
+          <span class="text-preke-text">{{ inElectron ? 'Desktop (Electron)' : 'Web Browser' }}</span>
         </div>
       </div>
     </div>
