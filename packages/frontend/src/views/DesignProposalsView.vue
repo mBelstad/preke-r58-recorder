@@ -13,6 +13,7 @@ const proposals = [
   { id: 1, name: 'Split Home', desc: 'Two-mode split design for home' },
   { id: 2, name: 'Geometric 3D', desc: 'Animated 3D geometric shapes' },
   { id: 3, name: 'Combined', desc: 'Split + geometric together' },
+  { id: 4, name: 'Ribbons', desc: 'Complex intersecting ribbons' },
 ]
 
 // Simulated mode selection (for demo)
@@ -188,6 +189,82 @@ function selectMode(mode: 'recorder' | 'mixer') {
         <div class="combined__side combined__side--right" @click="selectMode('mixer')">
           <div class="combined__card">
             <div class="combined__icon combined__icon--mixer">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <rect x="2" y="2" width="9" height="6" rx="1"/>
+                <rect x="13" y="2" width="9" height="6" rx="1"/>
+                <rect x="2" y="10" width="9" height="6" rx="1"/>
+                <rect x="13" y="10" width="9" height="6" rx="1"/>
+                <circle cx="12" cy="20" r="2" fill="currentColor"/>
+                <path d="M9 19.5a4 4 0 0 1 6 0" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <h3>Mixer</h3>
+            <p>Live Switching</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════
+         PROPOSAL 4: COMPLEX RIBBONS
+         ═══════════════════════════════════════════ -->
+    <div v-show="activeProposal === 4" class="proposal ribbons">
+      <!-- Complex ribbon background - more shapes, semi-symmetrical -->
+      <div class="ribbons__canvas">
+        <!-- Layer 1: Back ribbons (darkest) -->
+        <div class="ribbon ribbon--1"></div>
+        <div class="ribbon ribbon--2"></div>
+        <div class="ribbon ribbon--3"></div>
+        <div class="ribbon ribbon--4"></div>
+        <div class="ribbon ribbon--5"></div>
+        <div class="ribbon ribbon--6"></div>
+        
+        <!-- Layer 2: Mid ribbons -->
+        <div class="ribbon ribbon--7"></div>
+        <div class="ribbon ribbon--8"></div>
+        <div class="ribbon ribbon--9"></div>
+        <div class="ribbon ribbon--10"></div>
+        <div class="ribbon ribbon--11"></div>
+        <div class="ribbon ribbon--12"></div>
+        
+        <!-- Layer 3: Front ribbons (lightest, with gold edges) -->
+        <div class="ribbon ribbon--13"></div>
+        <div class="ribbon ribbon--14"></div>
+        <div class="ribbon ribbon--15"></div>
+        <div class="ribbon ribbon--16"></div>
+        
+        <!-- Gold glimmers along edges -->
+        <div class="ribbon-glimmer glimmer--1"></div>
+        <div class="ribbon-glimmer glimmer--2"></div>
+        <div class="ribbon-glimmer glimmer--3"></div>
+        <div class="ribbon-glimmer glimmer--4"></div>
+        <div class="ribbon-glimmer glimmer--5"></div>
+        
+        <!-- Central ambient glow -->
+        <div class="ribbons__ambient"></div>
+      </div>
+      
+      <!-- Content overlay -->
+      <div class="ribbons__content">
+        <div class="ribbons__side ribbons__side--left" @click="selectMode('recorder')">
+          <div class="ribbons__card">
+            <div class="ribbons__icon ribbons__icon--recorder">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <circle cx="12" cy="12" r="8"/>
+              </svg>
+            </div>
+            <h3>Recorder</h3>
+            <p>Multi-cam ISO</p>
+          </div>
+        </div>
+        
+        <div class="ribbons__center">
+          <span class="ribbons__logo">Preke Studio</span>
+        </div>
+        
+        <div class="ribbons__side ribbons__side--right" @click="selectMode('mixer')">
+          <div class="ribbons__card">
+            <div class="ribbons__icon ribbons__icon--mixer">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                 <rect x="2" y="2" width="9" height="6" rx="1"/>
                 <rect x="13" y="2" width="9" height="6" rx="1"/>
@@ -850,6 +927,480 @@ function selectMode(mode: 'recorder' | 'mixer') {
   text-transform: uppercase;
   letter-spacing: 0.2em;
   background: var(--preke-bg);
+  padding: 0.5rem 1rem;
+  border-radius: 100px;
+  border: 1px solid rgba(224, 160, 48, 0.2);
+}
+
+/* ═══════════════════════════════════════════
+   PROPOSAL 4: COMPLEX RIBBONS
+   Inspired by stock image - many intersecting
+   diagonal ribbons with 3D layered effect
+   ═══════════════════════════════════════════ */
+.ribbons {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #08080a;
+}
+
+.ribbons__canvas {
+  position: absolute;
+  inset: -20%;
+  overflow: hidden;
+}
+
+/* Base ribbon style - long diagonal strips */
+.ribbon {
+  position: absolute;
+  transform-origin: center;
+}
+
+/* Layer 1: Back ribbons (darkest) - going both directions */
+.ribbon--1 {
+  width: 180%;
+  height: 60px;
+  top: 5%;
+  left: -40%;
+  background: linear-gradient(135deg, #0e0e10 0%, #0a0a0c 100%);
+  transform: rotate(-25deg);
+  animation: ribbon-breathe 14s ease-in-out infinite;
+}
+
+.ribbon--2 {
+  width: 180%;
+  height: 45px;
+  top: 15%;
+  left: -40%;
+  background: linear-gradient(135deg, #0f0f11 0%, #0b0b0d 100%);
+  transform: rotate(22deg);
+  animation: ribbon-breathe 16s ease-in-out infinite;
+  animation-delay: 1s;
+}
+
+.ribbon--3 {
+  width: 160%;
+  height: 55px;
+  bottom: 25%;
+  left: -30%;
+  background: linear-gradient(135deg, #0d0d0f 0%, #090909 100%);
+  transform: rotate(-28deg);
+  animation: ribbon-breathe 12s ease-in-out infinite;
+  animation-delay: 2s;
+}
+
+.ribbon--4 {
+  width: 170%;
+  height: 50px;
+  bottom: 10%;
+  left: -35%;
+  background: linear-gradient(135deg, #0e0e10 0%, #0a0a0c 100%);
+  transform: rotate(20deg);
+  animation: ribbon-breathe 15s ease-in-out infinite;
+  animation-delay: 0.5s;
+}
+
+.ribbon--5 {
+  width: 150%;
+  height: 40px;
+  top: 40%;
+  left: -25%;
+  background: linear-gradient(135deg, #0c0c0e 0%, #080808 100%);
+  transform: rotate(-18deg);
+  animation: ribbon-breathe 13s ease-in-out infinite;
+  animation-delay: 3s;
+}
+
+.ribbon--6 {
+  width: 140%;
+  height: 35px;
+  bottom: 40%;
+  left: -20%;
+  background: linear-gradient(135deg, #0d0d0f 0%, #090909 100%);
+  transform: rotate(30deg);
+  animation: ribbon-breathe 11s ease-in-out infinite;
+  animation-delay: 1.5s;
+}
+
+/* Layer 2: Mid ribbons - more prominent */
+.ribbon--7 {
+  width: 160%;
+  height: 70px;
+  top: 20%;
+  left: -30%;
+  background: linear-gradient(135deg, #121214 0%, #0d0d0f 100%);
+  transform: rotate(-22deg);
+  box-shadow: 0 5px 30px rgba(0, 0, 0, 0.5);
+  animation: ribbon-breathe 10s ease-in-out infinite;
+}
+
+.ribbon--8 {
+  width: 170%;
+  height: 55px;
+  top: 35%;
+  left: -35%;
+  background: linear-gradient(135deg, #141416 0%, #0f0f11 100%);
+  transform: rotate(25deg);
+  box-shadow: 0 5px 30px rgba(0, 0, 0, 0.5);
+  animation: ribbon-breathe 12s ease-in-out infinite;
+  animation-delay: 2s;
+}
+
+.ribbon--9 {
+  width: 150%;
+  height: 50px;
+  bottom: 30%;
+  left: -25%;
+  background: linear-gradient(135deg, #131315 0%, #0e0e10 100%);
+  transform: rotate(-20deg);
+  box-shadow: 0 5px 30px rgba(0, 0, 0, 0.5);
+  animation: ribbon-breathe 14s ease-in-out infinite;
+  animation-delay: 1s;
+}
+
+.ribbon--10 {
+  width: 140%;
+  height: 45px;
+  bottom: 20%;
+  left: -20%;
+  background: linear-gradient(135deg, #121214 0%, #0c0c0e 100%);
+  transform: rotate(28deg);
+  box-shadow: 0 5px 30px rgba(0, 0, 0, 0.5);
+  animation: ribbon-breathe 11s ease-in-out infinite;
+  animation-delay: 3s;
+}
+
+.ribbon--11 {
+  width: 130%;
+  height: 40px;
+  top: 55%;
+  left: -15%;
+  background: linear-gradient(135deg, #101012 0%, #0b0b0d 100%);
+  transform: rotate(-32deg);
+  box-shadow: 0 3px 20px rgba(0, 0, 0, 0.4);
+  animation: ribbon-breathe 13s ease-in-out infinite;
+  animation-delay: 0.5s;
+}
+
+.ribbon--12 {
+  width: 120%;
+  height: 35px;
+  top: 65%;
+  left: -10%;
+  background: linear-gradient(135deg, #111113 0%, #0c0c0e 100%);
+  transform: rotate(15deg);
+  box-shadow: 0 3px 20px rgba(0, 0, 0, 0.4);
+  animation: ribbon-breathe 15s ease-in-out infinite;
+  animation-delay: 2.5s;
+}
+
+/* Layer 3: Front ribbons - lightest with gold edge highlights */
+.ribbon--13 {
+  width: 150%;
+  height: 80px;
+  top: 30%;
+  left: -25%;
+  background: linear-gradient(135deg, #1a1a1c 0%, #141416 100%);
+  transform: rotate(-18deg);
+  box-shadow: 
+    inset 0 1px 0 rgba(224, 160, 48, 0.08),
+    0 8px 40px rgba(0, 0, 0, 0.6);
+  animation: ribbon-breathe-front 8s ease-in-out infinite;
+}
+
+.ribbon--14 {
+  width: 140%;
+  height: 65px;
+  top: 45%;
+  left: -20%;
+  background: linear-gradient(135deg, #1c1c1e 0%, #161618 100%);
+  transform: rotate(22deg);
+  box-shadow: 
+    inset 0 1px 0 rgba(224, 160, 48, 0.1),
+    0 8px 40px rgba(0, 0, 0, 0.6);
+  animation: ribbon-breathe-front 10s ease-in-out infinite;
+  animation-delay: 1s;
+}
+
+.ribbon--15 {
+  width: 130%;
+  height: 55px;
+  bottom: 35%;
+  left: -15%;
+  background: linear-gradient(135deg, #1b1b1d 0%, #151517 100%);
+  transform: rotate(-25deg);
+  box-shadow: 
+    inset 0 1px 0 rgba(224, 160, 48, 0.12),
+    0 8px 40px rgba(0, 0, 0, 0.6);
+  animation: ribbon-breathe-front 9s ease-in-out infinite;
+  animation-delay: 0.5s;
+}
+
+.ribbon--16 {
+  width: 120%;
+  height: 50px;
+  bottom: 25%;
+  left: -10%;
+  background: linear-gradient(135deg, #1d1d1f 0%, #171719 100%);
+  transform: rotate(18deg);
+  box-shadow: 
+    inset 0 1px 0 rgba(224, 160, 48, 0.15),
+    0 8px 40px rgba(0, 0, 0, 0.6);
+  animation: ribbon-breathe-front 11s ease-in-out infinite;
+  animation-delay: 1.5s;
+}
+
+/* Ribbon breathing animations */
+@keyframes ribbon-breathe {
+  0%, 100% { 
+    opacity: 0.8; 
+    transform: rotate(var(--rotate, -25deg)) translateX(0); 
+  }
+  50% { 
+    opacity: 0.9; 
+    transform: rotate(var(--rotate, -25deg)) translateX(5px); 
+  }
+}
+
+@keyframes ribbon-breathe-front {
+  0%, 100% { 
+    opacity: 0.95; 
+    transform: rotate(var(--rotate, -18deg)) translateX(0) scale(1); 
+  }
+  50% { 
+    opacity: 1; 
+    transform: rotate(var(--rotate, -18deg)) translateX(3px) scale(1.005); 
+  }
+}
+
+/* Gold glimmers - thin lines that catch light */
+.ribbon-glimmer {
+  position: absolute;
+  height: 2px;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.glimmer--1 {
+  width: 250px;
+  top: 32%;
+  left: 20%;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(224, 160, 48, 0.3) 20%,
+    rgba(224, 160, 48, 0.7) 50%,
+    rgba(224, 160, 48, 0.3) 80%,
+    transparent 100%
+  );
+  transform: rotate(-18deg);
+  animation: glimmer-sweep 6s ease-in-out infinite;
+  filter: blur(0.5px);
+}
+
+.glimmer--2 {
+  width: 200px;
+  top: 47%;
+  right: 25%;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(224, 160, 48, 0.4) 30%,
+    rgba(224, 160, 48, 0.6) 50%,
+    rgba(224, 160, 48, 0.4) 70%,
+    transparent 100%
+  );
+  transform: rotate(22deg);
+  animation: glimmer-sweep 8s ease-in-out infinite;
+  animation-delay: 2s;
+  filter: blur(0.5px);
+}
+
+.glimmer--3 {
+  width: 180px;
+  bottom: 38%;
+  left: 30%;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(224, 160, 48, 0.5) 50%,
+    transparent 100%
+  );
+  transform: rotate(-25deg);
+  animation: glimmer-sweep 5s ease-in-out infinite;
+  animation-delay: 4s;
+  filter: blur(0.5px);
+}
+
+.glimmer--4 {
+  width: 160px;
+  bottom: 28%;
+  right: 20%;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(224, 160, 48, 0.4) 50%,
+    transparent 100%
+  );
+  transform: rotate(18deg);
+  animation: glimmer-sweep 7s ease-in-out infinite;
+  animation-delay: 1s;
+  filter: blur(0.5px);
+}
+
+.glimmer--5 {
+  width: 140px;
+  top: 55%;
+  left: 45%;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(224, 160, 48, 0.6) 50%,
+    transparent 100%
+  );
+  transform: rotate(-10deg);
+  animation: glimmer-sweep 9s ease-in-out infinite;
+  animation-delay: 3s;
+  filter: blur(0.5px);
+}
+
+@keyframes glimmer-sweep {
+  0%, 15%, 100% { 
+    opacity: 0; 
+    transform: rotate(var(--rotate, -18deg)) translateX(-30px); 
+  }
+  30%, 70% { 
+    opacity: 1; 
+    transform: rotate(var(--rotate, -18deg)) translateX(0); 
+  }
+  85% { 
+    opacity: 0; 
+    transform: rotate(var(--rotate, -18deg)) translateX(30px); 
+  }
+}
+
+/* Central ambient glow */
+.ribbons__ambient {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 60%;
+  height: 60%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(ellipse, rgba(224, 160, 48, 0.04) 0%, transparent 60%);
+  animation: ambient-pulse 10s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes ambient-pulse {
+  0%, 100% { opacity: 0.8; transform: translate(-50%, -50%) scale(1); }
+  50% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+}
+
+/* Content overlay - same as combined but on ribbons */
+.ribbons__content {
+  position: relative;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3rem;
+  width: 100%;
+  max-width: 900px;
+  padding: 2rem;
+}
+
+.ribbons__side {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.ribbons__card {
+  padding: 2.5rem 3rem;
+  background: rgba(10, 10, 12, 0.7);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 20px;
+  text-align: center;
+  transition: all 0.4s ease;
+}
+
+.ribbons__side:hover .ribbons__card {
+  transform: translateY(-8px);
+  background: rgba(10, 10, 12, 0.85);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
+}
+
+.ribbons__side--left:hover .ribbons__card {
+  border-color: rgba(212, 90, 90, 0.3);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5), 0 0 40px rgba(212, 90, 90, 0.1);
+}
+
+.ribbons__side--right:hover .ribbons__card {
+  border-color: rgba(124, 58, 237, 0.3);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5), 0 0 40px rgba(124, 58, 237, 0.1);
+}
+
+.ribbons__icon {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 1rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.ribbons__icon svg {
+  width: 36px;
+  height: 36px;
+}
+
+.ribbons__icon--recorder {
+  background: rgba(212, 90, 90, 0.15);
+  color: #d45a5a;
+}
+
+.ribbons__side:hover .ribbons__icon--recorder {
+  background: rgba(212, 90, 90, 0.25);
+  box-shadow: 0 0 30px rgba(212, 90, 90, 0.3);
+}
+
+.ribbons__icon--mixer {
+  background: rgba(124, 58, 237, 0.15);
+  color: #a78bfa;
+}
+
+.ribbons__side:hover .ribbons__icon--mixer {
+  background: rgba(124, 58, 237, 0.25);
+  box-shadow: 0 0 30px rgba(124, 58, 237, 0.3);
+}
+
+.ribbons__card h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--preke-text);
+  margin-bottom: 0.25rem;
+}
+
+.ribbons__card p {
+  font-size: 0.875rem;
+  color: var(--preke-text-muted);
+}
+
+.ribbons__center {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+}
+
+.ribbons__logo {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--preke-gold);
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  background: rgba(8, 8, 10, 0.9);
   padding: 0.5rem 1rem;
   border-radius: 100px;
   border: 1px solid rgba(224, 160, 48, 0.2);
