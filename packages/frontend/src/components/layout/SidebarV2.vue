@@ -242,14 +242,51 @@ onUnmounted(() => {
 
 <style scoped>
 .sidebar {
+  position: relative;
   width: 72px;
   min-width: 72px;
-  background: var(--preke-surface);
-  border-right: 1px solid var(--preke-surface-border);
+  
+  /* Liquid glass effect - slightly darker than header */
+  background: linear-gradient(
+    90deg,
+    rgba(28, 28, 32, 0.9) 0%,
+    rgba(24, 24, 28, 0.85) 50%,
+    rgba(22, 22, 26, 0.9) 100%
+  );
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  
+  /* 3D depth with highlights and shadows */
+  border-right: 1px solid rgba(255, 255, 255, 0.04);
+  box-shadow: 
+    /* Left inner highlight */
+    inset 1px 0 0 rgba(255, 255, 255, 0.06),
+    /* Inner glow */
+    inset 0 0 40px rgba(255, 255, 255, 0.015),
+    /* Right shadow for depth */
+    4px 0 20px rgba(0, 0, 0, 0.25);
+  
   display: flex;
   flex-direction: column;
   align-items: center;
   padding: 8px 0;
+  z-index: 90;
+}
+
+/* Liquid glass left edge reflection */
+.sidebar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 50%;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.03) 0%,
+    transparent 100%
+  );
+  pointer-events: none;
 }
 
 /* Navigation */
@@ -268,7 +305,7 @@ onUnmounted(() => {
   gap: 4px;
 }
 
-/* Square 1:1 buttons */
+/* Square 1:1 buttons - liquid glass style */
 .sidebar__nav-item {
   position: relative;
   display: flex;
@@ -278,108 +315,155 @@ onUnmounted(() => {
   gap: 4px;
   width: 56px;
   height: 56px;
-  border-radius: 12px;
+  border-radius: 14px;
   color: var(--preke-text-muted);
   text-decoration: none;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
   overflow: hidden;
+  
+  /* Subtle glass base */
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.02) 0%,
+    transparent 100%
+  );
 }
 
-/* Hover effect - glass highlight */
+/* Hover effect - liquid glass bubble */
 .sidebar__nav-item:hover {
   color: var(--preke-text);
   background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.08) 0%,
-    rgba(255, 255, 255, 0.03) 100%
+    145deg,
+    rgba(255, 255, 255, 0.1) 0%,
+    rgba(255, 255, 255, 0.04) 50%,
+    rgba(255, 255, 255, 0.02) 100%
   );
   box-shadow: 
-    inset 0 1px 0 rgba(255, 255, 255, 0.1),
-    0 4px 12px rgba(0, 0, 0, 0.15);
-  transform: translateY(-1px);
+    /* Top highlight - 3D edge */
+    inset 0 1px 1px rgba(255, 255, 255, 0.15),
+    /* Left highlight */
+    inset 1px 0 1px rgba(255, 255, 255, 0.08),
+    /* Inner glow */
+    inset 0 0 20px rgba(255, 255, 255, 0.03),
+    /* Bottom shadow */
+    0 4px 15px rgba(0, 0, 0, 0.2),
+    0 2px 4px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .sidebar__nav-item:active {
   transform: translateY(0);
   box-shadow: 
-    inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    0 2px 4px rgba(0, 0, 0, 0.1);
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 2px 4px rgba(0, 0, 0, 0.1),
+    0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
-/* Active state - default gold accent */
+/* Active state - liquid glass with gold accent */
 .sidebar__nav-item--active {
   color: var(--preke-gold);
   background: linear-gradient(
-    135deg,
-    rgba(224, 160, 48, 0.15) 0%,
-    rgba(224, 160, 48, 0.08) 100%
+    145deg,
+    rgba(224, 160, 48, 0.18) 0%,
+    rgba(224, 160, 48, 0.1) 50%,
+    rgba(224, 160, 48, 0.06) 100%
   );
-  border: 1px solid rgba(224, 160, 48, 0.2);
+  border: 1px solid rgba(224, 160, 48, 0.25);
   box-shadow: 
-    0 0 20px rgba(224, 160, 48, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    /* Outer glow */
+    0 0 25px rgba(224, 160, 48, 0.15),
+    0 4px 15px rgba(0, 0, 0, 0.2),
+    /* 3D highlights */
+    inset 0 1px 1px rgba(255, 255, 255, 0.12),
+    inset 1px 0 1px rgba(255, 255, 255, 0.06),
+    /* Inner color glow */
+    inset 0 0 20px rgba(224, 160, 48, 0.08);
 }
 
 .sidebar__nav-item--active:hover {
   background: linear-gradient(
-    135deg,
-    rgba(224, 160, 48, 0.2) 0%,
-    rgba(224, 160, 48, 0.1) 100%
+    145deg,
+    rgba(224, 160, 48, 0.22) 0%,
+    rgba(224, 160, 48, 0.12) 50%,
+    rgba(224, 160, 48, 0.08) 100%
   );
   box-shadow: 
-    0 0 25px rgba(224, 160, 48, 0.18),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    0 0 30px rgba(224, 160, 48, 0.2),
+    0 6px 20px rgba(0, 0, 0, 0.25),
+    inset 0 1px 1px rgba(255, 255, 255, 0.15),
+    inset 1px 0 1px rgba(255, 255, 255, 0.08),
+    inset 0 0 25px rgba(224, 160, 48, 0.1);
+  transform: translateY(-2px);
 }
 
-/* Recorder mode active state - red accent (matches top bar) */
+/* Recorder mode active state - liquid glass with red accent */
 .sidebar__nav-item--active.sidebar__nav-item--recorder {
   color: var(--preke-red);
   background: linear-gradient(
-    135deg,
-    rgba(212, 90, 90, 0.15) 0%,
-    rgba(212, 90, 90, 0.08) 100%
+    145deg,
+    rgba(212, 90, 90, 0.2) 0%,
+    rgba(212, 90, 90, 0.1) 50%,
+    rgba(212, 90, 90, 0.06) 100%
   );
-  border: 1px solid rgba(212, 90, 90, 0.3);
+  border: 1px solid rgba(212, 90, 90, 0.35);
   box-shadow: 
-    0 0 20px rgba(212, 90, 90, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    0 0 25px rgba(212, 90, 90, 0.15),
+    0 4px 15px rgba(0, 0, 0, 0.2),
+    inset 0 1px 1px rgba(255, 255, 255, 0.12),
+    inset 1px 0 1px rgba(255, 255, 255, 0.06),
+    inset 0 0 20px rgba(212, 90, 90, 0.08);
 }
 
 .sidebar__nav-item--active.sidebar__nav-item--recorder:hover {
   background: linear-gradient(
-    135deg,
-    rgba(212, 90, 90, 0.2) 0%,
-    rgba(212, 90, 90, 0.1) 100%
+    145deg,
+    rgba(212, 90, 90, 0.25) 0%,
+    rgba(212, 90, 90, 0.12) 50%,
+    rgba(212, 90, 90, 0.08) 100%
   );
   box-shadow: 
-    0 0 25px rgba(212, 90, 90, 0.18),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    0 0 30px rgba(212, 90, 90, 0.2),
+    0 6px 20px rgba(0, 0, 0, 0.25),
+    inset 0 1px 1px rgba(255, 255, 255, 0.15),
+    inset 1px 0 1px rgba(255, 255, 255, 0.08),
+    inset 0 0 25px rgba(212, 90, 90, 0.1);
+  transform: translateY(-2px);
 }
 
-/* Mixer mode active state - violet accent (matches top bar) */
+/* Mixer mode active state - liquid glass with violet accent */
 .sidebar__nav-item--active.sidebar__nav-item--mixer {
   color: #a78bfa;
   background: linear-gradient(
-    135deg,
-    rgba(124, 58, 237, 0.15) 0%,
-    rgba(124, 58, 237, 0.08) 100%
+    145deg,
+    rgba(124, 58, 237, 0.2) 0%,
+    rgba(124, 58, 237, 0.1) 50%,
+    rgba(124, 58, 237, 0.06) 100%
   );
-  border: 1px solid rgba(124, 58, 237, 0.3);
+  border: 1px solid rgba(124, 58, 237, 0.35);
   box-shadow: 
-    0 0 20px rgba(124, 58, 237, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    0 0 25px rgba(124, 58, 237, 0.15),
+    0 4px 15px rgba(0, 0, 0, 0.2),
+    inset 0 1px 1px rgba(255, 255, 255, 0.12),
+    inset 1px 0 1px rgba(255, 255, 255, 0.06),
+    inset 0 0 20px rgba(124, 58, 237, 0.08);
 }
 
 .sidebar__nav-item--active.sidebar__nav-item--mixer:hover {
   background: linear-gradient(
-    135deg,
-    rgba(124, 58, 237, 0.2) 0%,
-    rgba(124, 58, 237, 0.1) 100%
+    145deg,
+    rgba(124, 58, 237, 0.25) 0%,
+    rgba(124, 58, 237, 0.12) 50%,
+    rgba(124, 58, 237, 0.08) 100%
   );
   box-shadow: 
-    0 0 25px rgba(124, 58, 237, 0.18),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    0 0 30px rgba(124, 58, 237, 0.2),
+    0 6px 20px rgba(0, 0, 0, 0.25),
+    inset 0 1px 1px rgba(255, 255, 255, 0.15),
+    inset 1px 0 1px rgba(255, 255, 255, 0.08),
+    inset 0 0 25px rgba(124, 58, 237, 0.1);
+  transform: translateY(-2px);
 }
 
 /* Glow effect behind active item */
@@ -452,12 +536,19 @@ onUnmounted(() => {
   letter-spacing: 0.01em;
 }
 
-/* Version */
+/* Version - subtle glass pill */
 .sidebar__version {
-  padding: 12px;
+  padding: 6px 12px;
+  margin-bottom: 8px;
   font-size: 10px;
   color: var(--preke-text-subtle);
   letter-spacing: 0.03em;
-  opacity: 0.5;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.04) 0%,
+    rgba(255, 255, 255, 0.01) 100%
+  );
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.03);
 }
 </style>

@@ -230,13 +230,51 @@ const modeInfo = computed(() => {
   height: 56px;
   min-height: 56px;
   flex-shrink: 0;
-  background: var(--preke-surface);
-  border-bottom: 1px solid var(--preke-surface-border);
+  
+  /* Liquid glass effect */
+  background: linear-gradient(
+    180deg,
+    rgba(32, 32, 36, 0.85) 0%,
+    rgba(24, 24, 28, 0.9) 50%,
+    rgba(20, 20, 24, 0.95) 100%
+  );
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  
+  /* 3D depth with multiple borders and shadows */
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 
+    /* Top inner highlight - creates 3D edge */
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    /* Inner subtle glow */
+    inset 0 0 30px rgba(255, 255, 255, 0.02),
+    /* Bottom shadow for depth */
+    0 4px 20px rgba(0, 0, 0, 0.3),
+    0 1px 3px rgba(0, 0, 0, 0.2);
+  
   display: flex;
   align-items: center;
   padding: 0 20px;
   gap: 20px;
   -webkit-app-region: drag;
+  z-index: 100;
+}
+
+/* Liquid glass reflection overlay */
+.header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 50%;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.05) 0%,
+    transparent 100%
+  );
+  pointer-events: none;
+  border-radius: inherit;
 }
 
 .header__status,
@@ -284,23 +322,39 @@ const modeInfo = computed(() => {
   gap: 16px;
 }
 
-/* Mode indicator */
+/* Mode indicator - liquid glass pill */
 .header__mode {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 12px;
-  border-radius: 8px;
+  padding: 6px 14px;
+  border-radius: 10px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 .header__mode--red {
-  background: rgba(212, 90, 90, 0.15);
-  border: 1px solid rgba(212, 90, 90, 0.3);
+  background: linear-gradient(
+    135deg,
+    rgba(212, 90, 90, 0.2) 0%,
+    rgba(212, 90, 90, 0.1) 100%
+  );
+  border: 1px solid rgba(212, 90, 90, 0.35);
+  box-shadow: 
+    0 2px 10px rgba(212, 90, 90, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .header__mode--violet {
-  background: rgba(124, 58, 237, 0.15);
-  border: 1px solid rgba(124, 58, 237, 0.3);
+  background: linear-gradient(
+    135deg,
+    rgba(124, 58, 237, 0.2) 0%,
+    rgba(124, 58, 237, 0.1) 100%
+  );
+  border: 1px solid rgba(124, 58, 237, 0.35);
+  box-shadow: 
+    0 2px 10px rgba(124, 58, 237, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .header__mode-dot {
@@ -368,11 +422,17 @@ const modeInfo = computed(() => {
   color: var(--preke-text-muted);
 }
 
-/* Divider */
+/* Divider - subtle glass separator */
 .header__divider {
   width: 1px;
   height: 24px;
-  background: var(--preke-border);
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.1) 30%,
+    rgba(255, 255, 255, 0.1) 70%,
+    transparent 100%
+  );
 }
 
 /* Camera slots */
@@ -392,9 +452,16 @@ const modeInfo = computed(() => {
 .header__camera {
   width: 22px;
   height: 22px;
-  border-radius: 4px;
-  background: var(--preke-bg);
-  border: 1px solid var(--preke-border);
+  border-radius: 6px;
+  background: linear-gradient(
+    145deg,
+    rgba(0, 0, 0, 0.3) 0%,
+    rgba(0, 0, 0, 0.2) 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 
+    inset 0 1px 2px rgba(0, 0, 0, 0.2),
+    0 1px 0 rgba(255, 255, 255, 0.03);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -408,8 +475,15 @@ const modeInfo = computed(() => {
 }
 
 .header__camera--active {
-  background: var(--preke-green-bg);
-  border-color: var(--preke-green);
+  background: linear-gradient(
+    145deg,
+    rgba(52, 211, 153, 0.25) 0%,
+    rgba(52, 211, 153, 0.15) 100%
+  );
+  border-color: rgba(52, 211, 153, 0.5);
+  box-shadow: 
+    0 0 8px rgba(52, 211, 153, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .header__camera--active .header__camera-num {
@@ -417,8 +491,15 @@ const modeInfo = computed(() => {
 }
 
 .header__camera--recording {
-  background: var(--preke-red-bg);
-  border-color: var(--preke-red);
+  background: linear-gradient(
+    145deg,
+    rgba(212, 90, 90, 0.3) 0%,
+    rgba(212, 90, 90, 0.2) 100%
+  );
+  border-color: rgba(212, 90, 90, 0.5);
+  box-shadow: 
+    0 0 10px rgba(212, 90, 90, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
   animation: camera-recording 1.5s ease-in-out infinite;
 }
 
@@ -447,10 +528,15 @@ const modeInfo = computed(() => {
 .header__storage-track {
   width: 50px;
   height: 6px;
-  background: var(--preke-bg);
-  border-radius: 3px;
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.4) 0%,
+    rgba(0, 0, 0, 0.2) 100%
+  );
+  border-radius: 4px;
   overflow: hidden;
-  border: 1px solid var(--preke-border);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .header__storage-fill {
@@ -482,7 +568,15 @@ const modeInfo = computed(() => {
   font-family: var(--preke-font-mono);
   font-size: 14px;
   font-weight: 600;
-  color: var(--preke-text-muted);
+  color: var(--preke-text);
   letter-spacing: 0.05em;
+  padding: 4px 10px;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.05) 0%,
+    rgba(255, 255, 255, 0.02) 100%
+  );
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
 }
 </style>
