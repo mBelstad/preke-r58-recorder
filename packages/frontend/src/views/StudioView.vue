@@ -499,23 +499,44 @@ async function selectMode(mode: 'recorder' | 'mixer') {
   50% { transform: rotate(115deg) translate(-6px, 4px); opacity: 0.85; }
 }
 
-/* Animated soundwaves (like the logo) */
+/* Animated soundwaves (like the logo) - behind shapes with soft glow */
 .soundwave {
   position: absolute;
   display: flex;
   align-items: center;
   gap: 3px;
   pointer-events: none;
-  z-index: 5;
-  filter: drop-shadow(0 0 10px rgba(224, 160, 48, 0.5));
+  z-index: 0; /* Behind all shapes */
+  /* Soft blur to create ambient light effect */
+  filter: blur(3px);
+}
+
+/* Glow aura behind each soundwave - creates light that shines on surroundings */
+.soundwave::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 250px;
+  height: 200px;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(224, 160, 48, 0.25) 0%,
+    rgba(224, 160, 48, 0.1) 30%,
+    rgba(224, 160, 48, 0.03) 60%,
+    transparent 80%
+  );
+  filter: blur(30px);
+  pointer-events: none;
 }
 
 .soundwave__bar {
   width: 4px;
   background: linear-gradient(180deg, 
-    rgba(217, 152, 30, 0.9) 0%,
-    rgba(224, 160, 48, 0.7) 50%,
-    rgba(217, 152, 30, 0.9) 100%
+    rgba(217, 152, 30, 0.5) 0%,
+    rgba(224, 160, 48, 0.35) 50%,
+    rgba(217, 152, 30, 0.5) 100%
   );
   border-radius: 2px;
   transform-origin: center;
@@ -523,6 +544,8 @@ async function selectMode(mode: 'recorder' | 'mixer') {
   height: calc(var(--h) * 60px);
   animation: soundwave-pulse 1.5s ease-in-out infinite;
   animation-delay: calc(var(--i) * 0.1s);
+  /* Individual bar glow for soft effect */
+  box-shadow: 0 0 8px rgba(224, 160, 48, 0.3);
 }
 
 /* Soundwave 1 - Left side */
@@ -531,7 +554,7 @@ async function selectMode(mode: 'recorder' | 'mixer') {
   left: 12%;
   transform: rotate(-8deg);
   opacity: 0;
-  animation: soundwave-fade 8s ease-in-out infinite;
+  animation: soundwave-fade 10s ease-in-out infinite;
 }
 
 .soundwave--1 .soundwave__bar {
@@ -544,8 +567,8 @@ async function selectMode(mode: 'recorder' | 'mixer') {
   right: 15%;
   transform: rotate(5deg);
   opacity: 0;
-  animation: soundwave-fade 8s ease-in-out infinite;
-  animation-delay: 2.5s;
+  animation: soundwave-fade 10s ease-in-out infinite;
+  animation-delay: 3s;
 }
 
 .soundwave--2 .soundwave__bar {
@@ -558,34 +581,34 @@ async function selectMode(mode: 'recorder' | 'mixer') {
   left: 20%;
   transform: rotate(-3deg);
   opacity: 0;
-  animation: soundwave-fade 8s ease-in-out infinite;
-  animation-delay: 5s;
+  animation: soundwave-fade 10s ease-in-out infinite;
+  animation-delay: 6s;
 }
 
 .soundwave--3 .soundwave__bar {
   height: calc(var(--h) * 40px);
 }
 
-/* Bar pulsing animation */
+/* Bar pulsing animation - softer */
 @keyframes soundwave-pulse {
   0%, 100% {
     transform: scaleY(0.4);
-    opacity: 0.6;
+    opacity: 0.4;
   }
   50% {
     transform: scaleY(1);
-    opacity: 1;
+    opacity: 0.7;
   }
 }
 
-/* Fade in/out animation for the whole soundwave */
+/* Fade in/out animation for the whole soundwave - softer and slower */
 @keyframes soundwave-fade {
-  0%, 15%, 85%, 100% {
+  0%, 10%, 90%, 100% {
     opacity: 0;
     transform: rotate(var(--rotation, 0deg)) translateX(-10px);
   }
   25%, 75% {
-    opacity: 0.8;
+    opacity: 0.5;
     transform: rotate(var(--rotation, 0deg)) translateX(0);
   }
 }
