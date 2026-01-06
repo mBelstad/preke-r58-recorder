@@ -9,7 +9,7 @@ import logoPrekeWhiteCropped from '@/assets/logo-preke-white-cropped.svg'
 <template>
   <div class="preke-studio-logo">
     <img :src="logoPrekeWhiteCropped" alt="Preke" class="preke-studio-logo__image" />
-    <span class="preke-studio-logo__text">studio</span>
+    <span class="preke-studio-logo__text">STUDIO</span>
   </div>
 </template>
 
