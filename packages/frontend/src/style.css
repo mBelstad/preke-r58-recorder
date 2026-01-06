@@ -63,7 +63,10 @@
    ================================================================= */
 
 html, body {
-  height: 100%;
+  width: 100vw !important;
+  min-width: 100vw !important;
+  max-width: 100vw !important;
+  height: 100vh;
   overflow: hidden;
   font-family: var(--preke-font-sans);
   color: var(--preke-text);
