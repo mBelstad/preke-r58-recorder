@@ -140,12 +140,9 @@ const modeInfo = computed(() => {
     <!-- Spacer for macOS traffic lights (only in Electron on macOS) -->
     <div v-if="isElectron && isMacOS" class="header__spacer"></div>
     
-    <!-- Logo - positioned after spacer in Electron, at left in web -->
-    <PrekeStudioLogo class="header__logo" />
-    
-    <!-- Center: Status indicators -->
-    <div class="header__center">
-      <!-- Mode indicator (if active) - no pulse, just shows current mode -->
+    <!-- Left: Status indicators -->
+    <div class="header__left">
+      <!-- Mode indicator (if active) -->
       <div v-if="modeInfo" class="header__mode" :class="`header__mode--${modeInfo.color}`">
         <span class="header__mode-dot"></span>
         <span class="header__mode-label">{{ modeInfo.label }}</span>
@@ -164,14 +161,19 @@ const modeInfo = computed(() => {
         ></span>
         <span class="header__status-text">{{ statusInfo.text }}</span>
       </div>
-      
+    </div>
+    
+    <!-- Center: Logo -->
+    <div class="header__center">
+      <PrekeStudioLogo class="header__logo" />
+    </div>
+    
+    <!-- Right: Stats and time -->
+    <div class="header__right">
       <!-- Stats when connected -->
       <template v-if="statusInfo.showDetails">
-        <div class="header__divider"></div>
-        
-        <!-- Camera slots (4 numbered placeholders with camera icon) -->
+        <!-- Camera slots -->
         <div class="header__cameras" :title="`Camera inputs`">
-          <!-- Camera icon label -->
           <svg class="header__cameras-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
             <path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
           </svg>
@@ -211,11 +213,11 @@ const modeInfo = computed(() => {
           </div>
           <span class="header__storage-text">{{ storageInfo.freeGB }}GB</span>
         </div>
+        
+        <div class="header__divider"></div>
       </template>
-    </div>
-    
-    <!-- Right: Time -->
-    <div class="header__right">
+      
+      <!-- Time -->
       <span class="header__time">{{ formattedTime }}</span>
     </div>
   </header>
@@ -223,6 +225,7 @@ const modeInfo = computed(() => {
 
 <style scoped>
 .header {
+  position: relative;
   width: 100%;
   height: 56px;
   min-height: 56px;
@@ -249,23 +252,35 @@ const modeInfo = computed(() => {
   flex-shrink: 0;
 }
 
-/* Logo positioning */
-.header__logo {
-  flex-shrink: 0;
-  margin-right: auto; /* Push center content to actual center in web */
-}
-
-/* In Electron, logo should not push content (spacer handles positioning) */
-:global(.electron-app) .header__logo {
-  margin-right: 0;
-}
-
-/* Center section */
-.header__center {
+/* Left section - status info */
+.header__left {
   flex: 1;
   display: flex;
   align-items: center;
+  gap: 16px;
+}
+
+/* Center section - logo centered */
+.header__center {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
   justify-content: center;
+}
+
+/* Logo */
+.header__logo {
+  flex-shrink: 0;
+}
+
+/* Right section - stats and time */
+.header__right {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
   gap: 16px;
 }
 
@@ -461,11 +476,6 @@ const modeInfo = computed(() => {
   font-weight: 600;
   color: var(--preke-text-muted);
   min-width: 32px;
-}
-
-/* Right section */
-.header__right {
-  flex-shrink: 0;
 }
 
 .header__time {
