@@ -19,7 +19,7 @@ import logoPrekeWhiteCropped from '@/assets/logo-preke-white-cropped.svg'
   align-items: center;
   gap: 10px;
   flex-shrink: 0;
-  height: 45px; /* 40% bigger than original 32px: 32 * 1.4 = 44.8px, rounded to 45px */
+  height: 40px; /* 45px reduced by 10% */
 }
 
 .preke-studio-logo__image {
@@ -31,7 +31,7 @@ import logoPrekeWhiteCropped from '@/assets/logo-preke-white-cropped.svg'
 
 .preke-studio-logo__text {
   font-family: var(--preke-font-sans);
-  font-size: 32px;
+  font-size: 29px; /* 32px reduced by 10% */
   font-weight: 800;
   color: var(--preke-gold);
   letter-spacing: 0.02em;
