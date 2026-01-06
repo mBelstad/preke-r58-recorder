@@ -317,7 +317,7 @@ function selectMode(mode: 'recorder' | 'mixer') {
         </div>
         
         <div class="stock-image__center">
-          <span class="stock-image__logo">Preke Studio</span>
+          <span class="stock-image__logo">Choose</span>
         </div>
         
         <div class="stock-image__side stock-image__side--right" @click="selectMode('mixer')">
@@ -1562,51 +1562,28 @@ function selectMode(mode: 'recorder' | 'mixer') {
   overflow: hidden;
 }
 
-/* Moving light effect behind the image */
+/* Moving light effect behind the image - soft and smooth */
 .stock-image__light {
   position: absolute;
-  inset: -20%;
+  inset: -30%;
   background: radial-gradient(ellipse at 50% 50%, 
-    rgba(224, 160, 48, 0.4) 0%, 
-    rgba(224, 160, 48, 0.15) 30%, 
-    transparent 60%
+    rgba(224, 160, 48, 0.25) 0%, 
+    rgba(224, 160, 48, 0.08) 40%, 
+    transparent 70%
   );
-  animation: stock-light-move 15s ease-in-out infinite;
+  filter: blur(40px);
+  animation: stock-light-move 25s ease-in-out infinite;
   z-index: 1;
 }
 
 @keyframes stock-light-move {
   0%, 100% { 
-    transform: translate(0, 0) scale(1);
-    background: radial-gradient(ellipse at 30% 40%, 
-      rgba(224, 160, 48, 0.45) 0%, 
-      rgba(224, 160, 48, 0.15) 30%, 
-      transparent 60%
-    );
-  }
-  25% { 
-    transform: translate(10%, 5%) scale(1.1);
-    background: radial-gradient(ellipse at 70% 35%, 
-      rgba(224, 160, 48, 0.5) 0%, 
-      rgba(224, 160, 48, 0.18) 30%, 
-      transparent 60%
-    );
+    transform: translate(-15%, -10%) scale(1);
+    opacity: 0.8;
   }
   50% { 
-    transform: translate(5%, 10%) scale(1.05);
-    background: radial-gradient(ellipse at 60% 65%, 
-      rgba(224, 160, 48, 0.4) 0%, 
-      rgba(224, 160, 48, 0.14) 30%, 
-      transparent 60%
-    );
-  }
-  75% { 
-    transform: translate(-5%, 5%) scale(1.08);
-    background: radial-gradient(ellipse at 40% 60%, 
-      rgba(224, 160, 48, 0.48) 0%, 
-      rgba(224, 160, 48, 0.16) 30%, 
-      transparent 60%
-    );
+    transform: translate(15%, 10%) scale(1.1);
+    opacity: 1;
   }
 }
 
@@ -1617,20 +1594,20 @@ function selectMode(mode: 'recorder' | 'mixer') {
   background-image: url('@/assets/stock-background.jpeg');
   background-size: cover;
   background-position: center;
-  opacity: 0.35;
+  opacity: 0.25;
   z-index: 2;
 }
 
-/* Dark overlay on top of the image */
+/* Dark overlay on top of the image - darker */
 .stock-image__overlay {
   position: absolute;
   inset: 0;
   background: linear-gradient(
     180deg,
-    rgba(10, 10, 12, 0.7) 0%,
-    rgba(10, 10, 12, 0.4) 30%,
-    rgba(10, 10, 12, 0.4) 70%,
-    rgba(10, 10, 12, 0.8) 100%
+    rgba(5, 5, 7, 0.85) 0%,
+    rgba(5, 5, 7, 0.6) 30%,
+    rgba(5, 5, 7, 0.6) 70%,
+    rgba(5, 5, 7, 0.9) 100%
   );
   z-index: 3;
 }
