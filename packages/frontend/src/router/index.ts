@@ -97,6 +97,12 @@ const router = createRouter({
       component: () => import('@/views/BackgroundExperimentsView.vue'),
       meta: { title: 'Background Experiments' }
     },
+    {
+      path: '/proposals',
+      name: 'proposals',
+      component: () => import('@/views/DesignProposalsView.vue'),
+      meta: { title: 'Design Proposals' }
+    },
   ]
 })
 
