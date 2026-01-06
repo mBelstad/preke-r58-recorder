@@ -116,13 +116,21 @@ async function selectMode(mode: 'recorder' | 'mixer') {
         <div class="geo-shape geo-shape--14"></div>
         <div class="geo-shape geo-shape--15"></div>
       </div>
-      <!-- Row 4: Bottom edge shapes -->
+      <!-- Row 4: Lower middle shapes -->
       <div class="geo-layer geo-layer--4">
         <div class="geo-shape geo-shape--16"></div>
         <div class="geo-shape geo-shape--17"></div>
         <div class="geo-shape geo-shape--18"></div>
         <div class="geo-shape geo-shape--19"></div>
         <div class="geo-shape geo-shape--20"></div>
+      </div>
+      <!-- Row 5: Bottom edge shapes -->
+      <div class="geo-layer geo-layer--5">
+        <div class="geo-shape geo-shape--21"></div>
+        <div class="geo-shape geo-shape--22"></div>
+        <div class="geo-shape geo-shape--23"></div>
+        <div class="geo-shape geo-shape--24"></div>
+        <div class="geo-shape geo-shape--25"></div>
       </div>
       <!-- Animated soundwaves (like the logo) -->
       <div class="soundwave soundwave--1">
@@ -278,13 +286,13 @@ async function selectMode(mode: 'recorder' | 'mixer') {
 }
 
 /* All shapes are parallelograms with alternating 45°/115° rotation
-   Grid: 5 columns x 4 rows = 20 shapes, evenly distributed
+   Grid: 5 columns x 5 rows = 25 shapes, evenly distributed
    Edge shapes start outside container */
 
 /* Row 1 - Top edge (starting outside) */
 .geo-shape--1 {
-  width: 22%;
-  height: 18%;
+  width: 20%;
+  height: 24%;
   top: -8%;
   left: 0%;
   clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
@@ -293,20 +301,20 @@ async function selectMode(mode: 'recorder' | 'mixer') {
 }
 
 .geo-shape--2 {
-  width: 20%;
-  height: 16%;
+  width: 18%;
+  height: 22%;
   top: -6%;
-  left: 20%;
+  left: 16%;
   clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
   transform: rotate(115deg);
   animation: shape-breathe-115 14s ease-in-out infinite;
 }
 
 .geo-shape--3 {
-  width: 24%;
-  height: 20%;
+  width: 22%;
+  height: 26%;
   top: -10%;
-  left: 42%;
+  left: 35%;
   clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
   transform: rotate(45deg);
   animation: shape-breathe-45 10s ease-in-out infinite;
@@ -315,17 +323,17 @@ async function selectMode(mode: 'recorder' | 'mixer') {
 
 .geo-shape--4 {
   width: 18%;
-  height: 14%;
+  height: 22%;
   top: -5%;
-  left: 65%;
+  left: 58%;
   clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
   transform: rotate(115deg);
   animation: shape-breathe-115 13s ease-in-out infinite;
 }
 
 .geo-shape--5 {
-  width: 22%;
-  height: 18%;
+  width: 20%;
+  height: 24%;
   top: -8%;
   right: -5%;
   clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
@@ -336,9 +344,9 @@ async function selectMode(mode: 'recorder' | 'mixer') {
 
 /* Row 2 - Upper middle */
 .geo-shape--6 {
-  width: 20%;
-  height: 16%;
-  top: 18%;
+  width: 18%;
+  height: 22%;
+  top: 12%;
   left: -8%;
   clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
   transform: rotate(115deg);
@@ -346,10 +354,10 @@ async function selectMode(mode: 'recorder' | 'mixer') {
 }
 
 .geo-shape--7 {
-  width: 18%;
-  height: 14%;
-  top: 22%;
-  left: 15%;
+  width: 20%;
+  height: 24%;
+  top: 14%;
+  left: 12%;
   clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
   transform: rotate(45deg);
   animation: shape-breathe-45 12s ease-in-out infinite;
@@ -358,19 +366,19 @@ async function selectMode(mode: 'recorder' | 'mixer') {
 
 .geo-shape--8 {
   width: 22%;
-  height: 18%;
-  top: 20%;
-  left: 38%;
+  height: 26%;
+  top: 13%;
+  left: 33%;
   clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
   transform: rotate(115deg);
   animation: shape-breathe-115 10s ease-in-out infinite;
 }
 
 .geo-shape--9 {
-  width: 16%;
-  height: 14%;
-  top: 18%;
-  left: 62%;
+  width: 18%;
+  height: 22%;
+  top: 12%;
+  left: 56%;
   clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
   transform: rotate(45deg);
   animation: shape-breathe-45 14s ease-in-out infinite;
@@ -378,20 +386,20 @@ async function selectMode(mode: 'recorder' | 'mixer') {
 }
 
 .geo-shape--10 {
-  width: 24%;
-  height: 20%;
-  top: 15%;
+  width: 20%;
+  height: 24%;
+  top: 10%;
   right: -10%;
   clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
   transform: rotate(115deg);
   animation: shape-breathe-115 11s ease-in-out infinite;
 }
 
-/* Row 3 - Lower middle */
+/* Row 3 - Middle */
 .geo-shape--11 {
-  width: 22%;
-  height: 18%;
-  top: 48%;
+  width: 20%;
+  height: 24%;
+  top: 38%;
   left: -10%;
   clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
   transform: rotate(45deg);
@@ -400,9 +408,9 @@ async function selectMode(mode: 'recorder' | 'mixer') {
 
 .geo-shape--12 {
   width: 18%;
-  height: 16%;
-  top: 52%;
-  left: 18%;
+  height: 22%;
+  top: 40%;
+  left: 12%;
   clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
   transform: rotate(115deg);
   animation: shape-breathe-115 12s ease-in-out infinite;
@@ -410,20 +418,20 @@ async function selectMode(mode: 'recorder' | 'mixer') {
 }
 
 .geo-shape--13 {
-  width: 20%;
-  height: 16%;
-  top: 50%;
-  left: 40%;
+  width: 22%;
+  height: 26%;
+  top: 38%;
+  left: 31%;
   clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
   transform: rotate(45deg);
   animation: shape-breathe-45 15s ease-in-out infinite;
 }
 
 .geo-shape--14 {
-  width: 22%;
-  height: 18%;
-  top: 48%;
-  left: 65%;
+  width: 20%;
+  height: 24%;
+  top: 40%;
+  left: 54%;
   clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
   transform: rotate(115deg);
   animation: shape-breathe-115 10s ease-in-out infinite;
@@ -431,20 +439,20 @@ async function selectMode(mode: 'recorder' | 'mixer') {
 }
 
 .geo-shape--15 {
-  width: 20%;
-  height: 16%;
-  top: 52%;
+  width: 18%;
+  height: 22%;
+  top: 42%;
   right: -8%;
   clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
   transform: rotate(45deg);
   animation: shape-breathe-45 14s ease-in-out infinite;
 }
 
-/* Row 4 - Bottom edge (starting outside) */
+/* Row 4 - Lower middle */
 .geo-shape--16 {
-  width: 24%;
-  height: 20%;
-  bottom: -10%;
+  width: 22%;
+  height: 26%;
+  top: 64%;
   left: -5%;
   clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
   transform: rotate(115deg);
@@ -453,20 +461,20 @@ async function selectMode(mode: 'recorder' | 'mixer') {
 }
 
 .geo-shape--17 {
-  width: 20%;
-  height: 16%;
-  bottom: -6%;
-  left: 22%;
+  width: 18%;
+  height: 22%;
+  top: 66%;
+  left: 14%;
   clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
   transform: rotate(45deg);
   animation: shape-breathe-45 13s ease-in-out infinite;
 }
 
 .geo-shape--18 {
-  width: 22%;
-  height: 18%;
-  bottom: -8%;
-  left: 45%;
+  width: 20%;
+  height: 24%;
+  top: 64%;
+  left: 33%;
   clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
   transform: rotate(115deg);
   animation: shape-breathe-115 12s ease-in-out infinite;
@@ -474,24 +482,79 @@ async function selectMode(mode: 'recorder' | 'mixer') {
 }
 
 .geo-shape--19 {
-  width: 18%;
-  height: 14%;
-  bottom: -5%;
-  left: 68%;
+  width: 22%;
+  height: 26%;
+  top: 66%;
+  left: 54%;
   clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
   transform: rotate(45deg);
   animation: shape-breathe-45 14s ease-in-out infinite;
 }
 
 .geo-shape--20 {
-  width: 22%;
-  height: 18%;
-  bottom: -8%;
+  width: 20%;
+  height: 24%;
+  top: 64%;
   right: -8%;
   clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
   transform: rotate(115deg);
   animation: shape-breathe-115 10s ease-in-out infinite;
   animation-delay: 3s;
+}
+
+/* Row 5 - Bottom edge (starting outside) */
+.geo-shape--21 {
+  width: 20%;
+  height: 24%;
+  bottom: -10%;
+  left: -3%;
+  clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
+  transform: rotate(45deg);
+  animation: shape-breathe-45 12s ease-in-out infinite;
+  animation-delay: 1s;
+}
+
+.geo-shape--22 {
+  width: 18%;
+  height: 22%;
+  bottom: -8%;
+  left: 16%;
+  clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
+  transform: rotate(115deg);
+  animation: shape-breathe-115 14s ease-in-out infinite;
+  animation-delay: 2s;
+}
+
+.geo-shape--23 {
+  width: 22%;
+  height: 26%;
+  bottom: -10%;
+  left: 35%;
+  clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
+  transform: rotate(45deg);
+  animation: shape-breathe-45 11s ease-in-out infinite;
+}
+
+.geo-shape--24 {
+  width: 18%;
+  height: 22%;
+  bottom: -7%;
+  left: 58%;
+  clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
+  transform: rotate(115deg);
+  animation: shape-breathe-115 13s ease-in-out infinite;
+  animation-delay: 1.5s;
+}
+
+.geo-shape--25 {
+  width: 20%;
+  height: 24%;
+  bottom: -9%;
+  right: -5%;
+  clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
+  transform: rotate(45deg);
+  animation: shape-breathe-45 15s ease-in-out infinite;
+  animation-delay: 2.5s;
 }
 
 /* Breathing animations - two variants for alternating rotations */
