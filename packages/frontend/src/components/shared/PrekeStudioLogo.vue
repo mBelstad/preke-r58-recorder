@@ -1,9 +1,9 @@
 <script setup lang="ts">
 /**
  * Preke Studio Logo Component
- * Combines the white waveform logo with "studio" text for better visual balance
+ * White version of the Preke logo with "studio" text
  */
-import logoWaveform from '@/assets/logo-waveform-white.svg'
+import logoWhite from '@/assets/logo-white.svg'
 
 defineProps<{
   height?: number
@@ -12,9 +12,8 @@ defineProps<{
 
 <template>
   <div class="preke-studio-logo" :style="{ height: `${height || 36}px` }">
-    <img :src="logoWaveform" alt="Preke" class="preke-studio-logo__waveform" />
-    <span class="preke-studio-logo__text preke-studio-logo__text--preke">preke</span>
-    <span class="preke-studio-logo__text preke-studio-logo__text--studio">studio</span>
+    <img :src="logoWhite" alt="Preke" class="preke-studio-logo__image" />
+    <span class="preke-studio-logo__text">studio</span>
   </div>
 </template>
 
@@ -22,11 +21,11 @@ defineProps<{
 .preke-studio-logo {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-shrink: 0;
 }
 
-.preke-studio-logo__waveform {
+.preke-studio-logo__image {
   height: 130%; /* 30% bigger than container */
   width: auto;
   object-fit: contain;
@@ -34,18 +33,11 @@ defineProps<{
 
 .preke-studio-logo__text {
   font-family: var(--preke-font-sans);
-  font-size: 1.3em; /* Sized to match container height */
+  font-size: 1.3em; /* Sized to match the "Preke" text in the logo */
   font-weight: 800;
+  color: var(--preke-gold);
   letter-spacing: 0.02em;
   line-height: 1;
-}
-
-.preke-studio-logo__text--preke {
-  color: var(--preke-text); /* White/light text */
-}
-
-.preke-studio-logo__text--studio {
-  color: var(--preke-gold); /* Gold accent */
 }
 </style>
 
