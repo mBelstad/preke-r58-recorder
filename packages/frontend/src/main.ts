@@ -3,7 +3,8 @@ import { createPinia } from 'pinia'
 
 import App from './App.vue'
 import router from './router'
-import { initializeDeviceUrl, setDeviceUrl, isElectron, disableFrpFallback } from './lib/api'
+import { initializeDeviceUrl, setDeviceUrl, disableFrpFallback } from './lib/api'
+import { platform } from './lib/platform'
 
 // Global styles - Preke Design System v3
 import './styles/preke-design-system.css'
@@ -20,18 +21,14 @@ async function initApp() {
   app.use(router)
 
   // Electron-specific initialization
-  if (isElectron()) {
+  if (platform.isElectron()) {
     console.log('[App] Running in Electron mode')
     
-    // Add class to body for CSS targeting (e.g., traffic light spacer)
-    document.body.classList.add('electron-app')
-    document.documentElement.classList.add('electron-app')
-    
-    // Detect Windows for different window chrome spacing
-    if (navigator.platform.includes('Win')) {
-      document.body.classList.add('is-windows')
-      document.documentElement.classList.add('is-windows')
-    }
+    // Add platform-specific classes to body for CSS targeting
+    platform.getBodyClasses().forEach(cls => {
+      document.body.classList.add(cls)
+      document.documentElement.classList.add(cls)
+    })
     
     // Initialize device URL before mounting
     const deviceUrl = await initializeDeviceUrl()

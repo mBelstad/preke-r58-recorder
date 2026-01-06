@@ -1,0 +1,22 @@
+{
+  "name": "preke-r58-recorder",
+  "private": true,
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "dev": "npm run dev:web",
+    "dev:web": "cd packages/frontend && npm run dev",
+    "dev:electron": "cd packages/desktop && npm run dev",
+    
+    "build": "npm run build:web && npm run build:electron",
+    "build:web": "cd packages/frontend && npm run build",
+    "build:electron": "cd packages/desktop && npm run build",
+    
+    "test:web": "cd packages/frontend && npm run test:run",
+    "test:electron": "cd packages/desktop && npm run test:launch",
+    "test:electron:stop": "cd packages/desktop && npm run test:stop",
+    "test:electron:screenshot": "cd packages/desktop && npm run test:screenshot",
+    
+    "lint": "cd packages/frontend && npm run lint"
+  }
+}
+
