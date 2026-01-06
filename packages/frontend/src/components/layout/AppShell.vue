@@ -13,7 +13,7 @@ const isMinimalLayout = computed(() => route.meta.layout === 'minimal')
 </script>
 
 <template>
-  <div v-if="isMinimalLayout" class="h-full">
+  <div v-if="isMinimalLayout" class="minimal-layout">
     <slot />
   </div>
   
@@ -35,6 +35,14 @@ const isMinimalLayout = computed(() => route.meta.layout === 'minimal')
 </template>
 
 <style scoped>
+/* Minimal layout - full screen for pages like device setup */
+.minimal-layout {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
 .app-shell {
   height: 100%;
   display: flex;
