@@ -493,44 +493,44 @@ onUnmounted(() => {
               Scan
             </button>
             
-            <button 
-              v-if="!showManualEntry" 
-              @click="showManualEntry = true" 
-              class="btn-manual"
-            >
-              <svg viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
-              </svg>
-              Enter address manually
-            </button>
-          </div>
-          
-          <form v-else @submit.prevent="addManualDevice" class="manual-form">
-            <div class="manual-form__row">
-              <input 
-                v-model="manualUrl" 
-                type="text" 
-                placeholder="IP address or URL (e.g., 192.168.1.100)"
-                class="input"
-                :class="{ 'input--error': manualError }"
-              />
+            <template v-if="!showManualEntry">
               <button 
-                type="submit" 
-                :disabled="isProbing" 
-                class="btn btn--primary"
+                @click="showManualEntry = true" 
+                class="btn-manual"
               >
-                <svg v-if="isProbing" class="spinner" viewBox="0 0 24 24">
-                  <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" opacity="0.25"/>
-                  <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" opacity="0.75"/>
+                <svg viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
                 </svg>
-                Add
+                Enter address manually
               </button>
-            </div>
-            <span v-if="manualError" class="field-error">{{ manualError }}</span>
-            <button type="button" @click="showManualEntry = false; manualError = ''" class="btn-cancel">
-              Cancel
-            </button>
-          </form>
+            </template>
+            <form v-else @submit.prevent="addManualDevice" class="manual-form">
+              <div class="manual-form__row">
+                <input 
+                  v-model="manualUrl" 
+                  type="text" 
+                  placeholder="IP address or URL (e.g., 192.168.1.100)"
+                  class="input"
+                  :class="{ 'input--error': manualError }"
+                />
+                <button 
+                  type="submit" 
+                  :disabled="isProbing" 
+                  class="btn btn--primary"
+                >
+                  <svg v-if="isProbing" class="spinner" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" opacity="0.25"/>
+                    <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" opacity="0.75"/>
+                  </svg>
+                  Add
+                </button>
+              </div>
+              <span v-if="manualError" class="field-error">{{ manualError }}</span>
+              <button type="button" @click="showManualEntry = false; manualError = ''" class="btn-cancel">
+                Cancel
+              </button>
+            </form>
+          </div>
         </div>
 
         <!-- Web warning -->
