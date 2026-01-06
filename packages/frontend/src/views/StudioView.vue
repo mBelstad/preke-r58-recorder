@@ -499,116 +499,166 @@ async function selectMode(mode: 'recorder' | 'mixer') {
   50% { transform: rotate(115deg) translate(-6px, 4px); opacity: 0.85; }
 }
 
-/* Animated soundwaves (like the logo) - behind shapes with soft glow */
+/* Animated soundwaves - realistic audio visualization with strong glow */
 .soundwave {
   position: absolute;
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
   pointer-events: none;
   z-index: 0; /* Behind all shapes */
-  /* Soft blur to create ambient light effect */
-  filter: blur(3px);
+  /* Slight blur for soft edges */
+  filter: blur(1px);
 }
 
-/* Glow aura behind each soundwave - creates light that shines on surroundings */
+/* Strong glow aura behind each soundwave - emits light onto surroundings */
 .soundwave::before {
   content: '';
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 250px;
-  height: 200px;
+  width: 350px;
+  height: 280px;
   background: radial-gradient(
     ellipse at center,
-    rgba(224, 160, 48, 0.25) 0%,
-    rgba(224, 160, 48, 0.1) 30%,
-    rgba(224, 160, 48, 0.03) 60%,
-    transparent 80%
+    rgba(224, 160, 48, 0.5) 0%,
+    rgba(224, 160, 48, 0.25) 25%,
+    rgba(224, 160, 48, 0.1) 50%,
+    rgba(224, 160, 48, 0.03) 75%,
+    transparent 100%
   );
-  filter: blur(30px);
+  filter: blur(40px);
   pointer-events: none;
+  animation: soundwave-glow 4s ease-in-out infinite;
+}
+
+/* Secondary outer glow for more light emission */
+.soundwave::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 500px;
+  height: 400px;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(224, 160, 48, 0.15) 0%,
+    rgba(224, 160, 48, 0.05) 40%,
+    transparent 70%
+  );
+  filter: blur(60px);
+  pointer-events: none;
+  animation: soundwave-glow 4s ease-in-out infinite 0.5s;
 }
 
 .soundwave__bar {
-  width: 4px;
+  width: 5px;
   background: linear-gradient(180deg, 
-    rgba(217, 152, 30, 0.5) 0%,
-    rgba(224, 160, 48, 0.35) 50%,
-    rgba(217, 152, 30, 0.5) 100%
+    rgba(255, 200, 80, 0.9) 0%,
+    rgba(224, 160, 48, 0.7) 50%,
+    rgba(255, 200, 80, 0.9) 100%
   );
-  border-radius: 2px;
+  border-radius: 3px;
   transform-origin: center;
-  /* Base height from --h variable, animated */
-  height: calc(var(--h) * 60px);
-  animation: soundwave-pulse 1.5s ease-in-out infinite;
-  animation-delay: calc(var(--i) * 0.1s);
-  /* Individual bar glow for soft effect */
-  box-shadow: 0 0 8px rgba(224, 160, 48, 0.3);
+  /* Base height from --h variable, animated with wave motion */
+  height: calc(var(--h) * 70px);
+  animation: soundwave-wave 3s ease-in-out infinite;
+  /* Wave offset creates ripple effect - slower, more natural */
+  animation-delay: calc(var(--i) * 0.15s);
+  /* Strong glow on each bar */
+  box-shadow: 
+    0 0 10px rgba(224, 160, 48, 0.6),
+    0 0 20px rgba(224, 160, 48, 0.3),
+    0 0 30px rgba(224, 160, 48, 0.15);
 }
 
 /* Soundwave 1 - Left side */
 .soundwave--1 {
-  top: 35%;
-  left: 12%;
-  transform: rotate(-8deg);
+  top: 30%;
+  left: 10%;
+  transform: rotate(-5deg);
   opacity: 0;
-  animation: soundwave-fade 10s ease-in-out infinite;
+  animation: soundwave-fade 14s ease-in-out infinite;
 }
 
 .soundwave--1 .soundwave__bar {
-  height: calc(var(--h) * 50px);
+  height: calc(var(--h) * 60px);
 }
 
 /* Soundwave 2 - Right side */
 .soundwave--2 {
-  top: 55%;
-  right: 15%;
-  transform: rotate(5deg);
+  top: 50%;
+  right: 12%;
+  transform: rotate(3deg);
   opacity: 0;
-  animation: soundwave-fade 10s ease-in-out infinite;
-  animation-delay: 3s;
+  animation: soundwave-fade 14s ease-in-out infinite;
+  animation-delay: 4.5s;
 }
 
 .soundwave--2 .soundwave__bar {
-  height: calc(var(--h) * 45px);
+  height: calc(var(--h) * 55px);
 }
 
 /* Soundwave 3 - Bottom left */
 .soundwave--3 {
-  bottom: 25%;
-  left: 20%;
-  transform: rotate(-3deg);
+  bottom: 20%;
+  left: 18%;
+  transform: rotate(-2deg);
   opacity: 0;
-  animation: soundwave-fade 10s ease-in-out infinite;
-  animation-delay: 6s;
+  animation: soundwave-fade 14s ease-in-out infinite;
+  animation-delay: 9s;
 }
 
 .soundwave--3 .soundwave__bar {
-  height: calc(var(--h) * 40px);
+  height: calc(var(--h) * 50px);
 }
 
-/* Bar pulsing animation - softer */
-@keyframes soundwave-pulse {
+/* Realistic wave animation - bars move like audio levels */
+@keyframes soundwave-wave {
   0%, 100% {
-    transform: scaleY(0.4);
-    opacity: 0.4;
+    transform: scaleY(0.3);
+    opacity: 0.5;
+  }
+  25% {
+    transform: scaleY(0.8);
+    opacity: 0.85;
   }
   50% {
     transform: scaleY(1);
-    opacity: 0.7;
+    opacity: 1;
+  }
+  75% {
+    transform: scaleY(0.6);
+    opacity: 0.75;
   }
 }
 
-/* Fade in/out animation for the whole soundwave - softer and slower */
-@keyframes soundwave-fade {
-  0%, 10%, 90%, 100% {
-    opacity: 0;
-    transform: rotate(var(--rotation, 0deg)) translateX(-10px);
+/* Glow pulsing animation */
+@keyframes soundwave-glow {
+  0%, 100% {
+    opacity: 0.6;
+    transform: translate(-50%, -50%) scale(0.9);
   }
-  25%, 75% {
-    opacity: 0.5;
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.1);
+  }
+}
+
+/* Fade in/out animation for the whole soundwave - slow and smooth */
+@keyframes soundwave-fade {
+  0%, 8%, 92%, 100% {
+    opacity: 0;
+    transform: rotate(var(--rotation, 0deg)) translateX(-5px);
+  }
+  20%, 80% {
+    opacity: 0.7;
+    transform: rotate(var(--rotation, 0deg)) translateX(0);
+  }
+  40%, 60% {
+    opacity: 0.85;
     transform: rotate(var(--rotation, 0deg)) translateX(0);
   }
 }
