@@ -146,30 +146,39 @@ function selectMode(mode: 'recorder' | 'mixer') {
          PROPOSAL 3: COMBINED
          ═══════════════════════════════════════════ -->
     <div v-show="activeProposal === 3" class="proposal combined">
-      <!-- Geometric background - more shapes for complexity -->
+      <!-- Geometric background - 20 parallelograms evenly distributed -->
       <div class="combined__geo">
+        <!-- Row 1: Top edge shapes -->
         <div class="geo-layer geo-layer--1">
           <div class="geo-shape geo-shape--1"></div>
           <div class="geo-shape geo-shape--2"></div>
           <div class="geo-shape geo-shape--3"></div>
-          <div class="geo-shape geo-shape--8"></div>
-          <div class="geo-shape geo-shape--9"></div>
-          <div class="geo-shape geo-shape--13"></div>
-          <div class="geo-shape geo-shape--14"></div>
-        </div>
-        <div class="geo-layer geo-layer--2">
           <div class="geo-shape geo-shape--4"></div>
           <div class="geo-shape geo-shape--5"></div>
-          <div class="geo-shape geo-shape--10"></div>
-          <div class="geo-shape geo-shape--11"></div>
-          <div class="geo-shape geo-shape--15"></div>
-          <div class="geo-shape geo-shape--16"></div>
         </div>
-        <div class="geo-layer geo-layer--3">
+        <!-- Row 2: Upper middle shapes -->
+        <div class="geo-layer geo-layer--2">
           <div class="geo-shape geo-shape--6"></div>
           <div class="geo-shape geo-shape--7"></div>
+          <div class="geo-shape geo-shape--8"></div>
+          <div class="geo-shape geo-shape--9"></div>
+          <div class="geo-shape geo-shape--10"></div>
+        </div>
+        <!-- Row 3: Lower middle shapes -->
+        <div class="geo-layer geo-layer--3">
+          <div class="geo-shape geo-shape--11"></div>
           <div class="geo-shape geo-shape--12"></div>
+          <div class="geo-shape geo-shape--13"></div>
+          <div class="geo-shape geo-shape--14"></div>
+          <div class="geo-shape geo-shape--15"></div>
+        </div>
+        <!-- Row 4: Bottom edge shapes -->
+        <div class="geo-layer geo-layer--4">
+          <div class="geo-shape geo-shape--16"></div>
           <div class="geo-shape geo-shape--17"></div>
+          <div class="geo-shape geo-shape--18"></div>
+          <div class="geo-shape geo-shape--19"></div>
+          <div class="geo-shape geo-shape--20"></div>
         </div>
         <!-- Gold glimmers behind shapes -->
         <div class="geo-glimmer geo-glimmer--1"></div>
@@ -761,283 +770,232 @@ function selectMode(mode: 'recorder' | 'mixer') {
   transform-origin: center;
 }
 
-/* Layer 1 shapes (darkest, back) */
+/* All shapes are parallelograms with alternating 45°/115° rotation
+   Grid: 5 columns x 4 rows = 20 shapes, evenly distributed
+   Edge shapes start outside container */
+
+/* Row 1 - Top edge (starting outside) */
 .geo-shape--1 {
-  width: 60%;
-  height: 40%;
-  top: 5%;
-  left: -10%;
-  clip-path: polygon(30% 0%, 100% 0%, 70% 100%, 0% 100%);
-  animation: shape-breathe-1 12s ease-in-out infinite;
+  width: 22%;
+  height: 18%;
+  top: -8%;
+  left: 0%;
+  clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
+  transform: rotate(45deg);
+  animation: shape-breathe-45 12s ease-in-out infinite;
 }
 
 .geo-shape--2 {
-  width: 50%;
-  height: 35%;
-  top: 60%;
-  right: -5%;
-  clip-path: polygon(0% 20%, 100% 0%, 100% 100%, 20% 80%);
-  animation: shape-breathe-2 15s ease-in-out infinite;
+  width: 20%;
+  height: 16%;
+  top: -6%;
+  left: 20%;
+  clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
+  transform: rotate(115deg);
+  animation: shape-breathe-115 14s ease-in-out infinite;
 }
 
 .geo-shape--3 {
-  width: 40%;
-  height: 50%;
-  bottom: 10%;
-  left: 20%;
-  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
-  animation: shape-breathe-3 10s ease-in-out infinite;
+  width: 24%;
+  height: 20%;
+  top: -10%;
+  left: 42%;
+  clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
+  transform: rotate(45deg);
+  animation: shape-breathe-45 10s ease-in-out infinite;
+  animation-delay: 2s;
 }
 
-/* Layer 2 shapes (mid depth) */
 .geo-shape--4 {
-  width: 45%;
-  height: 30%;
-  top: 20%;
-  right: 10%;
-  background: linear-gradient(135deg, #1a1a1e 0%, #101012 100%);
-  clip-path: polygon(20% 0%, 100% 10%, 80% 100%, 0% 90%);
-  animation: shape-breathe-4 14s ease-in-out infinite;
-  box-shadow: 
-    inset 0 1px 0 rgba(255, 255, 255, 0.03),
-    0 0 60px rgba(0, 0, 0, 0.5);
+  width: 18%;
+  height: 14%;
+  top: -5%;
+  left: 65%;
+  clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
+  transform: rotate(115deg);
+  animation: shape-breathe-115 13s ease-in-out infinite;
 }
 
 .geo-shape--5 {
-  width: 35%;
-  height: 45%;
-  bottom: 20%;
-  left: 5%;
-  background: linear-gradient(135deg, #1c1c20 0%, #111113 100%);
-  clip-path: polygon(10% 0%, 100% 20%, 90% 100%, 0% 80%);
-  animation: shape-breathe-5 11s ease-in-out infinite;
-  box-shadow: 
-    inset 0 1px 0 rgba(255, 255, 255, 0.04),
-    0 0 80px rgba(0, 0, 0, 0.6);
+  width: 22%;
+  height: 18%;
+  top: -8%;
+  right: -5%;
+  clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
+  transform: rotate(45deg);
+  animation: shape-breathe-45 11s ease-in-out infinite;
+  animation-delay: 1s;
 }
 
-/* Layer 3 shapes (front, with gold edge highlights) */
+/* Row 2 - Upper middle */
 .geo-shape--6 {
-  width: 55%;
-  height: 35%;
-  top: 35%;
-  left: 25%;
-  background: linear-gradient(135deg, #1f1f24 0%, #141416 100%);
-  clip-path: polygon(15% 0%, 100% 5%, 85% 100%, 0% 95%);
-  animation: shape-breathe-6 13s ease-in-out infinite;
-  box-shadow: 
-    inset 0 1px 0 rgba(224, 160, 48, 0.08),
-    inset -1px 0 0 rgba(224, 160, 48, 0.05),
-    0 0 100px rgba(0, 0, 0, 0.7);
+  width: 20%;
+  height: 16%;
+  top: 18%;
+  left: -8%;
+  clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
+  transform: rotate(115deg);
+  animation: shape-breathe-115 15s ease-in-out infinite;
 }
 
 .geo-shape--7 {
-  width: 30%;
-  height: 25%;
-  top: 50%;
-  right: 20%;
-  background: linear-gradient(135deg, #222228 0%, #161618 100%);
-  clip-path: polygon(0% 15%, 100% 0%, 100% 85%, 0% 100%);
-  animation: shape-breathe-7 9s ease-in-out infinite;
-  box-shadow: 
-    inset 0 1px 0 rgba(224, 160, 48, 0.1),
-    0 0 120px rgba(0, 0, 0, 0.8);
-}
-
-/* Breathing animations - subtle, organic */
-@keyframes shape-breathe-1 {
-  0%, 100% { transform: translate(0, 0) rotate(0deg); opacity: 0.8; }
-  50% { transform: translate(10px, 5px) rotate(0.5deg); opacity: 0.9; }
-}
-
-@keyframes shape-breathe-2 {
-  0%, 100% { transform: translate(0, 0) rotate(0deg); opacity: 0.75; }
-  50% { transform: translate(-8px, -5px) rotate(-0.3deg); opacity: 0.85; }
-}
-
-@keyframes shape-breathe-3 {
-  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.7; }
-  50% { transform: translate(5px, -10px) scale(1.02); opacity: 0.8; }
-}
-
-@keyframes shape-breathe-4 {
-  0%, 100% { transform: translate(0, 0); opacity: 0.85; }
-  50% { transform: translate(-5px, 8px); opacity: 0.95; }
-}
-
-@keyframes shape-breathe-5 {
-  0%, 100% { transform: translate(0, 0) rotate(0deg); opacity: 0.8; }
-  50% { transform: translate(8px, -5px) rotate(0.2deg); opacity: 0.9; }
-}
-
-@keyframes shape-breathe-6 {
-  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.9; }
-  50% { transform: translate(-3px, 3px) scale(1.01); opacity: 1; }
-}
-
-@keyframes shape-breathe-7 {
-  0%, 100% { transform: translate(0, 0); opacity: 0.85; }
-  50% { transform: translate(5px, -3px); opacity: 0.95; }
-}
-
-/* Additional shapes for Combined proposal (8-17) - 45° rotated, evenly spread */
-.geo-shape--8 {
   width: 18%;
-  height: 18%;
-  top: 5%;
-  left: 5%;
-  background: linear-gradient(135deg, #101012 0%, #0a0a0c 100%);
+  height: 14%;
+  top: 22%;
+  left: 15%;
+  clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
   transform: rotate(45deg);
-  animation: shape-breathe-8 11s ease-in-out infinite;
+  animation: shape-breathe-45 12s ease-in-out infinite;
+  animation-delay: 3s;
+}
+
+.geo-shape--8 {
+  width: 22%;
+  height: 18%;
+  top: 20%;
+  left: 38%;
+  clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
+  transform: rotate(115deg);
+  animation: shape-breathe-115 10s ease-in-out infinite;
 }
 
 .geo-shape--9 {
-  width: 20%;
-  height: 20%;
-  top: 5%;
-  right: 5%;
-  background: linear-gradient(135deg, #0e0e10 0%, #090909 100%);
+  width: 16%;
+  height: 14%;
+  top: 18%;
+  left: 62%;
+  clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
   transform: rotate(45deg);
-  animation: shape-breathe-9 14s ease-in-out infinite;
+  animation: shape-breathe-45 14s ease-in-out infinite;
+  animation-delay: 2s;
 }
 
 .geo-shape--10 {
-  width: 16%;
-  height: 16%;
-  bottom: 5%;
-  right: 5%;
-  background: linear-gradient(135deg, #181818 0%, #121214 100%);
-  transform: rotate(45deg);
-  animation: shape-breathe-10 10s ease-in-out infinite;
-  box-shadow: inset 0 1px 0 rgba(224, 160, 48, 0.05);
+  width: 24%;
+  height: 20%;
+  top: 15%;
+  right: -10%;
+  clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
+  transform: rotate(115deg);
+  animation: shape-breathe-115 11s ease-in-out infinite;
 }
 
+/* Row 3 - Lower middle */
 .geo-shape--11 {
-  width: 18%;
+  width: 22%;
   height: 18%;
-  bottom: 5%;
-  left: 5%;
-  background: linear-gradient(135deg, #141416 0%, #0e0e10 100%);
+  top: 48%;
+  left: -10%;
+  clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
   transform: rotate(45deg);
-  animation: shape-breathe-11 12s ease-in-out infinite;
-  box-shadow: inset 0 1px 0 rgba(224, 160, 48, 0.04);
+  animation: shape-breathe-45 13s ease-in-out infinite;
 }
 
 .geo-shape--12 {
-  width: 14%;
-  height: 14%;
-  top: 50%;
-  left: -3%;
-  background: linear-gradient(135deg, #1e1e22 0%, #151518 100%);
-  transform: rotate(45deg) translateY(-50%);
-  animation: shape-breathe-12 8s ease-in-out infinite;
-  box-shadow: 
-    inset 0 1px 0 rgba(224, 160, 48, 0.08),
-    0 0 80px rgba(0, 0, 0, 0.6);
+  width: 18%;
+  height: 16%;
+  top: 52%;
+  left: 18%;
+  clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
+  transform: rotate(115deg);
+  animation: shape-breathe-115 12s ease-in-out infinite;
+  animation-delay: 1s;
 }
 
 .geo-shape--13 {
-  width: 14%;
-  height: 14%;
+  width: 20%;
+  height: 16%;
   top: 50%;
-  right: -3%;
-  background: linear-gradient(135deg, #0c0c0e 0%, #080808 100%);
-  transform: rotate(45deg) translateY(-50%);
-  animation: shape-breathe-13 14s ease-in-out infinite;
+  left: 40%;
+  clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
+  transform: rotate(45deg);
+  animation: shape-breathe-45 15s ease-in-out infinite;
 }
 
 .geo-shape--14 {
-  width: 12%;
-  height: 12%;
-  top: -3%;
-  left: 50%;
-  background: linear-gradient(135deg, #121214 0%, #0c0c0e 100%);
-  transform: rotate(45deg) translateX(-50%);
-  animation: shape-breathe-14 13s ease-in-out infinite;
+  width: 22%;
+  height: 18%;
+  top: 48%;
+  left: 65%;
+  clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
+  transform: rotate(115deg);
+  animation: shape-breathe-115 10s ease-in-out infinite;
+  animation-delay: 3s;
 }
 
 .geo-shape--15 {
-  width: 12%;
-  height: 12%;
-  bottom: -3%;
-  left: 50%;
-  background: linear-gradient(135deg, #0f0f11 0%, #0a0a0c 100%);
-  transform: rotate(45deg) translateX(-50%);
-  animation: shape-breathe-15 11s ease-in-out infinite;
-  box-shadow: inset 0 1px 0 rgba(224, 160, 48, 0.03);
+  width: 20%;
+  height: 16%;
+  top: 52%;
+  right: -8%;
+  clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
+  transform: rotate(45deg);
+  animation: shape-breathe-45 14s ease-in-out infinite;
 }
 
+/* Row 4 - Bottom edge (starting outside) */
 .geo-shape--16 {
-  width: 10%;
-  height: 10%;
-  top: 25%;
-  left: 25%;
-  background: linear-gradient(135deg, #161618 0%, #101012 100%);
-  transform: rotate(45deg);
-  animation: shape-breathe-16 15s ease-in-out infinite;
+  width: 24%;
+  height: 20%;
+  bottom: -10%;
+  left: -5%;
+  clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
+  transform: rotate(115deg);
+  animation: shape-breathe-115 11s ease-in-out infinite;
+  animation-delay: 2s;
 }
 
 .geo-shape--17 {
-  width: 10%;
-  height: 10%;
-  bottom: 25%;
-  right: 25%;
-  background: linear-gradient(135deg, #1a1a1c 0%, #131315 100%);
+  width: 20%;
+  height: 16%;
+  bottom: -6%;
+  left: 22%;
+  clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
   transform: rotate(45deg);
-  animation: shape-breathe-17 12s ease-in-out infinite;
-  box-shadow: 
-    inset 0 1px 0 rgba(224, 160, 48, 0.06),
-    0 0 60px rgba(0, 0, 0, 0.5);
+  animation: shape-breathe-45 13s ease-in-out infinite;
 }
 
-@keyframes shape-breathe-8 {
-  0%, 100% { transform: rotate(45deg) translate(0, 0); opacity: 0.7; }
-  50% { transform: rotate(45deg) translate(6px, 4px); opacity: 0.8; }
+.geo-shape--18 {
+  width: 22%;
+  height: 18%;
+  bottom: -8%;
+  left: 45%;
+  clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
+  transform: rotate(115deg);
+  animation: shape-breathe-115 12s ease-in-out infinite;
+  animation-delay: 1s;
 }
 
-@keyframes shape-breathe-9 {
-  0%, 100% { transform: rotate(45deg) translate(0, 0); opacity: 0.65; }
-  50% { transform: rotate(45deg) translate(-5px, 5px); opacity: 0.75; }
+.geo-shape--19 {
+  width: 18%;
+  height: 14%;
+  bottom: -5%;
+  left: 68%;
+  clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
+  transform: rotate(45deg);
+  animation: shape-breathe-45 14s ease-in-out infinite;
 }
 
-@keyframes shape-breathe-10 {
-  0%, 100% { transform: rotate(45deg) translate(0, 0); opacity: 0.8; }
-  50% { transform: rotate(45deg) translate(4px, -6px); opacity: 0.9; }
+.geo-shape--20 {
+  width: 22%;
+  height: 18%;
+  bottom: -8%;
+  right: -8%;
+  clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
+  transform: rotate(115deg);
+  animation: shape-breathe-115 10s ease-in-out infinite;
+  animation-delay: 3s;
 }
 
-@keyframes shape-breathe-11 {
+/* Breathing animations - two variants for alternating rotations */
+@keyframes shape-breathe-45 {
   0%, 100% { transform: rotate(45deg) translate(0, 0); opacity: 0.75; }
-  50% { transform: rotate(45deg) translate(-3px, 4px); opacity: 0.85; }
+  50% { transform: rotate(45deg) translate(8px, 5px); opacity: 0.9; }
 }
 
-@keyframes shape-breathe-12 {
-  0%, 100% { transform: rotate(45deg) translateY(-50%) translate(0, 0); opacity: 0.85; }
-  50% { transform: rotate(45deg) translateY(-50%) translate(5px, 3px); opacity: 0.95; }
-}
-
-@keyframes shape-breathe-13 {
-  0%, 100% { transform: rotate(45deg) translateY(-50%) translate(0, 0); opacity: 0.6; }
-  50% { transform: rotate(45deg) translateY(-50%) translate(-4px, 3px); opacity: 0.7; }
-}
-
-@keyframes shape-breathe-14 {
-  0%, 100% { transform: rotate(45deg) translateX(-50%) translate(0, 0); opacity: 0.65; }
-  50% { transform: rotate(45deg) translateX(-50%) translate(3px, 4px); opacity: 0.75; }
-}
-
-@keyframes shape-breathe-15 {
-  0%, 100% { transform: rotate(45deg) translateX(-50%) translate(0, 0); opacity: 0.68; }
-  50% { transform: rotate(45deg) translateX(-50%) translate(-3px, -4px); opacity: 0.78; }
-}
-
-@keyframes shape-breathe-16 {
-  0%, 100% { transform: rotate(45deg) translate(0, 0); opacity: 0.7; }
-  50% { transform: rotate(45deg) translate(4px, 2px); opacity: 0.8; }
-}
-
-@keyframes shape-breathe-17 {
-  0%, 100% { transform: rotate(45deg) translate(0, 0); opacity: 0.75; }
-  50% { transform: rotate(45deg) translate(-4px, -2px); opacity: 0.85; }
+@keyframes shape-breathe-115 {
+  0%, 100% { transform: rotate(115deg) translate(0, 0); opacity: 0.7; }
+  50% { transform: rotate(115deg) translate(-6px, 4px); opacity: 0.85; }
 }
 
 /* Gold glimmer effects - behind shapes, casting light on them */
