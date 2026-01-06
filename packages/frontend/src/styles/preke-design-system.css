@@ -50,6 +50,11 @@
   --preke-border-highlight: rgba(255, 255, 255, 0.3);
   --preke-border-gold: rgba(224, 160, 48, 0.4);
   
+  /* ─── Surface Aliases (semantic shortcuts) ─── */
+  --preke-surface: var(--preke-bg-elevated);
+  --preke-surface-border: var(--preke-border-light);
+  --preke-surface-elevated: var(--preke-bg-surface);
+  
   /* ─── Text Colors ─── */
   --preke-text: #ffffff;
   --preke-text-dim: #e8e0d0;
@@ -184,6 +189,11 @@
   --preke-border-light: rgba(0, 0, 0, 0.06);
   --preke-border-strong: rgba(0, 0, 0, 0.12);
   --preke-border-highlight: rgba(0, 0, 0, 0.2);
+  
+  /* ─── Surface Aliases (semantic shortcuts) ─── */
+  --preke-surface: var(--preke-bg-elevated);
+  --preke-surface-border: var(--preke-border-light);
+  --preke-surface-elevated: var(--preke-bg-surface);
   
   /* ─── Text Colors ─── */
   --preke-text: #1a1a1a;

@@ -65,6 +65,12 @@ export default {
             light: 'var(--preke-border-light)',
             strong: 'var(--preke-border-strong)',
           },
+          // Surface (semantic shortcuts for elevated elements)
+          surface: {
+            DEFAULT: 'var(--preke-surface)',
+            border: 'var(--preke-surface-border)',
+            elevated: 'var(--preke-surface-elevated)',
+          },
         },
         // Legacy r58 colors (for backwards compatibility during migration)
         r58: {
