@@ -155,24 +155,30 @@ function selectMode(mode: 'recorder' | 'mixer') {
          PROPOSAL 3: COMBINED
          ═══════════════════════════════════════════ -->
     <div v-show="activeProposal === 3" class="proposal combined">
-      <!-- Geometric background - same as Geometric 3D -->
+      <!-- Geometric background - more shapes for complexity -->
       <div class="combined__geo">
         <div class="geo-layer geo-layer--1">
           <div class="geo-shape geo-shape--1"></div>
           <div class="geo-shape geo-shape--2"></div>
           <div class="geo-shape geo-shape--3"></div>
+          <div class="geo-shape geo-shape--8"></div>
+          <div class="geo-shape geo-shape--9"></div>
         </div>
         <div class="geo-layer geo-layer--2">
           <div class="geo-shape geo-shape--4"></div>
           <div class="geo-shape geo-shape--5"></div>
+          <div class="geo-shape geo-shape--10"></div>
+          <div class="geo-shape geo-shape--11"></div>
         </div>
         <div class="geo-layer geo-layer--3">
           <div class="geo-shape geo-shape--6"></div>
           <div class="geo-shape geo-shape--7"></div>
+          <div class="geo-shape geo-shape--12"></div>
         </div>
         <!-- Gold glimmers behind shapes -->
         <div class="geo-glimmer geo-glimmer--1"></div>
         <div class="geo-glimmer geo-glimmer--2"></div>
+        <div class="geo-glimmer geo-glimmer--3"></div>
       </div>
       
       <!-- Split content overlay -->
@@ -876,6 +882,87 @@ function selectMode(mode: 'recorder' | 'mixer') {
 @keyframes shape-breathe-7 {
   0%, 100% { transform: translate(0, 0); opacity: 0.85; }
   50% { transform: translate(5px, -3px); opacity: 0.95; }
+}
+
+/* Additional shapes for Combined proposal (8-12) */
+.geo-shape--8 {
+  width: 25%;
+  height: 20%;
+  top: 70%;
+  left: 5%;
+  background: linear-gradient(135deg, #101012 0%, #0a0a0c 100%);
+  clip-path: polygon(10% 0%, 100% 10%, 90% 100%, 0% 90%);
+  animation: shape-breathe-8 11s ease-in-out infinite;
+}
+
+.geo-shape--9 {
+  width: 35%;
+  height: 25%;
+  top: 5%;
+  right: 5%;
+  background: linear-gradient(135deg, #0e0e10 0%, #090909 100%);
+  clip-path: polygon(5% 5%, 95% 0%, 100% 95%, 0% 100%);
+  animation: shape-breathe-9 14s ease-in-out infinite;
+}
+
+.geo-shape--10 {
+  width: 20%;
+  height: 30%;
+  bottom: 10%;
+  right: 10%;
+  background: linear-gradient(135deg, #181818 0%, #121214 100%);
+  clip-path: polygon(0% 10%, 100% 0%, 90% 100%, 5% 90%);
+  animation: shape-breathe-10 10s ease-in-out infinite;
+  box-shadow: inset 0 1px 0 rgba(224, 160, 48, 0.05);
+}
+
+.geo-shape--11 {
+  width: 28%;
+  height: 18%;
+  top: 15%;
+  left: 35%;
+  background: linear-gradient(135deg, #141416 0%, #0e0e10 100%);
+  clip-path: polygon(8% 0%, 100% 8%, 92% 100%, 0% 92%);
+  animation: shape-breathe-11 12s ease-in-out infinite;
+  box-shadow: inset 0 1px 0 rgba(224, 160, 48, 0.04);
+}
+
+.geo-shape--12 {
+  width: 22%;
+  height: 22%;
+  bottom: 25%;
+  left: 15%;
+  background: linear-gradient(135deg, #1e1e22 0%, #151518 100%);
+  clip-path: polygon(5% 5%, 95% 0%, 100% 95%, 0% 100%);
+  animation: shape-breathe-12 8s ease-in-out infinite;
+  box-shadow: 
+    inset 0 1px 0 rgba(224, 160, 48, 0.08),
+    0 0 80px rgba(0, 0, 0, 0.6);
+}
+
+@keyframes shape-breathe-8 {
+  0%, 100% { transform: translate(0, 0); opacity: 0.7; }
+  50% { transform: translate(6px, 4px); opacity: 0.8; }
+}
+
+@keyframes shape-breathe-9 {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); opacity: 0.65; }
+  50% { transform: translate(-5px, 5px) rotate(-0.2deg); opacity: 0.75; }
+}
+
+@keyframes shape-breathe-10 {
+  0%, 100% { transform: translate(0, 0); opacity: 0.8; }
+  50% { transform: translate(4px, -6px); opacity: 0.9; }
+}
+
+@keyframes shape-breathe-11 {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.75; }
+  50% { transform: translate(-3px, 4px) scale(1.01); opacity: 0.85; }
+}
+
+@keyframes shape-breathe-12 {
+  0%, 100% { transform: translate(0, 0); opacity: 0.85; }
+  50% { transform: translate(5px, 3px); opacity: 0.95; }
 }
 
 /* Gold glimmer effects - behind shapes, casting light on them */
