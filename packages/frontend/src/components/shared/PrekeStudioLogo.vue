@@ -21,13 +21,13 @@ defineProps<{
 .preke-studio-logo {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex-shrink: 0;
 }
 
 .preke-studio-logo__image {
-  /* Make the logo image much bigger - explicit height to match text */
-  height: 48px;
+  /* 70% bigger than original 32px: 32 * 1.7 = 54.4px, rounded to 54px */
+  height: 54px;
   width: auto;
   object-fit: contain;
   flex-shrink: 0;
@@ -35,7 +35,7 @@ defineProps<{
 
 .preke-studio-logo__text {
   font-family: var(--preke-font-sans);
-  font-size: 48px; /* Large text to match logo */
+  font-size: 32px;
   font-weight: 800;
   color: var(--preke-gold);
   letter-spacing: 0.02em;
