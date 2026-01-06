@@ -91,6 +91,12 @@ const router = createRouter({
       component: () => import('@/views/StyleGuideV2View.vue'),
       meta: { title: 'Style Guide v2 - Glassmorphism' }
     },
+    {
+      path: '/experiments',
+      name: 'experiments',
+      component: () => import('@/views/BackgroundExperimentsView.vue'),
+      meta: { title: 'Background Experiments' }
+    },
   ]
 })
 

@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { buildApiUrl } from '@/lib/api'
 import { toast } from '@/composables/useToast'
 import { useCapabilitiesStore } from '@/stores/capabilities'
+import AnimatedBackground from '@/components/shared/AnimatedBackground.vue'
 
 const router = useRouter()
 const capabilitiesStore = useCapabilitiesStore()
@@ -90,12 +91,8 @@ async function selectMode(mode: 'recorder' | 'mixer') {
 
 <template>
   <div class="studio">
-    <!-- Ambient background effects -->
-    <div class="studio__bg">
-      <div class="studio__orb studio__orb--1"></div>
-      <div class="studio__orb studio__orb--2"></div>
-      <div class="studio__orb studio__orb--3"></div>
-    </div>
+    <!-- Animated ambient background -->
+    <AnimatedBackground accent="gold" :show-beams="true" :show-pattern="true" />
     
     <div class="studio__content">
       <h1 class="studio__title">Preke Studio</h1>
@@ -177,54 +174,6 @@ async function selectMode(mode: 'recorder' | 'mixer') {
   padding: 2rem;
   overflow: hidden;
   background: var(--preke-bg);
-}
-
-/* Ambient background */
-.studio__bg {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  overflow: hidden;
-}
-
-.studio__orb {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(100px);
-  opacity: 0.4;
-  animation: orb-float 6s ease-in-out infinite;
-}
-
-.studio__orb--1 {
-  width: 400px;
-  height: 400px;
-  top: -100px;
-  right: -100px;
-  background: radial-gradient(circle, rgba(224, 160, 48, 0.3) 0%, transparent 70%);
-  animation-delay: 0s;
-}
-
-.studio__orb--2 {
-  width: 300px;
-  height: 300px;
-  bottom: -50px;
-  left: -50px;
-  background: radial-gradient(circle, rgba(124, 58, 237, 0.2) 0%, transparent 70%);
-  animation-delay: 2s;
-}
-
-.studio__orb--3 {
-  width: 250px;
-  height: 250px;
-  top: 50%;
-  left: 30%;
-  background: radial-gradient(circle, rgba(212, 90, 90, 0.15) 0%, transparent 70%);
-  animation-delay: 4s;
-}
-
-@keyframes orb-float {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(20px, -20px) scale(1.05); }
 }
 
 /* Content */

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import AnimatedBackground from './AnimatedBackground.vue'
 
 const props = withDefaults(defineProps<{
   mode: 'recorder' | 'mixer'
@@ -12,8 +13,8 @@ const props = withDefaults(defineProps<{
   /** Show cancel button */
   showCancel?: boolean
 }>(), {
-  minTime: 1500,  // Show for at least 1.5 seconds
-  maxTime: 8000,  // Max 8 seconds before auto-dismiss
+  minTime: 1500,
+  maxTime: 8000,
   contentReady: false,
   showCancel: false
 })
@@ -23,63 +24,36 @@ const emit = defineEmits<{
   (e: 'cancel'): void
 }>()
 
-// Cancel handler
 function handleCancel() {
   emit('cancel')
 }
 
-// Track if minimum time has passed
 const minTimePassed = ref(false)
 let minTimeoutId: ReturnType<typeof setTimeout> | null = null
 let maxTimeoutId: ReturnType<typeof setTimeout> | null = null
 
-// Dismiss when both minTime passed AND contentReady
 function checkAndDismiss() {
   if (minTimePassed.value && props.contentReady) {
     emit('ready')
   }
 }
 
-// Watch for contentReady changes
 watch(() => props.contentReady, (ready) => {
-  if (ready) {
-    checkAndDismiss()
-  }
+  if (ready) checkAndDismiss()
 })
 
-// Mode-specific styling - uses Preke design system colors
-// Recorder: preke-red (#d45a5a), Mixer: preke-purple (#7c3aed)
+// Mode-specific styling
 const modeColor = computed(() => props.mode === 'recorder' ? '#d45a5a' : '#7c3aed')
 const modeName = computed(() => props.mode === 'recorder' ? 'Recorder' : 'Mixer')
 const modeTagline = computed(() => props.mode === 'recorder' ? 'Multi-cam ISO Recording' : 'Live Switching & Streaming')
-
-// Soundwave animation
-const bars = ref([0.3, 0.5, 0.8, 1, 0.8, 0.5, 0.3])
-
-let animationFrame: number | null = null
-const animationStart = ref(Date.now())
-
-function animateBars() {
-  const elapsed = (Date.now() - animationStart.value) / 1000
-  bars.value = bars.value.map((_, i) => {
-    const phase = (i / bars.value.length) * Math.PI * 2
-    const wave = Math.sin(elapsed * 3 + phase) * 0.4 + 0.6
-    return Math.max(0.2, Math.min(1, wave))
-  })
-  animationFrame = requestAnimationFrame(animateBars)
-}
+const bgAccent = computed(() => props.mode === 'recorder' ? 'red' : 'purple')
 
 onMounted(() => {
-  // Start animation
-  animateBars()
-  
-  // Minimum time before allowing dismiss
   minTimeoutId = setTimeout(() => {
     minTimePassed.value = true
     checkAndDismiss()
   }, props.minTime)
   
-  // Maximum time - force dismiss even if content not ready
   maxTimeoutId = setTimeout(() => {
     emit('ready')
   }, props.maxTime)
@@ -88,90 +62,53 @@ onMounted(() => {
 onUnmounted(() => {
   if (minTimeoutId) clearTimeout(minTimeoutId)
   if (maxTimeoutId) clearTimeout(maxTimeoutId)
-  if (animationFrame) cancelAnimationFrame(animationFrame)
 })
 </script>
 
 <template>
-  <div class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-preke-bg overflow-hidden">
-    <!-- Animated background -->
-    <div class="absolute inset-0">
-      <!-- Gradient orbs -->
-      <div 
-        class="absolute w-[600px] h-[600px] rounded-full blur-3xl opacity-20 animate-float-slow"
-        :style="{ background: `radial-gradient(circle, ${modeColor} 0%, transparent 70%)`, left: '10%', top: '10%' }"
-      ></div>
-      <div 
-        class="absolute w-[400px] h-[400px] rounded-full blur-3xl opacity-15 animate-float-medium"
-        :style="{ background: `radial-gradient(circle, ${modeColor} 0%, transparent 70%)`, right: '15%', bottom: '20%' }"
-      ></div>
-      
-      <!-- Subtle grid pattern -->
-      <div class="absolute inset-0 opacity-5" style="background-image: linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px); background-size: 50px 50px;"></div>
-    </div>
+  <div class="loading-screen">
+    <!-- Animated background with mode-specific color -->
+    <AnimatedBackground :accent="bgAccent" :show-beams="true" :show-pattern="true" />
     
     <!-- Content -->
-    <div class="relative z-10 flex flex-col items-center gap-10">
-      <!-- Mode Icon with Soundwave -->
-      <div class="relative flex items-center justify-center">
-        <!-- Outer ring pulse -->
-        <div 
-          class="absolute w-40 h-40 rounded-full animate-ping-slow opacity-20"
-          :style="{ backgroundColor: modeColor }"
-        ></div>
+    <div class="loading-content">
+      <!-- Mode Icon - clean, no box -->
+      <div class="loading-icon" :style="{ color: modeColor }">
+        <!-- Recorder icon -->
+        <svg v-if="mode === 'recorder'" viewBox="0 0 24 24" fill="currentColor">
+          <circle cx="12" cy="12" r="8"/>
+        </svg>
         
-        <!-- Icon container -->
-        <div 
-          class="relative w-32 h-32 rounded-full flex items-center justify-center backdrop-blur-sm"
-          :style="{ backgroundColor: `${modeColor}15`, border: `2px solid ${modeColor}40` }"
-        >
-          <!-- Recorder icon -->
-          <div v-if="mode === 'recorder'" class="relative">
-            <svg class="w-16 h-16" :style="{ color: modeColor }" fill="currentColor" viewBox="0 0 24 24">
-              <circle cx="12" cy="12" r="8" class="animate-pulse-glow"/>
-            </svg>
-            <!-- Recording ring -->
-            <div 
-              class="absolute inset-0 rounded-full animate-spin-slow"
-              :style="{ border: `3px solid ${modeColor}`, borderTopColor: 'transparent' }"
-            ></div>
-          </div>
-          
-          <!-- Mixer icon (grid layout with broadcast symbol) -->
-          <div v-else class="relative">
-            <svg class="w-16 h-16" :style="{ color: modeColor }" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8">
-              <rect x="2" y="2" width="9" height="6" rx="1" class="animate-pulse"/>
-              <rect x="13" y="2" width="9" height="6" rx="1" class="animate-pulse" style="animation-delay: 0.1s"/>
-              <rect x="2" y="10" width="9" height="6" rx="1" class="animate-pulse" style="animation-delay: 0.2s"/>
-              <rect x="13" y="10" width="9" height="6" rx="1" class="animate-pulse" style="animation-delay: 0.3s"/>
-              <circle cx="12" cy="20" r="2" fill="currentColor"/>
-              <path d="M9 19.5a4 4 0 0 1 6 0" stroke-linecap="round"/>
-            </svg>
-            <!-- Broadcast ring -->
-            <div 
-              class="absolute inset-0 rounded-full animate-spin-slow"
-              :style="{ border: `3px solid ${modeColor}`, borderTopColor: 'transparent' }"
-            ></div>
-          </div>
-        </div>
+        <!-- Mixer icon -->
+        <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <rect x="2" y="2" width="9" height="6" rx="1"/>
+          <rect x="13" y="2" width="9" height="6" rx="1"/>
+          <rect x="2" y="10" width="9" height="6" rx="1"/>
+          <rect x="13" y="10" width="9" height="6" rx="1"/>
+          <circle cx="12" cy="20" r="2" fill="currentColor"/>
+          <path d="M9 19.5a4 4 0 0 1 6 0" stroke-linecap="round"/>
+        </svg>
+        
+        <!-- Glow effect -->
+        <div class="loading-icon__glow" :style="{ background: modeColor }"></div>
       </div>
       
       <!-- Mode title -->
-      <div class="text-center">
-        <h2 class="text-4xl font-bold mb-3 tracking-tight" :style="{ color: modeColor }">
+      <div class="loading-text">
+        <h2 class="loading-title" :style="{ color: modeColor }">
           {{ modeName }}
         </h2>
-        <p class="text-preke-text-muted text-lg">
+        <p class="loading-tagline">
           {{ modeTagline }}
         </p>
       </div>
       
       <!-- Animated loading dots -->
-      <div class="flex items-center gap-2">
+      <div class="loading-dots">
         <div 
           v-for="i in 3"
           :key="i"
-          class="w-2 h-2 rounded-full animate-bounce-dot"
+          class="loading-dot"
           :style="{ 
             backgroundColor: modeColor,
             animationDelay: `${(i - 1) * 0.15}s`
@@ -183,9 +120,9 @@ onUnmounted(() => {
       <button 
         v-if="showCancel"
         @click="handleCancel"
-        class="loading-cancel-btn"
+        class="loading-cancel"
       >
-        <svg class="loading-cancel-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8">
           <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
         </svg>
         Go back
@@ -195,66 +132,110 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-@keyframes float-slow {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(30px, -20px) scale(1.1); }
+.loading-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--preke-bg);
+  overflow: hidden;
 }
 
-@keyframes float-medium {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(-20px, 15px) scale(1.05); }
+.loading-content {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2.5rem;
 }
 
-@keyframes ping-slow {
-  0% { transform: scale(1); opacity: 0.2; }
-  100% { transform: scale(1.5); opacity: 0; }
+/* Icon - clean without box */
+.loading-icon {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-@keyframes spin-slow {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+.loading-icon svg {
+  width: 64px;
+  height: 64px;
+  animation: icon-pulse 2s ease-in-out infinite;
 }
 
-@keyframes pulse-glow {
-  0%, 100% { filter: drop-shadow(0 0 8px currentColor); }
-  50% { filter: drop-shadow(0 0 20px currentColor); }
+.loading-icon__glow {
+  position: absolute;
+  inset: -20px;
+  border-radius: 50%;
+  filter: blur(40px);
+  opacity: 0.3;
+  animation: glow-pulse 2s ease-in-out infinite;
 }
 
-@keyframes bounce-dot {
-  0%, 80%, 100% { transform: translateY(0); opacity: 0.5; }
-  40% { transform: translateY(-8px); opacity: 1; }
+@keyframes icon-pulse {
+  0%, 100% { 
+    transform: scale(1);
+    filter: drop-shadow(0 0 10px currentColor);
+  }
+  50% { 
+    transform: scale(1.05);
+    filter: drop-shadow(0 0 25px currentColor);
+  }
 }
 
-.animate-float-slow {
-  animation: float-slow 8s ease-in-out infinite;
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.2; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(1.1); }
 }
 
-.animate-float-medium {
-  animation: float-medium 6s ease-in-out infinite;
+/* Text */
+.loading-text {
+  text-align: center;
 }
 
-.animate-ping-slow {
-  animation: ping-slow 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+.loading-title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  letter-spacing: -0.02em;
 }
 
-.animate-spin-slow {
-  animation: spin-slow 3s linear infinite;
+.loading-tagline {
+  font-size: 1.125rem;
+  color: var(--preke-text-muted);
 }
 
-.animate-pulse-glow {
-  animation: pulse-glow 2s ease-in-out infinite;
+/* Loading dots */
+.loading-dots {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
-.animate-bounce-dot {
-  animation: bounce-dot 1.2s ease-in-out infinite;
+.loading-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  animation: dot-bounce 1.2s ease-in-out infinite;
+}
+
+@keyframes dot-bounce {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+  40% { transform: translateY(-10px); opacity: 1; }
 }
 
 /* Cancel button */
-.loading-cancel-btn {
+.loading-cancel {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 32px;
+  margin-top: 1rem;
   padding: 10px 20px;
   font-size: 14px;
   font-weight: 500;
@@ -266,13 +247,13 @@ onUnmounted(() => {
   transition: all 0.2s ease;
 }
 
-.loading-cancel-btn:hover {
+.loading-cancel:hover {
   color: var(--preke-text);
   background: rgba(255, 255, 255, 0.1);
   border-color: var(--preke-border-light);
 }
 
-.loading-cancel-btn__icon {
+.loading-cancel svg {
   width: 16px;
   height: 16px;
 }
