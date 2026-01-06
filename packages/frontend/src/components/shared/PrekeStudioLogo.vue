@@ -24,7 +24,7 @@ defineProps<{
   align-items: center;
   gap: 10px;
   flex-shrink: 0;
-  height: 32px; /* Actual visible height - cropped SVG makes this much more visible */
+  height: 38px; /* Increased to prevent clipping at the bottom */
 }
 
 .preke-studio-logo__image {
@@ -36,7 +36,7 @@ defineProps<{
 
 .preke-studio-logo__text {
   font-family: var(--preke-font-sans);
-  font-size: 32px; /* Match the actual text height in the cropped logo */
+  font-size: 36.8px; /* 15% bigger than 32px (32 * 1.15 = 36.8) */
   font-weight: 800;
   color: var(--preke-gold);
   letter-spacing: 0.02em;
