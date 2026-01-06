@@ -10,6 +10,7 @@ import { useCapabilitiesStore } from '@/stores/capabilities'
 import { buildApiUrl, hasDeviceConfigured } from '@/lib/api'
 import { toast } from '@/composables/useToast'
 import ConfirmDialog from '@/components/shared/ConfirmDialog.vue'
+import logoSidebar from '@/assets/logo-sidebar.svg'
 
 const route = useRoute()
 const router = useRouter()
@@ -165,7 +166,7 @@ const modeColor = computed(() => {
     
     <!-- Logo - gold waveform icon -->
     <div class="sidebar__logo">
-      <img src="/logo-sidebar.svg" alt="Preke" class="sidebar__logo-img" />
+      <img :src="logoSidebar" alt="Preke" class="sidebar__logo-img" />
     </div>
     
     <!-- Mode Indicator (prominent) -->

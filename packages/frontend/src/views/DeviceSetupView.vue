@@ -7,6 +7,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { isElectron, setDeviceUrl } from '@/lib/api'
+import logoSidebar from '@/assets/logo-sidebar.svg'
 
 interface DeviceConfig {
   id: string
@@ -342,7 +343,7 @@ onUnmounted(() => {
         <div class="welcome-content">
           <div class="welcome-logo-wrap">
             <div class="welcome-logo-inline">
-              <img src="/logo-sidebar.svg" alt="" class="welcome-logo-waveform" />
+              <img :src="logoSidebar" alt="" class="welcome-logo-waveform" />
               <div class="welcome-logo-text">
                 <span class="welcome-logo-preke">Preke</span>
                 <span class="welcome-logo-studio">Studio</span>
@@ -358,7 +359,7 @@ onUnmounted(() => {
       <!-- Large centered logo - inline layout with waveform + text -->
       <div class="logo-hero">
         <div class="logo-hero__inline">
-          <img src="/logo-sidebar.svg" alt="" class="logo-hero__waveform" />
+          <img :src="logoSidebar" alt="" class="logo-hero__waveform" />
           <div class="logo-hero__text">
             <span class="logo-hero__preke">Preke</span>
             <span class="logo-hero__studio">Studio</span>
