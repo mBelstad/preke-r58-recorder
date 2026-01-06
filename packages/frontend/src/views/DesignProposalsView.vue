@@ -76,7 +76,7 @@ function selectMode(mode: 'recorder' | 'mixer') {
       <div class="split-home__divider">
         <div class="split-home__divider-line"></div>
         <div class="split-home__divider-logo">
-          <span class="split-home__divider-text">Preke</span>
+          <span class="split-home__divider-text">Choose</span>
         </div>
         <div class="split-home__divider-line"></div>
       </div>
@@ -190,7 +190,7 @@ function selectMode(mode: 'recorder' | 'mixer') {
         </div>
         
         <div class="combined__center">
-          <span class="combined__logo">Preke Studio</span>
+          <span class="combined__logo">Choose</span>
         </div>
         
         <div class="combined__side combined__side--right" @click="selectMode('mixer')">
@@ -266,7 +266,7 @@ function selectMode(mode: 'recorder' | 'mixer') {
         </div>
         
         <div class="ribbons__center">
-          <span class="ribbons__logo">Preke Studio</span>
+          <span class="ribbons__logo">Choose</span>
         </div>
         
         <div class="ribbons__side ribbons__side--right" @click="selectMode('mixer')">
@@ -677,6 +677,19 @@ function selectMode(mode: 'recorder' | 'mixer') {
   flex: 1;
   width: 1px;
   background: linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  animation: divider-pulse 15s ease-in-out infinite alternate;
+  transform-origin: center center;
+}
+
+@keyframes divider-pulse {
+  0%, 100% { 
+    opacity: 0.6; 
+    transform: scaleY(1);
+  }
+  50% { 
+    opacity: 1; 
+    transform: scaleY(1.02);
+  }
 }
 
 .split-home__divider-logo {
