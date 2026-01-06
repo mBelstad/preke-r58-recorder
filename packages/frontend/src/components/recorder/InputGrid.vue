@@ -140,12 +140,12 @@ function getInputTooltip(input: InputStatus): string {
     </div>
   </div>
   
-  <!-- Grid of active inputs -->
-  <div v-else class="h-full flex flex-col gap-2">
+  <!-- Grid of active inputs - scales to fill without scroll -->
+  <div v-else class="input-grid">
     <!-- Framerate mismatch warning banner (discreet) -->
     <div 
       v-if="framerateMismatch" 
-      class="flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-400 text-sm"
+      class="input-grid__warning"
     >
       <svg class="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
         <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
@@ -153,11 +153,14 @@ function getInputTooltip(input: InputStatus): string {
       <span>{{ framerateMismatch }}</span>
     </div>
     
-    <div class="flex-1 grid gap-4" :class="inputs.length === 1 ? 'grid-cols-1' : 'grid-cols-2'">
+    <div 
+      class="input-grid__container" 
+      :data-count="inputs.length"
+    >
     <div
       v-for="input in inputs"
       :key="input.id"
-      class="relative rounded-lg overflow-hidden border-2 transition-all cursor-pointer aspect-video bg-black"
+      class="input-grid__tile"
       :class="getBorderClass(input)"
       :title="getInputTooltip(input)"
     >
@@ -219,3 +222,83 @@ function getInputTooltip(input: InputStatus): string {
   </div>
 </template>
 
+<style scoped>
+/* Input grid that fills available space without scrolling */
+.input-grid {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  overflow: hidden;
+}
+
+.input-grid__warning {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.75rem;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 0.5rem;
+  color: #fbbf24;
+  font-size: 0.875rem;
+}
+
+/* Grid container that fills and scales */
+.input-grid__container {
+  flex: 1;
+  display: grid;
+  gap: 0.5rem;
+  min-height: 0; /* Critical for flex shrinking */
+  overflow: hidden;
+}
+
+/* 1 camera - full screen */
+.input-grid__container[data-count="1"] {
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+}
+
+/* 2 cameras - side by side */
+.input-grid__container[data-count="2"] {
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: 1fr;
+}
+
+/* 3-4 cameras - 2x2 grid */
+.input-grid__container[data-count="3"],
+.input-grid__container[data-count="4"] {
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+}
+
+/* 5-6 cameras - 3x2 grid */
+.input-grid__container[data-count="5"],
+.input-grid__container[data-count="6"] {
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+}
+
+/* Video tile - maintains aspect ratio within grid cell */
+.input-grid__tile {
+  position: relative;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  border-width: 2px;
+  background: #000;
+  transition: all 0.15s ease;
+  cursor: pointer;
+  /* Fill grid cell while maintaining video aspect ratio */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Make video fill tile maintaining 16:9 aspect */
+.input-grid__tile :deep(video) {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+</style>

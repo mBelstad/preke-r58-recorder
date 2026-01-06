@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40" fill="none">
+  <!-- Preke Waveform Icon - White (for light mode/dark backgrounds) -->
+  <g transform="translate(5, 8)">
+    <rect x="0" y="9" width="3" height="6" rx="1.5" fill="#ffffff"/>
+    <rect x="5" y="6" width="3" height="12" rx="1.5" fill="#ffffff"/>
+    <rect x="10" y="3" width="3" height="18" rx="1.5" fill="#ffffff"/>
+    <rect x="15" y="0" width="3" height="24" rx="1.5" fill="#ffffff"/>
+    <rect x="20" y="3" width="3" height="18" rx="1.5" fill="#ffffff"/>
+    <rect x="25" y="6" width="3" height="12" rx="1.5" fill="#ffffff"/>
+    <rect x="30" y="9" width="3" height="6" rx="1.5" fill="#ffffff"/>
+  </g>
+</svg>
+

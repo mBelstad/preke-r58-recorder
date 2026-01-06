@@ -5,6 +5,8 @@ import App from './App.vue'
 import router from './router'
 import { initializeDeviceUrl, setDeviceUrl, isElectron, disableFrpFallback } from './lib/api'
 
+// Global styles - Preke Design System v3
+import './styles/preke-design-system.css'
 import './style.css'
 
 /**

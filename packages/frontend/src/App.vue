@@ -5,6 +5,8 @@ import AppShell from '@/components/layout/AppShell.vue'
 import ToastContainer from '@/components/shared/ToastContainer.vue'
 import ShortcutsHelpModal from '@/components/shared/ShortcutsHelpModal.vue'
 import KioskSleepScreen from '@/components/shared/KioskSleepScreen.vue'
+import SplashScreen from '@/components/shared/SplashScreen.vue'
+import { isElectron } from '@/lib/api'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import { useR58WebSocket } from '@/composables/useWebSocket'
 import { useLocalDeviceMode } from '@/composables/useLocalDeviceMode'
@@ -49,6 +51,9 @@ onUnmounted(() => {
 </script>
 
 <template>
+  <!-- Splash Screen - 3 second opening animation -->
+  <SplashScreen v-if="isElectron()" />
+  
   <!-- Kiosk Sleep Screen (only active on device) -->
   <KioskSleepScreen 
     :idle-timeout="300000"

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40" fill="none">
+  <!-- Preke Waveform Icon - Gold Gradient -->
+  <defs>
+    <linearGradient id="waveformGold" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#f5c04a"/>
+      <stop offset="100%" stop-color="#d9981e"/>
+    </linearGradient>
+  </defs>
+  
+  <g transform="translate(5, 8)">
+    <rect x="0" y="9" width="3" height="6" rx="1.5" fill="url(#waveformGold)"/>
+    <rect x="5" y="6" width="3" height="12" rx="1.5" fill="url(#waveformGold)"/>
+    <rect x="10" y="3" width="3" height="18" rx="1.5" fill="url(#waveformGold)"/>
+    <rect x="15" y="0" width="3" height="24" rx="1.5" fill="url(#waveformGold)"/>
+    <rect x="20" y="3" width="3" height="18" rx="1.5" fill="url(#waveformGold)"/>
+    <rect x="25" y="6" width="3" height="12" rx="1.5" fill="url(#waveformGold)"/>
+    <rect x="30" y="9" width="3" height="6" rx="1.5" fill="url(#waveformGold)"/>
+  </g>
+</svg>
+

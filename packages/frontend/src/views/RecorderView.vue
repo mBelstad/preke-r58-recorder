@@ -112,17 +112,19 @@ watch(showLeaveConfirmation, (show) => {
   <!-- Content fades in when loading complete -->
   <Transition name="content-fade">
     <div v-show="!isLoading" class="h-full flex flex-col">
-    <!-- Header -->
-    <header class="flex items-center justify-between px-6 py-4 border-b border-r58-bg-tertiary bg-r58-bg-secondary">
+    <!-- Header - Riverside-inspired -->
+    <header class="preke-header">
       <div class="flex items-center gap-4">
         <div class="flex items-center gap-2">
           <span 
             class="w-3 h-3 rounded-full"
-            :class="isRecording ? 'bg-r58-accent-danger animate-recording' : 'bg-r58-bg-tertiary'"
+            :class="isRecording ? 'bg-preke-red animate-recording' : 'bg-preke-border'"
           ></span>
-          <span class="text-xl font-semibold">Recorder</span>
+          <span class="text-lg font-semibold text-preke-text">Recorder</span>
         </div>
-        <span v-if="isRecording" class="badge badge-danger">RECORDING</span>
+        <span v-if="isRecording" class="preke-badge preke-badge-live">
+          REC
+        </span>
         
         <!-- Recording health indicator -->
         <RecordingHealth />
@@ -131,15 +133,15 @@ watch(showLeaveConfirmation, (show) => {
       <RecorderControls />
     </header>
     
-    <!-- Main content -->
-    <div class="flex-1 flex overflow-hidden">
-      <!-- Input grid -->
-      <div class="flex-1 p-4">
+    <!-- Main content - fills available space without scroll -->
+    <div class="flex-1 flex min-h-0 overflow-hidden">
+      <!-- Input grid - fills all available space -->
+      <div class="flex-1 min-h-0 min-w-0 p-3 overflow-hidden">
         <InputGrid @all-videos-ready="handleAllVideosReady" />
       </div>
       
       <!-- Sidebar -->
-      <aside class="w-80 border-l border-r58-bg-tertiary bg-r58-bg-secondary p-4 overflow-y-auto">
+      <aside class="w-72 flex-shrink-0 border-l border-preke-border bg-preke-bg-elevated p-4 overflow-y-auto">
         <SessionInfo />
       </aside>
     </div>
