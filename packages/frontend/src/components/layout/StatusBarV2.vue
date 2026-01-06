@@ -7,7 +7,12 @@ import { useConnectionStatus } from '@/composables/useConnectionStatus'
 import { useTailscaleStatus } from '@/composables/useTailscaleStatus'
 import { useRecorderStore } from '@/stores/recorder'
 import { useCapabilitiesStore } from '@/stores/capabilities'
+import { platform } from '@/lib/platform'
 import logoHorizontal from '@/assets/logo-studio-horizontal.svg'
+
+// Platform detection for layout
+const isElectron = platform.isElectron()
+const isMacOS = platform.isMacOS()
 
 const { state, latencyMs, reconnectAttempts } = useConnectionStatus()
 const { connectionMethod, connectionLabel } = useTailscaleStatus()
@@ -132,10 +137,10 @@ const modeInfo = computed(() => {
 
 <template>
   <header class="header">
-    <!-- Spacer for macOS traffic lights (only in Electron) -->
-    <div class="header__spacer"></div>
+    <!-- Spacer for macOS traffic lights (only in Electron on macOS) -->
+    <div v-if="isElectron && isMacOS" class="header__spacer"></div>
     
-    <!-- Logo - positioned after spacer, not constrained -->
+    <!-- Logo - positioned after spacer in Electron, at left in web -->
     <img :src="logoHorizontal" alt="Preke Studio" class="header__logo" />
     
     <!-- Center: Status indicators -->
@@ -238,36 +243,10 @@ const modeInfo = computed(() => {
   -webkit-app-region: no-drag;
 }
 
-/* Spacer for macOS traffic lights - dynamically sized */
+/* Spacer for macOS traffic lights - only rendered in Electron on macOS via v-if */
 .header__spacer {
-  width: 0;
+  width: 70px;
   flex-shrink: 0;
-}
-
-/* In Electron on macOS, make space for traffic light buttons */
-/* Use multiple selectors to ensure it works in all contexts */
-:global(.electron-app) .header__spacer {
-  width: 70px; /* Space for traffic lights */
-}
-
-:global(html.electron-app) .header__spacer {
-  width: 70px;
-}
-
-:global(body.electron-app) .header__spacer {
-  width: 70px;
-}
-
-/* Also check for data attribute */
-:global([data-electron="true"]) .header__spacer {
-  width: 70px;
-}
-
-/* On Windows, no spacer needed */
-:global(.electron-app.is-windows) .header__spacer,
-:global(html.electron-app.is-windows) .header__spacer,
-:global(.is-windows) .header__spacer {
-  width: 0;
 }
 
 /* Logo - sized appropriately, never cut off */
@@ -276,6 +255,12 @@ const modeInfo = computed(() => {
   width: auto;
   flex-shrink: 0;
   object-fit: contain;
+  margin-right: auto; /* Push center content to actual center in web */
+}
+
+/* In Electron, logo should not push content (spacer handles positioning) */
+:global(.electron-app) .header__logo {
+  margin-right: 0;
 }
 
 /* Center section */
