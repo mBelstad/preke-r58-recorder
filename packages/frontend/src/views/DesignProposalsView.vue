@@ -29,6 +29,12 @@ function selectMode(mode: 'recorder' | 'mixer') {
   <div class="proposals">
     <!-- Navigation -->
     <div class="proposals__nav">
+      <button class="proposals__back" @click="router.push('/admin')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M19 12H5M12 19l-7-7 7-7"/>
+        </svg>
+        Back
+      </button>
       <h1 class="proposals__title">Design Proposals</h1>
       <div class="proposals__tabs">
         <button 
@@ -448,15 +454,45 @@ function selectMode(mode: 'recorder' | 'mixer') {
   display: flex;
   flex-direction: column;
   background: var(--preke-bg);
+  overflow-y: auto;
 }
 
 .proposals__nav {
-  position: relative;
+  position: sticky;
+  top: 0;
   z-index: 100;
-  padding: 1.5rem 2rem;
-  background: rgba(0, 0, 0, 0.6);
+  padding: 1rem 2rem 1.5rem;
+  background: rgba(0, 0, 0, 0.85);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--preke-border);
+}
+
+/* Back button */
+.proposals__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  margin-bottom: 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: var(--preke-text-muted);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.proposals__back:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--preke-text);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.proposals__back svg {
+  width: 16px;
+  height: 16px;
 }
 
 .proposals__title {

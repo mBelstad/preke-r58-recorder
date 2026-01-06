@@ -5,8 +5,10 @@
  * Navigate to /experiments to view these live
  */
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import geometricPattern from '@/assets/geometric-pattern.jpeg'
 
+const router = useRouter()
 const activeExperiment = ref<number>(1)
 const experiments = [
   { id: 1, name: 'Breathing Tech', desc: 'Organic breathing with subtle pulse' },
@@ -21,6 +23,12 @@ const experiments = [
   <div class="experiments">
     <!-- Navigation -->
     <div class="experiments__nav">
+      <button class="experiments__back" @click="router.push('/admin')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M19 12H5M12 19l-7-7 7-7"/>
+        </svg>
+        Back
+      </button>
       <h1 class="experiments__title">Sci-Fi Background Experiments</h1>
       <div class="experiments__tabs">
         <button 
@@ -136,15 +144,45 @@ const experiments = [
   display: flex;
   flex-direction: column;
   background: var(--preke-bg);
+  overflow-y: auto;
 }
 
 .experiments__nav {
-  position: relative;
+  position: sticky;
+  top: 0;
   z-index: 100;
-  padding: 1.5rem 2rem;
-  background: rgba(0, 0, 0, 0.6);
+  padding: 1rem 2rem 1.5rem;
+  background: rgba(0, 0, 0, 0.85);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--preke-border);
+}
+
+/* Back button */
+.experiments__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  margin-bottom: 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: var(--preke-text-muted);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.experiments__back:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--preke-text);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.experiments__back svg {
+  width: 16px;
+  height: 16px;
 }
 
 .experiments__title {

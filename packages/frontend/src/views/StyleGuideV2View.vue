@@ -4,7 +4,9 @@
  * Based on the DeviceSetupView opening page design
  */
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 
+const router = useRouter()
 const activeTab = ref('colors')
 
 // Design tokens for display
@@ -57,6 +59,14 @@ const scanBars = 24
     </div>
     
     <div class="styleguide-v2__content">
+      <!-- Back button -->
+      <button class="styleguide-v2__back" @click="router.push('/admin')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M19 12H5M12 19l-7-7 7-7"/>
+        </svg>
+        Back to Settings
+      </button>
+      
       <!-- Header -->
       <header class="styleguide-v2__header">
         <img src="/logo-studio-stacked.svg" alt="Preke Studio" class="header-logo" />
@@ -560,6 +570,34 @@ export default {
   max-width: 900px;
   margin: 0 auto;
   padding: 2rem;
+}
+
+/* Back button */
+.styleguide-v2__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  margin-bottom: 1.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: var(--preke-text-muted);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.styleguide-v2__back:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--preke-text);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.styleguide-v2__back svg {
+  width: 18px;
+  height: 18px;
 }
 
 /* ═══════════════════════════════════════════

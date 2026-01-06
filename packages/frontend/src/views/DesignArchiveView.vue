@@ -89,6 +89,14 @@ function getStatusLabel(status: string) {
 
 <template>
   <div class="archive">
+    <!-- Back button -->
+    <button class="archive__back" @click="router.push('/admin')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M19 12H5M12 19l-7-7 7-7"/>
+      </svg>
+      Back to Settings
+    </button>
+    
     <div class="archive__header">
       <h1>Design Archive</h1>
       <p>All past, current, and proposed design variations for Preke Studio.</p>
@@ -177,6 +185,36 @@ function getStatusLabel(status: string) {
 .archive {
   padding: 2rem;
   max-width: 1200px;
+  height: 100%;
+  overflow-y: auto;
+}
+
+/* Back button */
+.archive__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  margin-bottom: 1.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: var(--preke-text-muted);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.archive__back:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--preke-text);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.archive__back svg {
+  width: 18px;
+  height: 18px;
   margin: 0 auto;
 }
 
