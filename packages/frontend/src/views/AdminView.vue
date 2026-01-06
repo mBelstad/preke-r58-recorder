@@ -34,22 +34,22 @@ async function downloadSupportBundle() {
 </script>
 
 <template>
-  <div class="h-full flex flex-col">
+  <div class="h-full flex flex-col bg-preke-bg">
     <!-- Header -->
-    <header class="px-6 py-4 border-b border-r58-bg-tertiary bg-r58-bg-secondary">
-      <h1 class="text-xl font-semibold mb-4">Admin</h1>
+    <header class="px-6 py-4 border-b border-preke-surface-border bg-preke-surface/50 backdrop-blur-sm">
+      <h1 class="text-xl font-semibold text-preke-text mb-4">Settings</h1>
       
       <!-- Tabs -->
-      <div class="flex gap-2">
+      <div class="flex gap-1">
         <button
           v-for="tab in tabs"
           :key="tab.id"
           @click="activeTab = tab.id"
-          class="px-4 py-2 rounded-t-lg transition-colors"
+          class="px-4 py-2 rounded-lg transition-all duration-200 font-medium text-sm"
           :class="[
             activeTab === tab.id 
-              ? 'bg-r58-bg-primary text-r58-text-primary' 
-              : 'text-r58-text-secondary hover:text-r58-text-primary'
+              ? 'bg-preke-gold/20 text-preke-gold border border-preke-gold/30' 
+              : 'text-preke-text-muted hover:text-preke-text hover:bg-preke-surface'
           ]"
         >
           {{ tab.label }}
@@ -63,12 +63,12 @@ async function downloadSupportBundle() {
       
       <DeviceStatus v-else-if="activeTab === 'status'" />
       
-      <div v-else-if="activeTab === 'logs'" class="card">
-        <h2 class="text-lg font-semibold mb-4">System Logs</h2>
+      <div v-else-if="activeTab === 'logs'" class="glass-card p-6 rounded-xl">
+        <h2 class="text-lg font-semibold text-preke-text mb-4">System Logs</h2>
         <LogViewer />
       </div>
       
-      <div v-else-if="activeTab === 'fleet'" class="card">
+      <div v-else-if="activeTab === 'fleet'" class="glass-card p-6 rounded-xl">
         <FleetOverview />
       </div>
       

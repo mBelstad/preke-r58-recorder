@@ -17,7 +17,7 @@ const isMinimalLayout = computed(() => route.meta.layout === 'minimal')
     <slot />
   </div>
   
-  <div v-else class="h-full flex">
+  <div v-else class="h-full flex bg-preke-bg">
     <!-- Sidebar -->
     <Sidebar />
     
@@ -27,7 +27,7 @@ const isMinimalLayout = computed(() => route.meta.layout === 'minimal')
       <StatusBar />
       
       <!-- Page content -->
-      <main class="flex-1 overflow-hidden bg-r58-bg-primary">
+      <main class="flex-1 overflow-hidden">
         <slot />
       </main>
     </div>

@@ -159,29 +159,29 @@ async function stopPipeline(pipelineId: string) {
 }
 
 function getServiceStatusColor(service: any) {
-  if (service.active) return 'bg-r58-accent-success'
-  return 'bg-r58-accent-danger'
+  if (service.active) return 'bg-preke-green'
+  return 'bg-preke-red'
 }
 
 function getPipelineStateColor(state: string) {
   switch (state) {
-    case 'running': return 'text-r58-accent-success'
-    case 'starting': return 'text-r58-accent-warning'
-    case 'stopping': return 'text-r58-accent-warning'
-    default: return 'text-r58-text-secondary'
+    case 'running': return 'text-preke-green'
+    case 'starting': return 'text-preke-gold'
+    case 'stopping': return 'text-preke-gold'
+    default: return 'text-preke-text-muted'
   }
 }
 
 function getGaugeColor(percent: number) {
-  if (percent > 90) return 'bg-r58-accent-danger'
-  if (percent > 70) return 'bg-r58-accent-warning'
-  return 'bg-r58-accent-success'
+  if (percent > 90) return 'bg-preke-red'
+  if (percent > 70) return 'bg-preke-gold'
+  return 'bg-preke-green'
 }
 
 function getTempColor(celsius: number) {
-  if (celsius > 80) return 'text-r58-accent-danger'
-  if (celsius > 65) return 'text-r58-accent-warning'
-  return 'text-r58-accent-success'
+  if (celsius > 80) return 'text-preke-red'
+  if (celsius > 65) return 'text-preke-gold'
+  return 'text-preke-green'
 }
 
 // Lifecycle
@@ -202,22 +202,22 @@ onUnmounted(() => {
   <div class="space-y-6">
     <!-- Loading/Error State -->
     <div v-if="loading" class="flex items-center justify-center py-12">
-      <div class="animate-spin w-8 h-8 border-2 border-r58-accent-primary border-t-transparent rounded-full"></div>
+      <div class="animate-spin w-8 h-8 border-2 border-preke-gold border-t-transparent rounded-full"></div>
     </div>
     
-    <div v-else-if="error" class="card bg-r58-accent-danger/10 border border-r58-accent-danger/30">
-      <p class="text-r58-accent-danger">Error loading system status: {{ error }}</p>
-      <button @click="fetchStatus" class="btn btn-secondary mt-4">Retry</button>
+    <div v-else-if="error" class="glass-card p-4 bg-preke-red/10 border border-preke-red/30 rounded-xl">
+      <p class="text-preke-red">Error loading system status: {{ error }}</p>
+      <button @click="fetchStatus" class="btn-v2 btn-v2--secondary mt-4">Retry</button>
     </div>
     
     <template v-else>
       <!-- System Info Row -->
       <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <!-- CPU Load -->
-        <div class="card">
-          <h3 class="text-sm font-semibold text-r58-text-secondary uppercase tracking-wide mb-4">CPU Load</h3>
+        <div class="glass-card p-4 rounded-xl">
+          <h3 class="text-xs font-semibold text-preke-text-muted uppercase tracking-wide mb-4">CPU Load</h3>
           <div v-if="systemStatus?.info?.load_average?.some((l: number) => l > 0)" class="space-y-3">
-            <div class="relative w-full h-4 bg-r58-bg-tertiary rounded-full overflow-hidden">
+            <div class="relative w-full h-3 bg-preke-bg rounded-full overflow-hidden">
               <div 
                 class="absolute left-0 top-0 h-full rounded-full transition-all duration-500"
                 :class="getGaugeColor(cpuPercent)"
@@ -225,22 +225,22 @@ onUnmounted(() => {
               ></div>
             </div>
             <div class="flex justify-between text-sm">
-              <span class="text-r58-text-secondary">Load Average</span>
-              <span class="font-mono">
+              <span class="text-preke-text-muted">Load Average</span>
+              <span class="font-mono text-preke-text">
                 {{ systemStatus?.info?.load_average?.map((l: number) => l.toFixed(2)).join(' / ') }}
               </span>
             </div>
           </div>
           <div v-else class="flex items-center justify-center py-4">
-            <span class="text-r58-text-secondary">N/A</span>
+            <span class="text-preke-text-muted">N/A</span>
           </div>
         </div>
         
         <!-- Memory -->
-        <div class="card">
-          <h3 class="text-sm font-semibold text-r58-text-secondary uppercase tracking-wide mb-4">Memory</h3>
+        <div class="glass-card p-4 rounded-xl">
+          <h3 class="text-xs font-semibold text-preke-text-muted uppercase tracking-wide mb-4">Memory</h3>
           <div v-if="memoryPercent > 0" class="space-y-3">
-            <div class="relative w-full h-4 bg-r58-bg-tertiary rounded-full overflow-hidden">
+            <div class="relative w-full h-3 bg-preke-bg rounded-full overflow-hidden">
               <div 
                 class="absolute left-0 top-0 h-full rounded-full transition-all duration-500"
                 :class="getGaugeColor(memoryPercent)"
@@ -248,18 +248,18 @@ onUnmounted(() => {
               ></div>
             </div>
             <div class="flex justify-between text-sm">
-              <span class="text-r58-text-secondary">Used</span>
-              <span>{{ memoryPercent.toFixed(1) }}%</span>
+              <span class="text-preke-text-muted">Used</span>
+              <span class="text-preke-text">{{ memoryPercent.toFixed(1) }}%</span>
             </div>
           </div>
           <div v-else class="flex items-center justify-center py-4">
-            <span class="text-r58-text-secondary">N/A</span>
+            <span class="text-preke-text-muted">N/A</span>
           </div>
         </div>
         
         <!-- Temperature -->
-        <div class="card">
-          <h3 class="text-sm font-semibold text-r58-text-secondary uppercase tracking-wide mb-4">Temperature</h3>
+        <div class="glass-card p-4 rounded-xl">
+          <h3 class="text-xs font-semibold text-preke-text-muted uppercase tracking-wide mb-4">Temperature</h3>
           <div class="flex items-center justify-center py-2">
             <span 
               v-if="primaryTemp"
@@ -268,43 +268,43 @@ onUnmounted(() => {
             >
               {{ primaryTemp.temp_celsius.toFixed(1) }}°C
             </span>
-            <span v-else class="text-r58-text-secondary">N/A</span>
+            <span v-else class="text-preke-text-muted">N/A</span>
           </div>
-          <p v-if="primaryTemp?.type" class="text-center text-xs text-r58-text-secondary">
+          <p v-if="primaryTemp?.type" class="text-center text-xs text-preke-text-muted">
             {{ primaryTemp.type }}
           </p>
         </div>
         
         <!-- Uptime -->
-        <div class="card">
-          <h3 class="text-sm font-semibold text-r58-text-secondary uppercase tracking-wide mb-4">Uptime</h3>
+        <div class="glass-card p-4 rounded-xl">
+          <h3 class="text-xs font-semibold text-preke-text-muted uppercase tracking-wide mb-4">Uptime</h3>
           <div class="flex items-center justify-center py-2">
-            <span v-if="systemStatus?.info?.uptime_seconds > 0" class="text-3xl font-bold text-r58-accent-primary">
+            <span v-if="systemStatus?.info?.uptime_seconds > 0" class="text-3xl font-bold text-preke-gold">
               {{ uptimeFormatted }}
             </span>
-            <span v-else class="text-r58-text-secondary">N/A</span>
+            <span v-else class="text-preke-text-muted">N/A</span>
           </div>
-          <p class="text-center text-xs text-r58-text-secondary">
+          <p class="text-center text-xs text-preke-text-muted">
             {{ systemStatus?.info?.hostname || 'R58 Device' }}
           </p>
         </div>
       </div>
       
       <!-- Services -->
-      <div class="card">
+      <div class="glass-card p-4 rounded-xl">
         <div class="flex items-center justify-between mb-4">
-          <h3 class="text-sm font-semibold text-r58-text-secondary uppercase tracking-wide">Services</h3>
+          <h3 class="text-xs font-semibold text-preke-text-muted uppercase tracking-wide">Services</h3>
           <div class="flex gap-2">
             <button 
               @click="restartServices('preke-recorder')"
-              class="btn btn-sm btn-secondary"
+              class="btn-v2 btn-v2--secondary text-sm"
               title="Restart the main service"
             >
               Restart Service
             </button>
             <button 
               @click="rebootDevice"
-              class="btn btn-sm btn-danger"
+              class="btn-v2 btn-v2--danger text-sm"
               title="Reboot the device"
             >
               Reboot Device
@@ -316,7 +316,7 @@ onUnmounted(() => {
           <div 
             v-for="service in services"
             :key="service.name"
-            class="flex items-center justify-between p-3 rounded-lg bg-r58-bg-tertiary"
+            class="flex items-center justify-between p-3 rounded-lg bg-preke-surface border border-preke-surface-border"
           >
             <div class="flex items-center gap-3">
               <span 
@@ -324,8 +324,8 @@ onUnmounted(() => {
                 :class="getServiceStatusColor(service)"
               ></span>
               <div>
-                <p class="font-medium">{{ service.name }}</p>
-                <p class="text-xs text-r58-text-secondary">
+                <p class="font-medium text-preke-text">{{ service.name }}</p>
+                <p class="text-xs text-preke-text-muted">
                   {{ service.status }}
                   <span v-if="service.memory_mb"> · {{ service.memory_mb.toFixed(0) }} MB</span>
                 </p>
@@ -334,26 +334,26 @@ onUnmounted(() => {
             <button 
               v-if="service.name !== 'vdo.ninja'"
               @click="restartServices(service.name)"
-              class="text-r58-text-secondary hover:text-r58-text-primary transition-colors"
+              class="text-preke-text-muted hover:text-preke-gold transition-colors"
               title="Restart service"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
             </button>
-            <span v-else class="text-xs text-r58-text-secondary">External</span>
+            <span v-else class="text-xs text-preke-text-muted">External</span>
           </div>
         </div>
       </div>
       
       <!-- Pipelines -->
-      <div class="card">
-        <h3 class="text-sm font-semibold text-r58-text-secondary uppercase tracking-wide mb-4">
+      <div class="glass-card p-4 rounded-xl">
+        <h3 class="text-xs font-semibold text-preke-text-muted uppercase tracking-wide mb-4">
           Active Pipelines
-          <span class="ml-2 text-r58-accent-primary">({{ pipelines.length }})</span>
+          <span class="ml-2 text-preke-gold">({{ pipelines.length }})</span>
         </h3>
         
-        <div v-if="pipelines.length === 0" class="text-center py-8 text-r58-text-secondary">
+        <div v-if="pipelines.length === 0" class="text-center py-8 text-preke-text-muted">
           No active pipelines
         </div>
         
@@ -361,12 +361,12 @@ onUnmounted(() => {
           <div 
             v-for="pipeline in pipelines"
             :key="pipeline.pipeline_id"
-            class="flex items-center justify-between p-3 rounded-lg bg-r58-bg-tertiary"
+            class="flex items-center justify-between p-3 rounded-lg bg-preke-surface border border-preke-surface-border"
           >
             <div class="flex items-center gap-4">
               <div>
-                <p class="font-mono text-sm">{{ pipeline.pipeline_id }}</p>
-                <p class="text-xs text-r58-text-secondary">
+                <p class="font-mono text-sm text-preke-text">{{ pipeline.pipeline_id }}</p>
+                <p class="text-xs text-preke-text-muted">
                   Type: {{ pipeline.pipeline_type }}
                   <span v-if="pipeline.device"> · {{ pipeline.device }}</span>
                 </p>
@@ -382,7 +382,7 @@ onUnmounted(() => {
               <button 
                 v-if="pipeline.state === 'running'"
                 @click="stopPipeline(pipeline.pipeline_id)"
-                class="btn btn-sm btn-danger"
+                class="btn-v2 btn-v2--danger text-sm"
                 title="Stop pipeline"
               >
                 Stop
