@@ -103,6 +103,21 @@ const router = createRouter({
       component: () => import('@/views/DesignProposalsView.vue'),
       meta: { title: 'Design Proposals' }
     },
+    {
+      path: '/design-archive',
+      name: 'design-archive',
+      component: () => import('@/views/DesignArchiveView.vue'),
+      meta: { title: 'Design Archive' }
+    },
+    // Aliases for styleguide routes
+    {
+      path: '/styleguide',
+      redirect: { name: 'style-guide' }
+    },
+    {
+      path: '/styleguide-v2',
+      redirect: { name: 'style-guide-v2' }
+    },
   ]
 })
 

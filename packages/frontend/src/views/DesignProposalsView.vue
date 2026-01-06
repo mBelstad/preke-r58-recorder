@@ -766,7 +766,7 @@ function selectMode(mode: 'recorder' | 'mixer') {
 /* Individual shapes - recreating the 3D look */
 .geo-shape {
   position: absolute;
-  background: linear-gradient(135deg, #151518 0%, #0d0d0f 100%);
+  background: linear-gradient(135deg, rgba(21, 21, 24, 0.6) 0%, rgba(13, 13, 15, 0.6) 100%);
   transform-origin: center;
 }
 
