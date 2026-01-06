@@ -1,13 +1,14 @@
 <script setup lang="ts">
 /**
- * StatusBar v2 - Clean, professional status display
- * Shows only real/meaningful data, no duplicates
+ * StatusBar v2 - Clean, professional status display with logo
+ * Shows logo on left, status in center, time on right
  */
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useConnectionStatus } from '@/composables/useConnectionStatus'
 import { useTailscaleStatus } from '@/composables/useTailscaleStatus'
 import { useRecorderStore } from '@/stores/recorder'
 import { useCapabilitiesStore } from '@/stores/capabilities'
+import logoHorizontal from '@/assets/logo-studio-horizontal.svg'
 
 const { state, latencyMs, reconnectAttempts } = useConnectionStatus()
 const { connectionMethod, connectionLabel, connectionIcon, connectionColor } = useTailscaleStatus()
@@ -141,8 +142,18 @@ const storageBarClass = computed(() => {
 
 <template>
   <header class="status-bar">
-    <!-- Left: Connection Status -->
-    <div class="status-bar__section">
+    <!-- macOS window controls spacer -->
+    <div class="status-bar__window-spacer"></div>
+    
+    <!-- Left: Logo + Connection Status -->
+    <div class="status-bar__section status-bar__section--left">
+      <!-- Logo -->
+      <img :src="logoHorizontal" alt="Preke Studio" class="status-bar__logo" />
+      
+      <!-- Divider -->
+      <div class="status-bar__divider status-bar__divider--tall"></div>
+      
+      <!-- Connection Status -->
       <div 
         class="status-bar__connection"
         :title="connectionTooltip"
@@ -152,7 +163,7 @@ const storageBarClass = computed(() => {
           {{ connectionText }}
         </span>
         
-        <!-- Connection method (P2P/Relay/LAN) - only show if not unknown -->
+        <!-- Connection method (P2P/Relay/LAN) -->
         <span 
           v-if="connectionMethod !== 'unknown' && state === 'connected'"
           class="status-bar__badge"
@@ -212,34 +223,68 @@ const storageBarClass = computed(() => {
 </template>
 
 <style scoped>
-/* Import design system v2 variables */
-@import '@/styles/design-system-v2.css';
-
 .status-bar {
-  height: 32px;
-  background: var(--preke-bg-surface);
-  border-bottom: 1px solid var(--preke-border);
+  height: 48px;
+  min-height: 48px;
+  background: var(--preke-surface);
+  border-bottom: 1px solid var(--preke-surface-border);
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 0 var(--preke-space-md);
-  font-size: var(--preke-text-sm);
+  padding: 0 16px;
+  font-size: 13px;
   font-family: var(--preke-font-sans);
+  gap: 16px;
+  /* Make it draggable for Electron window */
+  -webkit-app-region: drag;
 }
 
+/* Make interactive elements not draggable */
+.status-bar__connection,
+.status-bar__item,
+.status-bar__badge {
+  -webkit-app-region: no-drag;
+}
+
+/* macOS window controls spacer */
+.status-bar__window-spacer {
+  width: 0;
+  flex-shrink: 0;
+}
+
+:global(.electron-app) .status-bar__window-spacer {
+  width: 70px; /* Space for macOS traffic lights */
+}
+
+:global(.electron-app.is-windows) .status-bar__window-spacer {
+  width: 0; /* Windows controls are on the right */
+}
+
+/* Logo */
+.status-bar__logo {
+  height: 28px;
+  width: auto;
+  flex-shrink: 0;
+}
+
+/* Sections */
 .status-bar__section {
   display: flex;
   align-items: center;
-  gap: var(--preke-space-sm);
+  gap: 12px;
+}
+
+.status-bar__section--left {
+  flex-shrink: 0;
 }
 
 .status-bar__section--center {
   flex: 1;
   justify-content: center;
-  gap: var(--preke-space-lg);
+  gap: 20px;
 }
 
 .status-bar__section--right {
+  flex-shrink: 0;
   justify-content: flex-end;
 }
 
@@ -247,94 +292,101 @@ const storageBarClass = computed(() => {
 .status-bar__connection {
   display: flex;
   align-items: center;
-  gap: var(--preke-space-sm);
+  gap: 8px;
   cursor: help;
 }
 
 .status-bar__dot {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
 }
 
 .status-bar__label {
   font-weight: 500;
-  font-size: var(--preke-text-xs);
+  font-size: 12px;
 }
 
 .status-bar__badge {
   display: flex;
   align-items: center;
-  gap: 2px;
-  padding: 2px 6px;
-  font-size: 10px;
+  gap: 4px;
+  padding: 3px 8px;
+  font-size: 11px;
   font-weight: 500;
-  border-radius: var(--preke-radius-sm);
-  background: var(--preke-glass-bg-light);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--preke-border);
+}
+
+/* Divider */
+.status-bar__divider {
+  width: 1px;
+  height: 16px;
+  background: var(--preke-border);
+  flex-shrink: 0;
+}
+
+.status-bar__divider--tall {
+  height: 24px;
 }
 
 /* Status items */
 .status-bar__item {
   display: flex;
   align-items: center;
-  gap: var(--preke-space-xs);
+  gap: 6px;
 }
 
 .status-bar__item-icon {
-  font-size: 12px;
-  opacity: 0.7;
+  font-size: 14px;
+  opacity: 0.8;
 }
 
 .status-bar__item-value {
-  color: var(--preke-text-dim);
-  font-size: var(--preke-text-xs);
-}
-
-.status-bar__divider {
-  width: 1px;
-  height: 12px;
-  background: var(--preke-border);
+  color: var(--preke-text-muted);
+  font-size: 12px;
 }
 
 /* Storage bar */
 .status-bar__storage {
   display: flex;
   align-items: center;
-  gap: var(--preke-space-xs);
+  gap: 8px;
 }
 
 .status-bar__storage-bar {
-  width: 48px;
-  height: 4px;
-  background: var(--preke-bg-base);
-  border-radius: 2px;
+  width: 60px;
+  height: 6px;
+  background: var(--preke-bg);
+  border-radius: 3px;
   overflow: hidden;
 }
 
 .status-bar__storage-fill {
   height: 100%;
-  border-radius: 2px;
+  border-radius: 3px;
   transition: width 0.3s ease;
 }
 
 /* Time */
 .status-bar__time {
   font-family: var(--preke-font-mono);
-  font-size: var(--preke-text-xs);
+  font-size: 13px;
   color: var(--preke-text-muted);
   letter-spacing: 0.02em;
+  font-weight: 500;
 }
 
 /* Placeholder */
 .status-bar__placeholder {
   color: var(--preke-text-subtle);
-  font-size: var(--preke-text-xs);
+  font-size: 12px;
   font-style: italic;
 }
 
-/* Color utilities from design system */
+/* Color utilities */
 .text-preke-green { color: var(--preke-green); }
 .text-preke-amber { color: var(--preke-amber); }
 .text-preke-red { color: var(--preke-red); }
@@ -353,4 +405,3 @@ const storageBarClass = computed(() => {
   animation: pulse 2s ease-in-out infinite;
 }
 </style>
-

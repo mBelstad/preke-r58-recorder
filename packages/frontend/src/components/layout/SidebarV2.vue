@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * Sidebar v2 - Clean navigation with prominent mode indicator
- * Uses design-system-v2 tokens
+ * Logo is now in the status bar
  */
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -10,7 +10,6 @@ import { useCapabilitiesStore } from '@/stores/capabilities'
 import { buildApiUrl, hasDeviceConfigured } from '@/lib/api'
 import { toast } from '@/composables/useToast'
 import ConfirmDialog from '@/components/shared/ConfirmDialog.vue'
-import logoSidebar from '@/assets/logo-sidebar.svg'
 
 const route = useRoute()
 const router = useRouter()
@@ -161,15 +160,7 @@ const modeColor = computed(() => {
 
 <template>
   <aside class="sidebar">
-    <!-- macOS window controls spacer (Electron only) -->
-    <div class="sidebar__window-controls-spacer"></div>
-    
-    <!-- Logo - gold waveform icon -->
-    <div class="sidebar__logo">
-      <img :src="logoSidebar" alt="Preke" class="sidebar__logo-img" />
-    </div>
-    
-    <!-- Mode Indicator (prominent) -->
+    <!-- Mode Indicator (prominent) - only show if not idle -->
     <div 
       v-if="currentMode !== 'idle'"
       class="sidebar__mode"
@@ -178,6 +169,9 @@ const modeColor = computed(() => {
       <span class="sidebar__mode-dot"></span>
       <span class="sidebar__mode-label">{{ currentMode === 'recorder' ? 'REC' : 'MIX' }}</span>
     </div>
+    
+    <!-- Top spacer when no mode indicator -->
+    <div v-else class="sidebar__spacer"></div>
     
     <!-- Navigation -->
     <nav class="sidebar__nav">
@@ -230,7 +224,7 @@ const modeColor = computed(() => {
       </ul>
     </nav>
     
-    <!-- Version -->
+    <!-- Version at bottom -->
     <div class="sidebar__version">v2.0</div>
   </aside>
   
@@ -248,53 +242,21 @@ const modeColor = computed(() => {
 </template>
 
 <style scoped>
-@import '@/styles/design-system-v2.css';
-
 .sidebar {
-  width: 72px;
-  background: var(--preke-bg-elevated);
-  border-right: 1px solid var(--preke-border);
+  width: 80px;
+  min-width: 80px;
+  background: var(--preke-surface);
+  border-right: 1px solid var(--preke-surface-border);
   display: flex;
   flex-direction: column;
   align-items: center;
+  padding: 12px 0;
 }
 
-/* macOS window controls spacer - only visible in Electron on macOS */
-.sidebar__window-controls-spacer {
-  height: 0;
-  width: 100%;
+/* Spacer when no mode indicator */
+.sidebar__spacer {
+  height: 20px;
   flex-shrink: 0;
-}
-
-/* In Electron, add space for macOS traffic light buttons */
-:global(.electron-app) .sidebar__window-controls-spacer {
-  height: 28px; /* Standard macOS titlebar height */
-}
-
-/* On Windows, no need for extra spacing (controls are on the right) */
-:global(.electron-app.is-windows) .sidebar__window-controls-spacer {
-  height: 0;
-}
-
-/* Logo */
-.sidebar__logo {
-  height: 52px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  padding: var(--preke-space-xs);
-}
-
-.sidebar__logo-img {
-  width: 40px;
-  height: 40px;
-  filter: drop-shadow(0 0 12px rgba(224, 160, 48, 0.4));
-  transition: filter 0.2s ease;
-}
-
-.sidebar__logo:hover .sidebar__logo-img {
-  filter: drop-shadow(0 0 16px rgba(224, 160, 48, 0.6));
 }
 
 /* Mode indicator */
@@ -302,10 +264,10 @@ const modeColor = computed(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding: var(--preke-space-sm) var(--preke-space-xs);
-  margin: var(--preke-space-sm) 0;
-  border-radius: var(--preke-radius-md);
+  gap: 6px;
+  padding: 10px 8px;
+  margin: 0 8px 12px 8px;
+  border-radius: 10px;
   width: calc(100% - 16px);
 }
 
@@ -324,8 +286,8 @@ const modeColor = computed(() => {
 }
 
 .sidebar__mode-dot {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
 }
 
@@ -344,7 +306,7 @@ const modeColor = computed(() => {
 }
 
 .sidebar__mode-label {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -362,7 +324,7 @@ const modeColor = computed(() => {
 .sidebar__nav {
   flex: 1;
   width: 100%;
-  padding: var(--preke-space-sm);
+  padding: 0 8px;
 }
 
 .sidebar__nav-list {
@@ -371,16 +333,16 @@ const modeColor = computed(() => {
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--preke-space-xs);
+  gap: 6px;
 }
 
 .sidebar__nav-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding: var(--preke-space-sm) var(--preke-space-xs);
-  border-radius: var(--preke-radius-md);
+  gap: 6px;
+  padding: 12px 8px;
+  border-radius: 10px;
   color: var(--preke-text-muted);
   text-decoration: none;
   transition: all 0.15s ease;
@@ -388,13 +350,17 @@ const modeColor = computed(() => {
 }
 
 .sidebar__nav-item:hover {
-  color: var(--preke-text-primary);
-  background: var(--preke-glass-bg-light);
+  color: var(--preke-text);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .sidebar__nav-item--active {
   color: var(--preke-gold);
   background: rgba(224, 160, 48, 0.1);
+}
+
+.sidebar__nav-item--active:hover {
+  background: rgba(224, 160, 48, 0.15);
 }
 
 .sidebar__nav-item--mode-active {
@@ -407,8 +373,8 @@ const modeColor = computed(() => {
 }
 
 .sidebar__icon {
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
 }
 
 .sidebar__icon--spinner {
@@ -421,16 +387,15 @@ const modeColor = computed(() => {
 }
 
 .sidebar__nav-label {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 500;
 }
 
 /* Version */
 .sidebar__version {
-  padding: var(--preke-space-sm);
-  font-size: 10px;
+  padding: 12px;
+  font-size: 11px;
   color: var(--preke-text-subtle);
   letter-spacing: 0.02em;
 }
 </style>
-
