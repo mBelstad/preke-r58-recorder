@@ -800,7 +800,7 @@ async function selectMode(mode: 'recorder' | 'mixer') {
   z-index: 10;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: space-around;
   gap: 3rem;
   width: 100%;
   max-width: 100%;
@@ -809,10 +809,11 @@ async function selectMode(mode: 'recorder' | 'mixer') {
 }
 
 .studio__side {
-  flex: 1;
+  flex: 1 1 auto;
   display: flex;
   justify-content: center;
   min-width: 0; /* Allow flex items to shrink if needed */
+  max-width: none;
 }
 
 /* Cards */
