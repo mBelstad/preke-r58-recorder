@@ -794,7 +794,7 @@ async function selectMode(mode: 'recorder' | 'mixer') {
   }
 }
 
-/* Content overlay - matches Combined proposal */
+/* Content overlay - full width */
 .studio__content {
   position: relative;
   z-index: 10;
@@ -803,7 +803,6 @@ async function selectMode(mode: 'recorder' | 'mixer') {
   justify-content: center;
   gap: 3rem;
   width: 100%;
-  max-width: 900px;
   padding: 2rem;
 }
 
