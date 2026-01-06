@@ -219,8 +219,8 @@ const modeInfo = computed(() => {
 .header {
   position: relative;
   width: 100%;
-  height: 56px;
-  min-height: 56px;
+  height: 64px; /* Increased from 56px to accommodate larger text and more padding */
+  min-height: 64px;
   flex-shrink: 0;
   
   /* Darker glass effect */
@@ -244,7 +244,7 @@ const modeInfo = computed(() => {
   
   display: flex;
   align-items: center;
-  padding: 0 20px;
+  padding: 0 28px; /* Increased from 20px for more padding */
   gap: 20px;
   -webkit-app-region: drag;
   z-index: 100;

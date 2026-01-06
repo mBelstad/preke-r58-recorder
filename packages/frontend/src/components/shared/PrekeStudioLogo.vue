@@ -19,11 +19,12 @@ import logoPrekeWhiteCropped from '@/assets/logo-preke-white-cropped.svg'
   align-items: center;
   gap: 10px;
   flex-shrink: 0;
-  height: 40px; /* 45px reduced by 10% */
+  height: auto; /* Remove height constraint to allow text to grow */
+  min-height: 40px; /* Minimum height for consistency */
 }
 
 .preke-studio-logo__image {
-  height: 100%;
+  height: 40px; /* Fixed height for logo image */
   width: auto;
   object-fit: contain;
   flex-shrink: 0;
@@ -31,7 +32,7 @@ import logoPrekeWhiteCropped from '@/assets/logo-preke-white-cropped.svg'
 
 .preke-studio-logo__text {
   font-family: var(--preke-font-sans);
-  font-size: 30.5px; /* 29px + 5% */
+  font-size: 34px; /* Increased from 30.5px */
   font-weight: 800;
   color: var(--preke-gold);
   letter-spacing: 0.02em;
