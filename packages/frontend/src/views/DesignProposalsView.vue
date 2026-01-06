@@ -153,19 +153,45 @@ function selectMode(mode: 'recorder' | 'mixer') {
          PROPOSAL 3: COMBINED
          ═══════════════════════════════════════════ -->
     <div v-show="activeProposal === 3" class="proposal combined">
-      <!-- Geometric background -->
+      <!-- Moving gold glow behind shapes -->
+      <div class="combined__glow"></div>
+      
+      <!-- Geometric background with many smaller shapes -->
       <div class="combined__geo">
-        <div class="geo-layer geo-layer--1">
-          <div class="geo-shape geo-shape--1"></div>
-          <div class="geo-shape geo-shape--2"></div>
-          <div class="geo-shape geo-shape--3"></div>
-        </div>
-        <div class="geo-layer geo-layer--2">
-          <div class="geo-shape geo-shape--4"></div>
-          <div class="geo-shape geo-shape--5"></div>
-        </div>
-        <div class="geo-glimmer geo-glimmer--1"></div>
-        <div class="geo-glimmer geo-glimmer--2"></div>
+        <!-- Row 1: Top -->
+        <div class="comb-shape comb-shape--1"></div>
+        <div class="comb-shape comb-shape--2"></div>
+        <div class="comb-shape comb-shape--3"></div>
+        <div class="comb-shape comb-shape--4"></div>
+        <div class="comb-shape comb-shape--5"></div>
+        
+        <!-- Row 2: Upper-mid -->
+        <div class="comb-shape comb-shape--6"></div>
+        <div class="comb-shape comb-shape--7"></div>
+        <div class="comb-shape comb-shape--8"></div>
+        <div class="comb-shape comb-shape--9"></div>
+        <div class="comb-shape comb-shape--10"></div>
+        <div class="comb-shape comb-shape--11"></div>
+        
+        <!-- Row 3: Center -->
+        <div class="comb-shape comb-shape--12"></div>
+        <div class="comb-shape comb-shape--13"></div>
+        <div class="comb-shape comb-shape--14"></div>
+        <div class="comb-shape comb-shape--15"></div>
+        <div class="comb-shape comb-shape--16"></div>
+        
+        <!-- Row 4: Lower-mid -->
+        <div class="comb-shape comb-shape--17"></div>
+        <div class="comb-shape comb-shape--18"></div>
+        <div class="comb-shape comb-shape--19"></div>
+        <div class="comb-shape comb-shape--20"></div>
+        <div class="comb-shape comb-shape--21"></div>
+        
+        <!-- Row 5: Bottom -->
+        <div class="comb-shape comb-shape--22"></div>
+        <div class="comb-shape comb-shape--23"></div>
+        <div class="comb-shape comb-shape--24"></div>
+        <div class="comb-shape comb-shape--25"></div>
       </div>
       
       <!-- Split content overlay -->
@@ -806,6 +832,7 @@ function selectMode(mode: 'recorder' | 'mixer') {
 
 /* ═══════════════════════════════════════════
    PROPOSAL 3: COMBINED
+   Many smaller solid shapes with gold glow behind
    ═══════════════════════════════════════════ */
 .combined {
   position: relative;
@@ -813,12 +840,320 @@ function selectMode(mode: 'recorder' | 'mixer') {
   align-items: center;
   justify-content: center;
   background: #0a0a0c;
+  overflow: hidden;
+}
+
+/* Moving gold glow behind shapes */
+.combined__glow {
+  position: absolute;
+  width: 120%;
+  height: 120%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(ellipse at 50% 50%, rgba(224, 160, 48, 0.25) 0%, rgba(224, 160, 48, 0.1) 30%, transparent 60%);
+  animation: glow-move 12s ease-in-out infinite;
+  z-index: 1;
+}
+
+@keyframes glow-move {
+  0%, 100% { 
+    transform: translate(-50%, -50%) scale(1);
+    background: radial-gradient(ellipse at 40% 40%, rgba(224, 160, 48, 0.3) 0%, rgba(224, 160, 48, 0.1) 30%, transparent 60%);
+  }
+  25% { 
+    transform: translate(-48%, -52%) scale(1.05);
+    background: radial-gradient(ellipse at 60% 35%, rgba(224, 160, 48, 0.35) 0%, rgba(224, 160, 48, 0.12) 30%, transparent 60%);
+  }
+  50% { 
+    transform: translate(-50%, -50%) scale(1.02);
+    background: radial-gradient(ellipse at 55% 60%, rgba(224, 160, 48, 0.28) 0%, rgba(224, 160, 48, 0.1) 30%, transparent 60%);
+  }
+  75% { 
+    transform: translate(-52%, -48%) scale(1.04);
+    background: radial-gradient(ellipse at 45% 55%, rgba(224, 160, 48, 0.32) 0%, rgba(224, 160, 48, 0.11) 30%, transparent 60%);
+  }
 }
 
 .combined__geo {
   position: absolute;
-  inset: 0;
+  inset: -10%;
   overflow: hidden;
+  z-index: 2;
+}
+
+/* Individual solid shapes - smaller, organized grid pattern */
+.comb-shape {
+  position: absolute;
+  background: #0f0f11;
+  border: 1px solid rgba(224, 160, 48, 0.08);
+  transition: border-color 0.3s ease;
+  animation: shape-glow 8s ease-in-out infinite;
+}
+
+@keyframes shape-glow {
+  0%, 100% { border-color: rgba(224, 160, 48, 0.05); }
+  50% { border-color: rgba(224, 160, 48, 0.15); }
+}
+
+/* Row 1: Top - staggered parallelograms */
+.comb-shape--1 {
+  width: 120px;
+  height: 80px;
+  top: 5%;
+  left: 5%;
+  clip-path: polygon(20% 0%, 100% 0%, 80% 100%, 0% 100%);
+  animation-delay: 0s;
+}
+
+.comb-shape--2 {
+  width: 150px;
+  height: 90px;
+  top: 3%;
+  left: 18%;
+  clip-path: polygon(15% 0%, 100% 0%, 85% 100%, 0% 100%);
+  background: #111113;
+  animation-delay: 0.5s;
+}
+
+.comb-shape--3 {
+  width: 180px;
+  height: 100px;
+  top: 0%;
+  left: 38%;
+  clip-path: polygon(10% 0%, 100% 0%, 90% 100%, 0% 100%);
+  background: #121214;
+  animation-delay: 1s;
+}
+
+.comb-shape--4 {
+  width: 150px;
+  height: 90px;
+  top: 3%;
+  right: 18%;
+  clip-path: polygon(15% 0%, 100% 0%, 85% 100%, 0% 100%);
+  background: #111113;
+  animation-delay: 0.5s;
+}
+
+.comb-shape--5 {
+  width: 120px;
+  height: 80px;
+  top: 5%;
+  right: 5%;
+  clip-path: polygon(20% 0%, 100% 0%, 80% 100%, 0% 100%);
+  animation-delay: 0s;
+}
+
+/* Row 2: Upper-mid */
+.comb-shape--6 {
+  width: 100px;
+  height: 70px;
+  top: 18%;
+  left: 0%;
+  clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
+  background: #0d0d0f;
+  animation-delay: 1.5s;
+}
+
+.comb-shape--7 {
+  width: 140px;
+  height: 85px;
+  top: 16%;
+  left: 12%;
+  clip-path: polygon(18% 0%, 100% 0%, 82% 100%, 0% 100%);
+  background: #131315;
+  animation-delay: 2s;
+}
+
+.comb-shape--8 {
+  width: 160px;
+  height: 95px;
+  top: 14%;
+  left: 30%;
+  clip-path: polygon(12% 0%, 100% 0%, 88% 100%, 0% 100%);
+  background: #151517;
+  animation-delay: 2.5s;
+}
+
+.comb-shape--9 {
+  width: 160px;
+  height: 95px;
+  top: 14%;
+  right: 30%;
+  clip-path: polygon(12% 0%, 100% 0%, 88% 100%, 0% 100%);
+  background: #151517;
+  animation-delay: 2.5s;
+}
+
+.comb-shape--10 {
+  width: 140px;
+  height: 85px;
+  top: 16%;
+  right: 12%;
+  clip-path: polygon(18% 0%, 100% 0%, 82% 100%, 0% 100%);
+  background: #131315;
+  animation-delay: 2s;
+}
+
+.comb-shape--11 {
+  width: 100px;
+  height: 70px;
+  top: 18%;
+  right: 0%;
+  clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
+  background: #0d0d0f;
+  animation-delay: 1.5s;
+}
+
+/* Row 3: Center - larger shapes, more gold reflection */
+.comb-shape--12 {
+  width: 130px;
+  height: 90px;
+  top: 35%;
+  left: 5%;
+  clip-path: polygon(20% 0%, 100% 0%, 80% 100%, 0% 100%);
+  background: #161618;
+  border-color: rgba(224, 160, 48, 0.12);
+  animation-delay: 3s;
+}
+
+.comb-shape--13 {
+  width: 170px;
+  height: 110px;
+  top: 32%;
+  left: 18%;
+  clip-path: polygon(15% 0%, 100% 0%, 85% 100%, 0% 100%);
+  background: #181819;
+  border-color: rgba(224, 160, 48, 0.15);
+  animation-delay: 3.5s;
+}
+
+.comb-shape--14 {
+  width: 200px;
+  height: 120px;
+  top: 30%;
+  left: 50%;
+  transform: translateX(-50%);
+  clip-path: polygon(10% 0%, 90% 0%, 100% 100%, 0% 100%);
+  background: #1a1a1c;
+  border-color: rgba(224, 160, 48, 0.18);
+  animation-delay: 4s;
+}
+
+.comb-shape--15 {
+  width: 170px;
+  height: 110px;
+  top: 32%;
+  right: 18%;
+  clip-path: polygon(15% 0%, 100% 0%, 85% 100%, 0% 100%);
+  background: #181819;
+  border-color: rgba(224, 160, 48, 0.15);
+  animation-delay: 3.5s;
+}
+
+.comb-shape--16 {
+  width: 130px;
+  height: 90px;
+  top: 35%;
+  right: 5%;
+  clip-path: polygon(20% 0%, 100% 0%, 80% 100%, 0% 100%);
+  background: #161618;
+  border-color: rgba(224, 160, 48, 0.12);
+  animation-delay: 3s;
+}
+
+/* Row 4: Lower-mid */
+.comb-shape--17 {
+  width: 110px;
+  height: 75px;
+  bottom: 22%;
+  left: 8%;
+  clip-path: polygon(22% 0%, 100% 0%, 78% 100%, 0% 100%);
+  background: #131315;
+  animation-delay: 4.5s;
+}
+
+.comb-shape--18 {
+  width: 150px;
+  height: 90px;
+  bottom: 20%;
+  left: 22%;
+  clip-path: polygon(16% 0%, 100% 0%, 84% 100%, 0% 100%);
+  background: #141416;
+  animation-delay: 5s;
+}
+
+.comb-shape--19 {
+  width: 180px;
+  height: 100px;
+  bottom: 18%;
+  left: 50%;
+  transform: translateX(-50%);
+  clip-path: polygon(12% 0%, 88% 0%, 100% 100%, 0% 100%);
+  background: #151517;
+  animation-delay: 5.5s;
+}
+
+.comb-shape--20 {
+  width: 150px;
+  height: 90px;
+  bottom: 20%;
+  right: 22%;
+  clip-path: polygon(16% 0%, 100% 0%, 84% 100%, 0% 100%);
+  background: #141416;
+  animation-delay: 5s;
+}
+
+.comb-shape--21 {
+  width: 110px;
+  height: 75px;
+  bottom: 22%;
+  right: 8%;
+  clip-path: polygon(22% 0%, 100% 0%, 78% 100%, 0% 100%);
+  background: #131315;
+  animation-delay: 4.5s;
+}
+
+/* Row 5: Bottom */
+.comb-shape--22 {
+  width: 100px;
+  height: 65px;
+  bottom: 5%;
+  left: 12%;
+  clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
+  background: #0e0e10;
+  animation-delay: 6s;
+}
+
+.comb-shape--23 {
+  width: 140px;
+  height: 80px;
+  bottom: 3%;
+  left: 30%;
+  clip-path: polygon(18% 0%, 100% 0%, 82% 100%, 0% 100%);
+  background: #101012;
+  animation-delay: 6.5s;
+}
+
+.comb-shape--24 {
+  width: 140px;
+  height: 80px;
+  bottom: 3%;
+  right: 30%;
+  clip-path: polygon(18% 0%, 100% 0%, 82% 100%, 0% 100%);
+  background: #101012;
+  animation-delay: 6.5s;
+}
+
+.comb-shape--25 {
+  width: 100px;
+  height: 65px;
+  bottom: 5%;
+  right: 12%;
+  clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
+  background: #0e0e10;
+  animation-delay: 6s;
 }
 
 .combined__split {
@@ -965,7 +1300,7 @@ function selectMode(mode: 'recorder' | 'mixer') {
   left: -40%;
   background: linear-gradient(135deg, #0e0e10 0%, #0a0a0c 100%);
   transform: rotate(-25deg);
-  animation: ribbon-breathe 14s ease-in-out infinite;
+  animation: ribbon-glow 14s ease-in-out infinite;
 }
 
 .ribbon--2 {
@@ -975,7 +1310,7 @@ function selectMode(mode: 'recorder' | 'mixer') {
   left: -40%;
   background: linear-gradient(135deg, #0f0f11 0%, #0b0b0d 100%);
   transform: rotate(22deg);
-  animation: ribbon-breathe 16s ease-in-out infinite;
+  animation: ribbon-glow 16s ease-in-out infinite;
   animation-delay: 1s;
 }
 
@@ -986,7 +1321,7 @@ function selectMode(mode: 'recorder' | 'mixer') {
   left: -30%;
   background: linear-gradient(135deg, #0d0d0f 0%, #090909 100%);
   transform: rotate(-28deg);
-  animation: ribbon-breathe 12s ease-in-out infinite;
+  animation: ribbon-glow 12s ease-in-out infinite;
   animation-delay: 2s;
 }
 
@@ -997,7 +1332,7 @@ function selectMode(mode: 'recorder' | 'mixer') {
   left: -35%;
   background: linear-gradient(135deg, #0e0e10 0%, #0a0a0c 100%);
   transform: rotate(20deg);
-  animation: ribbon-breathe 15s ease-in-out infinite;
+  animation: ribbon-glow 15s ease-in-out infinite;
   animation-delay: 0.5s;
 }
 
@@ -1008,7 +1343,7 @@ function selectMode(mode: 'recorder' | 'mixer') {
   left: -25%;
   background: linear-gradient(135deg, #0c0c0e 0%, #080808 100%);
   transform: rotate(-18deg);
-  animation: ribbon-breathe 13s ease-in-out infinite;
+  animation: ribbon-glow 13s ease-in-out infinite;
   animation-delay: 3s;
 }
 
@@ -1019,7 +1354,7 @@ function selectMode(mode: 'recorder' | 'mixer') {
   left: -20%;
   background: linear-gradient(135deg, #0d0d0f 0%, #090909 100%);
   transform: rotate(30deg);
-  animation: ribbon-breathe 11s ease-in-out infinite;
+  animation: ribbon-glow 11s ease-in-out infinite;
   animation-delay: 1.5s;
 }
 
@@ -1032,7 +1367,7 @@ function selectMode(mode: 'recorder' | 'mixer') {
   background: linear-gradient(135deg, #121214 0%, #0d0d0f 100%);
   transform: rotate(-22deg);
   box-shadow: 0 5px 30px rgba(0, 0, 0, 0.5);
-  animation: ribbon-breathe 10s ease-in-out infinite;
+  animation: ribbon-glow 10s ease-in-out infinite;
 }
 
 .ribbon--8 {
@@ -1043,7 +1378,7 @@ function selectMode(mode: 'recorder' | 'mixer') {
   background: linear-gradient(135deg, #141416 0%, #0f0f11 100%);
   transform: rotate(25deg);
   box-shadow: 0 5px 30px rgba(0, 0, 0, 0.5);
-  animation: ribbon-breathe 12s ease-in-out infinite;
+  animation: ribbon-glow 12s ease-in-out infinite;
   animation-delay: 2s;
 }
 
@@ -1055,7 +1390,7 @@ function selectMode(mode: 'recorder' | 'mixer') {
   background: linear-gradient(135deg, #131315 0%, #0e0e10 100%);
   transform: rotate(-20deg);
   box-shadow: 0 5px 30px rgba(0, 0, 0, 0.5);
-  animation: ribbon-breathe 14s ease-in-out infinite;
+  animation: ribbon-glow 14s ease-in-out infinite;
   animation-delay: 1s;
 }
 
@@ -1067,7 +1402,7 @@ function selectMode(mode: 'recorder' | 'mixer') {
   background: linear-gradient(135deg, #121214 0%, #0c0c0e 100%);
   transform: rotate(28deg);
   box-shadow: 0 5px 30px rgba(0, 0, 0, 0.5);
-  animation: ribbon-breathe 11s ease-in-out infinite;
+  animation: ribbon-glow 11s ease-in-out infinite;
   animation-delay: 3s;
 }
 
@@ -1079,7 +1414,7 @@ function selectMode(mode: 'recorder' | 'mixer') {
   background: linear-gradient(135deg, #101012 0%, #0b0b0d 100%);
   transform: rotate(-32deg);
   box-shadow: 0 3px 20px rgba(0, 0, 0, 0.4);
-  animation: ribbon-breathe 13s ease-in-out infinite;
+  animation: ribbon-glow 13s ease-in-out infinite;
   animation-delay: 0.5s;
 }
 
@@ -1091,7 +1426,7 @@ function selectMode(mode: 'recorder' | 'mixer') {
   background: linear-gradient(135deg, #111113 0%, #0c0c0e 100%);
   transform: rotate(15deg);
   box-shadow: 0 3px 20px rgba(0, 0, 0, 0.4);
-  animation: ribbon-breathe 15s ease-in-out infinite;
+  animation: ribbon-glow 15s ease-in-out infinite;
   animation-delay: 2.5s;
 }
 
@@ -1106,7 +1441,7 @@ function selectMode(mode: 'recorder' | 'mixer') {
   box-shadow: 
     inset 0 1px 0 rgba(224, 160, 48, 0.08),
     0 8px 40px rgba(0, 0, 0, 0.6);
-  animation: ribbon-breathe-front 8s ease-in-out infinite;
+  animation: ribbon-glow-front 8s ease-in-out infinite;
 }
 
 .ribbon--14 {
@@ -1119,7 +1454,7 @@ function selectMode(mode: 'recorder' | 'mixer') {
   box-shadow: 
     inset 0 1px 0 rgba(224, 160, 48, 0.1),
     0 8px 40px rgba(0, 0, 0, 0.6);
-  animation: ribbon-breathe-front 10s ease-in-out infinite;
+  animation: ribbon-glow-front 10s ease-in-out infinite;
   animation-delay: 1s;
 }
 
@@ -1133,7 +1468,7 @@ function selectMode(mode: 'recorder' | 'mixer') {
   box-shadow: 
     inset 0 1px 0 rgba(224, 160, 48, 0.12),
     0 8px 40px rgba(0, 0, 0, 0.6);
-  animation: ribbon-breathe-front 9s ease-in-out infinite;
+  animation: ribbon-glow-front 9s ease-in-out infinite;
   animation-delay: 0.5s;
 }
 
@@ -1147,31 +1482,19 @@ function selectMode(mode: 'recorder' | 'mixer') {
   box-shadow: 
     inset 0 1px 0 rgba(224, 160, 48, 0.15),
     0 8px 40px rgba(0, 0, 0, 0.6);
-  animation: ribbon-breathe-front 11s ease-in-out infinite;
+  animation: ribbon-glow-front 11s ease-in-out infinite;
   animation-delay: 1.5s;
 }
 
-/* Ribbon breathing animations */
-@keyframes ribbon-breathe {
-  0%, 100% { 
-    opacity: 0.8; 
-    transform: rotate(var(--rotate, -25deg)) translateX(0); 
-  }
-  50% { 
-    opacity: 0.9; 
-    transform: rotate(var(--rotate, -25deg)) translateX(5px); 
-  }
+/* Ribbon subtle glow animations - no movement, just opacity */
+@keyframes ribbon-glow {
+  0%, 100% { opacity: 0.85; }
+  50% { opacity: 0.95; }
 }
 
-@keyframes ribbon-breathe-front {
-  0%, 100% { 
-    opacity: 0.95; 
-    transform: rotate(var(--rotate, -18deg)) translateX(0) scale(1); 
-  }
-  50% { 
-    opacity: 1; 
-    transform: rotate(var(--rotate, -18deg)) translateX(3px) scale(1.005); 
-  }
+@keyframes ribbon-glow-front {
+  0%, 100% { opacity: 0.92; }
+  50% { opacity: 1; }
 }
 
 /* Gold glimmers - thin lines that catch light */
@@ -1194,7 +1517,7 @@ function selectMode(mode: 'recorder' | 'mixer') {
     transparent 100%
   );
   transform: rotate(-18deg);
-  animation: glimmer-sweep 6s ease-in-out infinite;
+  animation: glimmer-pulse 6s ease-in-out infinite;
   filter: blur(0.5px);
 }
 
@@ -1210,7 +1533,7 @@ function selectMode(mode: 'recorder' | 'mixer') {
     transparent 100%
   );
   transform: rotate(22deg);
-  animation: glimmer-sweep 8s ease-in-out infinite;
+  animation: glimmer-pulse 8s ease-in-out infinite;
   animation-delay: 2s;
   filter: blur(0.5px);
 }
@@ -1225,7 +1548,7 @@ function selectMode(mode: 'recorder' | 'mixer') {
     transparent 100%
   );
   transform: rotate(-25deg);
-  animation: glimmer-sweep 5s ease-in-out infinite;
+  animation: glimmer-pulse 5s ease-in-out infinite;
   animation-delay: 4s;
   filter: blur(0.5px);
 }
@@ -1240,7 +1563,7 @@ function selectMode(mode: 'recorder' | 'mixer') {
     transparent 100%
   );
   transform: rotate(18deg);
-  animation: glimmer-sweep 7s ease-in-out infinite;
+  animation: glimmer-pulse 7s ease-in-out infinite;
   animation-delay: 1s;
   filter: blur(0.5px);
 }
@@ -1255,24 +1578,15 @@ function selectMode(mode: 'recorder' | 'mixer') {
     transparent 100%
   );
   transform: rotate(-10deg);
-  animation: glimmer-sweep 9s ease-in-out infinite;
+  animation: glimmer-pulse 9s ease-in-out infinite;
   animation-delay: 3s;
   filter: blur(0.5px);
 }
 
-@keyframes glimmer-sweep {
-  0%, 15%, 100% { 
-    opacity: 0; 
-    transform: rotate(var(--rotate, -18deg)) translateX(-30px); 
-  }
-  30%, 70% { 
-    opacity: 1; 
-    transform: rotate(var(--rotate, -18deg)) translateX(0); 
-  }
-  85% { 
-    opacity: 0; 
-    transform: rotate(var(--rotate, -18deg)) translateX(30px); 
-  }
+@keyframes glimmer-pulse {
+  0%, 20%, 100% { opacity: 0; }
+  40%, 60% { opacity: 0.8; }
+  80% { opacity: 0; }
 }
 
 /* Central ambient glow */
