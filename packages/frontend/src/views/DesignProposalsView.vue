@@ -72,15 +72,6 @@ function selectMode(mode: 'recorder' | 'mixer') {
         <div class="split-home__hover-line"></div>
       </div>
 
-      <!-- Divider -->
-      <div class="split-home__divider">
-        <div class="split-home__divider-line"></div>
-        <div class="split-home__divider-logo">
-          <span class="split-home__divider-text">Choose</span>
-        </div>
-        <div class="split-home__divider-line"></div>
-      </div>
-
       <!-- Mixer Side (Right) -->
       <div class="split-home__side split-home__side--mixer" @click="selectMode('mixer')">
         <div class="split-home__bg">
@@ -163,17 +154,22 @@ function selectMode(mode: 'recorder' | 'mixer') {
           <div class="geo-shape geo-shape--3"></div>
           <div class="geo-shape geo-shape--8"></div>
           <div class="geo-shape geo-shape--9"></div>
+          <div class="geo-shape geo-shape--13"></div>
+          <div class="geo-shape geo-shape--14"></div>
         </div>
         <div class="geo-layer geo-layer--2">
           <div class="geo-shape geo-shape--4"></div>
           <div class="geo-shape geo-shape--5"></div>
           <div class="geo-shape geo-shape--10"></div>
           <div class="geo-shape geo-shape--11"></div>
+          <div class="geo-shape geo-shape--15"></div>
+          <div class="geo-shape geo-shape--16"></div>
         </div>
         <div class="geo-layer geo-layer--3">
           <div class="geo-shape geo-shape--6"></div>
           <div class="geo-shape geo-shape--7"></div>
           <div class="geo-shape geo-shape--12"></div>
+          <div class="geo-shape geo-shape--17"></div>
         </div>
         <!-- Gold glimmers behind shapes -->
         <div class="geo-glimmer geo-glimmer--1"></div>
@@ -965,6 +961,87 @@ function selectMode(mode: 'recorder' | 'mixer') {
   50% { transform: translate(5px, 3px); opacity: 0.95; }
 }
 
+/* Edge shapes (13-17) for Combined proposal */
+.geo-shape--13 {
+  width: 30%;
+  height: 20%;
+  top: -5%;
+  left: -5%;
+  background: linear-gradient(135deg, #0c0c0e 0%, #080808 100%);
+  clip-path: polygon(0% 0%, 100% 10%, 95% 100%, 5% 90%);
+  animation: shape-breathe-13 14s ease-in-out infinite;
+}
+
+.geo-shape--14 {
+  width: 25%;
+  height: 25%;
+  bottom: -5%;
+  right: -5%;
+  background: linear-gradient(135deg, #0a0a0c 0%, #060606 100%);
+  clip-path: polygon(10% 5%, 100% 0%, 95% 95%, 0% 100%);
+  animation: shape-breathe-14 12s ease-in-out infinite;
+}
+
+.geo-shape--15 {
+  width: 22%;
+  height: 18%;
+  top: -3%;
+  right: 30%;
+  background: linear-gradient(135deg, #121214 0%, #0c0c0e 100%);
+  clip-path: polygon(5% 0%, 95% 5%, 100% 100%, 0% 95%);
+  animation: shape-breathe-15 11s ease-in-out infinite;
+  box-shadow: inset 0 1px 0 rgba(224, 160, 48, 0.03);
+}
+
+.geo-shape--16 {
+  width: 20%;
+  height: 22%;
+  bottom: -3%;
+  left: 25%;
+  background: linear-gradient(135deg, #0e0e10 0%, #0a0a0c 100%);
+  clip-path: polygon(0% 5%, 100% 0%, 95% 95%, 5% 100%);
+  animation: shape-breathe-16 13s ease-in-out infinite;
+  box-shadow: inset 0 1px 0 rgba(224, 160, 48, 0.04);
+}
+
+.geo-shape--17 {
+  width: 18%;
+  height: 30%;
+  left: -3%;
+  top: 40%;
+  background: linear-gradient(135deg, #161618 0%, #101012 100%);
+  clip-path: polygon(0% 5%, 95% 0%, 100% 95%, 5% 100%);
+  animation: shape-breathe-17 10s ease-in-out infinite;
+  box-shadow: 
+    inset 0 1px 0 rgba(224, 160, 48, 0.06),
+    0 0 60px rgba(0, 0, 0, 0.5);
+}
+
+@keyframes shape-breathe-13 {
+  0%, 100% { transform: translate(0, 0); opacity: 0.6; }
+  50% { transform: translate(5px, 3px); opacity: 0.7; }
+}
+
+@keyframes shape-breathe-14 {
+  0%, 100% { transform: translate(0, 0); opacity: 0.65; }
+  50% { transform: translate(-4px, -3px); opacity: 0.75; }
+}
+
+@keyframes shape-breathe-15 {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); opacity: 0.7; }
+  50% { transform: translate(3px, 4px) rotate(0.2deg); opacity: 0.8; }
+}
+
+@keyframes shape-breathe-16 {
+  0%, 100% { transform: translate(0, 0); opacity: 0.68; }
+  50% { transform: translate(-3px, -4px); opacity: 0.78; }
+}
+
+@keyframes shape-breathe-17 {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.75; }
+  50% { transform: translate(4px, 2px) scale(1.01); opacity: 0.85; }
+}
+
 /* Gold glimmer effects - behind shapes, casting light on them */
 .geo-glimmer {
   position: absolute;
@@ -1092,9 +1169,9 @@ function selectMode(mode: 'recorder' | 'mixer') {
 
 .combined__card {
   padding: 2.5rem 3rem;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 20px;
   text-align: center;
   transition: all 0.4s ease;
@@ -1674,27 +1751,28 @@ function selectMode(mode: 'recorder' | 'mixer') {
   }
 }
 
-/* The stock image - semi-transparent */
+/* The stock image - with increased contrast */
 .stock-image__photo {
   position: absolute;
   inset: -5%;
   background-image: url('@/assets/stock-background.jpeg');
   background-size: cover;
   background-position: center;
-  opacity: 0.25;
+  opacity: 0.4;
+  filter: contrast(1.3) brightness(0.9);
   z-index: 2;
 }
 
-/* Dark overlay on top of the image - darker */
+/* Dark overlay on top of the image - lighter */
 .stock-image__overlay {
   position: absolute;
   inset: 0;
   background: linear-gradient(
     180deg,
-    rgba(5, 5, 7, 0.85) 0%,
-    rgba(5, 5, 7, 0.6) 30%,
-    rgba(5, 5, 7, 0.6) 70%,
-    rgba(5, 5, 7, 0.9) 100%
+    rgba(5, 5, 7, 0.6) 0%,
+    rgba(5, 5, 7, 0.35) 30%,
+    rgba(5, 5, 7, 0.35) 70%,
+    rgba(5, 5, 7, 0.7) 100%
   );
   z-index: 3;
 }
