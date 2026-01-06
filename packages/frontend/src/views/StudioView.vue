@@ -11,6 +11,9 @@ const selectedMode = ref<'recorder' | 'mixer' | null>(null)
 const switching = ref(false)
 const switchError = ref<string | null>(null)
 
+// AbortController to cancel in-flight mode switch requests
+let switchAbortController: AbortController | null = null
+
 // Switch to idle mode when entering Studio page (stops all camera processes)
 onMounted(async () => {
   try {
@@ -28,22 +31,46 @@ onMounted(async () => {
 async function selectMode(mode: 'recorder' | 'mixer') {
   if (switching.value) return
 
+  // Cancel any existing request
+  if (switchAbortController) {
+    switchAbortController.abort()
+  }
+  
+  // Create new abort controller for this request
+  switchAbortController = new AbortController()
+  const signal = switchAbortController.signal
+
   selectedMode.value = mode
   switching.value = true
   switchError.value = null
   
   try {
     // Call mode switch API to prepare device resources
-    const response = await fetch(buildApiUrl(`/api/mode/${mode}`), { method: 'POST' })
+    const response = await fetch(buildApiUrl(`/api/mode/${mode}`), { 
+      method: 'POST',
+      signal 
+    })
+    
+    // Check if cancelled before proceeding
+    if (signal.aborted) return
     
     if (!response.ok) {
       const data = await response.json().catch(() => ({}))
       throw new Error(data.detail || `Failed to switch to ${mode} mode`)
     }
     
+    // Check again before navigation (in case cancelled during response parsing)
+    if (signal.aborted) return
+    
     // Navigate to the mode view
     router.push(`/${mode}`)
   } catch (e) {
+    // Ignore abort errors - these are expected when user cancels
+    if (e instanceof Error && e.name === 'AbortError') {
+      console.log('[Studio] Mode switch cancelled by user')
+      return
+    }
+    
     const message = e instanceof Error ? e.message : 'Failed to switch mode'
     switchError.value = message
     toast.error(message)
@@ -54,6 +81,12 @@ async function selectMode(mode: 'recorder' | 'mixer') {
 }
 
 function cancelSwitch() {
+  // Abort any in-flight request
+  if (switchAbortController) {
+    switchAbortController.abort()
+    switchAbortController = null
+  }
+  
   switching.value = false
   selectedMode.value = null
   switchError.value = null
