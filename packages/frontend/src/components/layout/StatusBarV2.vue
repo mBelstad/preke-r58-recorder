@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * StatusBar v2 - Full-width header with logo and professional status display
+ * StatusBar v2 - Full-width header with logo anchored after traffic lights
  */
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useConnectionStatus } from '@/composables/useConnectionStatus'
@@ -10,7 +10,7 @@ import { useCapabilitiesStore } from '@/stores/capabilities'
 import logoHorizontal from '@/assets/logo-studio-horizontal.svg'
 
 const { state, latencyMs, reconnectAttempts } = useConnectionStatus()
-const { connectionMethod, connectionLabel, connectionIcon } = useTailscaleStatus()
+const { connectionMethod, connectionLabel } = useTailscaleStatus()
 const recorderStore = useRecorderStore()
 const capabilitiesStore = useCapabilitiesStore()
 
@@ -36,6 +36,9 @@ const formattedTime = computed(() => {
   })
 })
 
+// Current mode
+const currentMode = computed(() => capabilitiesStore.capabilities?.current_mode || 'idle')
+
 // Camera inputs - array of 4 slots
 const cameraSlots = computed(() => {
   const inputs = recorderStore.inputs
@@ -43,18 +46,13 @@ const cameraSlots = computed(() => {
   for (let i = 0; i < 4; i++) {
     const input = inputs[i]
     slots.push({
-      id: i,
+      id: i + 1, // 1-based for display
       hasSignal: input?.hasSignal || false,
       isRecording: input?.isRecording || false,
       label: input?.label || `CAM ${i + 1}`
     })
   }
   return slots
-})
-
-// Active inputs count
-const activeInputs = computed(() => {
-  return recorderStore.inputs.filter(input => input.hasSignal).length
 })
 
 // Storage info from capabilities
@@ -109,20 +107,39 @@ const statusInfo = computed(() => {
   
   return { dot: 'red', text: 'Offline', showDetails: false, pulse: true }
 })
+
+// Mode info for display
+const modeInfo = computed(() => {
+  if (currentMode.value === 'recorder') {
+    return { label: 'REC', color: 'red', pulse: true }
+  }
+  if (currentMode.value === 'mixer') {
+    return { label: 'MIX', color: 'violet', pulse: false }
+  }
+  return null
+})
 </script>
 
 <template>
   <header class="header">
-    <!-- macOS traffic lights spacer - larger gap -->
-    <div class="header__traffic-lights"></div>
-    
-    <!-- Logo -->
-    <div class="header__logo">
-      <img :src="logoHorizontal" alt="Preke Studio" />
+    <!-- Fixed left section: traffic lights space + logo -->
+    <div class="header__left">
+      <img :src="logoHorizontal" alt="Preke Studio" class="header__logo" />
     </div>
     
     <!-- Center: Status indicators -->
     <div class="header__center">
+      <!-- Mode indicator (if active) -->
+      <div v-if="modeInfo" class="header__mode" :class="`header__mode--${modeInfo.color}`">
+        <span 
+          class="header__mode-dot"
+          :class="{ 'header__mode-dot--pulse': modeInfo.pulse }"
+        ></span>
+        <span class="header__mode-label">{{ modeInfo.label }}</span>
+      </div>
+      
+      <div v-if="modeInfo" class="header__divider"></div>
+      
       <!-- Connection status -->
       <div class="header__status" :title="statusInfo.text">
         <span 
@@ -140,8 +157,8 @@ const statusInfo = computed(() => {
         <!-- Divider -->
         <div class="header__divider"></div>
         
-        <!-- Camera slots (4 placeholders) -->
-        <div class="header__cameras" :title="`${activeInputs} of 4 inputs active`">
+        <!-- Camera slots (4 numbered placeholders) -->
+        <div class="header__cameras" :title="`Camera inputs`">
           <div 
             v-for="slot in cameraSlots" 
             :key="slot.id"
@@ -152,19 +169,20 @@ const statusInfo = computed(() => {
             }"
             :title="slot.label"
           >
-            <svg viewBox="0 0 24 24" fill="currentColor">
-              <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
-            </svg>
+            <span class="header__camera-num">{{ slot.id }}</span>
           </div>
         </div>
         
         <!-- Divider -->
         <div class="header__divider"></div>
         
-        <!-- Storage bar -->
+        <!-- Storage bar with HDD icon -->
         <div class="header__storage" :title="`${storageInfo.freeGB} GB free`">
-          <svg class="header__storage-icon" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M20 6H4c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 10H4V8h16v8zM6 10h9v4H6z"/>
+          <!-- Hard drive / save icon -->
+          <svg class="header__storage-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <rect x="4" y="4" width="16" height="16" rx="2"/>
+            <path d="M4 14h16"/>
+            <circle cx="17" cy="17" r="1" fill="currentColor"/>
           </svg>
           <div class="header__storage-track">
             <div 
@@ -174,7 +192,7 @@ const statusInfo = computed(() => {
                 'header__storage-fill--low': storageInfo.isLow && !storageInfo.isCritical,
                 'header__storage-fill--critical': storageInfo.isCritical
               }"
-              :style="{ width: `${storageInfo.percent}%` }"
+              :style="{ width: `${100 - storageInfo.percent}%` }"
             ></div>
           </div>
           <span class="header__storage-text">{{ storageInfo.freeGB }}GB</span>
@@ -204,31 +222,33 @@ const statusInfo = computed(() => {
 
 .header__status,
 .header__cameras,
-.header__storage {
+.header__storage,
+.header__mode {
   -webkit-app-region: no-drag;
 }
 
-/* macOS traffic lights - extra wide for visibility */
-.header__traffic-lights {
-  width: 0;
+/* Left section - fixed width to match sidebar + traffic lights */
+.header__left {
+  /* Traffic lights (70px on macOS) + sidebar width (72px) - padding */
+  width: 72px; /* Match sidebar width */
+  margin-left: 0;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
 }
 
-:global(.electron-app) .header__traffic-lights {
-  width: 80px; /* Extra space to not cover buttons */
+/* In Electron on macOS, add space for traffic lights */
+:global(.electron-app) .header__left {
+  margin-left: 70px; /* Space for macOS traffic lights */
 }
 
-:global(.electron-app.is-windows) .header__traffic-lights {
-  width: 0;
+:global(.electron-app.is-windows) .header__left {
+  margin-left: 0;
 }
 
 /* Logo - bigger */
 .header__logo {
-  flex-shrink: 0;
-}
-
-.header__logo img {
-  height: 44px;
+  height: 48px;
   width: auto;
 }
 
@@ -238,7 +258,65 @@ const statusInfo = computed(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 20px;
+  gap: 16px;
+}
+
+/* Mode indicator */
+.header__mode {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 8px;
+}
+
+.header__mode--red {
+  background: rgba(212, 90, 90, 0.15);
+  border: 1px solid rgba(212, 90, 90, 0.3);
+}
+
+.header__mode--violet {
+  background: rgba(124, 58, 237, 0.15);
+  border: 1px solid rgba(124, 58, 237, 0.3);
+}
+
+.header__mode-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.header__mode--red .header__mode-dot {
+  background: var(--preke-red);
+  box-shadow: 0 0 8px var(--preke-red);
+}
+
+.header__mode--violet .header__mode-dot {
+  background: #7c3aed;
+  box-shadow: 0 0 8px #7c3aed;
+}
+
+.header__mode-dot--pulse {
+  animation: mode-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes mode-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.85); }
+}
+
+.header__mode-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.header__mode--red .header__mode-label {
+  color: var(--preke-red);
+}
+
+.header__mode--violet .header__mode-label {
+  color: #a78bfa;
 }
 
 /* Connection status */
@@ -281,15 +359,15 @@ const statusInfo = computed(() => {
   background: var(--preke-border);
 }
 
-/* Camera slots */
+/* Camera slots with numbers */
 .header__cameras {
   display: flex;
-  gap: 6px;
+  gap: 4px;
 }
 
 .header__camera {
-  width: 28px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   border-radius: 4px;
   background: var(--preke-bg);
   border: 1px solid var(--preke-border);
@@ -299,11 +377,10 @@ const statusInfo = computed(() => {
   transition: all 0.2s ease;
 }
 
-.header__camera svg {
-  width: 14px;
-  height: 14px;
+.header__camera-num {
+  font-size: 11px;
+  font-weight: 600;
   color: var(--preke-text-subtle);
-  transition: all 0.2s ease;
 }
 
 .header__camera--active {
@@ -311,7 +388,7 @@ const statusInfo = computed(() => {
   border-color: var(--preke-green);
 }
 
-.header__camera--active svg {
+.header__camera--active .header__camera-num {
   color: var(--preke-green);
 }
 
@@ -321,7 +398,7 @@ const statusInfo = computed(() => {
   animation: camera-recording 1.5s ease-in-out infinite;
 }
 
-.header__camera--recording svg {
+.header__camera--recording .header__camera-num {
   color: var(--preke-red);
 }
 
@@ -334,7 +411,7 @@ const statusInfo = computed(() => {
 .header__storage {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .header__storage-icon {
@@ -344,7 +421,7 @@ const statusInfo = computed(() => {
 }
 
 .header__storage-track {
-  width: 80px;
+  width: 60px;
   height: 8px;
   background: var(--preke-bg);
   border-radius: 4px;
@@ -359,7 +436,7 @@ const statusInfo = computed(() => {
 }
 
 .header__storage-fill--ok {
-  background: linear-gradient(90deg, var(--preke-green), var(--preke-green-light));
+  background: linear-gradient(90deg, var(--preke-green), var(--preke-green-light, var(--preke-green)));
 }
 
 .header__storage-fill--low {
@@ -367,7 +444,7 @@ const statusInfo = computed(() => {
 }
 
 .header__storage-fill--critical {
-  background: linear-gradient(90deg, var(--preke-red), var(--preke-red-light));
+  background: linear-gradient(90deg, var(--preke-red), var(--preke-red-light, var(--preke-red)));
   animation: storage-critical 1s ease-in-out infinite;
 }
 
@@ -377,10 +454,10 @@ const statusInfo = computed(() => {
 }
 
 .header__storage-text {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--preke-text-muted);
-  min-width: 40px;
+  min-width: 36px;
 }
 
 /* Right section */

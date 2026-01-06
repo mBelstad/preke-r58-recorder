@@ -7,7 +7,7 @@ import { useCapabilitiesStore } from '@/stores/capabilities'
 
 const router = useRouter()
 const capabilitiesStore = useCapabilitiesStore()
-const selectedMode = ref<'recorder' | 'mixer'>('recorder')
+const selectedMode = ref<'recorder' | 'mixer' | null>(null)
 const switching = ref(false)
 const switchError = ref<string | null>(null)
 
@@ -42,7 +42,7 @@ async function selectMode(mode: 'recorder' | 'mixer') {
     }
     
     // Navigate to the mode view
-  router.push(`/${mode}`)
+    router.push(`/${mode}`)
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Failed to switch mode'
     switchError.value = message
@@ -52,96 +52,331 @@ async function selectMode(mode: 'recorder' | 'mixer') {
     switching.value = false
   }
 }
+
+function cancelSwitch() {
+  switching.value = false
+  selectedMode.value = null
+  switchError.value = null
+}
 </script>
 
 <template>
-  <div class="h-full flex flex-col items-center justify-center p-8 bg-preke-bg">
-    <h1 class="text-4xl font-bold mb-2 text-preke-text">Preke Studio</h1>
-    <p class="text-preke-text-muted mb-12">Select a mode to begin</p>
+  <div class="studio">
+    <!-- Ambient background effects -->
+    <div class="studio__bg">
+      <div class="studio__orb studio__orb--1"></div>
+      <div class="studio__orb studio__orb--2"></div>
+      <div class="studio__orb studio__orb--3"></div>
+    </div>
     
-    <div class="flex gap-6">
-      <!-- Recorder Mode -->
-      <button
-        @click="selectMode('recorder')"
-        :disabled="switching"
-        class="group relative w-64 h-48 rounded-2xl border-2 transition-all duration-300 disabled:opacity-60 disabled:cursor-wait backdrop-blur-sm"
-        :class="[
-          selectedMode === 'recorder' 
-            ? 'border-preke-red bg-preke-red/10 shadow-lg shadow-preke-red/20' 
-            : 'border-preke-surface-border hover:border-preke-red/50 hover:bg-preke-surface/50'
-        ]"
-      >
-        <div class="h-full flex flex-col items-center justify-center gap-4">
-          <!-- Recording icon / Loading spinner -->
-          <div class="w-16 h-16 rounded-full bg-preke-red/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-            <svg v-if="switching && selectedMode === 'recorder'" class="w-8 h-8 text-preke-red animate-spin" fill="none" viewBox="0 0 24 24">
+    <div class="studio__content">
+      <h1 class="studio__title">Preke Studio</h1>
+      <p class="studio__subtitle">Select a mode to begin</p>
+      
+      <div class="studio__modes">
+        <!-- Recorder Mode -->
+        <button
+          @click="selectMode('recorder')"
+          :disabled="switching"
+          class="studio__mode studio__mode--recorder"
+          :class="{ 'studio__mode--selected': selectedMode === 'recorder' }"
+        >
+          <div class="studio__mode-icon">
+            <svg v-if="switching && selectedMode === 'recorder'" class="animate-spin" fill="none" viewBox="0 0 24 24" width="32" height="32">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            <svg v-else class="w-8 h-8 text-preke-red" fill="currentColor" viewBox="0 0 24 24">
+            <!-- Recording circle icon -->
+            <svg v-else fill="currentColor" viewBox="0 0 24 24" width="32" height="32">
               <circle cx="12" cy="12" r="8"/>
             </svg>
           </div>
-          <div class="text-center">
-            <h3 class="text-xl font-semibold text-preke-text">Recorder</h3>
-            <p class="text-sm text-preke-text-muted">
-              {{ switching && selectedMode === 'recorder' ? 'Switching mode...' : 'Multi-cam ISO recording' }}
+          <div class="studio__mode-info">
+            <h3 class="studio__mode-title">Recorder</h3>
+            <p class="studio__mode-desc">
+              {{ switching && selectedMode === 'recorder' ? 'Starting recorder...' : 'Multi-cam ISO recording' }}
             </p>
           </div>
-        </div>
-      </button>
-      
-      <!-- Mixer Mode -->
-      <button
-        @click="selectMode('mixer')"
-        :disabled="switching"
-        class="group relative w-64 h-48 rounded-2xl border-2 transition-all duration-300 disabled:opacity-60 disabled:cursor-wait backdrop-blur-sm"
-        :class="[
-          selectedMode === 'mixer' 
-            ? 'border-violet-500 bg-violet-500/10 shadow-lg shadow-violet-500/20' 
-            : 'border-preke-surface-border hover:border-violet-500/50 hover:bg-preke-surface/50'
-        ]"
-      >
-        <div class="h-full flex flex-col items-center justify-center gap-4">
-          <!-- Mixer icon / Loading spinner -->
-          <div class="w-16 h-16 rounded-full bg-violet-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-            <svg v-if="switching && selectedMode === 'mixer'" class="w-8 h-8 text-violet-500 animate-spin" fill="none" viewBox="0 0 24 24">
+        </button>
+        
+        <!-- Mixer Mode -->
+        <button
+          @click="selectMode('mixer')"
+          :disabled="switching"
+          class="studio__mode studio__mode--mixer"
+          :class="{ 'studio__mode--selected': selectedMode === 'mixer' }"
+        >
+          <div class="studio__mode-icon">
+            <svg v-if="switching && selectedMode === 'mixer'" class="animate-spin" fill="none" viewBox="0 0 24 24" width="32" height="32">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            <svg v-else class="w-8 h-8 text-violet-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16m-7 6h7"/>
-              <circle cx="8" cy="6" r="2" fill="currentColor"/>
-              <circle cx="16" cy="12" r="2" fill="currentColor"/>
-              <circle cx="12" cy="18" r="2" fill="currentColor"/>
+            <!-- Video mixer icon (multi-screen layout) -->
+            <svg v-else fill="none" stroke="currentColor" viewBox="0 0 24 24" width="32" height="32" stroke-width="1.8">
+              <rect x="2" y="2" width="9" height="9" rx="1"/>
+              <rect x="13" y="2" width="9" height="6" rx="1"/>
+              <rect x="13" y="10" width="9" height="6" rx="1"/>
+              <rect x="2" y="13" width="9" height="9" rx="1"/>
             </svg>
           </div>
-          <div class="text-center">
-            <h3 class="text-xl font-semibold text-preke-text">Mixer</h3>
-            <p class="text-sm text-preke-text-muted">
-              {{ switching && selectedMode === 'mixer' ? 'Switching mode...' : 'Live switching & streaming' }}
+          <div class="studio__mode-info">
+            <h3 class="studio__mode-title">Mixer</h3>
+            <p class="studio__mode-desc">
+              {{ switching && selectedMode === 'mixer' ? 'Starting mixer...' : 'Live switching & streaming' }}
             </p>
           </div>
-        </div>
-      </button>
-    </div>
-    
-    <!-- Error message -->
-    <div v-if="switchError" class="mt-4 text-preke-red text-sm">
-      {{ switchError }}
-    </div>
-    
-    <!-- Quick status -->
-    <div class="mt-12 flex gap-8 text-sm text-preke-text-muted">
-      <div class="flex items-center gap-2">
-        <span class="w-2 h-2 rounded-full bg-preke-green"></span>
-        <span>4 inputs available</span>
+        </button>
       </div>
-      <div class="flex items-center gap-2">
-        <span class="w-2 h-2 rounded-full bg-preke-green"></span>
-        <span>Storage: 256 GB free</span>
+      
+      <!-- Go back button when loading -->
+      <button 
+        v-if="switching"
+        @click="cancelSwitch"
+        class="studio__back"
+      >
+        ← Go back
+      </button>
+      
+      <!-- Error message -->
+      <div v-if="switchError" class="studio__error">
+        {{ switchError }}
       </div>
     </div>
   </div>
 </template>
 
+<style scoped>
+.studio {
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  overflow: hidden;
+  background: var(--preke-bg);
+}
+
+/* Ambient background */
+.studio__bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.studio__orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(100px);
+  opacity: 0.4;
+  animation: orb-float 6s ease-in-out infinite;
+}
+
+.studio__orb--1 {
+  width: 400px;
+  height: 400px;
+  top: -100px;
+  right: -100px;
+  background: radial-gradient(circle, rgba(224, 160, 48, 0.3) 0%, transparent 70%);
+  animation-delay: 0s;
+}
+
+.studio__orb--2 {
+  width: 300px;
+  height: 300px;
+  bottom: -50px;
+  left: -50px;
+  background: radial-gradient(circle, rgba(124, 58, 237, 0.2) 0%, transparent 70%);
+  animation-delay: 2s;
+}
+
+.studio__orb--3 {
+  width: 250px;
+  height: 250px;
+  top: 50%;
+  left: 30%;
+  background: radial-gradient(circle, rgba(212, 90, 90, 0.15) 0%, transparent 70%);
+  animation-delay: 4s;
+}
+
+@keyframes orb-float {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(20px, -20px) scale(1.05); }
+}
+
+/* Content */
+.studio__content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.studio__title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--preke-text);
+  margin-bottom: 0.5rem;
+}
+
+.studio__subtitle {
+  font-size: 1rem;
+  color: var(--preke-text-muted);
+  margin-bottom: 3rem;
+}
+
+/* Mode buttons */
+.studio__modes {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.studio__mode {
+  width: 280px;
+  height: 200px;
+  border-radius: 1.25rem;
+  border: 2px solid var(--preke-border);
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(12px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.studio__mode:hover:not(:disabled) {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+.studio__mode:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+/* Recorder styling */
+.studio__mode--recorder {
+  border-color: rgba(212, 90, 90, 0.3);
+}
+
+.studio__mode--recorder:hover:not(:disabled) {
+  border-color: rgba(212, 90, 90, 0.6);
+  background: rgba(212, 90, 90, 0.08);
+  box-shadow: 
+    0 20px 40px rgba(0, 0, 0, 0.3),
+    0 0 30px rgba(212, 90, 90, 0.15);
+}
+
+.studio__mode--recorder.studio__mode--selected {
+  border-color: var(--preke-red);
+  background: rgba(212, 90, 90, 0.12);
+  box-shadow: 
+    0 0 40px rgba(212, 90, 90, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.studio__mode--recorder .studio__mode-icon {
+  background: rgba(212, 90, 90, 0.2);
+  color: var(--preke-red);
+}
+
+/* Mixer styling */
+.studio__mode--mixer {
+  border-color: rgba(124, 58, 237, 0.3);
+}
+
+.studio__mode--mixer:hover:not(:disabled) {
+  border-color: rgba(124, 58, 237, 0.6);
+  background: rgba(124, 58, 237, 0.08);
+  box-shadow: 
+    0 20px 40px rgba(0, 0, 0, 0.3),
+    0 0 30px rgba(124, 58, 237, 0.15);
+}
+
+.studio__mode--mixer.studio__mode--selected {
+  border-color: #7c3aed;
+  background: rgba(124, 58, 237, 0.12);
+  box-shadow: 
+    0 0 40px rgba(124, 58, 237, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.studio__mode--mixer .studio__mode-icon {
+  background: rgba(124, 58, 237, 0.2);
+  color: #a78bfa;
+}
+
+/* Mode icon */
+.studio__mode-icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.3s ease;
+}
+
+.studio__mode:hover .studio__mode-icon {
+  transform: scale(1.1);
+}
+
+/* Mode info */
+.studio__mode-info {
+  text-align: center;
+}
+
+.studio__mode-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--preke-text);
+  margin-bottom: 0.25rem;
+}
+
+.studio__mode-desc {
+  font-size: 0.875rem;
+  color: var(--preke-text-muted);
+}
+
+/* Go back button */
+.studio__back {
+  margin-top: 2rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.75rem;
+  background: transparent;
+  border: 1px solid var(--preke-border);
+  color: var(--preke-text-muted);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.studio__back:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--preke-text-muted);
+  color: var(--preke-text);
+}
+
+/* Error */
+.studio__error {
+  margin-top: 1.5rem;
+  color: var(--preke-red);
+  font-size: 0.875rem;
+}
+
+/* Spin animation */
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+</style>

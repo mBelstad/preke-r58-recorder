@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
- * Sidebar v2 - Clean navigation with stylish hover effects
- * Logo is now in the status bar
+ * Sidebar v2 - Clean navigation with square buttons
+ * Logo and mode indicator are in the top bar
  */
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -149,30 +149,10 @@ onUnmounted(() => {
     modePollingInterval = null
   }
 })
-
-// Mode colors
-const modeColor = computed(() => {
-  if (currentMode.value === 'recorder') return 'recorder'
-  if (currentMode.value === 'mixer') return 'mixer'
-  return 'idle'
-})
 </script>
 
 <template>
   <aside class="sidebar">
-    <!-- Mode Indicator (prominent) - only show if not idle -->
-    <div 
-      v-if="currentMode !== 'idle'"
-      class="sidebar__mode"
-      :class="`sidebar__mode--${modeColor}`"
-    >
-      <span class="sidebar__mode-dot"></span>
-      <span class="sidebar__mode-label">{{ currentMode === 'recorder' ? 'REC' : 'MIX' }}</span>
-    </div>
-    
-    <!-- Top spacer when no mode indicator -->
-    <div v-else class="sidebar__spacer"></div>
-    
     <!-- Navigation -->
     <nav class="sidebar__nav">
       <ul class="sidebar__nav-list">
@@ -209,8 +189,12 @@ const modeColor = computed(() => {
               <svg v-else-if="item.icon === 'record'" class="sidebar__icon" fill="currentColor" viewBox="0 0 24 24">
                 <circle cx="12" cy="12" r="8"/>
               </svg>
-              <svg v-else-if="item.icon === 'mixer'" class="sidebar__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
+              <!-- Video Mixer Icon (multi-screen layout) -->
+              <svg v-else-if="item.icon === 'mixer'" class="sidebar__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8">
+                <rect x="3" y="3" width="8" height="8" rx="1"/>
+                <rect x="13" y="3" width="8" height="5" rx="1"/>
+                <rect x="13" y="10" width="8" height="5" rx="1"/>
+                <rect x="3" y="13" width="8" height="8" rx="1"/>
               </svg>
               <svg v-else-if="item.icon === 'folder'" class="sidebar__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
@@ -246,97 +230,21 @@ const modeColor = computed(() => {
 
 <style scoped>
 .sidebar {
-  width: 88px;
-  min-width: 88px;
+  width: 72px;
+  min-width: 72px;
   background: var(--preke-surface);
   border-right: 1px solid var(--preke-surface-border);
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 16px 0;
-}
-
-/* Spacer when no mode indicator */
-.sidebar__spacer {
-  height: 24px;
-  flex-shrink: 0;
-}
-
-/* Mode indicator */
-.sidebar__mode {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  padding: 10px 8px;
-  margin: 0 10px 16px 10px;
-  border-radius: 12px;
-  width: calc(100% - 20px);
-  backdrop-filter: blur(8px);
-}
-
-.sidebar__mode--recorder {
-  background: rgba(212, 90, 90, 0.12);
-  border: 1px solid rgba(212, 90, 90, 0.25);
-  box-shadow: 
-    0 0 20px rgba(212, 90, 90, 0.15),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
-}
-
-.sidebar__mode--mixer {
-  background: rgba(124, 58, 237, 0.12);
-  border: 1px solid rgba(124, 58, 237, 0.25);
-  box-shadow: 
-    0 0 20px rgba(124, 58, 237, 0.15),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
-}
-
-.sidebar__mode--idle {
-  display: none;
-}
-
-.sidebar__mode-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-}
-
-.sidebar__mode--recorder .sidebar__mode-dot {
-  background: var(--preke-red);
-  box-shadow: 0 0 12px var(--preke-red);
-  animation: pulse-mode 1.5s ease-in-out infinite;
-}
-
-.sidebar__mode--mixer .sidebar__mode-dot {
-  background: #7c3aed;
-  box-shadow: 0 0 12px #7c3aed;
-}
-
-@keyframes pulse-mode {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.6; transform: scale(0.9); }
-}
-
-.sidebar__mode-label {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.sidebar__mode--recorder .sidebar__mode-label {
-  color: var(--preke-red);
-}
-
-.sidebar__mode--mixer .sidebar__mode-label {
-  color: #a78bfa;
+  padding: 8px 0;
 }
 
 /* Navigation */
 .sidebar__nav {
   flex: 1;
   width: 100%;
-  padding: 0 10px;
+  padding: 0 8px;
 }
 
 .sidebar__nav-list {
@@ -348,13 +256,16 @@ const modeColor = computed(() => {
   gap: 4px;
 }
 
+/* Square 1:1 buttons */
 .sidebar__nav-item {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: 14px 8px;
+  justify-content: center;
+  gap: 4px;
+  width: 56px;
+  height: 56px;
   border-radius: 12px;
   color: var(--preke-text-muted);
   text-decoration: none;
@@ -437,13 +348,13 @@ const modeColor = computed(() => {
 }
 
 .sidebar__icon {
-  width: 26px;
-  height: 26px;
+  width: 22px;
+  height: 22px;
   transition: transform 0.2s ease;
 }
 
 .sidebar__nav-item:hover .sidebar__icon {
-  transform: scale(1.08);
+  transform: scale(1.1);
 }
 
 .sidebar__icon--spinner {
@@ -456,18 +367,17 @@ const modeColor = computed(() => {
 }
 
 .sidebar__nav-label {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 500;
   letter-spacing: 0.01em;
-  transition: opacity 0.2s ease;
 }
 
 /* Version */
 .sidebar__version {
-  padding: 16px;
-  font-size: 11px;
+  padding: 12px;
+  font-size: 10px;
   color: var(--preke-text-subtle);
   letter-spacing: 0.03em;
-  opacity: 0.6;
+  opacity: 0.5;
 }
 </style>
