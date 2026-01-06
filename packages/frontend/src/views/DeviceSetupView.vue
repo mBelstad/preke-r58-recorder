@@ -292,14 +292,15 @@ onMounted(async () => {
     startDiscovery()
     // Start passive background scanning
     startBackgroundScanning()
-    
-    // Dismiss welcome after a short delay (unless devices found quickly)
-    setTimeout(() => {
-      if (showWelcome.value && discoveredDevices.value.length === 0) {
-        dismissWelcome()
-      }
-    }, 2500) // Show welcome for 2.5 seconds
   }
+  
+  // Dismiss welcome after a short delay (for both Electron and web)
+  // Shows the beautiful welcome animation for ~2.5 seconds
+  setTimeout(() => {
+    if (showWelcome.value && discoveredDevices.value.length === 0) {
+      dismissWelcome()
+    }
+  }, 2500)
 })
 
 onUnmounted(() => {
@@ -917,9 +918,17 @@ onUnmounted(() => {
 .setup-page__bg-texture {
   position: absolute;
   inset: 0;
-  background-image: url('/background_image.webp');
-  background-size: 300px;
-  opacity: 0.03;
+  /* Subtle noise texture effect using CSS */
+  background-image: 
+    repeating-linear-gradient(
+      45deg,
+      transparent 0px,
+      transparent 1px,
+      rgba(255, 255, 255, 0.01) 1px,
+      rgba(255, 255, 255, 0.01) 2px
+    );
+  background-size: 8px 8px;
+  opacity: 0.5;
 }
 
 /* Ambient background orbs */
