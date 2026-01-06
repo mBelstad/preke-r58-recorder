@@ -24,14 +24,18 @@ defineProps<{
   align-items: center;
   gap: 10px;
   flex-shrink: 0;
-  height: 38px; /* Increased to prevent clipping at the bottom */
+  height: 38px;
+  max-height: 38px; /* Prevent growing beyond container */
+  overflow: hidden; /* Clip anything that overflows */
 }
 
 .preke-studio-logo__image {
   /* Cropped SVG with no empty space - scales perfectly */
   height: 100%;
+  max-height: 100%;
   width: auto;
   object-fit: contain;
+  flex-shrink: 0; /* Don't shrink the image */
 }
 
 .preke-studio-logo__text {
@@ -41,6 +45,8 @@ defineProps<{
   color: var(--preke-gold);
   letter-spacing: 0.02em;
   line-height: 1;
+  flex-shrink: 0; /* Don't shrink the text */
+  white-space: nowrap; /* Prevent text wrapping */
 }
 </style>
 
