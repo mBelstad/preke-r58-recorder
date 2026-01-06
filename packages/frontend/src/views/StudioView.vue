@@ -517,21 +517,21 @@ async function selectMode(mode: 'recorder' | 'mixer') {
   filter: blur(1px);
 }
 
-/* Strong glow aura behind each soundwave - emits light onto surroundings */
+/* Subtle glow aura behind each soundwave - emits light onto surroundings */
 .soundwave::before {
   content: '';
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 350px;
-  height: 280px;
+  width: 300px;
+  height: 240px;
   background: radial-gradient(
     ellipse at center,
-    rgba(224, 160, 48, 0.5) 0%,
-    rgba(224, 160, 48, 0.25) 25%,
-    rgba(224, 160, 48, 0.1) 50%,
-    rgba(224, 160, 48, 0.03) 75%,
+    rgba(224, 160, 48, 0.25) 0%,
+    rgba(224, 160, 48, 0.12) 25%,
+    rgba(224, 160, 48, 0.05) 50%,
+    rgba(224, 160, 48, 0.01) 75%,
     transparent 100%
   );
   filter: blur(40px);
@@ -539,19 +539,19 @@ async function selectMode(mode: 'recorder' | 'mixer') {
   animation: soundwave-glow 4s ease-in-out infinite;
 }
 
-/* Secondary outer glow for more light emission */
+/* Secondary outer glow - reduced light emission */
 .soundwave::after {
   content: '';
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 500px;
-  height: 400px;
+  width: 400px;
+  height: 320px;
   background: radial-gradient(
     ellipse at center,
-    rgba(224, 160, 48, 0.15) 0%,
-    rgba(224, 160, 48, 0.05) 40%,
+    rgba(224, 160, 48, 0.08) 0%,
+    rgba(224, 160, 48, 0.03) 40%,
     transparent 70%
   );
   filter: blur(60px);
@@ -573,11 +573,11 @@ async function selectMode(mode: 'recorder' | 'mixer') {
   animation: soundwave-wave 3s ease-in-out infinite;
   /* Wave offset creates ripple effect - slower, more natural */
   animation-delay: calc(var(--i) * 0.15s);
-  /* Strong glow on each bar */
+  /* Subtle glow on each bar */
   box-shadow: 
-    0 0 10px rgba(224, 160, 48, 0.6),
-    0 0 20px rgba(224, 160, 48, 0.3),
-    0 0 30px rgba(224, 160, 48, 0.15);
+    0 0 8px rgba(224, 160, 48, 0.3),
+    0 0 15px rgba(224, 160, 48, 0.15),
+    0 0 25px rgba(224, 160, 48, 0.08);
 }
 
 /* Soundwave 1 - Left side */
@@ -641,14 +641,14 @@ async function selectMode(mode: 'recorder' | 'mixer') {
   }
 }
 
-/* Glow pulsing animation */
+/* Glow pulsing animation - reduced intensity */
 @keyframes soundwave-glow {
   0%, 100% {
-    opacity: 0.6;
+    opacity: 0.4;
     transform: translate(-50%, -50%) scale(0.9);
   }
   50% {
-    opacity: 1;
+    opacity: 0.6;
     transform: translate(-50%, -50%) scale(1.1);
   }
 }
