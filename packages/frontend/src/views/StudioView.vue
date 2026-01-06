@@ -124,10 +124,50 @@ async function selectMode(mode: 'recorder' | 'mixer') {
         <div class="geo-shape geo-shape--19"></div>
         <div class="geo-shape geo-shape--20"></div>
       </div>
-      <!-- Gold glimmers behind shapes -->
-      <div class="geo-glimmer geo-glimmer--1"></div>
-      <div class="geo-glimmer geo-glimmer--2"></div>
-      <div class="geo-glimmer geo-glimmer--3"></div>
+      <!-- Animated soundwaves (like the logo) -->
+      <div class="soundwave soundwave--1">
+        <div class="soundwave__bar" style="--i: 0; --h: 0.3"></div>
+        <div class="soundwave__bar" style="--i: 1; --h: 0.5"></div>
+        <div class="soundwave__bar" style="--i: 2; --h: 0.8"></div>
+        <div class="soundwave__bar" style="--i: 3; --h: 1"></div>
+        <div class="soundwave__bar" style="--i: 4; --h: 0.7"></div>
+        <div class="soundwave__bar" style="--i: 5; --h: 0.4"></div>
+        <div class="soundwave__bar" style="--i: 6; --h: 0.6"></div>
+        <div class="soundwave__bar" style="--i: 7; --h: 0.9"></div>
+        <div class="soundwave__bar" style="--i: 8; --h: 0.5"></div>
+        <div class="soundwave__bar" style="--i: 9; --h: 0.3"></div>
+        <div class="soundwave__bar" style="--i: 10; --h: 0.6"></div>
+        <div class="soundwave__bar" style="--i: 11; --h: 0.8"></div>
+        <div class="soundwave__bar" style="--i: 12; --h: 1"></div>
+        <div class="soundwave__bar" style="--i: 13; --h: 0.7"></div>
+        <div class="soundwave__bar" style="--i: 14; --h: 0.4"></div>
+      </div>
+      <div class="soundwave soundwave--2">
+        <div class="soundwave__bar" style="--i: 0; --h: 0.4"></div>
+        <div class="soundwave__bar" style="--i: 1; --h: 0.7"></div>
+        <div class="soundwave__bar" style="--i: 2; --h: 0.5"></div>
+        <div class="soundwave__bar" style="--i: 3; --h: 0.9"></div>
+        <div class="soundwave__bar" style="--i: 4; --h: 1"></div>
+        <div class="soundwave__bar" style="--i: 5; --h: 0.6"></div>
+        <div class="soundwave__bar" style="--i: 6; --h: 0.8"></div>
+        <div class="soundwave__bar" style="--i: 7; --h: 0.4"></div>
+        <div class="soundwave__bar" style="--i: 8; --h: 0.7"></div>
+        <div class="soundwave__bar" style="--i: 9; --h: 0.5"></div>
+        <div class="soundwave__bar" style="--i: 10; --h: 0.3"></div>
+        <div class="soundwave__bar" style="--i: 11; --h: 0.6"></div>
+      </div>
+      <div class="soundwave soundwave--3">
+        <div class="soundwave__bar" style="--i: 0; --h: 0.5"></div>
+        <div class="soundwave__bar" style="--i: 1; --h: 0.3"></div>
+        <div class="soundwave__bar" style="--i: 2; --h: 0.7"></div>
+        <div class="soundwave__bar" style="--i: 3; --h: 0.6"></div>
+        <div class="soundwave__bar" style="--i: 4; --h: 1"></div>
+        <div class="soundwave__bar" style="--i: 5; --h: 0.8"></div>
+        <div class="soundwave__bar" style="--i: 6; --h: 0.4"></div>
+        <div class="soundwave__bar" style="--i: 7; --h: 0.9"></div>
+        <div class="soundwave__bar" style="--i: 8; --h: 0.5"></div>
+        <div class="soundwave__bar" style="--i: 9; --h: 0.7"></div>
+      </div>
     </div>
     
     <!-- Content overlay -->
@@ -452,73 +492,95 @@ async function selectMode(mode: 'recorder' | 'mixer') {
   50% { transform: rotate(115deg) translate(-6px, 4px); opacity: 0.85; }
 }
 
-/* Gold glimmers */
-.geo-glimmer {
+/* Animated soundwaves (like the logo) */
+.soundwave {
   position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 3px;
   pointer-events: none;
-  z-index: 0;
-  filter: blur(8px);
-  box-shadow: 0 0 40px rgba(224, 160, 48, 0.4), 0 0 80px rgba(224, 160, 48, 0.2);
+  z-index: 5;
+  filter: drop-shadow(0 0 10px rgba(224, 160, 48, 0.5));
 }
 
-.geo-glimmer--1 {
-  width: 300px;
-  height: 30px;
-  top: 38%;
-  left: 25%;
-  background: radial-gradient(ellipse, 
-    rgba(224, 160, 48, 0.6) 0%,
-    rgba(224, 160, 48, 0.3) 40%,
-    transparent 70%
+.soundwave__bar {
+  width: 4px;
+  background: linear-gradient(180deg, 
+    rgba(217, 152, 30, 0.9) 0%,
+    rgba(224, 160, 48, 0.7) 50%,
+    rgba(217, 152, 30, 0.9) 100%
   );
-  transform: rotate(-5deg);
-  animation: glimmer-1 8s ease-in-out infinite;
+  border-radius: 2px;
+  transform-origin: center;
+  /* Base height from --h variable, animated */
+  height: calc(var(--h) * 60px);
+  animation: soundwave-pulse 1.5s ease-in-out infinite;
+  animation-delay: calc(var(--i) * 0.1s);
 }
 
-.geo-glimmer--2 {
-  width: 250px;
-  height: 25px;
-  top: 52%;
-  right: 22%;
-  background: radial-gradient(ellipse, 
-    rgba(224, 160, 48, 0.5) 0%,
-    rgba(224, 160, 48, 0.25) 40%,
-    transparent 70%
-  );
-  transform: rotate(8deg);
-  animation: glimmer-2 10s ease-in-out infinite;
-  animation-delay: 2s;
+/* Soundwave 1 - Left side */
+.soundwave--1 {
+  top: 35%;
+  left: 12%;
+  transform: rotate(-8deg);
+  opacity: 0;
+  animation: soundwave-fade 8s ease-in-out infinite;
 }
 
-.geo-glimmer--3 {
-  width: 200px;
-  height: 20px;
-  bottom: 30%;
-  left: 15%;
-  background: radial-gradient(ellipse, 
-    rgba(224, 160, 48, 0.55) 0%,
-    rgba(224, 160, 48, 0.28) 40%,
-    transparent 70%
-  );
-  transform: rotate(-12deg);
-  animation: glimmer-3 6s ease-in-out infinite;
-  animation-delay: 4s;
+.soundwave--1 .soundwave__bar {
+  height: calc(var(--h) * 50px);
 }
 
-@keyframes glimmer-1 {
-  0%, 20%, 100% { opacity: 0; transform: rotate(-5deg) translateX(-20px); }
-  40%, 60% { opacity: 1; transform: rotate(-5deg) translateX(0); }
-  80% { opacity: 0; transform: rotate(-5deg) translateX(20px); }
+/* Soundwave 2 - Right side */
+.soundwave--2 {
+  top: 55%;
+  right: 15%;
+  transform: rotate(5deg);
+  opacity: 0;
+  animation: soundwave-fade 8s ease-in-out infinite;
+  animation-delay: 2.5s;
 }
 
-@keyframes glimmer-2 {
-  0%, 30%, 100% { opacity: 0; transform: rotate(8deg) scaleX(0.8); }
-  50%, 70% { opacity: 1; transform: rotate(8deg) scaleX(1); }
+.soundwave--2 .soundwave__bar {
+  height: calc(var(--h) * 45px);
 }
 
-@keyframes glimmer-3 {
-  0%, 100% { opacity: 0; }
-  40%, 60% { opacity: 0.8; }
+/* Soundwave 3 - Bottom left */
+.soundwave--3 {
+  bottom: 25%;
+  left: 20%;
+  transform: rotate(-3deg);
+  opacity: 0;
+  animation: soundwave-fade 8s ease-in-out infinite;
+  animation-delay: 5s;
+}
+
+.soundwave--3 .soundwave__bar {
+  height: calc(var(--h) * 40px);
+}
+
+/* Bar pulsing animation */
+@keyframes soundwave-pulse {
+  0%, 100% {
+    transform: scaleY(0.4);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
+/* Fade in/out animation for the whole soundwave */
+@keyframes soundwave-fade {
+  0%, 15%, 85%, 100% {
+    opacity: 0;
+    transform: rotate(var(--rotation, 0deg)) translateX(-10px);
+  }
+  25%, 75% {
+    opacity: 0.8;
+    transform: rotate(var(--rotation, 0deg)) translateX(0);
+  }
 }
 
 /* Content overlay */
