@@ -26,16 +26,16 @@ const contextLabels: Record<string, string> = {
         @keydown.escape="closeHelpModal"
       >
         <div 
-          class="bg-r58-bg-secondary rounded-xl shadow-2xl max-w-lg w-full max-h-[80vh] overflow-hidden"
+          class="bg-preke-bg-elevated rounded-xl shadow-2xl max-w-lg w-full max-h-[80vh] overflow-hidden"
           role="dialog"
           aria-labelledby="shortcuts-title"
         >
           <!-- Header -->
-          <div class="flex items-center justify-between px-6 py-4 border-b border-r58-bg-tertiary">
+          <div class="flex items-center justify-between px-6 py-4 border-b border-preke-bg-surface">
             <h2 id="shortcuts-title" class="text-lg font-semibold">Keyboard Shortcuts</h2>
             <button 
               @click="closeHelpModal"
-              class="text-r58-text-secondary hover:text-r58-text-primary transition-colors"
+              class="text-preke-text-dim hover:text-preke-text transition-colors"
               aria-label="Close"
             >
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -46,8 +46,8 @@ const contextLabels: Record<string, string> = {
           
           <!-- Content -->
           <div class="p-6 overflow-y-auto max-h-[60vh]">
-            <p class="text-sm text-r58-text-secondary mb-4">
-              Current context: <span class="font-medium text-r58-text-primary">{{ contextLabels[currentContext] }}</span>
+            <p class="text-sm text-preke-text-dim mb-4">
+              Current context: <span class="font-medium text-preke-text">{{ contextLabels[currentContext] }}</span>
             </p>
             
             <div class="space-y-6">
@@ -56,7 +56,7 @@ const contextLabels: Record<string, string> = {
                 :key="context"
                 v-show="shortcuts.length > 0"
               >
-                <h3 class="text-sm font-medium text-r58-text-secondary uppercase tracking-wider mb-3">
+                <h3 class="text-sm font-medium text-preke-text-dim uppercase tracking-wider mb-3">
                   {{ contextLabels[context] || context }}
                 </h3>
                 
@@ -64,11 +64,11 @@ const contextLabels: Record<string, string> = {
                   <div 
                     v-for="{ key, shortcut } in shortcuts" 
                     :key="key"
-                    class="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-r58-bg-tertiary/50 transition-colors"
+                    class="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-preke-bg-surface/50 transition-colors"
                   >
-                    <span class="text-r58-text-primary">{{ shortcut.description }}</span>
+                    <span class="text-preke-text">{{ shortcut.description }}</span>
                     <kbd 
-                      class="px-2 py-1 bg-r58-bg-tertiary rounded text-sm font-mono text-r58-text-secondary"
+                      class="px-2 py-1 bg-preke-bg-surface rounded text-sm font-mono text-preke-text-dim"
                     >
                       {{ formatShortcutKey(shortcut.key, shortcut.modifiers) }}
                     </kbd>
@@ -79,9 +79,9 @@ const contextLabels: Record<string, string> = {
           </div>
           
           <!-- Footer -->
-          <div class="px-6 py-4 border-t border-r58-bg-tertiary bg-r58-bg-tertiary/30">
-            <p class="text-xs text-r58-text-secondary text-center">
-              Press <kbd class="px-1.5 py-0.5 bg-r58-bg-tertiary rounded text-xs font-mono">?</kbd> anytime to show this help
+          <div class="px-6 py-4 border-t border-preke-bg-surface bg-preke-bg-surface/30">
+            <p class="text-xs text-preke-text-dim text-center">
+              Press <kbd class="px-1.5 py-0.5 bg-preke-bg-surface rounded text-xs font-mono">?</kbd> anytime to show this help
             </p>
           </div>
         </div>

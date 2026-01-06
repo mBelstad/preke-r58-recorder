@@ -86,24 +86,24 @@ async function fetchDevices() {
 
     function getStatusColor(status: string): string {
       const colors: Record<string, string> = {
-        online: 'bg-r58-accent-success',
-        offline: 'bg-r58-text-muted',
-        updating: 'bg-r58-accent-warning',
-        error: 'bg-r58-accent-danger',
-        maintenance: 'bg-r58-accent-primary',
+        online: 'bg-preke-green',
+        offline: 'bg-preke-text-muted',
+        updating: 'bg-preke-amber',
+        error: 'bg-preke-red',
+        maintenance: 'bg-preke-gold',
       }
-      return colors[status] || 'bg-r58-text-muted'
+      return colors[status] || 'bg-preke-text-muted'
     }
 
     function getStatusTextColor(status: string): string {
       const colors: Record<string, string> = {
-        online: 'text-r58-accent-success',
-        offline: 'text-r58-text-muted',
-        updating: 'text-r58-accent-warning',
-        error: 'text-r58-accent-danger',
-        maintenance: 'text-r58-accent-primary',
+        online: 'text-preke-green',
+        offline: 'text-preke-text-muted',
+        updating: 'text-preke-amber',
+        error: 'text-preke-red',
+        maintenance: 'text-preke-gold',
       }
-      return colors[status] || 'text-r58-text-muted'
+      return colors[status] || 'text-preke-text-muted'
     }
 
 function formatLastSeen(timestamp?: string): string {
@@ -143,8 +143,8 @@ onUnmounted(() => {
     <!-- Header -->
     <div class="flex items-center justify-between mb-6">
       <div>
-        <h1 class="text-2xl font-semibold text-r58-text-primary">Fleet Dashboard</h1>
-        <p class="text-sm text-r58-text-secondary mt-1">Manage and monitor all R58 devices</p>
+        <h1 class="text-2xl font-semibold text-preke-text">Fleet Dashboard</h1>
+        <p class="text-sm text-preke-text-dim mt-1">Manage and monitor all R58 devices</p>
       </div>
       <div class="flex items-center gap-3">
         <button 
@@ -169,14 +169,14 @@ onUnmounted(() => {
         @click="statusFilter = statusFilter === status ? '' : status"
         class="p-4 rounded-r58 border transition-colors"
         :class="statusFilter === status 
-          ? 'bg-r58-bg-tertiary border-r58-accent-primary' 
-          : 'bg-r58-bg-secondary border-r58-bg-tertiary hover:border-r58-text-secondary'"
+          ? 'bg-preke-bg-surface border-preke-gold' 
+          : 'bg-preke-bg-elevated border-preke-bg-surface hover:border-preke-text-dim'"
       >
         <div class="flex items-center gap-2">
           <div :class="['w-2 h-2 rounded-full', getStatusColor(status)]"></div>
-          <span class="text-sm text-r58-text-secondary capitalize">{{ status }}</span>
+          <span class="text-sm text-preke-text-dim capitalize">{{ status }}</span>
         </div>
-        <div class="text-2xl font-semibold text-r58-text-primary mt-1">{{ count }}</div>
+        <div class="text-2xl font-semibold text-preke-text mt-1">{{ count }}</div>
       </button>
     </div>
 
@@ -189,32 +189,32 @@ onUnmounted(() => {
           placeholder="Search devices..."
           class="input w-full pl-10"
         />
-        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-r58-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-preke-text-dim" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
         </svg>
       </div>
     </div>
 
     <!-- Error State -->
-    <div v-if="error" class="p-4 bg-r58-accent-danger/20 border border-r58-accent-danger rounded-r58 text-r58-accent-danger mb-6">
+    <div v-if="error" class="p-4 bg-preke-red/20 border border-preke-red rounded-lg text-preke-red mb-6">
       {{ error }}
     </div>
 
     <!-- Loading State -->
     <div v-if="loading && devices.length === 0" class="text-center py-12">
-      <div class="animate-spin w-8 h-8 border-2 border-r58-bg-tertiary border-t-r58-accent-primary rounded-full mx-auto"></div>
-      <p class="text-r58-text-secondary mt-4">Loading devices...</p>
+      <div class="animate-spin w-8 h-8 border-2 border-preke-bg-surface border-t-preke-gold rounded-full mx-auto"></div>
+      <p class="text-preke-text-dim mt-4">Loading devices...</p>
     </div>
 
     <!-- Empty State -->
     <div v-else-if="filteredDevices.length === 0" class="text-center py-12">
-      <div class="w-16 h-16 bg-r58-bg-secondary rounded-full flex items-center justify-center mx-auto mb-4">
-        <svg class="w-8 h-8 text-r58-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div class="w-16 h-16 bg-preke-bg-elevated rounded-full flex items-center justify-center mx-auto mb-4">
+        <svg class="w-8 h-8 text-preke-text-dim" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2z" />
         </svg>
       </div>
-      <h3 class="text-lg font-medium text-r58-text-primary mb-2">No devices found</h3>
-      <p class="text-r58-text-secondary">
+      <h3 class="text-lg font-medium text-preke-text mb-2">No devices found</h3>
+      <p class="text-preke-text-dim">
         {{ searchQuery ? 'Try adjusting your search or filters' : 'Register your first device to get started' }}
       </p>
     </div>
@@ -225,15 +225,15 @@ onUnmounted(() => {
         v-for="device in filteredDevices"
         :key="device.id"
         @click="openDevice(device.device_id)"
-        class="card hover:border-r58-text-secondary cursor-pointer transition-all group"
+        class="card hover:border-preke-text-dim cursor-pointer transition-all group"
       >
         <!-- Header -->
         <div class="flex items-start justify-between mb-3">
           <div>
-            <h3 class="font-medium text-r58-text-primary group-hover:text-r58-accent-primary transition-colors">
+            <h3 class="font-medium text-preke-text group-hover:text-preke-gold transition-colors">
               {{ device.name }}
             </h3>
-            <p class="text-sm text-r58-text-secondary font-mono">{{ device.device_id }}</p>
+            <p class="text-sm text-preke-text-dim font-mono">{{ device.device_id }}</p>
           </div>
           <div class="flex items-center gap-2">
             <span 
@@ -252,36 +252,36 @@ onUnmounted(() => {
         </div>
 
         <!-- Version -->
-        <div class="flex items-center gap-2 text-sm text-r58-text-secondary mb-3">
+        <div class="flex items-center gap-2 text-sm text-preke-text-dim mb-3">
           <span>v{{ device.current_version || 'unknown' }}</span>
-          <span v-if="device.target_version" class="text-r58-accent-warning">
+          <span v-if="device.target_version" class="text-preke-amber">
             → v{{ device.target_version }}
           </span>
         </div>
 
         <!-- Metrics -->
         <div v-if="device.status === 'online'" class="grid grid-cols-4 gap-2 text-center">
-          <div class="p-2 bg-r58-bg-tertiary rounded">
-            <div class="text-xs text-r58-text-secondary">CPU</div>
-            <div class="text-sm font-medium" :class="device.cpu_percent && device.cpu_percent > 80 ? 'text-r58-accent-danger' : 'text-r58-text-primary'">
+          <div class="p-2 bg-preke-bg-surface rounded">
+            <div class="text-xs text-preke-text-dim">CPU</div>
+            <div class="text-sm font-medium" :class="device.cpu_percent && device.cpu_percent > 80 ? 'text-preke-red' : 'text-preke-text'">
               {{ device.cpu_percent?.toFixed(0) || '-' }}%
             </div>
           </div>
-          <div class="p-2 bg-r58-bg-tertiary rounded">
-            <div class="text-xs text-r58-text-secondary">MEM</div>
-            <div class="text-sm font-medium" :class="device.mem_percent && device.mem_percent > 80 ? 'text-r58-accent-danger' : 'text-r58-text-primary'">
+          <div class="p-2 bg-preke-bg-surface rounded">
+            <div class="text-xs text-preke-text-dim">MEM</div>
+            <div class="text-sm font-medium" :class="device.mem_percent && device.mem_percent > 80 ? 'text-preke-red' : 'text-preke-text'">
               {{ device.mem_percent?.toFixed(0) || '-' }}%
             </div>
           </div>
-          <div class="p-2 bg-r58-bg-tertiary rounded">
-            <div class="text-xs text-r58-text-secondary">DISK</div>
-            <div class="text-sm font-medium" :class="device.disk_free_gb && device.disk_free_gb < 2 ? 'text-r58-accent-danger' : 'text-r58-text-primary'">
+          <div class="p-2 bg-preke-bg-surface rounded">
+            <div class="text-xs text-preke-text-dim">DISK</div>
+            <div class="text-sm font-medium" :class="device.disk_free_gb && device.disk_free_gb < 2 ? 'text-preke-red' : 'text-preke-text'">
               {{ device.disk_free_gb?.toFixed(1) || '-' }}G
             </div>
           </div>
-          <div class="p-2 bg-r58-bg-tertiary rounded">
-            <div class="text-xs text-r58-text-secondary">TEMP</div>
-            <div class="text-sm font-medium" :class="device.temperature_c && device.temperature_c > 70 ? 'text-r58-accent-danger' : 'text-r58-text-primary'">
+          <div class="p-2 bg-preke-bg-surface rounded">
+            <div class="text-xs text-preke-text-dim">TEMP</div>
+            <div class="text-sm font-medium" :class="device.temperature_c && device.temperature_c > 70 ? 'text-preke-red' : 'text-preke-text'">
               {{ device.temperature_c?.toFixed(0) || '-' }}°
             </div>
           </div>
@@ -299,7 +299,7 @@ onUnmounted(() => {
         </div>
 
         <!-- Footer -->
-        <div class="flex items-center justify-between mt-3 pt-3 border-t border-r58-bg-tertiary text-xs text-r58-text-secondary">
+        <div class="flex items-center justify-between mt-3 pt-3 border-t border-preke-bg-surface text-xs text-preke-text-dim">
           <span v-if="device.location">{{ device.location }}</span>
           <span v-else>-</span>
           <span>{{ formatLastSeen(device.last_heartbeat) }}</span>

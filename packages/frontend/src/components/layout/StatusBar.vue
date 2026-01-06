@@ -42,15 +42,15 @@ const formattedDate = () => {
 const connectionDotClass = computed(() => {
   switch (statusColor.value) {
     case 'emerald':
-      return 'bg-r58-accent-success'
+      return 'bg-preke-green'
     case 'amber':
-      return 'bg-r58-accent-warning animate-pulse'
+      return 'bg-preke-amber animate-pulse'
     case 'orange':
-      return 'bg-r58-accent-warning'
+      return 'bg-preke-amber'
     case 'red':
-      return 'bg-r58-accent-danger animate-pulse'
+      return 'bg-preke-red animate-pulse'
     default:
-      return 'bg-r58-text-secondary'
+      return 'bg-preke-text-dim'
   }
 })
 
@@ -99,7 +99,7 @@ const connectionMethodTooltip = computed(() => {
 </script>
 
 <template>
-  <header class="h-10 bg-r58-bg-secondary border-b border-r58-bg-tertiary flex items-center justify-between px-4 text-sm">
+  <header class="h-10 bg-preke-bg-elevated border-b border-preke-bg-surface flex items-center justify-between px-4 text-sm">
     <!-- Left: Device info + Connection status -->
     <div class="flex items-center gap-4">
       <div 
@@ -113,10 +113,10 @@ const connectionMethodTooltip = computed(() => {
         <span 
           :class="[
             'text-xs px-1.5 py-0.5 rounded',
-            state === 'connected' ? 'text-r58-accent-success' : '',
-            state === 'degraded' ? 'text-r58-accent-warning bg-r58-accent-warning/10' : '',
-            state === 'connecting' ? 'text-r58-accent-warning' : '',
-            state === 'disconnected' ? 'text-r58-accent-danger bg-r58-accent-danger/10' : '',
+            state === 'connected' ? 'text-preke-green' : '',
+            state === 'degraded' ? 'text-preke-amber bg-preke-amber/10' : '',
+            state === 'connecting' ? 'text-preke-amber' : '',
+            state === 'disconnected' ? 'text-preke-red bg-preke-red/10' : '',
           ]"
         >
           {{ displayStatusLabel }}
@@ -125,7 +125,7 @@ const connectionMethodTooltip = computed(() => {
         <span 
           v-if="connectionMethod !== 'unknown'"
           :class="[
-            'text-xs px-1.5 py-0.5 rounded bg-r58-bg-tertiary/50 flex items-center gap-1',
+            'text-xs px-1.5 py-0.5 rounded bg-preke-bg-surface/50 flex items-center gap-1',
             connectionColor
           ]"
           :title="connectionMethodTooltip"
@@ -139,28 +139,28 @@ const connectionMethodTooltip = computed(() => {
     <!-- Center: Status indicators -->
     <div class="flex items-center gap-6">
       <!-- Inputs -->
-      <div class="flex items-center gap-2 text-r58-text-secondary">
+      <div class="flex items-center gap-2 text-preke-text-dim">
         <span>Inputs:</span>
         <div class="flex gap-1">
-          <span class="w-4 h-4 rounded bg-r58-accent-success text-[10px] flex items-center justify-center text-white font-bold">1</span>
-          <span class="w-4 h-4 rounded bg-r58-accent-success text-[10px] flex items-center justify-center text-white font-bold">2</span>
-          <span class="w-4 h-4 rounded bg-r58-bg-tertiary text-[10px] flex items-center justify-center text-r58-text-secondary font-bold">3</span>
-          <span class="w-4 h-4 rounded bg-r58-bg-tertiary text-[10px] flex items-center justify-center text-r58-text-secondary font-bold">4</span>
+          <span class="w-4 h-4 rounded bg-preke-green text-[10px] flex items-center justify-center text-white font-bold">1</span>
+          <span class="w-4 h-4 rounded bg-preke-green text-[10px] flex items-center justify-center text-white font-bold">2</span>
+          <span class="w-4 h-4 rounded bg-preke-bg-surface text-[10px] flex items-center justify-center text-preke-text-dim font-bold">3</span>
+          <span class="w-4 h-4 rounded bg-preke-bg-surface text-[10px] flex items-center justify-center text-preke-text-dim font-bold">4</span>
         </div>
       </div>
       
       <!-- Storage -->
-      <div class="flex items-center gap-2 text-r58-text-secondary">
+      <div class="flex items-center gap-2 text-preke-text-dim">
         <span>Storage:</span>
-        <div class="w-20 h-2 bg-r58-bg-tertiary rounded-full overflow-hidden">
-          <div class="h-full bg-r58-accent-success rounded-full" style="width: 35%"></div>
+        <div class="w-20 h-2 bg-preke-bg-surface rounded-full overflow-hidden">
+          <div class="h-full bg-preke-green rounded-full" style="width: 35%"></div>
         </div>
         <span class="text-xs">256 GB</span>
       </div>
     </div>
     
     <!-- Right: Time -->
-    <div class="flex items-center gap-4 text-r58-text-secondary">
+    <div class="flex items-center gap-4 text-preke-text-dim">
       <span>{{ formattedDate() }}</span>
       <span class="font-mono">{{ formattedTime() }}</span>
     </div>

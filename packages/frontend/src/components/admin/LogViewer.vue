@@ -97,7 +97,7 @@ onUnmounted(() => {
     
     <!-- Log output -->
     <pre 
-      class="bg-r58-bg-primary rounded-lg p-4 font-mono text-sm text-r58-text-secondary h-[500px] overflow-auto whitespace-pre-wrap"
+      class="bg-preke-bg-base rounded-lg p-4 font-mono text-sm text-preke-text-dim h-[500px] overflow-auto whitespace-pre-wrap"
     >{{ logs || 'No logs available' }}</pre>
   </div>
 </template>

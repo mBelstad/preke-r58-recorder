@@ -130,12 +130,12 @@ function getAudioLevelColor(level: number): string {
 <template>
   <div class="audio-mixer space-y-4" data-testid="audio-mixer">
     <!-- Master Volume -->
-    <div class="master-volume p-3 bg-r58-bg-tertiary rounded-lg">
+    <div class="master-volume p-3 bg-preke-bg-surface rounded-lg">
       <div class="flex items-center justify-between mb-2">
         <span class="text-xs font-medium">Master</span>
         <button 
           @click="toggleMasterMute"
-          class="p-1 rounded hover:bg-r58-bg-secondary transition-colors"
+          class="p-1 rounded hover:bg-preke-bg-elevated transition-colors"
           :class="{ 'text-red-400': mixerStore.masterMuted }"
         >
           <svg v-if="mixerStore.masterMuted" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -153,9 +153,9 @@ function getAudioLevelColor(level: number): string {
         @input="handleMasterVolumeChange(($event.target as HTMLInputElement).valueAsNumber)"
         min="0"
         max="100"
-        class="w-full h-2 bg-r58-bg-secondary rounded-lg appearance-none cursor-pointer accent-r58-accent-primary"
+        class="w-full h-2 bg-preke-bg-elevated rounded-lg appearance-none cursor-pointer accent-preke-gold"
       />
-      <div class="text-xs text-r58-text-secondary text-center mt-1">
+      <div class="text-xs text-preke-text-dim text-center mt-1">
         {{ mixerStore.masterVolume }}%
       </div>
     </div>
@@ -165,7 +165,7 @@ function getAudioLevelColor(level: number): string {
       <div 
         v-for="source in sources" 
         :key="source.id"
-        class="source-channel p-2 bg-r58-bg-tertiary/50 rounded-lg"
+        class="source-channel p-2 bg-preke-bg-surface/50 rounded-lg"
       >
         <div class="flex items-center gap-2 mb-2">
           <!-- Source Label -->
@@ -177,7 +177,7 @@ function getAudioLevelColor(level: number): string {
             class="w-6 h-6 text-xs font-bold rounded transition-colors"
             :class="source.solo 
               ? 'bg-amber-500 text-black' 
-              : 'bg-r58-bg-secondary text-r58-text-secondary hover:text-r58-text-primary'"
+              : 'bg-preke-bg-elevated text-preke-text-dim hover:text-preke-text'"
             title="Solo"
           >
             S
@@ -189,7 +189,7 @@ function getAudioLevelColor(level: number): string {
             class="w-6 h-6 text-xs font-bold rounded transition-colors"
             :class="source.muted 
               ? 'bg-red-500 text-white' 
-              : 'bg-r58-bg-secondary text-r58-text-secondary hover:text-r58-text-primary'"
+              : 'bg-preke-bg-elevated text-preke-text-dim hover:text-preke-text'"
             title="Mute"
           >
             M
@@ -197,10 +197,10 @@ function getAudioLevelColor(level: number): string {
         </div>
         
         <!-- Audio Level Meter -->
-        <div class="h-1.5 bg-r58-bg-secondary rounded-full overflow-hidden mb-2">
+        <div class="h-1.5 bg-preke-bg-elevated rounded-full overflow-hidden mb-2">
           <div 
             class="h-full transition-all duration-75 rounded-full"
-            :class="source.muted ? 'bg-r58-bg-tertiary' : getAudioLevelColor(source.audioLevel)"
+            :class="source.muted ? 'bg-preke-bg-surface' : getAudioLevelColor(source.audioLevel)"
             :style="{ width: `${source.audioLevel}%` }"
           ></div>
         </div>
@@ -213,13 +213,13 @@ function getAudioLevelColor(level: number): string {
           min="0"
           max="100"
           :disabled="source.muted"
-          class="w-full h-1.5 bg-r58-bg-secondary rounded-lg appearance-none cursor-pointer accent-r58-accent-primary disabled:opacity-50"
+          class="w-full h-1.5 bg-preke-bg-elevated rounded-lg appearance-none cursor-pointer accent-preke-gold disabled:opacity-50"
         />
       </div>
     </div>
     
     <!-- Empty State -->
-    <div v-else class="text-center py-4 text-r58-text-secondary">
+    <div v-else class="text-center py-4 text-preke-text-dim">
       <svg class="w-6 h-6 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
       </svg>
@@ -234,7 +234,7 @@ input[type="range"]::-webkit-slider-thumb {
   appearance: none;
   width: 12px;
   height: 12px;
-  background: var(--r58-accent-primary);
+  background: var(--preke-gold);
   border-radius: 50%;
   cursor: pointer;
 }
@@ -242,7 +242,7 @@ input[type="range"]::-webkit-slider-thumb {
 input[type="range"]::-moz-range-thumb {
   width: 12px;
   height: 12px;
-  background: var(--r58-accent-primary);
+  background: var(--preke-gold);
   border-radius: 50%;
   cursor: pointer;
   border: none;

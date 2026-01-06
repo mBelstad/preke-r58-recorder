@@ -17,18 +17,18 @@ const modalRef = ref<InstanceType<typeof BaseModal> | null>(null)
 const confirmDialogRef = ref<InstanceType<typeof ConfirmDialog> | null>(null)
 
 const colorTokens = [
-  { name: 'Background Primary', var: '--r58-bg-primary', class: 'bg-r58-bg-primary' },
-  { name: 'Background Secondary', var: '--r58-bg-secondary', class: 'bg-r58-bg-secondary' },
-  { name: 'Background Tertiary', var: '--r58-bg-tertiary', class: 'bg-r58-bg-tertiary' },
-  { name: 'Text Primary', var: '--r58-text-primary', class: 'text-r58-text-primary bg-r58-bg-secondary' },
-  { name: 'Text Secondary', var: '--r58-text-secondary', class: 'text-r58-text-secondary bg-r58-bg-secondary' },
-  { name: 'Text Muted', var: '--r58-text-muted', class: 'text-r58-text-muted bg-r58-bg-secondary' },
-  { name: 'Accent Primary', var: '--r58-accent-primary', class: 'bg-r58-accent-primary' },
-  { name: 'Accent Success', var: '--r58-accent-success', class: 'bg-r58-accent-success' },
-  { name: 'Accent Danger', var: '--r58-accent-danger', class: 'bg-r58-accent-danger' },
-  { name: 'Accent Warning', var: '--r58-accent-warning', class: 'bg-r58-accent-warning' },
-  { name: 'Mode Recorder', var: '--r58-mode-recorder', class: 'bg-r58-recorder' },
-  { name: 'Mode Mixer', var: '--r58-mode-mixer', class: 'bg-r58-mixer' },
+  { name: 'Background Base', var: '--preke-bg-base', class: 'bg-preke-bg-base' },
+  { name: 'Background Elevated', var: '--preke-bg-elevated', class: 'bg-preke-bg-elevated' },
+  { name: 'Background Surface', var: '--preke-bg-surface', class: 'bg-preke-bg-surface' },
+  { name: 'Text Primary', var: '--preke-text', class: 'text-preke-text bg-preke-bg-elevated' },
+  { name: 'Text Dim', var: '--preke-text-dim', class: 'text-preke-text-dim bg-preke-bg-elevated' },
+  { name: 'Text Muted', var: '--preke-text-muted', class: 'text-preke-text-muted bg-preke-bg-elevated' },
+  { name: 'Gold', var: '--preke-gold', class: 'bg-preke-gold' },
+  { name: 'Green', var: '--preke-green', class: 'bg-preke-green' },
+  { name: 'Red', var: '--preke-red', class: 'bg-preke-red' },
+  { name: 'Amber', var: '--preke-amber', class: 'bg-preke-amber' },
+  { name: 'Mode Recorder', var: '--preke-red', class: 'bg-preke-red' },
+  { name: 'Mode Mixer', var: '--preke-purple', class: 'bg-preke-purple' },
 ]
 
 const typographySizes = [
@@ -56,12 +56,12 @@ function openConfirmDialog() {
 </script>
 
 <template>
-  <div class="h-full overflow-y-auto p-8 bg-r58-bg-primary">
+  <div class="h-full overflow-y-auto p-8 bg-preke-bg-base">
     <div class="max-w-6xl mx-auto space-y-12">
       <!-- Header -->
       <div class="text-center mb-12">
-        <h1 class="text-4xl font-bold mb-2">R58 Design System</h1>
-        <p class="text-r58-text-secondary">
+        <h1 class="text-4xl font-bold mb-2">Preke Design System</h1>
+        <p class="text-preke-text-dim">
           A comprehensive guide to colors, typography, and components
         </p>
       </div>
@@ -79,10 +79,10 @@ function openConfirmDialog() {
             :key="token.name"
             class="space-y-2"
           >
-            <div :class="['h-20 rounded-lg border-2 border-r58-bg-tertiary', token.class]"></div>
+            <div :class="['h-20 rounded-lg border-2 border-preke-bg-surface', token.class]"></div>
             <div>
               <div class="text-sm font-medium">{{ token.name }}</div>
-              <div class="text-xs text-r58-text-secondary font-mono">{{ token.var }}</div>
+              <div class="text-xs text-preke-text-dim font-mono">{{ token.var }}</div>
             </div>
           </div>
         </div>
@@ -98,7 +98,7 @@ function openConfirmDialog() {
         <div class="space-y-4">
           <div v-for="size in typographySizes" :key="size.name">
             <div class="flex items-baseline gap-4">
-              <span class="text-sm text-r58-text-secondary w-32">{{ size.name }}</span>
+              <span class="text-sm text-preke-text-dim w-32">{{ size.name }}</span>
               <span :class="[size.class]">{{ size.sample }}</span>
             </div>
           </div>
@@ -124,7 +124,7 @@ function openConfirmDialog() {
         <div class="space-y-6">
           <!-- Default buttons -->
           <div>
-            <h3 class="text-sm font-semibold mb-3 text-r58-text-secondary">Variants</h3>
+            <h3 class="text-sm font-semibold mb-3 text-preke-text-dim">Variants</h3>
             <div class="flex flex-wrap gap-3">
               <button class="btn">Default</button>
               <button class="btn btn-primary">Primary</button>
@@ -137,7 +137,7 @@ function openConfirmDialog() {
           
           <!-- Sizes -->
           <div>
-            <h3 class="text-sm font-semibold mb-3 text-r58-text-secondary">Sizes</h3>
+            <h3 class="text-sm font-semibold mb-3 text-preke-text-dim">Sizes</h3>
             <div class="flex flex-wrap items-end gap-3">
               <button class="btn btn-primary text-sm px-3 py-1.5">Small</button>
               <button class="btn btn-primary">Default</button>
@@ -148,7 +148,7 @@ function openConfirmDialog() {
           
           <!-- With icons -->
           <div>
-            <h3 class="text-sm font-semibold mb-3 text-r58-text-secondary">With Icons</h3>
+            <h3 class="text-sm font-semibold mb-3 text-preke-text-dim">With Icons</h3>
             <div class="flex flex-wrap gap-3">
               <button class="btn btn-primary">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -200,7 +200,7 @@ function openConfirmDialog() {
           <!-- Checkbox -->
           <div>
             <label class="flex items-center gap-2 cursor-pointer">
-              <input v-model="checkboxValue" type="checkbox" class="w-5 h-5 rounded bg-r58-bg-tertiary border-2 border-r58-bg-tertiary checked:bg-r58-accent-primary checked:border-r58-accent-primary" />
+              <input v-model="checkboxValue" type="checkbox" class="w-5 h-5 rounded bg-preke-bg-surface border-2 border-preke-bg-surface checked:bg-preke-gold checked:border-preke-gold" />
               <span class="text-sm">I agree to the terms and conditions</span>
             </label>
           </div>
@@ -277,7 +277,7 @@ function openConfirmDialog() {
             </button>
           </div>
           
-          <div class="mt-4 p-4 bg-r58-bg-tertiary rounded-lg">
+          <div class="mt-4 p-4 bg-preke-bg-surface rounded-lg">
             <p class="text-sm">Content for {{ activeTab }}</p>
           </div>
         </div>
@@ -294,7 +294,7 @@ function openConfirmDialog() {
           <!-- Simple card -->
           <div class="card">
             <h3 class="text-lg font-semibold mb-2">Simple Card</h3>
-            <p class="text-sm text-r58-text-secondary">
+            <p class="text-sm text-preke-text-dim">
               This is a basic card with some content inside it.
             </p>
           </div>
@@ -305,7 +305,7 @@ function openConfirmDialog() {
               <h3 class="card-title">Card Title</h3>
               <p class="card-description">Card subtitle or description</p>
             </div>
-            <p class="text-sm text-r58-text-secondary">
+            <p class="text-sm text-preke-text-dim">
               Main content area of the card.
             </p>
             <div class="card-footer">
@@ -341,20 +341,20 @@ function openConfirmDialog() {
         
         <div class="space-y-2">
           <div class="flex items-center gap-4">
-            <span class="text-sm text-r58-text-secondary w-20">0.5rem (8px)</span>
-            <div class="h-2 bg-r58-accent-primary rounded" style="width: 0.5rem;"></div>
+            <span class="text-sm text-preke-text-dim w-20">0.5rem (8px)</span>
+            <div class="h-2 bg-preke-gold rounded" style="width: 0.5rem;"></div>
           </div>
           <div class="flex items-center gap-4">
-            <span class="text-sm text-r58-text-secondary w-20">1rem (16px)</span>
-            <div class="h-2 bg-r58-accent-primary rounded" style="width: 1rem;"></div>
+            <span class="text-sm text-preke-text-dim w-20">1rem (16px)</span>
+            <div class="h-2 bg-preke-gold rounded" style="width: 1rem;"></div>
           </div>
           <div class="flex items-center gap-4">
-            <span class="text-sm text-r58-text-secondary w-20">1.5rem (24px)</span>
-            <div class="h-2 bg-r58-accent-primary rounded" style="width: 1.5rem;"></div>
+            <span class="text-sm text-preke-text-dim w-20">1.5rem (24px)</span>
+            <div class="h-2 bg-preke-gold rounded" style="width: 1.5rem;"></div>
           </div>
           <div class="flex items-center gap-4">
-            <span class="text-sm text-r58-text-secondary w-20">2rem (32px)</span>
-            <div class="h-2 bg-r58-accent-primary rounded" style="width: 2rem;"></div>
+            <span class="text-sm text-preke-text-dim w-20">2rem (32px)</span>
+            <div class="h-2 bg-preke-gold rounded" style="width: 2rem;"></div>
           </div>
         </div>
       </section>
@@ -363,10 +363,10 @@ function openConfirmDialog() {
     <!-- Base Modal Example -->
     <BaseModal ref="modalRef" title="Example Modal" size="md">
       <div class="space-y-4">
-        <p class="text-r58-text-secondary">
+        <p class="text-preke-text-dim">
           This is an example of the BaseModal component with a custom title and content.
         </p>
-        <p class="text-sm text-r58-text-secondary">
+        <p class="text-sm text-preke-text-dim">
           You can add any content here including forms, images, or other components.
         </p>
       </div>

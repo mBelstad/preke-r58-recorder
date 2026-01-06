@@ -169,9 +169,9 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <aside class="w-20 bg-r58-bg-secondary border-r border-r58-bg-tertiary flex flex-col">
+  <aside class="w-20 bg-preke-bg-elevated border-r border-preke-bg-surface flex flex-col">
     <!-- Logo -->
-    <div class="h-16 flex items-center justify-center border-b border-r58-bg-tertiary">
+    <div class="h-16 flex items-center justify-center border-b border-preke-bg-surface">
       <img src="/favicon.svg" alt="Preke" class="w-10 h-10 drop-shadow-[0_0_8px_rgba(255,255,255,0.35)]" />
     </div>
     
@@ -185,8 +185,8 @@ onUnmounted(() => {
             class="relative flex flex-col items-center gap-1 py-3 px-2 rounded-lg transition-colors"
             :class="[
               isActive(item.path)
-                ? 'bg-r58-accent-primary/10 text-r58-accent-primary'
-                : 'text-r58-text-secondary hover:text-r58-text-primary hover:bg-r58-bg-tertiary',
+                ? 'bg-preke-gold/10 text-preke-gold'
+                : 'text-preke-text-dim hover:text-preke-text hover:bg-preke-bg-surface',
               switching && item.requiresMode ? 'opacity-60 cursor-wait' : ''
             ]"
           >
@@ -236,7 +236,7 @@ onUnmounted(() => {
     </nav>
     
     <!-- Version -->
-    <div class="p-2 text-center text-xs text-r58-text-secondary">
+    <div class="p-2 text-center text-xs text-preke-text-dim">
       v2.0.0
     </div>
   </aside>

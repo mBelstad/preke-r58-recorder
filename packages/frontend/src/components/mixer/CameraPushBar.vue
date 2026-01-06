@@ -122,17 +122,17 @@ function getStatusText(status: CameraPushState['status']): string {
 </script>
 
 <template>
-  <div class="camera-push-bar border-t border-r58-bg-tertiary bg-r58-bg-secondary" data-testid="camera-push-bar">
+  <div class="camera-push-bar border-t border-preke-bg-surface bg-preke-bg-elevated" data-testid="camera-push-bar">
     <!-- Header (clickable to expand/collapse) -->
     <button 
       @click="expanded = !expanded"
-      class="w-full px-4 py-2 flex items-center justify-between text-sm hover:bg-r58-bg-tertiary/50 transition-colors"
+      class="w-full px-4 py-2 flex items-center justify-between text-sm hover:bg-preke-bg-surface/50 transition-colors"
       data-testid="camera-push-toggle"
       aria-expanded="expanded"
     >
       <div class="flex items-center gap-2">
         <span class="font-medium">Camera Sources</span>
-        <span class="text-r58-text-secondary">({{ camerasWithSignal.length }} active)</span>
+        <span class="text-preke-text-dim">({{ camerasWithSignal.length }} active)</span>
       </div>
       <svg 
         class="w-4 h-4 transition-transform"
@@ -150,7 +150,7 @@ function getStatusText(status: CameraPushState['status']): string {
         <div
           v-for="[cameraId, state] in cameraPushStates"
           :key="cameraId"
-          class="flex items-center gap-2 px-3 py-2 bg-r58-bg-tertiary rounded-lg"
+          class="flex items-center gap-2 px-3 py-2 bg-preke-bg-surface rounded-lg"
         >
           <!-- Status indicator -->
           <span :class="['w-2 h-2 rounded-full', getStatusColor(state.status)]"></span>
@@ -159,13 +159,13 @@ function getStatusText(status: CameraPushState['status']): string {
           <span class="text-sm font-medium">{{ state.label }}</span>
           
           <!-- Status text -->
-          <span class="text-xs text-r58-text-secondary">{{ getStatusText(state.status) }}</span>
+          <span class="text-xs text-preke-text-dim">{{ getStatusText(state.status) }}</span>
           
           <!-- Retry button for errors -->
           <button
             v-if="state.status === 'error'"
             @click="retryConnection(cameraId)"
-            class="ml-2 text-xs text-r58-accent-primary hover:underline"
+            class="ml-2 text-xs text-preke-gold hover:underline"
           >
             Retry
           </button>
@@ -173,7 +173,7 @@ function getStatusText(status: CameraPushState['status']): string {
       </div>
       
       <!-- Empty state -->
-      <div v-else class="text-sm text-r58-text-secondary py-2">
+      <div v-else class="text-sm text-preke-text-dim py-2">
         No cameras connected. Connect HDMI sources to push them to the mixer.
       </div>
     </div>

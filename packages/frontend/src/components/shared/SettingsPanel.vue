@@ -53,21 +53,21 @@ function handleAudioToggle() {
 
 <template>
   <div class="space-y-4">
-    <h3 class="text-sm font-semibold text-r58-text-secondary uppercase tracking-wide">
+    <h3 class="text-sm font-semibold text-preke-text-dim uppercase tracking-wide">
       Interface Settings
     </h3>
     
     <!-- Audio Feedback -->
     <label class="flex items-center justify-between py-2 cursor-pointer">
       <div>
-        <span class="text-r58-text-primary">Audio Feedback</span>
-        <p class="text-xs text-r58-text-secondary">Play sounds for recording start/stop</p>
+        <span class="text-preke-text">Audio Feedback</span>
+        <p class="text-xs text-preke-text-dim">Play sounds for recording start/stop</p>
       </div>
       <button
         @click="handleAudioToggle"
         :class="[
           'relative w-12 h-7 rounded-full transition-colors',
-          audioEnabled ? 'bg-r58-accent-primary' : 'bg-r58-bg-tertiary'
+          audioEnabled ? 'bg-preke-gold' : 'bg-preke-bg-surface'
         ]"
         role="switch"
         :aria-checked="audioEnabled"
@@ -84,14 +84,14 @@ function handleAudioToggle() {
     <!-- Touch Mode -->
     <label class="flex items-center justify-between py-2 cursor-pointer">
       <div>
-        <span class="text-r58-text-primary">Touch Mode</span>
-        <p class="text-xs text-r58-text-secondary">Larger buttons for touchscreen</p>
+        <span class="text-preke-text">Touch Mode</span>
+        <p class="text-xs text-preke-text-dim">Larger buttons for touchscreen</p>
       </div>
       <button
         @click="toggleTouchMode"
         :class="[
           'relative w-12 h-7 rounded-full transition-colors',
-          touchMode ? 'bg-r58-accent-primary' : 'bg-r58-bg-tertiary'
+          touchMode ? 'bg-preke-gold' : 'bg-preke-bg-surface'
         ]"
         role="switch"
         :aria-checked="touchMode"
@@ -108,8 +108,8 @@ function handleAudioToggle() {
     <!-- Performance Mode -->
     <label class="flex items-center justify-between py-2 cursor-pointer">
       <div>
-        <span class="text-r58-text-primary">Performance Mode</span>
-        <p class="text-xs text-r58-text-secondary">
+        <span class="text-preke-text">Performance Mode</span>
+        <p class="text-xs text-preke-text-dim">
           Reduce UI updates during recording
           <span v-if="perfActive && !perfEnabled" class="text-amber-400">(auto-enabled)</span>
         </p>
@@ -118,7 +118,7 @@ function handleAudioToggle() {
         @click="setPerfEnabled(!perfEnabled)"
         :class="[
           'relative w-12 h-7 rounded-full transition-colors',
-          perfEnabled ? 'bg-r58-accent-primary' : 'bg-r58-bg-tertiary'
+          perfEnabled ? 'bg-preke-gold' : 'bg-preke-bg-surface'
         ]"
         role="switch"
         :aria-checked="perfEnabled"
@@ -135,13 +135,13 @@ function handleAudioToggle() {
     <!-- Auto Performance Mode -->
     <label class="flex items-center justify-between py-2 pl-4 cursor-pointer opacity-80">
       <div>
-        <span class="text-sm text-r58-text-primary">Auto-enable when recording 3+ inputs</span>
+        <span class="text-sm text-preke-text">Auto-enable when recording 3+ inputs</span>
       </div>
       <button
         @click="setPerfAutoEnable(!perfAutoEnable)"
         :class="[
           'relative w-10 h-6 rounded-full transition-colors',
-          perfAutoEnable ? 'bg-r58-accent-primary' : 'bg-r58-bg-tertiary'
+          perfAutoEnable ? 'bg-preke-gold' : 'bg-preke-bg-surface'
         ]"
         role="switch"
         :aria-checked="perfAutoEnable"

@@ -208,13 +208,13 @@ defineExpose({ open, openNew })
       <div class="absolute inset-0 bg-black/70" @click="close"></div>
       
       <!-- Modal -->
-      <div class="relative bg-r58-bg-secondary border border-r58-bg-tertiary rounded-xl w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl">
+      <div class="relative bg-preke-bg-elevated border border-preke-bg-surface rounded-xl w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl">
         <!-- Header -->
-        <div class="flex items-center justify-between px-6 py-4 border-b border-r58-bg-tertiary">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-preke-bg-surface">
           <h2 class="text-xl font-semibold">
             {{ isNewScene ? 'Create Scene' : 'Edit Scene' }}
           </h2>
-          <button @click="close" class="text-r58-text-secondary hover:text-r58-text-primary text-2xl">
+          <button @click="close" class="text-preke-text-dim hover:text-preke-text text-2xl">
             ×
           </button>
         </div>
@@ -226,23 +226,23 @@ defineExpose({ open, openNew })
             <div class="flex-1">
               <!-- Scene Name -->
               <div class="mb-4">
-                <label class="block text-sm text-r58-text-secondary mb-1">Scene Name</label>
+                <label class="block text-sm text-preke-text-dim mb-1">Scene Name</label>
                 <input 
                   v-model="sceneName"
                   type="text"
-                  class="w-full px-3 py-2 bg-r58-bg-tertiary border border-r58-bg-tertiary rounded-lg focus:border-r58-accent-primary focus:outline-none"
+                  class="w-full px-3 py-2 bg-preke-bg-surface border border-preke-bg-surface rounded-lg focus:border-preke-gold focus:outline-none"
                 />
               </div>
               
               <!-- Layout Presets -->
               <div class="mb-4">
-                <label class="block text-sm text-r58-text-secondary mb-2">Quick Layouts</label>
+                <label class="block text-sm text-preke-text-dim mb-2">Quick Layouts</label>
                 <div class="flex gap-2 flex-wrap">
                   <button
                     v-for="preset in layoutPresets"
                     :key="preset.id"
                     @click="applyPreset(preset)"
-                    class="px-3 py-1 text-xs bg-r58-bg-tertiary hover:bg-r58-accent-primary/20 rounded transition-colors"
+                    class="px-3 py-1 text-xs bg-preke-bg-surface hover:bg-preke-gold/20 rounded transition-colors"
                   >
                     {{ preset.name }}
                   </button>
@@ -251,10 +251,10 @@ defineExpose({ open, openNew })
               
               <!-- Canvas -->
               <div class="mb-4">
-                <label class="block text-sm text-r58-text-secondary mb-2">Layout</label>
+                <label class="block text-sm text-preke-text-dim mb-2">Layout</label>
                 <div 
                   id="scene-canvas"
-                  class="relative aspect-video bg-black rounded-lg overflow-hidden border border-r58-bg-tertiary"
+                  class="relative aspect-video bg-black rounded-lg overflow-hidden border border-preke-bg-surface"
                 >
                   <!-- Slots -->
                   <div
@@ -265,8 +265,8 @@ defineExpose({ open, openNew })
                     class="absolute cursor-move transition-colors"
                     :class="[
                       selectedSlotId === slot.id 
-                        ? 'border-2 border-r58-accent-primary' 
-                        : 'border border-r58-bg-tertiary hover:border-r58-accent-primary/50'
+                        ? 'border-2 border-preke-gold' 
+                        : 'border border-preke-bg-surface hover:border-preke-gold/50'
                     ]"
                     :style="{
                       left: `${slot.position.x}%`,
@@ -274,11 +274,11 @@ defineExpose({ open, openNew })
                       width: `${slot.position.w}%`,
                       height: `${slot.position.h}%`,
                       zIndex: slot.zIndex,
-                      backgroundColor: slot.sourceId ? 'var(--r58-bg-tertiary)' : 'var(--r58-bg-secondary)'
+                      backgroundColor: slot.sourceId ? 'var(--preke-bg-surface)' : 'var(--preke-bg-elevated)'
                     }"
                   >
                     <!-- Slot Content -->
-                    <div class="absolute inset-0 flex items-center justify-center text-xs text-r58-text-secondary">
+                    <div class="absolute inset-0 flex items-center justify-center text-xs text-preke-text-dim">
                       {{ slot.sourceId || 'Empty' }}
                     </div>
                     
@@ -286,7 +286,7 @@ defineExpose({ open, openNew })
                     <div 
                       v-if="selectedSlotId === slot.id"
                       @mousedown.stop="startDrag($event, slot.id, 'resize')"
-                      class="absolute bottom-0 right-0 w-4 h-4 bg-r58-accent-primary cursor-se-resize"
+                      class="absolute bottom-0 right-0 w-4 h-4 bg-preke-gold cursor-se-resize"
                     ></div>
                     
                     <!-- Remove Button -->
@@ -314,11 +314,11 @@ defineExpose({ open, openNew })
               <div v-if="selectedSlot" class="space-y-4">
                 <!-- Source Assignment -->
                 <div>
-                  <label class="block text-xs text-r58-text-secondary mb-1">Source</label>
+                  <label class="block text-xs text-preke-text-dim mb-1">Source</label>
                   <select 
                     :value="selectedSlot.sourceId || ''"
                     @change="assignSource(($event.target as HTMLSelectElement).value || null)"
-                    class="w-full px-3 py-2 text-sm bg-r58-bg-tertiary border border-r58-bg-tertiary rounded-lg"
+                    class="w-full px-3 py-2 text-sm bg-preke-bg-surface border border-preke-bg-surface rounded-lg"
                   >
                     <option value="">None (Empty)</option>
                     <option 
@@ -334,61 +334,61 @@ defineExpose({ open, openNew })
                 <!-- Position -->
                 <div class="grid grid-cols-2 gap-2">
                   <div>
-                    <label class="block text-xs text-r58-text-secondary mb-1">X %</label>
+                    <label class="block text-xs text-preke-text-dim mb-1">X %</label>
                     <input 
                       v-model.number="selectedSlot.position.x"
                       type="number"
                       min="0"
                       max="100"
-                      class="w-full px-2 py-1 text-sm bg-r58-bg-tertiary rounded"
+                      class="w-full px-2 py-1 text-sm bg-preke-bg-surface rounded"
                     />
                   </div>
                   <div>
-                    <label class="block text-xs text-r58-text-secondary mb-1">Y %</label>
+                    <label class="block text-xs text-preke-text-dim mb-1">Y %</label>
                     <input 
                       v-model.number="selectedSlot.position.y"
                       type="number"
                       min="0"
                       max="100"
-                      class="w-full px-2 py-1 text-sm bg-r58-bg-tertiary rounded"
+                      class="w-full px-2 py-1 text-sm bg-preke-bg-surface rounded"
                     />
                   </div>
                   <div>
-                    <label class="block text-xs text-r58-text-secondary mb-1">Width %</label>
+                    <label class="block text-xs text-preke-text-dim mb-1">Width %</label>
                     <input 
                       v-model.number="selectedSlot.position.w"
                       type="number"
                       min="1"
                       max="100"
-                      class="w-full px-2 py-1 text-sm bg-r58-bg-tertiary rounded"
+                      class="w-full px-2 py-1 text-sm bg-preke-bg-surface rounded"
                     />
                   </div>
                   <div>
-                    <label class="block text-xs text-r58-text-secondary mb-1">Height %</label>
+                    <label class="block text-xs text-preke-text-dim mb-1">Height %</label>
                     <input 
                       v-model.number="selectedSlot.position.h"
                       type="number"
                       min="1"
                       max="100"
-                      class="w-full px-2 py-1 text-sm bg-r58-bg-tertiary rounded"
+                      class="w-full px-2 py-1 text-sm bg-preke-bg-surface rounded"
                     />
                   </div>
                 </div>
                 
                 <!-- Z-Index -->
                 <div>
-                  <label class="block text-xs text-r58-text-secondary mb-1">Layer (z-index)</label>
+                  <label class="block text-xs text-preke-text-dim mb-1">Layer (z-index)</label>
                   <input 
                     v-model.number="selectedSlot.zIndex"
                     type="number"
                     min="0"
                     max="10"
-                    class="w-full px-2 py-1 text-sm bg-r58-bg-tertiary rounded"
+                    class="w-full px-2 py-1 text-sm bg-preke-bg-surface rounded"
                   />
                 </div>
               </div>
               
-              <div v-else class="text-sm text-r58-text-secondary p-4 bg-r58-bg-tertiary rounded-lg">
+              <div v-else class="text-sm text-preke-text-dim p-4 bg-preke-bg-surface rounded-lg">
                 Click a slot to edit its properties
               </div>
             </div>
@@ -396,7 +396,7 @@ defineExpose({ open, openNew })
         </div>
         
         <!-- Footer -->
-        <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-r58-bg-tertiary">
+        <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-preke-bg-surface">
           <button @click="close" class="btn">Cancel</button>
           <button @click="save" class="btn btn-primary">
             {{ isNewScene ? 'Create Scene' : 'Save Changes' }}

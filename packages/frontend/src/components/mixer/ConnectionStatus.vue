@@ -69,11 +69,11 @@ const healthStatus = computed<HealthStatus>(() => {
 // Status color
 const statusColor = computed(() => {
   switch (healthStatus.value) {
-    case 'healthy': return 'bg-r58-accent-success'
+    case 'healthy': return 'bg-preke-green'
     case 'degraded': return 'bg-amber-500'
-    case 'error': return 'bg-r58-accent-danger'
-    case 'disconnected': return 'bg-r58-text-secondary'
-    default: return 'bg-r58-text-secondary'
+    case 'error': return 'bg-preke-red'
+    case 'disconnected': return 'bg-preke-text-dim'
+    default: return 'bg-preke-text-dim'
   }
 })
 
@@ -191,14 +191,14 @@ const eventStats = computed(() => {
       ></span>
       
       <!-- Status text -->
-      <span class="text-xs text-r58-text-secondary">
+      <span class="text-xs text-preke-text-dim">
         {{ statusText }}
       </span>
       
       <!-- Error indicator -->
       <span 
         v-if="lastError" 
-        class="text-xs text-r58-accent-danger"
+        class="text-xs text-preke-red"
         title="Click for details"
       >
         ⚠️
@@ -206,7 +206,7 @@ const eventStats = computed(() => {
       
       <!-- Expand/collapse -->
       <svg 
-        class="w-3 h-3 text-r58-text-secondary transition-transform"
+        class="w-3 h-3 text-preke-text-dim transition-transform"
         :class="{ 'rotate-180': showDetails }"
         fill="none" stroke="currentColor" viewBox="0 0 24 24"
       >
@@ -215,39 +215,39 @@ const eventStats = computed(() => {
     </div>
     
     <!-- Expanded details panel -->
-    <div v-if="showDetails" class="mt-2 p-3 bg-r58-bg-tertiary rounded-lg text-xs space-y-2">
+    <div v-if="showDetails" class="mt-2 p-3 bg-preke-bg-surface rounded-lg text-xs space-y-2">
       <!-- Connection details -->
       <div class="grid grid-cols-2 gap-2">
         <div>
-          <span class="text-r58-text-secondary">VDO.ninja:</span>
-          <span class="ml-1 font-medium" :class="isReady ? 'text-r58-accent-success' : 'text-r58-accent-danger'">
+          <span class="text-preke-text-dim">VDO.ninja:</span>
+          <span class="ml-1 font-medium" :class="isReady ? 'text-preke-green' : 'text-preke-red'">
             {{ isReady ? 'Ready' : 'Not Ready' }}
           </span>
         </div>
         
         <div>
-          <span class="text-r58-text-secondary">State:</span>
+          <span class="text-preke-text-dim">State:</span>
           <span class="ml-1 font-medium">{{ connectionState }}</span>
         </div>
         
         <div>
-          <span class="text-r58-text-secondary">Last activity:</span>
+          <span class="text-preke-text-dim">Last activity:</span>
           <span class="ml-1">{{ lastActivityAgo }}</span>
         </div>
         
         <div>
-          <span class="text-r58-text-secondary">Events:</span>
+          <span class="text-preke-text-dim">Events:</span>
           <span class="ml-1">{{ eventStats.total }}</span>
         </div>
       </div>
       
       <!-- Error message -->
-      <div v-if="lastError" class="p-2 bg-r58-accent-danger/10 border border-r58-accent-danger/30 rounded text-r58-accent-danger">
+      <div v-if="lastError" class="p-2 bg-preke-red/10 border border-preke-red/30 rounded text-preke-red">
         <strong>Error:</strong> {{ lastError }}
       </div>
       
       <!-- Actions -->
-      <div class="flex gap-2 pt-2 border-t border-r58-bg-tertiary">
+      <div class="flex gap-2 pt-2 border-t border-preke-bg-surface">
         <button
           @click="attemptReconnect"
           :disabled="isReconnecting"
@@ -267,7 +267,7 @@ const eventStats = computed(() => {
       </div>
       
       <!-- Reconnect attempts -->
-      <div v-if="reconnectAttempts > 0" class="text-r58-text-secondary text-center">
+      <div v-if="reconnectAttempts > 0" class="text-preke-text-dim text-center">
         Reconnect attempts: {{ reconnectAttempts }}
       </div>
     </div>

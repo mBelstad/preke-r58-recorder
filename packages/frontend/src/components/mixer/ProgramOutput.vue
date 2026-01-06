@@ -101,7 +101,7 @@ function copySrtUrl() {
 <template>
   <div class="program-output space-y-3" data-testid="program-output">
     <!-- Status indicator -->
-    <div class="flex items-center gap-2 px-3 py-2 bg-r58-bg-tertiary rounded-lg" data-testid="program-output-status">
+    <div class="flex items-center gap-2 px-3 py-2 bg-preke-bg-surface rounded-lg" data-testid="program-output-status">
       <span :class="['w-2 h-2 rounded-full', getStatusColor()]" data-testid="program-output-indicator"></span>
       <span class="text-sm font-medium" data-testid="program-output-text">{{ getStatusText() }}</span>
       
@@ -109,7 +109,7 @@ function copySrtUrl() {
       <button
         v-if="status === 'error'"
         @click="retryConnection()"
-        class="ml-auto text-xs text-r58-accent-primary hover:underline"
+        class="ml-auto text-xs text-preke-gold hover:underline"
       >
         Retry
       </button>
@@ -118,23 +118,23 @@ function copySrtUrl() {
     <!-- Stream Health Details (when live) -->
     <div v-if="status === 'live'" class="space-y-2">
       <!-- Quick SRT URL -->
-      <div class="flex items-center gap-2 px-3 py-2 bg-r58-bg-tertiary/50 rounded-lg">
-        <span class="text-xs text-r58-text-secondary">🔴 SRT:</span>
-        <code class="flex-1 text-xs truncate text-r58-text-secondary">{{ streamingStore.programOutputUrls.srt }}</code>
-        <button @click="copySrtUrl" class="text-xs text-r58-accent-primary hover:underline">Copy</button>
+      <div class="flex items-center gap-2 px-3 py-2 bg-preke-bg-surface/50 rounded-lg">
+        <span class="text-xs text-preke-text-dim">🔴 SRT:</span>
+        <code class="flex-1 text-xs truncate text-preke-text-dim">{{ streamingStore.programOutputUrls.srt }}</code>
+        <button @click="copySrtUrl" class="text-xs text-preke-gold hover:underline">Copy</button>
       </div>
       
       <!-- Streaming destinations indicator -->
-      <div v-if="streamingStore.enabledDestinations.length > 0" class="flex items-center gap-2 px-3 py-2 bg-r58-bg-tertiary/50 rounded-lg">
+      <div v-if="streamingStore.enabledDestinations.length > 0" class="flex items-center gap-2 px-3 py-2 bg-preke-bg-surface/50 rounded-lg">
         <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-        <span class="text-xs text-r58-text-secondary">
+        <span class="text-xs text-preke-text-dim">
           {{ streamingStore.enabledDestinations.length }} streaming destination{{ streamingStore.enabledDestinations.length > 1 ? 's' : '' }} active
         </span>
       </div>
     </div>
     
     <!-- Idle state hint -->
-    <p v-if="status === 'idle'" class="text-xs text-r58-text-secondary px-3">
+    <p v-if="status === 'idle'" class="text-xs text-preke-text-dim px-3">
       Program output will start automatically when you go live.
     </p>
     

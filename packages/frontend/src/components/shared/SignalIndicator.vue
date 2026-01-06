@@ -9,9 +9,9 @@ defineProps<{
   <div class="flex items-center gap-2">
     <span 
       class="w-2 h-2 rounded-full"
-      :class="hasSignal ? 'bg-r58-accent-success' : 'bg-r58-text-secondary'"
+      :class="hasSignal ? 'bg-preke-green' : 'bg-preke-text-dim'"
     ></span>
-    <span v-if="label" class="text-sm" :class="hasSignal ? '' : 'text-r58-text-secondary'">
+    <span v-if="label" class="text-sm" :class="hasSignal ? '' : 'text-preke-text-dim'">
       {{ label }}
     </span>
   </div>

@@ -68,7 +68,7 @@ function handleCut() {
         <!-- Collapse Toggle -->
         <button 
           @click="toggleSourcePanel"
-          class="w-full mb-3 flex items-center justify-between px-3 py-2 bg-r58-bg-tertiary rounded-lg hover:bg-r58-bg-tertiary/80 transition-colors"
+          class="w-full mb-3 flex items-center justify-between px-3 py-2 bg-preke-bg-surface rounded-lg hover:bg-preke-bg-surface/80 transition-colors"
         >
           <span v-if="!sourcePanelCollapsed" class="text-sm font-medium">Sources</span>
           <svg 
@@ -93,7 +93,7 @@ function handleCut() {
           <div 
             v-for="source in mixerStore.connectedSources.slice(0, 6)" 
             :key="source.id"
-            class="w-8 h-8 mx-auto rounded bg-r58-bg-tertiary flex items-center justify-center text-xs"
+            class="w-8 h-8 mx-auto rounded bg-preke-bg-surface flex items-center justify-center text-xs"
             :title="source.label"
           >
             {{ source.label.charAt(0) }}
@@ -114,10 +114,10 @@ function handleCut() {
         </div>
         
         <!-- Scene Strip -->
-        <div class="mt-4 pt-4 border-t border-r58-bg-tertiary">
+        <div class="mt-4 pt-4 border-t border-preke-bg-surface">
           <div class="flex items-center justify-between mb-2">
-            <h3 class="text-sm font-medium text-r58-text-secondary">Scenes</h3>
-            <div class="flex items-center gap-2 text-xs text-r58-text-secondary">
+            <h3 class="text-sm font-medium text-preke-text-dim">Scenes</h3>
+            <div class="flex items-center gap-2 text-xs text-preke-text-dim">
               <span>Click = Preview</span>
               <span class="opacity-50">|</span>
               <span>Double-click = Live</span>
@@ -145,7 +145,7 @@ function handleCut() {
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  background: var(--r58-bg-tertiary);
+  background: var(--preke-bg-surface);
   border-radius: 2px;
 }
 </style>

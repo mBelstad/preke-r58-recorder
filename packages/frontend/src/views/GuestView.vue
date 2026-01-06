@@ -68,12 +68,12 @@ function openInNewTab() {
 </script>
 
 <template>
-  <div class="min-h-screen bg-r58-bg-primary flex items-center justify-center p-4">
+  <div class="min-h-screen bg-preke-bg-base flex items-center justify-center p-4">
     <!-- Join Form -->
     <div v-if="!isConnected" class="card max-w-md w-full">
       <div class="text-center mb-8">
         <h1 class="text-2xl font-bold mb-2">Join Preke Studio</h1>
-        <p class="text-r58-text-secondary">Enter your name to join as a remote guest</p>
+        <p class="text-preke-text-dim">Enter your name to join as a remote guest</p>
       </div>
       
       <div class="space-y-4">
@@ -95,9 +95,9 @@ function openInNewTab() {
             id="embed-mode"
             v-model="embedMode"
             type="checkbox"
-            class="w-4 h-4 rounded border-gray-600 bg-gray-700 text-r58-accent-primary focus:ring-r58-accent-primary"
+            class="w-4 h-4 rounded border-gray-600 bg-gray-700 text-preke-gold focus:ring-preke-gold"
           />
-          <label for="embed-mode" class="text-sm text-r58-text-secondary">
+          <label for="embed-mode" class="text-sm text-preke-text-dim">
             Stay on this page (embed video)
           </label>
         </div>
@@ -123,7 +123,7 @@ function openInNewTab() {
     <!-- Connected View with VDO.ninja Embed -->
     <div v-else class="w-full h-full flex flex-col">
       <!-- Header bar -->
-      <div class="bg-r58-bg-secondary border-b border-r58-bg-tertiary p-4 flex items-center justify-between">
+      <div class="bg-preke-bg-elevated border-b border-preke-bg-surface p-4 flex items-center justify-between">
         <div class="flex items-center gap-3">
           <div class="w-3 h-3 rounded-full bg-green-500 animate-pulse"></div>
           <span class="font-medium">Connected as {{ guestName }}</span>
@@ -164,13 +164,13 @@ function openInNewTab() {
       <!-- Non-embed success message -->
       <div v-else class="flex-1 flex items-center justify-center">
         <div class="text-center">
-          <div class="w-20 h-20 rounded-full bg-r58-accent-success/20 flex items-center justify-center mx-auto mb-6">
-            <svg class="w-10 h-10 text-r58-accent-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div class="w-20 h-20 rounded-full bg-preke-green/20 flex items-center justify-center mx-auto mb-6">
+            <svg class="w-10 h-10 text-preke-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
           </svg>
           </div>
           <h2 class="text-2xl font-semibold mb-2">You're Connected!</h2>
-          <p class="text-r58-text-secondary mb-6">
+          <p class="text-preke-text-dim mb-6">
             VDO.ninja opened in a new tab. You can close this page.
           </p>
           <button

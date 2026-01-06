@@ -249,33 +249,33 @@ defineExpose({ open, getCustomBindings })
       <div class="absolute inset-0 bg-black/60" @click="close"></div>
       
       <!-- Modal content -->
-      <div class="relative bg-r58-bg-secondary border border-r58-bg-tertiary rounded-xl w-full max-w-3xl max-h-[80vh] overflow-hidden shadow-2xl" data-testid="hotkey-settings-modal">
+      <div class="relative bg-preke-bg-elevated border border-preke-bg-surface rounded-xl w-full max-w-3xl max-h-[80vh] overflow-hidden shadow-2xl" data-testid="hotkey-settings-modal">
         <!-- Header -->
-        <div class="flex items-center justify-between px-6 py-4 border-b border-r58-bg-tertiary">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-preke-bg-surface">
           <h2 class="text-xl font-semibold">Keyboard Shortcuts</h2>
           <div class="flex items-center gap-4">
             <button 
               @click="resetAllHotkeys" 
-              class="text-sm text-r58-text-secondary hover:text-r58-text-primary"
+              class="text-sm text-preke-text-dim hover:text-preke-text"
             >
               Reset All
             </button>
-            <button @click="close" class="text-r58-text-secondary hover:text-r58-text-primary text-2xl">
+            <button @click="close" class="text-preke-text-dim hover:text-preke-text text-2xl">
               ×
             </button>
           </div>
         </div>
 
         <!-- Tabs -->
-        <div class="flex border-b border-r58-bg-tertiary">
+        <div class="flex border-b border-preke-bg-surface">
           <button
             v-for="tab in (['mixer', 'global', 'recorder'] as const)"
             :key="tab"
             @click="activeTab = tab"
             class="px-6 py-3 text-sm font-medium capitalize transition-colors"
             :class="activeTab === tab 
-              ? 'text-r58-accent-primary border-b-2 border-r58-accent-primary' 
-              : 'text-r58-text-secondary hover:text-r58-text-primary'"
+              ? 'text-preke-gold border-b-2 border-preke-gold' 
+              : 'text-preke-text-dim hover:text-preke-text'"
           >
             {{ tab }}
           </button>
@@ -284,14 +284,14 @@ defineExpose({ open, getCustomBindings })
         <!-- Content -->
         <div class="p-6 overflow-y-auto max-h-[55vh]">
           <!-- Empty state -->
-          <div v-if="Object.keys(currentHotkeys).length === 0" class="text-center py-12 text-r58-text-secondary">
+          <div v-if="Object.keys(currentHotkeys).length === 0" class="text-center py-12 text-preke-text-dim">
             No shortcuts defined for this context.
           </div>
 
           <!-- Hotkeys by category -->
           <div v-else class="space-y-6">
             <div v-for="(hotkeys, category) in currentHotkeys" :key="category">
-              <h3 class="text-sm font-semibold text-r58-text-secondary uppercase tracking-wide mb-3">
+              <h3 class="text-sm font-semibold text-preke-text-dim uppercase tracking-wide mb-3">
                 {{ category }}
               </h3>
               
@@ -299,23 +299,23 @@ defineExpose({ open, getCustomBindings })
                 <div
                   v-for="hotkey in hotkeys"
                   :key="hotkey.id"
-                  class="flex items-center justify-between p-3 bg-r58-bg-tertiary rounded-lg"
-                  :class="{ 'ring-2 ring-r58-accent-primary': editingHotkeyId === hotkey.id }"
+                  class="flex items-center justify-between p-3 bg-preke-bg-surface rounded-lg"
+                  :class="{ 'ring-2 ring-preke-gold': editingHotkeyId === hotkey.id }"
                 >
                   <!-- Description -->
                   <div class="flex-1">
                     <span class="text-sm">{{ hotkey.description }}</span>
-                    <span v-if="isCustomized(hotkey.id)" class="ml-2 text-xs text-r58-accent-primary">(customized)</span>
+                    <span v-if="isCustomized(hotkey.id)" class="ml-2 text-xs text-preke-gold">(customized)</span>
                   </div>
                   
                   <!-- Key binding -->
                   <div class="flex items-center gap-2">
                     <!-- Current or new key display -->
                     <div v-if="editingHotkeyId === hotkey.id" class="flex items-center gap-2">
-                      <kbd v-if="newKeyCapture" class="px-3 py-1 bg-r58-accent-primary text-white rounded text-sm font-mono">
+                      <kbd v-if="newKeyCapture" class="px-3 py-1 bg-preke-gold text-white rounded text-sm font-mono">
                         {{ formatShortcutKey(newKeyCapture.key, newKeyCapture.modifiers) }}
                       </kbd>
-                      <span v-else class="text-sm text-r58-text-secondary animate-pulse">
+                      <span v-else class="text-sm text-preke-text-dim animate-pulse">
                         Press a key...
                       </span>
                       
@@ -335,14 +335,14 @@ defineExpose({ open, getCustomBindings })
                     </div>
                     
                     <template v-else>
-                      <kbd class="px-3 py-1 bg-r58-bg-secondary border border-r58-bg-tertiary rounded text-sm font-mono">
+                      <kbd class="px-3 py-1 bg-preke-bg-elevated border border-preke-bg-surface rounded text-sm font-mono">
                         {{ formatHotkey(hotkey) }}
                       </kbd>
                       
                       <button
                         v-if="hotkey.editable"
                         @click="startEditing(hotkey.id)"
-                        class="text-xs text-r58-accent-primary hover:underline"
+                        class="text-xs text-preke-gold hover:underline"
                       >
                         Edit
                       </button>
@@ -350,7 +350,7 @@ defineExpose({ open, getCustomBindings })
                       <button
                         v-if="isCustomized(hotkey.id)"
                         @click="resetHotkey(hotkey.id)"
-                        class="text-xs text-r58-text-secondary hover:text-r58-accent-danger"
+                        class="text-xs text-preke-text-dim hover:text-preke-red"
                       >
                         Reset
                       </button>
@@ -363,8 +363,8 @@ defineExpose({ open, getCustomBindings })
         </div>
 
         <!-- Footer -->
-        <div class="flex items-center justify-between px-6 py-4 border-t border-r58-bg-tertiary">
-          <div class="text-sm text-r58-text-secondary">
+        <div class="flex items-center justify-between px-6 py-4 border-t border-preke-bg-surface">
+          <div class="text-sm text-preke-text-dim">
             Click "Edit" to customize a shortcut. Press any key combination to set.
           </div>
           <button @click="close" class="btn">Close</button>

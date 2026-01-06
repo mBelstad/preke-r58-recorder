@@ -34,19 +34,19 @@ async function switchMode(mode: 'recorder' | 'mixer') {
 }
 
 function getStatusColor(status: string, hasSignal: boolean): string {
-  if (!hasSignal) return 'bg-r58-text-secondary'
+  if (!hasSignal) return 'bg-preke-text-dim'
   switch (status) {
     case 'streaming':
     case 'recording':
-      return 'bg-r58-accent-success'
+      return 'bg-preke-green'
     case 'preview':
-      return 'bg-r58-accent-info'
+      return 'bg-preke-blue'
     case 'idle':
-      return 'bg-r58-text-secondary'
+      return 'bg-preke-text-dim'
     case 'error':
-      return 'bg-r58-accent-danger'
+      return 'bg-preke-red'
     default:
-      return 'bg-r58-text-secondary'
+      return 'bg-preke-text-dim'
   }
 }
 
@@ -81,28 +81,28 @@ onUnmounted(() => {
   <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
     <!-- Device Info -->
     <div class="card">
-      <h3 class="text-sm font-semibold text-r58-text-secondary uppercase tracking-wide mb-4">Device Info</h3>
-      <div v-if="error && !capabilities" class="text-r58-accent-danger">
+      <h3 class="text-sm font-semibold text-preke-text-dim uppercase tracking-wide mb-4">Device Info</h3>
+      <div v-if="error && !capabilities" class="text-preke-red">
         {{ error }}
       </div>
       <div v-else class="space-y-3">
         <div class="flex justify-between items-center">
-          <span class="text-r58-text-secondary">Device Name</span>
+          <span class="text-preke-text-dim">Device Name</span>
           <div v-if="loading && !capabilities" class="skeleton w-24 h-5"></div>
           <span v-else class="font-medium">{{ capabilities?.device_name || 'R58 Device' }}</span>
         </div>
         <div class="flex justify-between items-center">
-          <span class="text-r58-text-secondary">Platform</span>
+          <span class="text-preke-text-dim">Platform</span>
           <div v-if="loading && !capabilities" class="skeleton w-16 h-5"></div>
           <span v-else class="capitalize">{{ capabilities?.platform || '-' }}</span>
         </div>
         <div class="flex justify-between items-center">
-          <span class="text-r58-text-secondary">API Version</span>
+          <span class="text-preke-text-dim">API Version</span>
           <div v-if="loading && !capabilities" class="skeleton w-12 h-5"></div>
           <span v-else>{{ capabilities?.api_version || '-' }}</span>
         </div>
         <div class="flex justify-between items-center">
-          <span class="text-r58-text-secondary">GStreamer</span>
+          <span class="text-preke-text-dim">GStreamer</span>
           <div v-if="loading && !capabilities" class="skeleton w-20 h-5"></div>
           <span v-else class="badge badge-success">Initialized</span>
         </div>
@@ -111,10 +111,10 @@ onUnmounted(() => {
     
     <!-- Mode Control -->
     <div class="card">
-      <h3 class="text-sm font-semibold text-r58-text-secondary uppercase tracking-wide mb-4">Operating Mode</h3>
+      <h3 class="text-sm font-semibold text-preke-text-dim uppercase tracking-wide mb-4">Operating Mode</h3>
       <div class="space-y-4">
         <div class="flex items-center justify-between">
-          <span class="text-r58-text-secondary">Current Mode</span>
+          <span class="text-preke-text-dim">Current Mode</span>
           <div v-if="loading && !capabilities" class="skeleton w-20 h-5 rounded-full"></div>
           <span v-else class="badge" :class="capabilities?.current_mode === 'mixer' ? 'badge-info' : 'badge-success'">
             {{ capabilities?.current_mode === 'mixer' ? 'Mixer' : 'Recorder' }}
@@ -142,7 +142,7 @@ onUnmounted(() => {
           </button>
         </div>
         
-        <div v-if="modeError" class="text-sm text-r58-accent-danger">
+        <div v-if="modeError" class="text-sm text-preke-red">
           {{ modeError }}
         </div>
       </div>
@@ -150,12 +150,12 @@ onUnmounted(() => {
     
     <!-- Features -->
     <div class="card">
-      <h3 class="text-sm font-semibold text-r58-text-secondary uppercase tracking-wide mb-4">Available Features</h3>
+      <h3 class="text-sm font-semibold text-preke-text-dim uppercase tracking-wide mb-4">Available Features</h3>
       <div class="space-y-3">
         <div class="flex justify-between items-center">
           <div>
             <span>Mixer</span>
-            <span class="text-xs text-r58-text-secondary ml-1">(VDO.ninja)</span>
+            <span class="text-xs text-preke-text-dim ml-1">(VDO.ninja)</span>
           </div>
           <div v-if="loading && !capabilities" class="skeleton w-20 h-5 rounded-full"></div>
           <span 
@@ -192,14 +192,14 @@ onUnmounted(() => {
     
     <!-- Hardware Inputs -->
     <div class="card md:col-span-2 lg:col-span-3">
-      <h3 class="text-sm font-semibold text-r58-text-secondary uppercase tracking-wide mb-4">Hardware Inputs</h3>
+      <h3 class="text-sm font-semibold text-preke-text-dim uppercase tracking-wide mb-4">Hardware Inputs</h3>
       <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <!-- Skeleton loading state -->
         <template v-if="loading && !capabilities">
           <div 
             v-for="i in 4"
             :key="i"
-            class="p-4 rounded-lg bg-r58-bg-tertiary border border-r58-border"
+            class="p-4 rounded-lg bg-preke-bg-surface border border-preke-border"
           >
             <div class="flex items-center justify-between mb-3">
               <div class="flex items-center gap-2">
@@ -230,8 +230,8 @@ onUnmounted(() => {
           <div 
             v-for="input in capabilities?.inputs || []"
             :key="input.id"
-            class="p-4 rounded-lg bg-r58-bg-tertiary border border-r58-border"
-            :class="{ 'border-r58-accent-success/50': input.has_signal }"
+            class="p-4 rounded-lg bg-preke-bg-surface border border-preke-border"
+            :class="{ 'border-preke-green/50': input.has_signal }"
           >
             <div class="flex items-center justify-between mb-3">
               <div class="flex items-center gap-2">
@@ -244,31 +244,31 @@ onUnmounted(() => {
               <span 
                 class="text-xs px-2 py-0.5 rounded-full"
                 :class="{
-                  'bg-r58-accent-success/20 text-r58-accent-success': input.has_signal && (input.status === 'streaming' || input.status === 'recording'),
-                  'bg-r58-accent-info/20 text-r58-accent-info': input.has_signal && input.status === 'preview',
-                  'bg-r58-bg-tertiary text-r58-text-secondary': !input.has_signal || input.status === 'idle'
+                  'bg-preke-green/20 text-preke-green': input.has_signal && (input.status === 'streaming' || input.status === 'recording'),
+                  'bg-preke-blue/20 text-preke-blue': input.has_signal && input.status === 'preview',
+                  'bg-preke-bg-surface text-preke-text-dim': !input.has_signal || input.status === 'idle'
                 }"
               >
                 {{ getStatusLabel(input.status, input.has_signal) }}
               </span>
             </div>
-            <div class="space-y-1 text-sm text-r58-text-secondary">
+            <div class="space-y-1 text-sm text-preke-text-dim">
               <div class="flex justify-between">
                 <span>Type</span>
-                <span class="text-r58-text-primary">{{ input.type.toUpperCase() }}</span>
+                <span class="text-preke-text">{{ input.type.toUpperCase() }}</span>
               </div>
               <div class="flex justify-between">
                 <span>Resolution</span>
-                <span class="text-r58-text-primary">{{ input.max_resolution || 'N/A' }}</span>
+                <span class="text-preke-text">{{ input.max_resolution || 'N/A' }}</span>
               </div>
               <div class="flex justify-between">
                 <span>Device</span>
-                <span class="text-r58-text-primary font-mono text-xs">{{ input.device_path?.split('/').pop() || 'N/A' }}</span>
+                <span class="text-preke-text font-mono text-xs">{{ input.device_path?.split('/').pop() || 'N/A' }}</span>
               </div>
             </div>
           </div>
         
-          <div v-if="!capabilities?.inputs?.length" class="col-span-full text-center text-r58-text-secondary py-8">
+          <div v-if="!capabilities?.inputs?.length" class="col-span-full text-center text-preke-text-dim py-8">
             No inputs detected
           </div>
         </template>
@@ -279,7 +279,7 @@ onUnmounted(() => {
 
 <style scoped>
 .skeleton {
-  @apply bg-r58-bg-tertiary animate-pulse rounded;
+  @apply bg-preke-bg-surface animate-pulse rounded;
 }
 </style>
 

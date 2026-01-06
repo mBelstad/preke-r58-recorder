@@ -61,10 +61,10 @@ const framerateMismatch = computed(() => recorderStore.framerateMismatch)
  */
 function getBorderClass(input: InputStatus): string {
   if (input.isRecording) {
-    return 'border-r58-accent-danger ring-2 ring-r58-accent-danger/20'
+    return 'border-preke-red ring-2 ring-preke-red/20'
   }
   if (!input.hasSignal) {
-    return 'border-r58-bg-tertiary/50 opacity-60'
+    return 'border-preke-bg-surface/50 opacity-60'
   }
   // Signal present but not recording
   return 'border-emerald-500/50 hover:border-emerald-500'
@@ -90,7 +90,7 @@ function getSignalQualityColor(input: InputStatus): string {
     case 'excellent': return 'text-emerald-400'
     case 'good': return 'text-emerald-400'
     case 'unstable': return 'text-amber-400'
-    case 'none': return 'text-r58-text-secondary'
+    case 'none': return 'text-preke-text-dim'
   }
 }
 
@@ -131,7 +131,7 @@ function getInputTooltip(input: InputStatus): string {
 <template>
   <!-- Empty state when no inputs have signal -->
   <div v-if="inputs.length === 0" class="h-full flex items-center justify-center">
-    <div class="text-center text-r58-text-secondary">
+    <div class="text-center text-preke-text-dim">
       <svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
       </svg>
@@ -174,13 +174,13 @@ function getInputTooltip(input: InputStatus): string {
       <!-- Static placeholder in mixer mode (VDO.ninja handles video) -->
       <div 
         v-else 
-        class="w-full h-full flex items-center justify-center bg-r58-bg-tertiary"
+        class="w-full h-full flex items-center justify-center bg-preke-bg-surface"
       >
         <div class="text-center">
-          <svg class="w-8 h-8 mx-auto mb-2 text-r58-text-secondary/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-8 h-8 mx-auto mb-2 text-preke-text-dim/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
           </svg>
-          <span class="text-xs text-r58-text-secondary/70">Mixer mode</span>
+          <span class="text-xs text-preke-text-dim/70">Mixer mode</span>
         </div>
       </div>
       
@@ -194,25 +194,25 @@ function getInputTooltip(input: InputStatus): string {
               :class="{
                 'bg-emerald-500': getSignalQuality(input) === 'excellent' || getSignalQuality(input) === 'good',
                 'bg-amber-500 animate-pulse': getSignalQuality(input) === 'unstable',
-                'bg-r58-text-secondary': getSignalQuality(input) === 'none',
+                'bg-preke-text-dim': getSignalQuality(input) === 'none',
               }"
             ></span>
             <span class="font-medium">{{ input.label }}</span>
           </div>
           
           <div v-if="input.hasSignal" class="flex items-center gap-2 text-sm">
-            <span class="text-r58-text-secondary">{{ input.resolution }}</span>
+            <span class="text-preke-text-dim">{{ input.resolution }}</span>
             <span :class="getSignalQualityColor(input)">{{ input.framerate }}fps</span>
           </div>
         </div>
         
         <!-- Recording indicator -->
         <div v-if="input.isRecording" class="mt-2 flex items-center justify-between">
-          <div class="flex items-center gap-2 text-r58-accent-danger">
-            <span class="w-2 h-2 rounded-full bg-r58-accent-danger animate-recording"></span>
+          <div class="flex items-center gap-2 text-preke-red">
+            <span class="w-2 h-2 rounded-full bg-preke-red animate-recording"></span>
             <span class="text-sm font-medium">REC</span>
           </div>
-          <span class="text-sm font-mono text-r58-text-secondary">
+          <span class="text-sm font-mono text-preke-text-dim">
             {{ formatBytes(input.bytesWritten) }}
           </span>
         </div>

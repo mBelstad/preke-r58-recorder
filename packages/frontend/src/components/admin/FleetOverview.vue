@@ -104,10 +104,10 @@ async function connectToDevice(device: Device) {
     
     <!-- Device list -->
     <div v-if="loading" class="flex items-center justify-center py-12">
-      <div class="animate-spin w-8 h-8 border-2 border-r58-accent-primary border-t-transparent rounded-full"></div>
+      <div class="animate-spin w-8 h-8 border-2 border-preke-gold border-t-transparent rounded-full"></div>
     </div>
     
-    <div v-else-if="devices.length === 0" class="text-center py-12 text-r58-text-secondary">
+    <div v-else-if="devices.length === 0" class="text-center py-12 text-preke-text-dim">
       <p>No devices found</p>
       <p class="text-sm mt-2">Click "Scan Network" to discover R58 devices</p>
     </div>
@@ -116,13 +116,13 @@ async function connectToDevice(device: Device) {
       <div 
         v-for="device in devices"
         :key="device.id"
-        class="card hover:border-r58-accent-primary/50 transition-colors cursor-pointer"
+        class="card hover:border-preke-gold/50 transition-colors cursor-pointer"
         @click="connectToDevice(device)"
       >
         <div class="flex items-start justify-between mb-4">
           <div>
             <h3 class="font-semibold">{{ device.name }}</h3>
-            <p class="text-sm text-r58-text-secondary">{{ device.id }}</p>
+            <p class="text-sm text-preke-text-dim">{{ device.id }}</p>
           </div>
           <span 
             class="badge"
@@ -138,11 +138,11 @@ async function connectToDevice(device: Device) {
         
         <div class="space-y-2 text-sm">
           <div class="flex justify-between">
-            <span class="text-r58-text-secondary">IP Address</span>
+            <span class="text-preke-text-dim">IP Address</span>
             <span class="font-mono">{{ device.ip }}</span>
           </div>
           <div class="flex justify-between">
-            <span class="text-r58-text-secondary">Version</span>
+            <span class="text-preke-text-dim">Version</span>
             <span>{{ device.version }}</span>
           </div>
         </div>

@@ -12,6 +12,7 @@
  * &whepshare to redirect video playback to MediaMTX WHEP URLs.
  */
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useRecorderStore } from '@/stores/recorder'
 import { useCapabilitiesStore } from '@/stores/capabilities'
 import { getVdoHost, getVdoProtocol, VDO_ROOM, VDO_DIRECTOR_PASSWORD } from '@/lib/vdoninja'
@@ -22,8 +23,14 @@ import { toast } from '@/composables/useToast'
 import ModeLoadingScreen from '@/components/shared/ModeLoadingScreen.vue'
 import StreamingControlPanel from '@/components/mixer/StreamingControlPanel.vue'
 
+const router = useRouter()
 const recorderStore = useRecorderStore()
 const capabilitiesStore = useCapabilitiesStore()
+
+// Handle loading screen cancel - navigate back to studio
+function handleLoadingCancel() {
+  router.push('/')
+}
 
 // State
 const isLoading = ref(true)
@@ -143,7 +150,9 @@ onMounted(async () => {
       :content-ready="iframeLoaded && bridgeReady"
       :min-time="2000"
       :max-time="20000"
+      :show-cancel="true"
       @ready="handleLoadingReady"
+      @cancel="handleLoadingCancel"
     />
   </Transition>
   

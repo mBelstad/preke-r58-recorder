@@ -55,8 +55,8 @@ function selectType(type: string) {
         @click="selectType(opt.value)"
         class="px-2 py-2 text-xs rounded transition-colors text-center"
         :class="transitionType === opt.value 
-          ? 'bg-r58-accent-primary text-white' 
-          : 'bg-r58-bg-tertiary hover:bg-r58-bg-tertiary/80 text-r58-text-secondary'"
+          ? 'bg-preke-gold text-white' 
+          : 'bg-preke-bg-surface hover:bg-preke-bg-surface/80 text-preke-text-dim'"
       >
         <span class="block text-sm mb-0.5">{{ opt.icon }}</span>
         {{ opt.label }}
@@ -65,10 +65,10 @@ function selectType(type: string) {
     
     <!-- Duration Selector -->
     <div>
-      <label class="block text-xs text-r58-text-secondary mb-1">Duration</label>
+      <label class="block text-xs text-preke-text-dim mb-1">Duration</label>
       <select 
         v-model.number="transitionDuration"
-        class="w-full px-3 py-2 text-sm bg-r58-bg-tertiary border border-r58-bg-tertiary rounded-lg focus:border-r58-accent-primary focus:outline-none"
+        class="w-full px-3 py-2 text-sm bg-preke-bg-surface border border-preke-bg-surface rounded-lg focus:border-preke-gold focus:outline-none"
         :disabled="transitionType === 'cut'"
       >
         <option v-for="opt in durationOptions" :key="opt.value" :value="opt.value">
@@ -78,9 +78,9 @@ function selectType(type: string) {
     </div>
     
     <!-- Preview -->
-    <div class="p-3 bg-r58-bg-tertiary rounded-lg">
+    <div class="p-3 bg-preke-bg-surface rounded-lg">
       <div class="flex items-center justify-between text-xs">
-        <span class="text-r58-text-secondary">Current:</span>
+        <span class="text-preke-text-dim">Current:</span>
         <span class="font-mono">
           {{ typeOptions.find(o => o.value === transitionType)?.label }}
           <span v-if="transitionType !== 'cut'"> ({{ transitionDuration }}ms)</span>
@@ -89,8 +89,8 @@ function selectType(type: string) {
     </div>
     
     <!-- Quick Tip -->
-    <p class="text-xs text-r58-text-secondary">
-      Press <kbd class="px-1 py-0.5 bg-r58-bg-tertiary rounded">Space</kbd> to Take with transition
+    <p class="text-xs text-preke-text-dim">
+      Press <kbd class="px-1 py-0.5 bg-preke-bg-surface rounded">Space</kbd> to Take with transition
     </p>
   </div>
 </template>

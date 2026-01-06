@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { useRecorderStore } from '@/stores/recorder'
 import { useCapabilitiesStore } from '@/stores/capabilities'
 import { useRecordingGuard } from '@/composables/useRecordingGuard'
@@ -12,9 +13,15 @@ import SessionInfo from '@/components/recorder/SessionInfoV2.vue'
 import ConfirmDialog from '@/components/shared/ConfirmDialog.vue'
 import ModeLoadingScreen from '@/components/shared/ModeLoadingScreen.vue'
 
+const router = useRouter()
 const recorderStore = useRecorderStore()
 const capabilitiesStore = useCapabilitiesStore()
 const { showLeaveConfirmation, confirmLeave, cancelLeave } = useRecordingGuard()
+
+// Handle loading screen cancel - navigate back to studio
+function handleLoadingCancel() {
+  router.push('/')
+}
 
 const isRecording = computed(() => recorderStore.status === 'recording')
 const duration = computed(() => recorderStore.formattedDuration)
@@ -105,7 +112,9 @@ watch(showLeaveConfirmation, (show) => {
       :content-ready="contentReady"
       :min-time="1500"
       :max-time="5000"
+      :show-cancel="true"
       @ready="handleLoadingReady"
+      @cancel="handleLoadingCancel"
     />
   </Transition>
   

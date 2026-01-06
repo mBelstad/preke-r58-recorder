@@ -100,16 +100,16 @@ function enableFullMode() {
 </script>
 
 <template>
-  <div class="h-full flex flex-col bg-r58-bg-primary">
+  <div class="h-full flex flex-col bg-preke-bg-base">
     <!-- Header -->
-    <header class="flex items-center justify-between px-6 py-4 border-b border-r58-bg-tertiary bg-r58-bg-secondary">
+    <header class="flex items-center justify-between px-6 py-4 border-b border-preke-bg-surface bg-preke-bg-elevated">
       <div class="flex items-center gap-4">
         <div class="flex items-center gap-2">
           <span 
             class="w-3 h-3 rounded-full"
-            :class="isLive ? 'bg-r58-accent-danger animate-pulse' : 'bg-r58-bg-tertiary'"
+            :class="isLive ? 'bg-preke-red animate-pulse' : 'bg-preke-bg-surface'"
           ></span>
-          <span class="text-xl font-semibold text-r58-mixer">Mixer</span>
+          <span class="text-xl font-semibold text-preke-purple">Mixer</span>
           <span class="text-xs px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 font-medium">
             LITE MODE
           </span>
@@ -149,7 +149,7 @@ function enableFullMode() {
           </svg>
           <div>
             <h3 class="font-medium text-amber-400">Local Device Mode</h3>
-            <p class="text-sm text-r58-text-secondary mt-1">
+            <p class="text-sm text-preke-text-dim mt-1">
               VDO.ninja previews are disabled to save CPU. Scene switching and guest management 
               should be done from a remote browser or the Electron app.
             </p>
@@ -167,14 +167,14 @@ function enableFullMode() {
               :key="i"
               class="aspect-video flex items-center justify-center text-2xl font-bold rounded-lg transition-all"
               :class="mixerStore.currentScene === `scene-${i}` 
-                ? 'bg-r58-mixer text-white ring-2 ring-r58-mixer ring-offset-2 ring-offset-r58-bg-primary' 
-                : 'bg-r58-bg-tertiary hover:bg-r58-bg-secondary text-r58-text-primary'"
+                ? 'bg-preke-purple text-white ring-2 ring-preke-purple ring-offset-2 ring-offset-preke-bg-base' 
+                : 'bg-preke-bg-surface hover:bg-preke-bg-elevated text-preke-text'"
               @click="switchToScene(i)"
             >
               {{ i }}
             </button>
           </div>
-          <p class="text-xs text-r58-text-secondary mt-3">
+          <p class="text-xs text-preke-text-dim mt-3">
             Press 1-4 to switch scenes. Full transitions require VDO.ninja (Full Mode).
           </p>
         </div>
@@ -183,14 +183,14 @@ function enableFullMode() {
         <div class="card p-6">
           <h2 class="text-lg font-semibold mb-4">
             Inputs 
-            <span class="text-sm font-normal text-r58-text-secondary">({{ activeInputs.length }}/{{ inputs.length }} active)</span>
+            <span class="text-sm font-normal text-preke-text-dim">({{ activeInputs.length }}/{{ inputs.length }} active)</span>
           </h2>
           <div class="space-y-3">
             <div 
               v-for="input in inputs" 
               :key="input.id"
               class="flex items-center justify-between p-3 rounded-lg"
-              :class="input.hasSignal ? 'bg-r58-bg-tertiary' : 'bg-r58-bg-secondary opacity-50'"
+              :class="input.hasSignal ? 'bg-preke-bg-surface' : 'bg-preke-bg-elevated opacity-50'"
             >
               <div class="flex items-center gap-3">
                 <div 
@@ -199,12 +199,12 @@ function enableFullMode() {
                 ></div>
                 <div>
                   <span class="font-medium">{{ input.name }}</span>
-                  <span v-if="input.resolution" class="text-xs text-r58-text-secondary ml-2">
+                  <span v-if="input.resolution" class="text-xs text-preke-text-dim ml-2">
                     {{ input.resolution }}
                   </span>
                 </div>
               </div>
-              <div v-if="input.framerate" class="text-sm text-r58-text-secondary">
+              <div v-if="input.framerate" class="text-sm text-preke-text-dim">
                 {{ input.framerate.toFixed(1) }} fps
               </div>
             </div>
@@ -227,7 +227,7 @@ function enableFullMode() {
               {{ recorderStore.isRecording ? 'Stop Recording' : 'Start Recording' }}
             </button>
           </div>
-          <div v-if="recorderStore.isRecording" class="mt-3 text-sm text-r58-text-secondary">
+          <div v-if="recorderStore.isRecording" class="mt-3 text-sm text-preke-text-dim">
             Duration: {{ recorderStore.formattedDuration }}
           </div>
         </div>
@@ -237,14 +237,14 @@ function enableFullMode() {
           <h2 class="text-lg font-semibold mb-4">System Status</h2>
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <div class="text-2xl font-bold text-r58-text-primary">{{ activeInputs.length }}</div>
-              <div class="text-sm text-r58-text-secondary">Active Inputs</div>
+              <div class="text-2xl font-bold text-preke-text">{{ activeInputs.length }}</div>
+              <div class="text-sm text-preke-text-dim">Active Inputs</div>
             </div>
             <div>
-              <div class="text-2xl font-bold" :class="isLive ? 'text-red-500' : 'text-r58-text-primary'">
+              <div class="text-2xl font-bold" :class="isLive ? 'text-red-500' : 'text-preke-text'">
                 {{ isLive ? 'LIVE' : 'Offline' }}
               </div>
-              <div class="text-sm text-r58-text-secondary">Stream Status</div>
+              <div class="text-sm text-preke-text-dim">Stream Status</div>
             </div>
           </div>
         </div>
@@ -255,7 +255,7 @@ function enableFullMode() {
 
 <style scoped>
 .card {
-  @apply bg-r58-bg-secondary rounded-xl border border-r58-bg-tertiary;
+  @apply bg-preke-bg-elevated rounded-xl border border-preke-bg-surface;
 }
 </style>
 

@@ -38,7 +38,8 @@ async function selectMode(mode: 'recorder' | 'mixer') {
   
   // Create new abort controller for this request
   switchAbortController = new AbortController()
-  const signal = switchAbortController.signal
+  const currentController = switchAbortController // Capture reference for this request
+  const signal = currentController.signal
 
   selectedMode.value = mode
   switching.value = true
@@ -76,21 +77,15 @@ async function selectMode(mode: 'recorder' | 'mixer') {
     toast.error(message)
     console.error('Mode switch error:', e)
   } finally {
-    switching.value = false
+    // Only reset state if this request is still the current one
+    // (prevents race condition when user cancels and quickly starts new request)
+    if (switchAbortController === currentController) {
+      switching.value = false
+      switchAbortController = null
+    }
   }
 }
 
-function cancelSwitch() {
-  // Abort any in-flight request
-  if (switchAbortController) {
-    switchAbortController.abort()
-    switchAbortController = null
-  }
-  
-  switching.value = false
-  selectedMode.value = null
-  switchError.value = null
-}
 </script>
 
 <template>
@@ -160,15 +155,6 @@ function cancelSwitch() {
           </div>
         </button>
       </div>
-      
-      <!-- Go back button when loading -->
-      <button 
-        v-if="switching"
-        @click="cancelSwitch"
-        class="studio__back"
-      >
-        ← Go back
-      </button>
       
       <!-- Error message -->
       <div v-if="switchError" class="studio__error">
@@ -375,25 +361,6 @@ function cancelSwitch() {
 .studio__mode-desc {
   font-size: 0.875rem;
   color: var(--preke-text-muted);
-}
-
-/* Go back button */
-.studio__back {
-  margin-top: 2rem;
-  padding: 0.75rem 1.5rem;
-  border-radius: 0.75rem;
-  background: transparent;
-  border: 1px solid var(--preke-border);
-  color: var(--preke-text-muted);
-  font-size: 0.875rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.studio__back:hover {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: var(--preke-text-muted);
-  color: var(--preke-text);
 }
 
 /* Error */

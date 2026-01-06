@@ -206,7 +206,7 @@ function getSourceIcon(source: MixerSource): string {
     </div>
     
     <!-- Empty state -->
-    <div v-if="sources.length === 0" class="text-center py-6 text-r58-text-secondary">
+    <div v-if="sources.length === 0" class="text-center py-6 text-preke-text-dim">
       <svg class="w-8 h-8 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
       </svg>
@@ -225,13 +225,13 @@ function getSourceIcon(source: MixerSource): string {
             ? 'bg-red-500/10 border border-red-500/30' 
             : isInPreviewScene(source.id)
               ? 'bg-amber-500/10 border border-amber-500/30'
-              : 'bg-r58-bg-tertiary hover:bg-r58-bg-tertiary/80 border border-transparent'
+              : 'bg-preke-bg-surface hover:bg-preke-bg-surface/80 border border-transparent'
         ]"
       >
         <div class="flex items-center gap-3">
           <!-- Source icon -->
           <div 
-            class="w-10 h-10 rounded-lg bg-r58-bg-primary flex items-center justify-center flex-shrink-0"
+            class="w-10 h-10 rounded-lg bg-preke-bg-base flex items-center justify-center flex-shrink-0"
             :class="{ 
               'ring-2 ring-red-500': isInProgramScene(source.id),
               'ring-2 ring-amber-500': isInPreviewScene(source.id) && !isInProgramScene(source.id)
@@ -268,12 +268,12 @@ function getSourceIcon(source: MixerSource): string {
             <p 
               v-else
               @dblclick="startRename(source)"
-              class="font-medium text-sm truncate cursor-pointer hover:text-r58-accent-primary"
+              class="font-medium text-sm truncate cursor-pointer hover:text-preke-gold"
               title="Double-click to rename"
             >
               {{ getDisplayName(source) }}
             </p>
-            <div class="flex items-center gap-2 text-xs text-r58-text-secondary">
+            <div class="flex items-center gap-2 text-xs text-preke-text-dim">
               <span>{{ source.subtitle }}</span>
               <span v-if="isInProgramScene(source.id)" class="text-red-400 font-bold">LIVE</span>
               <span v-else-if="isInPreviewScene(source.id)" class="text-amber-400">PVW</span>
@@ -286,7 +286,7 @@ function getSourceIcon(source: MixerSource): string {
             <button
               v-if="mixerStore.previewSceneId && !isInPreviewScene(source.id)"
               @click="addToPreviewScene(source)"
-              class="p-1.5 rounded hover:bg-r58-bg-primary transition-colors text-r58-text-secondary hover:text-r58-accent-primary"
+              class="p-1.5 rounded hover:bg-preke-bg-base transition-colors text-preke-text-dim hover:text-preke-gold"
               title="Add to preview scene"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -301,7 +301,7 @@ function getSourceIcon(source: MixerSource): string {
               class="p-1.5 rounded transition-colors"
               :class="source.muted 
                 ? 'bg-red-500/20 text-red-400' 
-                : 'hover:bg-r58-bg-primary text-r58-text-secondary'"
+                : 'hover:bg-preke-bg-base text-preke-text-dim'"
               :title="source.muted ? 'Unmute' : 'Mute'"
           >
             <svg v-if="source.muted" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -317,10 +317,10 @@ function getSourceIcon(source: MixerSource): string {
         
         <!-- Audio level meter -->
         <div v-if="source.hasAudio" class="mt-2">
-          <div class="h-1 bg-r58-bg-primary rounded-full overflow-hidden">
+          <div class="h-1 bg-preke-bg-base rounded-full overflow-hidden">
             <div 
               class="h-full transition-all duration-75 rounded-full"
-              :class="source.muted ? 'bg-r58-bg-tertiary' : (source.audioLevel > 80 ? 'bg-red-500' : source.audioLevel > 60 ? 'bg-amber-500' : 'bg-emerald-500')"
+              :class="source.muted ? 'bg-preke-bg-surface' : (source.audioLevel > 80 ? 'bg-red-500' : source.audioLevel > 60 ? 'bg-amber-500' : 'bg-emerald-500')"
               :style="{ width: `${source.audioLevel || 0}%` }"
             ></div>
           </div>

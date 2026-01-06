@@ -156,7 +156,7 @@ defineExpose({ updateFromMetrics })
     
     <!-- Write speed -->
     <div class="flex items-center gap-1.5 text-sm">
-      <svg class="w-3.5 h-3.5 text-r58-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg class="w-3.5 h-3.5 text-preke-text-dim" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
       </svg>
       <span 
@@ -173,7 +173,7 @@ defineExpose({ updateFromMetrics })
     
     <!-- Buffer indicator (only show if non-zero) -->
     <div v-if="bufferPercent > 0" class="flex items-center gap-1.5 text-sm">
-      <span class="text-r58-text-secondary">Buf:</span>
+      <span class="text-preke-text-dim">Buf:</span>
       <span 
         :class="[
           'font-mono',

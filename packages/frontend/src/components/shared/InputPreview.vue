@@ -214,11 +214,11 @@ onUnmounted(() => {
       v-else-if="error && !loading"
       class="absolute inset-0 flex items-center justify-center bg-black/80"
     >
-      <div class="text-center text-r58-text-secondary">
+      <div class="text-center text-preke-text-dim">
         <p class="text-sm">{{ error }}</p>
         <button 
           @click="manualRetry"
-          class="mt-2 text-xs text-r58-accent-primary hover:underline"
+          class="mt-2 text-xs text-preke-gold hover:underline"
         >
           Retry
         </button>

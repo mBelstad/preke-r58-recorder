@@ -152,13 +152,13 @@ defineExpose({
     <!-- Loading state -->
     <div 
       v-if="!isReady" 
-      class="absolute inset-0 flex items-center justify-center bg-r58-bg-secondary z-10"
+      class="absolute inset-0 flex items-center justify-center bg-preke-bg-elevated z-10"
       data-testid="vdo-loading"
     >
       <div class="text-center">
-        <div class="animate-spin w-8 h-8 border-2 border-r58-accent-primary border-t-transparent rounded-full mx-auto mb-4"></div>
-        <p class="text-r58-text-secondary">Connecting to VDO.ninja...</p>
-        <p class="text-xs text-r58-text-secondary mt-2">
+        <div class="animate-spin w-8 h-8 border-2 border-preke-gold border-t-transparent rounded-full mx-auto mb-4"></div>
+        <p class="text-preke-text-dim">Connecting to VDO.ninja...</p>
+        <p class="text-xs text-preke-text-dim mt-2">
           {{ isMixerEmbed ? 'Loading mixer controls...' : 'Local mixer on R58' }}
         </p>
       </div>

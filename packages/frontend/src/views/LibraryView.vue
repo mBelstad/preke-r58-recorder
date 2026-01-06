@@ -83,7 +83,7 @@ function getCameraColor(camId: string): string {
     'cam2': 'bg-purple-500/20 text-purple-400',
     'cam3': 'bg-amber-500/20 text-amber-400',
   }
-  return colors[camId] || 'bg-r58-bg-tertiary text-r58-text-secondary'
+  return colors[camId] || 'bg-preke-bg-surface text-preke-text-dim'
 }
 
 function playVideo(file: RecordingFile) {
@@ -303,7 +303,7 @@ onMounted(() => {
               <div 
                 v-for="(file, index) in session.files.slice(0, 3)" 
                 :key="file.filename"
-                class="w-10 h-10 rounded-lg flex items-center justify-center text-xs font-bold border-2 border-r58-bg-secondary"
+                class="w-10 h-10 rounded-lg flex items-center justify-center text-xs font-bold border-2 border-preke-bg-elevated"
                 :class="getCameraColor(file.cam_id)"
                 :style="{ zIndex: 3 - index }"
               >
@@ -311,7 +311,7 @@ onMounted(() => {
               </div>
               <div 
                 v-if="session.files.length > 3" 
-                class="w-10 h-10 rounded-lg bg-r58-bg-tertiary flex items-center justify-center text-xs font-medium text-r58-text-secondary border-2 border-r58-bg-secondary"
+                class="w-10 h-10 rounded-lg bg-preke-bg-surface flex items-center justify-center text-xs font-medium text-preke-text-dim border-2 border-preke-bg-elevated"
               >
                 +{{ session.files.length - 3 }}
               </div>
@@ -327,8 +327,8 @@ onMounted(() => {
                   placeholder="Session name..."
                   autofocus
                 />
-                <button @click="saveRename(session)" class="text-r58-accent-primary text-sm">Save</button>
-                <button @click="cancelRename" class="text-r58-text-secondary text-sm">Cancel</button>
+                <button @click="saveRename(session)" class="text-preke-gold text-sm">Save</button>
+                <button @click="cancelRename" class="text-preke-text-dim text-sm">Cancel</button>
               </div>
               <div v-else class="flex items-center gap-2">
                 <h3 class="font-medium text-preke-text">{{ session.name || session.id.substring(0, 8) }}</h3>
@@ -371,14 +371,14 @@ onMounted(() => {
         class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-8"
         @click.self="closeSession"
       >
-        <div class="bg-r58-bg-secondary rounded-xl max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
+        <div class="bg-preke-bg-elevated rounded-xl max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
           <!-- Modal Header -->
-          <div class="px-6 py-4 border-b border-r58-bg-tertiary flex items-center justify-between">
+          <div class="px-6 py-4 border-b border-preke-bg-surface flex items-center justify-between">
             <div>
               <h2 class="text-lg font-semibold">{{ selectedSession.name || selectedSession.id.substring(0, 8) }}</h2>
-              <p class="text-sm text-r58-text-secondary">{{ selectedSession.date }} · {{ selectedSession.file_count }} files · {{ selectedSession.total_size }}</p>
+              <p class="text-sm text-preke-text-dim">{{ selectedSession.date }} · {{ selectedSession.file_count }} files · {{ selectedSession.total_size }}</p>
             </div>
-            <button @click="closeSession" class="text-r58-text-secondary hover:text-r58-text-primary">
+            <button @click="closeSession" class="text-preke-text-dim hover:text-preke-text">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -387,12 +387,12 @@ onMounted(() => {
           
           <!-- Modal Content -->
           <div class="flex-1 overflow-y-auto p-6">
-            <h3 class="text-sm font-semibold text-r58-text-secondary uppercase tracking-wide mb-3">Recording Files</h3>
+            <h3 class="text-sm font-semibold text-preke-text-dim uppercase tracking-wide mb-3">Recording Files</h3>
             <div class="space-y-2">
               <div 
                 v-for="file in selectedSession.files"
                 :key="file.filename"
-                class="flex items-center justify-between p-3 bg-r58-bg-tertiary rounded-lg"
+                class="flex items-center justify-between p-3 bg-preke-bg-surface rounded-lg"
               >
                 <div class="flex items-center gap-3">
                   <div 
@@ -403,11 +403,11 @@ onMounted(() => {
                   </div>
                   <div>
                     <p class="font-medium text-sm">{{ getCameraLabel(file.cam_id) }}</p>
-                    <p class="text-xs text-r58-text-secondary">{{ file.filename }}</p>
+                    <p class="text-xs text-preke-text-dim">{{ file.filename }}</p>
                   </div>
                 </div>
                 <div class="flex items-center gap-3">
-                  <span class="text-sm text-r58-text-secondary">{{ (file.size_bytes / (1024 * 1024 * 1024)).toFixed(2) }} GB</span>
+                  <span class="text-sm text-preke-text-dim">{{ (file.size_bytes / (1024 * 1024 * 1024)).toFixed(2) }} GB</span>
                   <button 
                     @click="playVideo(file)"
                     class="btn btn-primary text-sm"

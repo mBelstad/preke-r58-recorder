@@ -78,9 +78,9 @@ function handleKeydown(event: KeyboardEvent) {
         @click.self="handleCancel"
         @keydown="handleKeydown"
       >
-        <div class="bg-r58-bg-secondary rounded-lg shadow-xl max-w-md w-full p-6">
+        <div class="bg-preke-bg-elevated rounded-lg shadow-xl max-w-md w-full p-6">
           <h2 class="text-lg font-semibold mb-2">Name This Recording</h2>
-          <p class="text-r58-text-secondary text-sm mb-4">
+          <p class="text-preke-text-dim text-sm mb-4">
             Give your recording a name to find it easily later (optional).
           </p>
           
@@ -90,17 +90,17 @@ function handleKeydown(event: KeyboardEvent) {
             v-model="sessionName"
             type="text"
             :placeholder="suggestion"
-            class="w-full px-4 py-2 bg-r58-bg-tertiary border border-r58-bg-tertiary rounded-lg text-r58-text-primary placeholder-r58-text-secondary focus:outline-none focus:ring-2 focus:ring-r58-accent-primary"
+            class="w-full px-4 py-2 bg-preke-bg-surface border border-preke-bg-surface rounded-lg text-preke-text placeholder-preke-text-dim focus:outline-none focus:ring-2 focus:ring-preke-gold"
           />
           
-          <p class="text-xs text-r58-text-secondary mt-2">
+          <p class="text-xs text-preke-text-dim mt-2">
             Suggested: {{ suggestion }}
           </p>
           
           <div class="flex justify-between mt-6">
             <button 
               @click="handleSkip"
-              class="text-sm text-r58-text-secondary hover:text-r58-text-primary transition-colors"
+              class="text-sm text-preke-text-dim hover:text-preke-text transition-colors"
             >
               Skip (use default)
             </button>

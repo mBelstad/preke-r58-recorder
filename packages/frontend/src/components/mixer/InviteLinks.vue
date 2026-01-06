@@ -78,19 +78,19 @@ const qrCodeUrl = computed(() => {
   <div class="invite-links space-y-3" data-testid="invite-links">
     <!-- Guest Name Input -->
     <div>
-      <label class="block text-xs text-r58-text-secondary mb-1">Guest Name</label>
+      <label class="block text-xs text-preke-text-dim mb-1">Guest Name</label>
       <input 
         v-model="guestName"
         type="text"
         placeholder="e.g., John Smith"
-        class="w-full px-3 py-2 text-sm bg-r58-bg-tertiary border border-r58-bg-tertiary rounded-lg focus:border-r58-accent-primary focus:outline-none"
+        class="w-full px-3 py-2 text-sm bg-preke-bg-surface border border-preke-bg-surface rounded-lg focus:border-preke-gold focus:outline-none"
       />
     </div>
     
     <!-- Generated Link -->
     <div v-if="inviteLink" class="space-y-2">
-      <div class="p-2 bg-r58-bg-tertiary rounded-lg">
-        <code class="text-xs text-r58-text-secondary break-all block">
+      <div class="p-2 bg-preke-bg-surface rounded-lg">
+        <code class="text-xs text-preke-text-dim break-all block">
           {{ inviteLink }}
         </code>
       </div>
@@ -132,7 +132,7 @@ const qrCodeUrl = computed(() => {
     <!-- Advanced Options Toggle -->
     <button 
       @click="showAdvanced = !showAdvanced"
-      class="w-full text-xs text-r58-text-secondary hover:text-r58-text-primary flex items-center justify-center gap-1"
+      class="w-full text-xs text-preke-text-dim hover:text-preke-text flex items-center justify-center gap-1"
     >
       <span>{{ showAdvanced ? 'Hide' : 'Show' }} options</span>
       <svg 
@@ -145,7 +145,7 @@ const qrCodeUrl = computed(() => {
     </button>
     
     <!-- Advanced Options -->
-    <div v-if="showAdvanced" class="space-y-2 p-3 bg-r58-bg-tertiary rounded-lg">
+    <div v-if="showAdvanced" class="space-y-2 p-3 bg-preke-bg-surface rounded-lg">
       <label class="flex items-center gap-2 text-xs">
         <input type="checkbox" v-model="enableVideo" class="rounded" />
         <span>Enable video</span>
@@ -160,7 +160,7 @@ const qrCodeUrl = computed(() => {
     <div v-if="inviteLink && qrCodeUrl" class="text-center">
       <button 
         @click="showAdvanced = !showAdvanced"
-        class="text-xs text-r58-text-secondary hover:text-r58-text-primary"
+        class="text-xs text-preke-text-dim hover:text-preke-text"
       >
         Show QR Code
       </button>
@@ -174,7 +174,7 @@ const qrCodeUrl = computed(() => {
     </div>
     
     <!-- Room Info -->
-    <div class="text-xs text-r58-text-secondary text-center">
+    <div class="text-xs text-preke-text-dim text-center">
       Room: <span class="font-mono">{{ VDO_ROOM }}</span>
     </div>
   </div>

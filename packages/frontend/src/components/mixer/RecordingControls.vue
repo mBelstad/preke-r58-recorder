@@ -141,8 +141,8 @@ function toggleRecording() {
 
 // Get status color
 function getStatusColor() {
-  if (isRecording.value) return 'bg-r58-accent-danger animate-pulse'
-  return 'bg-r58-bg-tertiary'
+  if (isRecording.value) return 'bg-preke-red animate-pulse'
+  return 'bg-preke-bg-surface'
 }
 
 // Get status text
@@ -156,7 +156,7 @@ function getStatusText() {
 <template>
   <div class="recording-controls space-y-3" data-testid="recording-controls">
     <!-- Status display -->
-    <div class="flex items-center gap-3 px-3 py-2 bg-r58-bg-tertiary rounded-lg">
+    <div class="flex items-center gap-3 px-3 py-2 bg-preke-bg-surface rounded-lg">
       <!-- Status indicator -->
       <span 
         class="w-3 h-3 rounded-full"
@@ -172,7 +172,7 @@ function getStatusText() {
       <!-- Duration (when recording) -->
       <span 
         v-if="isRecording" 
-        class="text-lg font-mono font-bold text-r58-accent-danger"
+        class="text-lg font-mono font-bold text-preke-red"
         data-testid="recording-duration"
       >
         {{ formattedDuration }}
@@ -211,13 +211,13 @@ function getStatusText() {
     </div>
     
     <!-- Download link (when available) -->
-    <div v-if="downloadUrl" class="px-3 py-2 bg-r58-accent-success/10 border border-r58-accent-success/30 rounded-lg">
+    <div v-if="downloadUrl" class="px-3 py-2 bg-preke-green/10 border border-preke-green/30 rounded-lg">
       <div class="flex items-center justify-between">
-        <span class="text-sm text-r58-accent-success">Recording ready!</span>
+        <span class="text-sm text-preke-green">Recording ready!</span>
         <a 
           :href="downloadUrl" 
           download 
-          class="text-sm text-r58-accent-primary hover:underline"
+          class="text-sm text-preke-gold hover:underline"
         >
           Download
         </a>
@@ -225,7 +225,7 @@ function getStatusText() {
     </div>
     
     <!-- Info text -->
-    <p class="text-xs text-r58-text-secondary px-1">
+    <p class="text-xs text-preke-text-dim px-1">
       Records the mixed output locally in your browser. Recording is saved when stopped.
     </p>
   </div>
@@ -233,7 +233,7 @@ function getStatusText() {
 
 <style scoped>
 .btn-danger {
-  @apply bg-r58-accent-danger hover:bg-red-600;
+  @apply bg-preke-red hover:bg-red-600;
 }
 </style>
 

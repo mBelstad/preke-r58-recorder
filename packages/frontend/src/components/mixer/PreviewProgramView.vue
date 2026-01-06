@@ -122,16 +122,16 @@ const durationOptions = [
         <div class="flex items-center justify-between mb-2">
           <div class="flex items-center gap-2">
             <span class="text-xs font-bold uppercase tracking-wider text-amber-400">PVW</span>
-            <span class="text-xs text-r58-text-secondary">Preview</span>
+            <span class="text-xs text-preke-text-dim">Preview</span>
           </div>
-          <span v-if="previewScene" class="text-xs text-r58-text-secondary">
+          <span v-if="previewScene" class="text-xs text-preke-text-dim">
             {{ previewScene.name }}
           </span>
         </div>
         
         <div 
           class="flex-1 bg-black rounded-lg overflow-hidden border-2 transition-colors relative"
-          :class="previewScene ? 'border-amber-500/50' : 'border-r58-bg-tertiary'"
+          :class="previewScene ? 'border-amber-500/50' : 'border-preke-bg-surface'"
         >
           <!-- VDO.ninja Scene Preview (live video) -->
           <iframe
@@ -159,13 +159,13 @@ const durationOptions = [
           <!-- Loading State -->
           <div 
             v-if="previewScene && !pvwIframeReady" 
-            class="absolute inset-0 flex items-center justify-center bg-r58-bg-secondary"
+            class="absolute inset-0 flex items-center justify-center bg-preke-bg-elevated"
           >
             <div class="animate-spin w-6 h-6 border-2 border-amber-400 border-t-transparent rounded-full"></div>
           </div>
           
           <!-- Empty State -->
-          <div v-if="!previewScene" class="absolute inset-0 flex items-center justify-center text-r58-text-secondary">
+          <div v-if="!previewScene" class="absolute inset-0 flex items-center justify-center text-preke-text-dim">
             <div class="text-center">
               <svg class="w-8 h-8 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
@@ -185,7 +185,7 @@ const durationOptions = [
           class="take-button w-20 h-16 rounded-lg font-bold text-lg transition-all"
           :class="canTake 
             ? 'bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-500/30' 
-            : 'bg-r58-bg-tertiary text-r58-text-secondary cursor-not-allowed'"
+            : 'bg-preke-bg-surface text-preke-text-dim cursor-not-allowed'"
           data-testid="take-button"
         >
           <span v-if="mixerStore.isTransitioning" class="animate-pulse">...</span>
@@ -198,8 +198,8 @@ const durationOptions = [
           :disabled="!mixerStore.previewSceneId"
           class="w-20 h-10 rounded-lg font-bold text-sm transition-all"
           :class="mixerStore.previewSceneId 
-            ? 'bg-r58-bg-tertiary hover:bg-r58-accent-primary text-r58-text-primary' 
-            : 'bg-r58-bg-tertiary/50 text-r58-text-secondary cursor-not-allowed'"
+            ? 'bg-preke-bg-surface hover:bg-preke-gold text-preke-text' 
+            : 'bg-preke-bg-surface/50 text-preke-text-dim cursor-not-allowed'"
           data-testid="cut-button"
         >
           CUT
@@ -209,7 +209,7 @@ const durationOptions = [
         <div class="flex flex-col gap-1 mt-2">
           <select 
             v-model="selectedTransition"
-            class="w-20 px-2 py-1 text-xs bg-r58-bg-tertiary border border-r58-bg-tertiary rounded text-center"
+            class="w-20 px-2 py-1 text-xs bg-preke-bg-surface border border-preke-bg-surface rounded text-center"
           >
             <option v-for="opt in transitionOptions" :key="opt.value" :value="opt.value">
               {{ opt.label }}
@@ -218,7 +218,7 @@ const durationOptions = [
           
           <select 
             v-model.number="transitionDuration"
-            class="w-20 px-2 py-1 text-xs bg-r58-bg-tertiary border border-r58-bg-tertiary rounded text-center"
+            class="w-20 px-2 py-1 text-xs bg-preke-bg-surface border border-preke-bg-surface rounded text-center"
           >
             <option v-for="opt in durationOptions" :key="opt.value" :value="opt.value">
               {{ opt.label }}
@@ -233,11 +233,11 @@ const durationOptions = [
           <div class="flex items-center gap-2">
             <span 
               class="text-xs font-bold uppercase tracking-wider"
-              :class="isLive ? 'text-red-500' : 'text-r58-text-secondary'"
+              :class="isLive ? 'text-red-500' : 'text-preke-text-dim'"
             >
               PGM
             </span>
-            <span class="text-xs text-r58-text-secondary">Program</span>
+            <span class="text-xs text-preke-text-dim">Program</span>
             <span 
               v-if="isLive" 
               class="px-2 py-0.5 bg-red-600 text-white text-xs font-bold rounded animate-pulse"
@@ -245,14 +245,14 @@ const durationOptions = [
               LIVE
             </span>
           </div>
-          <span v-if="programScene" class="text-xs text-r58-text-secondary">
+          <span v-if="programScene" class="text-xs text-preke-text-dim">
             {{ programScene.name }}
           </span>
         </div>
         
         <div 
           class="flex-1 bg-black rounded-lg overflow-hidden border-2 transition-colors relative"
-          :class="isLive ? 'border-red-500' : (programScene ? 'border-emerald-500/50' : 'border-r58-bg-tertiary')"
+          :class="isLive ? 'border-red-500' : (programScene ? 'border-emerald-500/50' : 'border-preke-bg-surface')"
         >
           <!-- VDO.ninja Program Output (live video from scene 1) -->
           <iframe
@@ -280,7 +280,7 @@ const durationOptions = [
           <!-- Loading State -->
           <div 
             v-if="!pgmIframeReady" 
-            class="absolute inset-0 flex items-center justify-center bg-r58-bg-secondary"
+            class="absolute inset-0 flex items-center justify-center bg-preke-bg-elevated"
           >
             <div class="animate-spin w-6 h-6 border-2 border-emerald-400 border-t-transparent rounded-full"></div>
           </div>
@@ -291,7 +291,7 @@ const durationOptions = [
           </div>
           
           <!-- Empty State (only when no program scene AND iframe not loaded) -->
-          <div v-if="!programScene && !pgmIframeReady" class="absolute inset-0 flex items-center justify-center text-r58-text-secondary">
+          <div v-if="!programScene && !pgmIframeReady" class="absolute inset-0 flex items-center justify-center text-preke-text-dim">
             <div class="text-center">
               <svg class="w-8 h-8 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />

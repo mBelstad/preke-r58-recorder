@@ -93,12 +93,12 @@ function deleteScene(scene: Scene) {
 
 function getSceneStateClass(scene: Scene): string {
   if (scene.id === programSceneId.value) {
-    return 'ring-2 ring-red-500 ring-offset-2 ring-offset-r58-bg-primary'
+    return 'ring-2 ring-red-500 ring-offset-2 ring-offset-preke-bg-base'
   }
   if (scene.id === previewSceneId.value) {
-    return 'ring-2 ring-amber-500 ring-offset-1 ring-offset-r58-bg-primary'
+    return 'ring-2 ring-amber-500 ring-offset-1 ring-offset-preke-bg-base'
   }
-  return 'hover:ring-2 hover:ring-r58-accent-primary/50'
+  return 'hover:ring-2 hover:ring-preke-gold/50'
 }
 
 function getSceneLabel(scene: Scene, index: number): string {
@@ -125,13 +125,13 @@ function getSceneLabel(scene: Scene, index: number): string {
         :data-testid="`scene-${scene.id}`"
       >
         <!-- Thumbnail Preview -->
-        <div class="relative aspect-video bg-r58-bg-tertiary rounded-lg overflow-hidden">
+        <div class="relative aspect-video bg-preke-bg-surface rounded-lg overflow-hidden">
           <!-- Mini layout preview -->
           <div class="absolute inset-0">
             <div 
               v-for="slot in scene.slots" 
               :key="slot.id"
-              class="absolute bg-r58-bg-secondary border border-r58-bg-tertiary/30"
+              class="absolute bg-preke-bg-elevated border border-preke-bg-surface/30"
               :style="{
                 left: `${slot.position.x}%`,
                 top: `${slot.position.y}%`,
@@ -144,7 +144,7 @@ function getSceneLabel(scene: Scene, index: number): string {
           <!-- Keyboard shortcut badge -->
           <div 
             v-if="index < 8"
-            class="absolute top-1 left-1 w-5 h-5 flex items-center justify-center bg-r58-bg-primary/80 rounded text-xs font-mono font-bold"
+            class="absolute top-1 left-1 w-5 h-5 flex items-center justify-center bg-preke-bg-base/80 rounded text-xs font-mono font-bold"
           >
             {{ index + 1 }}
           </div>
@@ -168,7 +168,7 @@ function getSceneLabel(scene: Scene, index: number): string {
         </div>
         
         <!-- Scene Name -->
-        <p class="mt-1 text-xs text-center truncate text-r58-text-secondary">
+        <p class="mt-1 text-xs text-center truncate text-preke-text-dim">
           {{ scene.name }}
         </p>
       </div>
@@ -176,10 +176,10 @@ function getSceneLabel(scene: Scene, index: number): string {
       <!-- Add Scene Button -->
       <button
         @click="emit('add-scene')"
-        class="flex-shrink-0 w-28 aspect-video bg-r58-bg-tertiary/50 hover:bg-r58-bg-tertiary rounded-lg border-2 border-dashed border-r58-bg-tertiary hover:border-r58-accent-primary/50 flex items-center justify-center transition-colors"
+        class="flex-shrink-0 w-28 aspect-video bg-preke-bg-surface/50 hover:bg-preke-bg-surface rounded-lg border-2 border-dashed border-preke-bg-surface hover:border-preke-gold/50 flex items-center justify-center transition-colors"
         data-testid="add-scene-button"
       >
-        <div class="text-center text-r58-text-secondary">
+        <div class="text-center text-preke-text-dim">
           <svg class="w-6 h-6 mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
           </svg>
@@ -192,12 +192,12 @@ function getSceneLabel(scene: Scene, index: number): string {
     <Teleport to="body">
       <div 
         v-if="showContextMenu && contextMenuScene"
-        class="fixed z-50 bg-r58-bg-secondary border border-r58-bg-tertiary rounded-lg shadow-xl py-1 min-w-[140px]"
+        class="fixed z-50 bg-preke-bg-elevated border border-preke-bg-surface rounded-lg shadow-xl py-1 min-w-[140px]"
         :style="{ left: `${contextMenuPosition.x}px`, top: `${contextMenuPosition.y}px` }"
       >
         <button 
           @click="editScene(contextMenuScene!)"
-          class="w-full px-3 py-2 text-left text-sm hover:bg-r58-bg-tertiary flex items-center gap-2"
+          class="w-full px-3 py-2 text-left text-sm hover:bg-preke-bg-surface flex items-center gap-2"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -207,7 +207,7 @@ function getSceneLabel(scene: Scene, index: number): string {
         
         <button 
           @click="duplicateScene(contextMenuScene!)"
-          class="w-full px-3 py-2 text-left text-sm hover:bg-r58-bg-tertiary flex items-center gap-2"
+          class="w-full px-3 py-2 text-left text-sm hover:bg-preke-bg-surface flex items-center gap-2"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
@@ -215,7 +215,7 @@ function getSceneLabel(scene: Scene, index: number): string {
           Duplicate
         </button>
         
-        <div class="border-t border-r58-bg-tertiary my-1"></div>
+        <div class="border-t border-preke-bg-surface my-1"></div>
         
         <button 
           @click="deleteScene(contextMenuScene!)"
@@ -242,7 +242,7 @@ function getSceneLabel(scene: Scene, index: number): string {
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  background: var(--r58-bg-tertiary);
+  background: var(--preke-bg-surface);
   border-radius: 2px;
 }
 </style>

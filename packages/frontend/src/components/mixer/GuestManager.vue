@@ -73,12 +73,12 @@ function kickSource(sourceId: string) {
         <h4 class="text-sm font-medium flex items-center gap-2">
           <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
           Waiting Room
-          <span class="text-xs text-r58-text-secondary">({{ greenroomGuests.length }})</span>
+          <span class="text-xs text-preke-text-dim">({{ greenroomGuests.length }})</span>
         </h4>
         <button 
           v-if="greenroomGuests.length > 1"
           @click="admitAll"
-          class="text-xs text-r58-accent-primary hover:underline"
+          class="text-xs text-preke-gold hover:underline"
         >
           Admit All
         </button>
@@ -91,8 +91,8 @@ function kickSource(sourceId: string) {
           class="flex items-center gap-3 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg"
         >
           <!-- Guest Avatar -->
-          <div class="w-10 h-10 rounded-full bg-r58-bg-tertiary flex items-center justify-center">
-            <svg class="w-5 h-5 text-r58-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div class="w-10 h-10 rounded-full bg-preke-bg-surface flex items-center justify-center">
+            <svg class="w-5 h-5 text-preke-text-dim" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>
           </div>
@@ -100,7 +100,7 @@ function kickSource(sourceId: string) {
           <!-- Guest Info -->
           <div class="flex-1 min-w-0">
             <p class="font-medium text-sm truncate">{{ guest.label }}</p>
-            <div class="flex items-center gap-2 text-xs text-r58-text-secondary">
+            <div class="flex items-center gap-2 text-xs text-preke-text-dim">
               <span v-if="guest.hasVideo">📹</span>
               <span v-if="guest.hasAudio">🎤</span>
               <span>Waiting {{ getWaitTime(guest.joinedAt) }}</span>
@@ -117,7 +117,7 @@ function kickSource(sourceId: string) {
             </button>
             <button 
               @click="rejectGuest(guest)"
-              class="px-3 py-1 text-xs bg-r58-bg-tertiary text-r58-text-secondary rounded hover:bg-red-500/20 hover:text-red-400 transition-colors"
+              class="px-3 py-1 text-xs bg-preke-bg-surface text-preke-text-dim rounded hover:bg-red-500/20 hover:text-red-400 transition-colors"
             >
               Reject
             </button>
@@ -131,17 +131,17 @@ function kickSource(sourceId: string) {
       <h4 class="text-sm font-medium mb-3 flex items-center gap-2">
         <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
         Connected
-        <span class="text-xs text-r58-text-secondary">({{ connectedSources.length }})</span>
+        <span class="text-xs text-preke-text-dim">({{ connectedSources.length }})</span>
       </h4>
       
       <div v-if="connectedSources.length > 0" class="space-y-2">
         <div 
           v-for="source in connectedSources" 
           :key="source.id"
-          class="flex items-center gap-3 p-2 bg-r58-bg-tertiary/50 rounded-lg"
+          class="flex items-center gap-3 p-2 bg-preke-bg-surface/50 rounded-lg"
         >
           <!-- Type Icon -->
-          <div class="w-8 h-8 rounded bg-r58-bg-tertiary flex items-center justify-center">
+          <div class="w-8 h-8 rounded bg-preke-bg-surface flex items-center justify-center">
             <svg v-if="source.type === 'camera'" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
             </svg>
@@ -156,7 +156,7 @@ function kickSource(sourceId: string) {
           <!-- Source Info -->
           <div class="flex-1 min-w-0">
             <p class="text-sm truncate">{{ source.label }}</p>
-            <p class="text-xs text-r58-text-secondary">{{ source.type }}</p>
+            <p class="text-xs text-preke-text-dim">{{ source.type }}</p>
           </div>
           
           <!-- Status Indicators -->
@@ -174,7 +174,7 @@ function kickSource(sourceId: string) {
           <button 
             v-if="source.type === 'guest'"
             @click="kickSource(source.id)"
-            class="p-1 text-r58-text-secondary hover:text-red-400 transition-colors"
+            class="p-1 text-preke-text-dim hover:text-red-400 transition-colors"
             title="Remove guest"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -185,7 +185,7 @@ function kickSource(sourceId: string) {
       </div>
       
       <!-- Empty State -->
-      <div v-else class="text-center py-4 text-r58-text-secondary">
+      <div v-else class="text-center py-4 text-preke-text-dim">
         <p class="text-sm">No sources connected</p>
         <p class="text-xs mt-1">HDMI sources and guests will appear here</p>
       </div>
