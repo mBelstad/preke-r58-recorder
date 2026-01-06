@@ -14,6 +14,7 @@ const proposals = [
   { id: 2, name: 'Geometric 3D', desc: 'Animated 3D geometric shapes' },
   { id: 3, name: 'Combined', desc: 'Split + geometric together' },
   { id: 4, name: 'Ribbons', desc: 'Complex intersecting ribbons' },
+  { id: 5, name: 'Stock Image', desc: 'Photo background with light effects' },
 ]
 
 // Simulated mode selection (for demo)
@@ -270,6 +271,57 @@ function selectMode(mode: 'recorder' | 'mixer') {
         <div class="ribbons__side ribbons__side--right" @click="selectMode('mixer')">
           <div class="ribbons__card">
             <div class="ribbons__icon ribbons__icon--mixer">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <rect x="2" y="2" width="9" height="6" rx="1"/>
+                <rect x="13" y="2" width="9" height="6" rx="1"/>
+                <rect x="2" y="10" width="9" height="6" rx="1"/>
+                <rect x="13" y="10" width="9" height="6" rx="1"/>
+                <circle cx="12" cy="20" r="2" fill="currentColor"/>
+                <path d="M9 19.5a4 4 0 0 1 6 0" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <h3>Mixer</h3>
+            <p>Live Switching</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════
+         PROPOSAL 5: STOCK IMAGE
+         Photo background with animated light
+         ═══════════════════════════════════════════ -->
+    <div v-show="activeProposal === 5" class="proposal stock-image">
+      <!-- Moving light behind the image -->
+      <div class="stock-image__light"></div>
+      
+      <!-- The stock image (semi-transparent) -->
+      <div class="stock-image__photo"></div>
+      
+      <!-- Dark overlay on top -->
+      <div class="stock-image__overlay"></div>
+      
+      <!-- Content -->
+      <div class="stock-image__content">
+        <div class="stock-image__side stock-image__side--left" @click="selectMode('recorder')">
+          <div class="stock-image__card">
+            <div class="stock-image__icon stock-image__icon--recorder">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <circle cx="12" cy="12" r="8"/>
+              </svg>
+            </div>
+            <h3>Recorder</h3>
+            <p>Multi-cam ISO</p>
+          </div>
+        </div>
+        
+        <div class="stock-image__center">
+          <span class="stock-image__logo">Preke Studio</span>
+        </div>
+        
+        <div class="stock-image__side stock-image__side--right" @click="selectMode('mixer')">
+          <div class="stock-image__card">
+            <div class="stock-image__icon stock-image__icon--mixer">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                 <rect x="2" y="2" width="9" height="6" rx="1"/>
                 <rect x="13" y="2" width="9" height="6" rx="1"/>
@@ -1409,6 +1461,205 @@ function selectMode(mode: 'recorder' | 'mixer') {
   text-transform: uppercase;
   letter-spacing: 0.2em;
   background: rgba(8, 8, 10, 0.9);
+  padding: 0.5rem 1rem;
+  border-radius: 100px;
+  border: 1px solid rgba(224, 160, 48, 0.2);
+}
+
+/* ═══════════════════════════════════════════
+   PROPOSAL 5: STOCK IMAGE
+   Photo background with moving light behind
+   and dark overlay on top
+   ═══════════════════════════════════════════ */
+.stock-image {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0a0a0c;
+  overflow: hidden;
+}
+
+/* Moving light effect behind the image */
+.stock-image__light {
+  position: absolute;
+  inset: -20%;
+  background: radial-gradient(ellipse at 50% 50%, 
+    rgba(224, 160, 48, 0.4) 0%, 
+    rgba(224, 160, 48, 0.15) 30%, 
+    transparent 60%
+  );
+  animation: stock-light-move 15s ease-in-out infinite;
+  z-index: 1;
+}
+
+@keyframes stock-light-move {
+  0%, 100% { 
+    transform: translate(0, 0) scale(1);
+    background: radial-gradient(ellipse at 30% 40%, 
+      rgba(224, 160, 48, 0.45) 0%, 
+      rgba(224, 160, 48, 0.15) 30%, 
+      transparent 60%
+    );
+  }
+  25% { 
+    transform: translate(10%, 5%) scale(1.1);
+    background: radial-gradient(ellipse at 70% 35%, 
+      rgba(224, 160, 48, 0.5) 0%, 
+      rgba(224, 160, 48, 0.18) 30%, 
+      transparent 60%
+    );
+  }
+  50% { 
+    transform: translate(5%, 10%) scale(1.05);
+    background: radial-gradient(ellipse at 60% 65%, 
+      rgba(224, 160, 48, 0.4) 0%, 
+      rgba(224, 160, 48, 0.14) 30%, 
+      transparent 60%
+    );
+  }
+  75% { 
+    transform: translate(-5%, 5%) scale(1.08);
+    background: radial-gradient(ellipse at 40% 60%, 
+      rgba(224, 160, 48, 0.48) 0%, 
+      rgba(224, 160, 48, 0.16) 30%, 
+      transparent 60%
+    );
+  }
+}
+
+/* The stock image - semi-transparent */
+.stock-image__photo {
+  position: absolute;
+  inset: -5%;
+  background-image: url('@/assets/stock-background.jpeg');
+  background-size: cover;
+  background-position: center;
+  opacity: 0.35;
+  z-index: 2;
+}
+
+/* Dark overlay on top of the image */
+.stock-image__overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(10, 10, 12, 0.7) 0%,
+    rgba(10, 10, 12, 0.4) 30%,
+    rgba(10, 10, 12, 0.4) 70%,
+    rgba(10, 10, 12, 0.8) 100%
+  );
+  z-index: 3;
+}
+
+/* Content layer */
+.stock-image__content {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3rem;
+  width: 100%;
+  max-width: 900px;
+  padding: 2rem;
+}
+
+.stock-image__side {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.stock-image__card {
+  padding: 2.5rem 3rem;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  text-align: center;
+  transition: all 0.4s ease;
+}
+
+.stock-image__side:hover .stock-image__card {
+  transform: translateY(-8px);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4);
+}
+
+.stock-image__side--left:hover .stock-image__card {
+  border-color: rgba(212, 90, 90, 0.3);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4), 0 0 40px rgba(212, 90, 90, 0.1);
+}
+
+.stock-image__side--right:hover .stock-image__card {
+  border-color: rgba(124, 58, 237, 0.3);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4), 0 0 40px rgba(124, 58, 237, 0.1);
+}
+
+.stock-image__icon {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 1rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.stock-image__icon svg {
+  width: 36px;
+  height: 36px;
+}
+
+.stock-image__icon--recorder {
+  background: rgba(212, 90, 90, 0.15);
+  color: #d45a5a;
+}
+
+.stock-image__side:hover .stock-image__icon--recorder {
+  background: rgba(212, 90, 90, 0.25);
+  box-shadow: 0 0 30px rgba(212, 90, 90, 0.3);
+}
+
+.stock-image__icon--mixer {
+  background: rgba(124, 58, 237, 0.15);
+  color: #a78bfa;
+}
+
+.stock-image__side:hover .stock-image__icon--mixer {
+  background: rgba(124, 58, 237, 0.25);
+  box-shadow: 0 0 30px rgba(124, 58, 237, 0.3);
+}
+
+.stock-image__card h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--preke-text);
+  margin-bottom: 0.25rem;
+}
+
+.stock-image__card p {
+  font-size: 0.875rem;
+  color: var(--preke-text-muted);
+}
+
+.stock-image__center {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+}
+
+.stock-image__logo {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--preke-gold);
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  background: rgba(10, 10, 12, 0.9);
   padding: 0.5rem 1rem;
   border-radius: 100px;
   border: 1px solid rgba(224, 160, 48, 0.2);
