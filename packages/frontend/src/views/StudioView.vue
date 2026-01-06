@@ -818,7 +818,7 @@ async function selectMode(mode: 'recorder' | 'mixer') {
 
 /* Cards */
 .studio__card {
-  padding: 2.5rem 3rem;
+  padding: 3.5rem 2rem;
   background: rgba(0, 0, 0, 0.25);
   backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.05);
@@ -827,7 +827,7 @@ async function selectMode(mode: 'recorder' | 'mixer') {
   transition: all 0.4s ease;
   cursor: pointer;
   width: 100%;
-  max-width: 100%;
+  max-width: 320px;
   box-sizing: border-box;
 }
 
