@@ -32,10 +32,10 @@ import logoPrekeWhiteCropped from '@/assets/logo-preke-white-cropped.svg'
 
 .preke-studio-logo__text {
   font-family: var(--preke-font-sans);
-  font-size: 34px; /* Increased from 30.5px */
-  font-weight: 800;
+  font-size: 32px; /* Slightly smaller */
+  font-weight: 900; /* Heavier weight for fatter appearance */
   color: var(--preke-gold);
-  letter-spacing: 0.02em;
+  letter-spacing: 0.01em; /* Tighter spacing for fatter look */
   line-height: 1;
   flex-shrink: 0;
   white-space: nowrap;
