@@ -7,7 +7,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { isElectron, setDeviceUrl } from '@/lib/api'
-import logoSidebar from '@/assets/logo-sidebar.svg'
+import logoStacked from '@/assets/logo-studio-stacked.svg'
 
 interface DeviceConfig {
   id: string
@@ -343,13 +343,7 @@ onUnmounted(() => {
         
         <div class="welcome-content">
           <div class="welcome-logo-wrap">
-            <div class="welcome-logo-inline">
-              <img :src="logoSidebar" alt="" class="welcome-logo-waveform" />
-              <div class="welcome-logo-text">
-                <span class="welcome-logo-preke">Preke</span>
-                <span class="welcome-logo-studio">Studio</span>
-              </div>
-            </div>
+            <img :src="logoStacked" alt="Preke Studio" class="welcome-logo" />
             <div class="welcome-glow"></div>
           </div>
         </div>
@@ -357,15 +351,9 @@ onUnmounted(() => {
     </Transition>
     
     <div v-show="!showWelcome" class="setup-page__content">
-      <!-- Large centered logo - inline layout with waveform + text -->
+      <!-- Large centered logo - stacked Preke Studio logo -->
       <div class="logo-hero">
-        <div class="logo-hero__inline">
-          <img :src="logoSidebar" alt="" class="logo-hero__waveform" />
-          <div class="logo-hero__text">
-            <span class="logo-hero__preke">Preke</span>
-            <span class="logo-hero__studio">Studio</span>
-          </div>
-        </div>
+        <img :src="logoStacked" alt="Preke Studio" class="logo-hero__img" />
       </div>
       
       
