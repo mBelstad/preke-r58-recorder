@@ -33,6 +33,7 @@
     "test:cdp": "node scripts/test-helper.js cdp",
     "test:screenshot": "node scripts/test-helper.js screenshot",
     "test:build": "node scripts/test-helper.js build",
+    "test:build-all": "npm run build:renderer && node scripts/test-helper.js restart",
     "test:devtools": "node scripts/test-helper.js devtools"
   },
   "dependencies": {
