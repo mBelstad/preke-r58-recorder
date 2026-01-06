@@ -98,7 +98,12 @@ async def get_inputs_status(
     """
     client = get_pipeline_client()
 
-    # Get device check from pipeline manager
+    # Get ingest status first - this is the source of truth when ingest is running
+    # because the ingest pipelines own the V4L2 devices and track signal status
+    ingest_status = await client.get_ingest_status()
+    ingest_data = ingest_status.get("ingests", {})
+
+    # Get device check as fallback (for when ingest isn't running)
     device_check = await client.check_devices()
 
     # Get recording status to know which inputs are recording
@@ -113,16 +118,28 @@ async def get_inputs_status(
         # Build from real device data
         for idx, (input_id, info) in enumerate(device_check["devices"].items()):
             caps = info.get("capabilities", {})
-            has_signal = caps.get("has_signal", False)
-
-            # Get resolution/framerate only if signal present
-            resolution = None
-            framerate = None
-            if has_signal:
-                width = caps.get("width", 0)
-                height = caps.get("height", 0)
-                resolution = f"{width}x{height}" if width and height else None
-                framerate = caps.get("framerate")
+            
+            # Prefer ingest status for has_signal when available (ingest owns the device)
+            # Ingest status is more reliable because:
+            # 1. When ingest is running, it has exclusive device access
+            # 2. Ingest continuously monitors signal state
+            # 3. device.check may fail or return stale data when device is busy
+            ingest_info = ingest_data.get(input_id, {})
+            if ingest_info:
+                # Use ingest status (more reliable when ingest is running)
+                has_signal = ingest_info.get("has_signal", False)
+                resolution = ingest_info.get("resolution")
+                framerate = ingest_info.get("framerate")
+            else:
+                # Fall back to device check
+                has_signal = caps.get("has_signal", False)
+                resolution = None
+                framerate = None
+                if has_signal:
+                    width = caps.get("width", 0)
+                    height = caps.get("height", 0)
+                    resolution = f"{width}x{height}" if width and height else None
+                    framerate = caps.get("framerate")
 
             inputs.append(InputStatus(
                 id=input_id,
@@ -136,13 +153,19 @@ async def get_inputs_status(
     else:
         # Fallback to configured inputs if pipeline manager unavailable
         for idx, input_id in enumerate(settings.enabled_inputs):
+            # Still check ingest status even without device check
+            ingest_info = ingest_data.get(input_id, {})
+            has_signal = ingest_info.get("has_signal", False) if ingest_info else False
+            resolution = ingest_info.get("resolution") if ingest_info else None
+            framerate = ingest_info.get("framerate") if ingest_info else None
+            
             inputs.append(InputStatus(
                 id=input_id,
                 label=f"HDMI {idx + 1}",
-                has_signal=False,  # Unknown
+                has_signal=has_signal,
                 is_recording=input_id in recording_inputs,
-                resolution=None,
-                framerate=None,
+                resolution=resolution,
+                framerate=framerate,
             ))
 
     return inputs
