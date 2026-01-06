@@ -177,7 +177,7 @@ html, body {
   }
   
   .btn-primary:hover:not(:disabled) {
-    background-color: var(--preke-gold-bright);
+    background-color: var(--preke-gold-light);
   }
   
   .btn-secondary {
