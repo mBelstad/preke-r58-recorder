@@ -598,9 +598,9 @@ async function selectMode(mode: 'recorder' | 'mixer') {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 3rem;
+  gap: 8rem;
   width: 100%;
-  max-width: 900px;
+  max-width: 1100px;
   padding: 2rem;
 }
 
