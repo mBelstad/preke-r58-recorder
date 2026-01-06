@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * Sidebar v2 - Clean navigation with prominent mode indicator
+ * Sidebar v2 - Clean navigation with stylish hover effects
  * Logo is now in the status bar
  */
 import { ref, computed, onMounted, onUnmounted } from 'vue'
@@ -187,6 +187,9 @@ const modeColor = computed(() => {
               'sidebar__nav-item--switching': switching && item.requiresMode
             }"
           >
+            <!-- Glow effect for active -->
+            <span v-if="isActive(item.path)" class="sidebar__nav-glow"></span>
+            
             <!-- Loading spinner when switching -->
             <svg 
               v-if="switching && switchingTo === item.requiresMode" 
@@ -201,20 +204,20 @@ const modeColor = computed(() => {
             <!-- Icons -->
             <template v-else>
               <svg v-if="item.icon === 'home'" class="sidebar__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
               </svg>
               <svg v-else-if="item.icon === 'record'" class="sidebar__icon" fill="currentColor" viewBox="0 0 24 24">
                 <circle cx="12" cy="12" r="8"/>
               </svg>
               <svg v-else-if="item.icon === 'mixer'" class="sidebar__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
               </svg>
               <svg v-else-if="item.icon === 'folder'" class="sidebar__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
               </svg>
               <svg v-else-if="item.icon === 'settings'" class="sidebar__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
               </svg>
             </template>
             
@@ -243,19 +246,19 @@ const modeColor = computed(() => {
 
 <style scoped>
 .sidebar {
-  width: 80px;
-  min-width: 80px;
+  width: 88px;
+  min-width: 88px;
   background: var(--preke-surface);
   border-right: 1px solid var(--preke-surface-border);
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 12px 0;
+  padding: 16px 0;
 }
 
 /* Spacer when no mode indicator */
 .sidebar__spacer {
-  height: 20px;
+  height: 24px;
   flex-shrink: 0;
 }
 
@@ -266,19 +269,26 @@ const modeColor = computed(() => {
   align-items: center;
   gap: 6px;
   padding: 10px 8px;
-  margin: 0 8px 12px 8px;
-  border-radius: 10px;
-  width: calc(100% - 16px);
+  margin: 0 10px 16px 10px;
+  border-radius: 12px;
+  width: calc(100% - 20px);
+  backdrop-filter: blur(8px);
 }
 
 .sidebar__mode--recorder {
-  background: rgba(212, 90, 90, 0.15);
-  border: 1px solid rgba(212, 90, 90, 0.3);
+  background: rgba(212, 90, 90, 0.12);
+  border: 1px solid rgba(212, 90, 90, 0.25);
+  box-shadow: 
+    0 0 20px rgba(212, 90, 90, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .sidebar__mode--mixer {
-  background: rgba(124, 58, 237, 0.15);
-  border: 1px solid rgba(124, 58, 237, 0.3);
+  background: rgba(124, 58, 237, 0.12);
+  border: 1px solid rgba(124, 58, 237, 0.25);
+  box-shadow: 
+    0 0 20px rgba(124, 58, 237, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .sidebar__mode--idle {
@@ -293,22 +303,24 @@ const modeColor = computed(() => {
 
 .sidebar__mode--recorder .sidebar__mode-dot {
   background: var(--preke-red);
-  animation: pulse-mode 2s ease-in-out infinite;
+  box-shadow: 0 0 12px var(--preke-red);
+  animation: pulse-mode 1.5s ease-in-out infinite;
 }
 
 .sidebar__mode--mixer .sidebar__mode-dot {
   background: #7c3aed;
+  box-shadow: 0 0 12px #7c3aed;
 }
 
 @keyframes pulse-mode {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(0.9); }
 }
 
 .sidebar__mode-label {
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
@@ -324,7 +336,7 @@ const modeColor = computed(() => {
 .sidebar__nav {
   flex: 1;
   width: 100%;
-  padding: 0 8px;
+  padding: 0 10px;
 }
 
 .sidebar__nav-list {
@@ -333,34 +345,86 @@ const modeColor = computed(() => {
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .sidebar__nav-item {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 12px 8px;
-  border-radius: 10px;
+  gap: 8px;
+  padding: 14px 8px;
+  border-radius: 12px;
   color: var(--preke-text-muted);
   text-decoration: none;
-  transition: all 0.15s ease;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
+  overflow: hidden;
 }
 
+/* Hover effect - glass highlight */
 .sidebar__nav-item:hover {
   color: var(--preke-text);
-  background: rgba(255, 255, 255, 0.05);
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.08) 0%,
+    rgba(255, 255, 255, 0.03) 100%
+  );
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
 }
 
+.sidebar__nav-item:active {
+  transform: translateY(0);
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Active state - gold accent with glow */
 .sidebar__nav-item--active {
   color: var(--preke-gold);
-  background: rgba(224, 160, 48, 0.1);
+  background: linear-gradient(
+    135deg,
+    rgba(224, 160, 48, 0.15) 0%,
+    rgba(224, 160, 48, 0.08) 100%
+  );
+  border: 1px solid rgba(224, 160, 48, 0.2);
+  box-shadow: 
+    0 0 20px rgba(224, 160, 48, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .sidebar__nav-item--active:hover {
-  background: rgba(224, 160, 48, 0.15);
+  background: linear-gradient(
+    135deg,
+    rgba(224, 160, 48, 0.2) 0%,
+    rgba(224, 160, 48, 0.1) 100%
+  );
+  box-shadow: 
+    0 0 25px rgba(224, 160, 48, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* Glow effect behind active item */
+.sidebar__nav-glow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(224, 160, 48, 0.2) 0%,
+    transparent 70%
+  );
+  pointer-events: none;
+  animation: glow-pulse 3s ease-in-out infinite;
+}
+
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
 }
 
 .sidebar__nav-item--mode-active {
@@ -373,8 +437,13 @@ const modeColor = computed(() => {
 }
 
 .sidebar__icon {
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
+  transition: transform 0.2s ease;
+}
+
+.sidebar__nav-item:hover .sidebar__icon {
+  transform: scale(1.08);
 }
 
 .sidebar__icon--spinner {
@@ -389,13 +458,16 @@ const modeColor = computed(() => {
 .sidebar__nav-label {
   font-size: 11px;
   font-weight: 500;
+  letter-spacing: 0.01em;
+  transition: opacity 0.2s ease;
 }
 
 /* Version */
 .sidebar__version {
-  padding: 12px;
+  padding: 16px;
   font-size: 11px;
   color: var(--preke-text-subtle);
-  letter-spacing: 0.02em;
+  letter-spacing: 0.03em;
+  opacity: 0.6;
 }
 </style>

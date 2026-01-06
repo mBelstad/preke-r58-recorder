@@ -1,12 +1,12 @@
 <script setup lang="ts">
 /**
- * SplashScreen - 3-second opening animation
+ * SplashScreen - Opening animation with stacked logo
  * 
- * Shows the Preke Studio logo with animated entrance effects
+ * Shows the Preke Studio stacked logo with animated entrance
  * Auto-hides after the animation completes
  */
 import { ref, onMounted } from 'vue'
-import logoWaveform from '@/assets/logo-waveform.svg'
+import logoStacked from '@/assets/logo-studio-stacked.svg'
 
 const isVisible = ref(true)
 const isAnimating = ref(true)
@@ -36,20 +36,13 @@ onMounted(() => {
       <div class="splash__orb splash__orb--2"></div>
       <div class="splash__orb splash__orb--3"></div>
       
-      <!-- Logo container -->
-      <div class="splash__content">
-        <!-- Waveform icon -->
+      <!-- Logo -->
+      <div class="splash__logo-container">
         <img 
-          :src="logoWaveform" 
-          alt="" 
-          class="splash__waveform"
+          :src="logoStacked" 
+          alt="Preke Studio" 
+          class="splash__logo"
         />
-        
-        <!-- Text -->
-        <div class="splash__text">
-          <span class="splash__preke">Preke</span>
-          <span class="splash__studio">Studio</span>
-        </div>
       </div>
       
       <!-- Tagline -->
@@ -126,93 +119,39 @@ onMounted(() => {
   50% { transform: translate(20px, -20px); }
 }
 
-/* Main content */
-.splash__content {
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
-  animation: splash-enter 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
-
-@keyframes splash-enter {
-  0% {
-    opacity: 0;
-    transform: scale(0.8);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-/* Waveform */
-.splash__waveform {
-  width: 80px;
-  height: 80px;
+/* Logo container */
+.splash__logo-container {
   opacity: 0;
-  animation: 
-    waveform-enter 0.6s ease-out 0.2s forwards,
-    waveform-glow 2s ease-in-out 0.8s infinite;
+  animation: logo-enter 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s forwards;
 }
 
-@keyframes waveform-enter {
+@keyframes logo-enter {
   0% {
     opacity: 0;
-    transform: scale(0.5) rotate(-15deg);
+    transform: scale(0.8) translateY(20px);
   }
   100% {
     opacity: 1;
-    transform: scale(1) rotate(0deg);
+    transform: scale(1) translateY(0);
   }
 }
 
-@keyframes waveform-glow {
-  0%, 100% { filter: drop-shadow(0 0 20px rgba(224, 160, 48, 0.4)); }
-  50% { filter: drop-shadow(0 0 40px rgba(224, 160, 48, 0.6)); }
+/* Stacked logo */
+.splash__logo {
+  height: 180px;
+  width: auto;
+  filter: drop-shadow(0 0 30px rgba(224, 160, 48, 0.3));
+  animation: logo-glow 2.5s ease-in-out 0.8s infinite;
 }
 
-/* Text */
-.splash__text {
-  display: flex;
-  align-items: baseline;
-  gap: 0.5rem;
-  opacity: 0;
-  animation: text-enter 0.6s ease-out 0.4s forwards;
-}
-
-@keyframes text-enter {
-  0% {
-    opacity: 0;
-    transform: translateX(-20px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-.splash__preke {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  font-size: 3rem;
-  font-weight: 800;
-  color: #ffffff;
-  letter-spacing: -0.02em;
-}
-
-.splash__studio {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  font-size: 3rem;
-  font-weight: 800;
-  background: linear-gradient(to bottom, #f5c04a, #d9981e);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  filter: drop-shadow(0 0 12px rgba(224, 160, 48, 0.5));
+@keyframes logo-glow {
+  0%, 100% { filter: drop-shadow(0 0 30px rgba(224, 160, 48, 0.3)); }
+  50% { filter: drop-shadow(0 0 50px rgba(224, 160, 48, 0.5)); }
 }
 
 /* Tagline */
 .splash__tagline {
-  margin-top: 1.5rem;
+  margin-top: 2rem;
   font-size: 0.9375rem;
   color: #a8a8a8;
   opacity: 0;
@@ -264,19 +203,8 @@ onMounted(() => {
 
 /* Responsive */
 @media (max-width: 480px) {
-  .splash__content {
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-  
-  .splash__waveform {
-    width: 60px;
-    height: 60px;
-  }
-  
-  .splash__preke,
-  .splash__studio {
-    font-size: 2.5rem;
+  .splash__logo {
+    height: 140px;
   }
   
   .splash__tagline {
@@ -286,4 +214,3 @@ onMounted(() => {
   }
 }
 </style>
-
