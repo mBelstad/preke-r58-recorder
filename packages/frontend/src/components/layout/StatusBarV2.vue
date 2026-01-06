@@ -8,7 +8,7 @@ import { useTailscaleStatus } from '@/composables/useTailscaleStatus'
 import { useRecorderStore } from '@/stores/recorder'
 import { useCapabilitiesStore } from '@/stores/capabilities'
 import { platform } from '@/lib/platform'
-import logoHorizontal from '@/assets/logo-studio-horizontal.svg'
+import PrekeStudioLogo from '@/components/shared/PrekeStudioLogo.vue'
 
 // Platform detection for layout
 const isElectron = platform.isElectron()
@@ -141,7 +141,7 @@ const modeInfo = computed(() => {
     <div v-if="isElectron && isMacOS" class="header__spacer"></div>
     
     <!-- Logo - positioned after spacer in Electron, at left in web -->
-    <img :src="logoHorizontal" alt="Preke Studio" class="header__logo" />
+    <PrekeStudioLogo :height="36" class="header__logo" />
     
     <!-- Center: Status indicators -->
     <div class="header__center">
@@ -249,12 +249,9 @@ const modeInfo = computed(() => {
   flex-shrink: 0;
 }
 
-/* Logo - sized appropriately, never cut off */
+/* Logo positioning */
 .header__logo {
-  height: 36px;
-  width: auto;
   flex-shrink: 0;
-  object-fit: contain;
   margin-right: auto; /* Push center content to actual center in web */
 }
 
