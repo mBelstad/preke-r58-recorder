@@ -17,20 +17,40 @@ const isMinimalLayout = computed(() => route.meta.layout === 'minimal')
     <slot />
   </div>
   
-  <div v-else class="h-full flex bg-preke-bg">
-    <!-- Sidebar -->
-    <Sidebar />
+  <div v-else class="app-shell">
+    <!-- Full-width status bar at top -->
+    <StatusBar />
     
-    <!-- Main content area -->
-    <div class="flex-1 flex flex-col min-w-0">
-      <!-- Status bar -->
-      <StatusBar />
+    <!-- Sidebar + Content below -->
+    <div class="app-shell__body">
+      <!-- Sidebar -->
+      <Sidebar />
       
       <!-- Page content -->
-      <main class="flex-1 overflow-hidden">
+      <main class="app-shell__content">
         <slot />
       </main>
     </div>
   </div>
 </template>
 
+<style scoped>
+.app-shell {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--preke-bg);
+}
+
+.app-shell__body {
+  flex: 1;
+  display: flex;
+  min-height: 0; /* Important for flex children to scroll properly */
+}
+
+.app-shell__content {
+  flex: 1;
+  overflow: hidden;
+  min-width: 0;
+}
+</style>
