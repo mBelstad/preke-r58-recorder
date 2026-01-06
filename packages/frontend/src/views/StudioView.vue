@@ -91,8 +91,8 @@ async function selectMode(mode: 'recorder' | 'mixer') {
 
 <template>
   <div class="studio">
-    <!-- Animated ambient background -->
-    <AnimatedBackground accent="gold" :show-beams="true" :show-pattern="true" />
+    <!-- Animated ambient background with sci-fi effects -->
+    <AnimatedBackground accent="gold" :show-beams="true" :show-grid="true" :show-circuits="true" />
     
     <div class="studio__content">
       <h1 class="studio__title">Preke Studio</h1>
