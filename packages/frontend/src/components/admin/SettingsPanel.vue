@@ -11,6 +11,18 @@ import { getVdoHost, VDO_ROOM } from '@/lib/vdoninja'
 
 const toast = useToast()
 
+// Device management
+interface DeviceConfig {
+  id: string
+  name: string
+  url: string
+  lastConnected?: string
+  createdAt: string
+}
+
+const devices = ref<DeviceConfig[]>([])
+const activeDeviceId = ref<string | null>(null)
+
 // Settings state
 const deviceName = ref('Preke Device')
 const vdoRoom = ref(VDO_ROOM)
@@ -68,8 +80,32 @@ function resetToDefaults() {
   toast.info('Settings reset to defaults')
 }
 
+async function loadDevices() {
+  if (!window.electronAPI) return
+  try {
+    devices.value = await window.electronAPI.getDevices()
+    const active = await window.electronAPI.getActiveDevice()
+    activeDeviceId.value = active?.id || null
+  } catch (error) {
+    console.error('Failed to load devices:', error)
+  }
+}
+
+async function removeDevice(deviceId: string) {
+  if (!window.electronAPI || !confirm('Remove this device?')) return
+  try {
+    await window.electronAPI.removeDevice(deviceId)
+    await loadDevices()
+    toast.success('Device removed')
+  } catch (error) {
+    console.error('Failed to remove device:', error)
+    toast.error('Failed to remove device')
+  }
+}
+
 onMounted(() => {
   loadSettings()
+  loadDevices()
 })
 </script>
 
@@ -89,6 +125,39 @@ onMounted(() => {
             placeholder="My Preke Device"
           />
           <p class="text-xs text-preke-text-muted mt-1">Display name for this device in the app</p>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Device Management -->
+    <div v-if="inElectron && devices.length > 0" class="glass-card p-4 rounded-xl">
+      <h3 class="text-xs font-semibold text-preke-text-muted uppercase tracking-wide mb-4">Saved Devices</h3>
+      
+      <div class="space-y-2">
+        <div 
+          v-for="device in devices" 
+          :key="device.id"
+          class="flex items-center justify-between p-3 rounded-lg border border-preke-surface-border"
+          :class="{ 'bg-preke-gold/10 border-preke-gold/30': device.id === activeDeviceId }"
+        >
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2">
+              <span class="text-sm font-medium text-preke-text">{{ device.name }}</span>
+              <span v-if="device.id === activeDeviceId" class="text-xs px-2 py-0.5 rounded bg-preke-gold/20 text-preke-gold">
+                Active
+              </span>
+            </div>
+            <p class="text-xs text-preke-text-muted truncate mt-1">{{ device.url }}</p>
+          </div>
+          <button
+            @click="removeDevice(device.id)"
+            class="ml-3 p-2 rounded-lg text-preke-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors"
+            title="Remove device"
+          >
+            <svg viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
+              <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>
+            </svg>
+          </button>
         </div>
       </div>
     </div>

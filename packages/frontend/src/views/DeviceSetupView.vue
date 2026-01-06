@@ -367,28 +367,6 @@ onUnmounted(() => {
               <template v-else>Devices</template>
             </h2>
             <div v-else class="section-title-spacer"></div>
-            
-            <!-- Scan/Stop buttons -->
-            <button 
-              v-if="isDiscovering && !isBackgroundScan" 
-              @click="stopDiscovery" 
-              class="btn-scan btn-scan--stop"
-            >
-              Stop
-            </button>
-            <button 
-              v-else-if="(discoveredDevices.length > 0 || hasDevices)" 
-              @click="startDiscovery(true)" 
-              :disabled="isDiscovering"
-              class="btn-scan"
-              :class="{ 'btn-scan--spinning': isBackgroundScan }"
-              title="Scan again"
-            >
-              <svg viewBox="0 0 20 20" fill="currentColor" class="btn-scan__icon">
-                <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/>
-              </svg>
-              Scan
-            </button>
           </div>
 
           <!-- Scanning Animation (Soundwave) - only for foreground scans -->
@@ -462,11 +440,6 @@ onUnmounted(() => {
                 <button v-else @click="goBack" class="btn btn--success">
                   Open
                 </button>
-                <button @click="removeDevice(device.id)" class="btn-icon btn-icon--danger" title="Remove">
-                  <svg viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>
-                  </svg>
-                </button>
               </div>
             </div>
           </div>
@@ -487,21 +460,6 @@ onUnmounted(() => {
               <li>Connected to the same network</li>
               <li>Finished booting up (~30 seconds)</li>
             </ul>
-            
-            <!-- Scan button below text -->
-            <div class="empty-state__actions">
-              <button 
-                @click="startDiscovery(true)" 
-                :disabled="isDiscovering"
-                class="btn-scan-large"
-                :class="{ 'btn-scan-large--spinning': isBackgroundScan }"
-              >
-                <svg viewBox="0 0 20 20" fill="currentColor" class="btn-scan-large__icon">
-                  <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/>
-                </svg>
-                {{ isBackgroundScan ? 'Searching...' : 'Scan for devices' }}
-              </button>
-            </div>
           </div>
         </div>
 
@@ -512,16 +470,40 @@ onUnmounted(() => {
 
         <!-- Manual Entry Section -->
         <div class="manual-section">
-          <button 
-            v-if="!showManualEntry" 
-            @click="showManualEntry = true" 
-            class="btn-manual"
-          >
-            <svg viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
-            </svg>
-            Enter address manually
-          </button>
+          <div class="manual-section__actions">
+            <!-- Scan/Stop buttons -->
+            <button 
+              v-if="isDiscovering && !isBackgroundScan" 
+              @click="stopDiscovery" 
+              class="btn-scan btn-scan--stop"
+            >
+              Stop
+            </button>
+            <button 
+              v-else-if="(discoveredDevices.length > 0 || hasDevices)" 
+              @click="startDiscovery(true)" 
+              :disabled="isDiscovering"
+              class="btn-scan"
+              :class="{ 'btn-scan--spinning': isBackgroundScan }"
+              title="Scan again"
+            >
+              <svg viewBox="0 0 20 20" fill="currentColor" class="btn-scan__icon">
+                <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/>
+              </svg>
+              Scan
+            </button>
+            
+            <button 
+              v-if="!showManualEntry" 
+              @click="showManualEntry = true" 
+              class="btn-manual"
+            >
+              <svg viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
+              </svg>
+              Enter address manually
+            </button>
+          </div>
           
           <form v-else @submit.prevent="addManualDevice" class="manual-form">
             <div class="manual-form__row">
@@ -561,7 +543,6 @@ onUnmounted(() => {
       </div>
       
       <footer class="setup-footer">
-        <button v-if="activeDevice" @click="goBack" class="back-link">← Back to Studio</button>
         <span class="version">v2.0</span>
       </footer>
     </div>
@@ -1497,6 +1478,14 @@ onUnmounted(() => {
   text-align: center;
 }
 
+.manual-section__actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
 .btn-manual {
   display: inline-flex;
   align-items: center;
@@ -1651,27 +1640,19 @@ onUnmounted(() => {
 .setup-footer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   width: 100%;
   animation: slideUp 0.6s ease-out 0.2s both;
+  position: relative;
 }
-
-.back-link {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  font-size: 0.8125rem;
-  cursor: pointer;
-  transition: color 0.15s;
-}
-
-.back-link:hover { color: var(--text); }
 
 .version {
   font-size: 0.6875rem;
   color: var(--text-muted);
   letter-spacing: 0.02em;
-  margin-left: auto;
+  position: absolute;
+  bottom: 0;
+  right: 0;
 }
 
 /* ═══════════════════════════════════════════
