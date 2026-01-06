@@ -73,7 +73,7 @@ const storageInfo = computed(() => {
   }
 })
 
-// Unified status
+// Unified status - add "Mode" to connection type labels
 const statusInfo = computed(() => {
   const isConnected = state.value === 'connected'
   const isConnecting = state.value === 'connecting'
@@ -82,7 +82,17 @@ const statusInfo = computed(() => {
   if (isConnected) {
     let text = 'Connected'
     if (connectionMethod.value !== 'unknown') {
-      text = connectionLabel.value
+      // Add "Mode" to make it clearer (e.g., "Relay Mode", "P2P Mode")
+      const method = connectionMethod.value
+      if (method === 'relay') {
+        text = 'Relay Mode'
+      } else if (method === 'p2p') {
+        text = 'P2P Mode'
+      } else if (method === 'local') {
+        text = 'Local Mode'
+      } else {
+        text = connectionLabel.value
+      }
     }
     if (latencyMs.value && latencyMs.value >= 100) {
       text += ` · ${latencyMs.value}ms`
@@ -108,13 +118,13 @@ const statusInfo = computed(() => {
   return { dot: 'red', text: 'Offline', showDetails: false, pulse: true }
 })
 
-// Mode info for display - MIXER not MIX
+// Mode info for display - Full labels, no pulse (not live indicator)
 const modeInfo = computed(() => {
   if (currentMode.value === 'recorder') {
-    return { label: 'REC', color: 'red', pulse: true }
+    return { label: 'RECORDER', color: 'red' }
   }
   if (currentMode.value === 'mixer') {
-    return { label: 'MIXER', color: 'violet', pulse: false }
+    return { label: 'MIXER', color: 'violet' }
   }
   return null
 })
@@ -130,12 +140,9 @@ const modeInfo = computed(() => {
     
     <!-- Center: Status indicators -->
     <div class="header__center">
-      <!-- Mode indicator (if active) -->
+      <!-- Mode indicator (if active) - no pulse, just shows current mode -->
       <div v-if="modeInfo" class="header__mode" :class="`header__mode--${modeInfo.color}`">
-        <span 
-          class="header__mode-dot"
-          :class="{ 'header__mode-dot--pulse': modeInfo.pulse }"
-        ></span>
+        <span class="header__mode-dot"></span>
         <span class="header__mode-label">{{ modeInfo.label }}</span>
       </div>
       
@@ -157,8 +164,12 @@ const modeInfo = computed(() => {
       <template v-if="statusInfo.showDetails">
         <div class="header__divider"></div>
         
-        <!-- Camera slots (4 numbered placeholders) -->
+        <!-- Camera slots (4 numbered placeholders with camera icon) -->
         <div class="header__cameras" :title="`Camera inputs`">
+          <!-- Camera icon label -->
+          <svg class="header__cameras-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+          </svg>
           <div 
             v-for="slot in cameraSlots" 
             :key="slot.id"
@@ -225,25 +236,31 @@ const modeInfo = computed(() => {
   -webkit-app-region: no-drag;
 }
 
-/* Spacer for macOS traffic lights */
+/* Spacer for macOS traffic lights - dynamically sized */
 .header__spacer {
   width: 0;
   flex-shrink: 0;
 }
 
-:global(.electron-app) .header__spacer {
-  width: 70px;
+/* In Electron on macOS, make space for traffic light buttons */
+:global(.electron-app) .header__spacer,
+:global(html.electron-app) .header__spacer,
+:global(body.electron-app) .header__spacer {
+  width: 78px; /* 70px for traffic lights + 8px padding */
 }
 
-:global(.electron-app.is-windows) .header__spacer {
+/* On Windows, no spacer needed */
+:global(.electron-app.is-windows) .header__spacer,
+:global(html.electron-app.is-windows) .header__spacer {
   width: 0;
 }
 
-/* Logo - not constrained, natural size */
+/* Logo - sized appropriately, never cut off */
 .header__logo {
-  height: 32px;
+  height: 36px;
   width: auto;
   flex-shrink: 0;
+  object-fit: contain;
 }
 
 /* Center section */
@@ -290,14 +307,7 @@ const modeInfo = computed(() => {
   box-shadow: 0 0 8px #7c3aed;
 }
 
-.header__mode-dot--pulse {
-  animation: mode-pulse 1.5s ease-in-out infinite;
-}
-
-@keyframes mode-pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.5; transform: scale(0.85); }
-}
+/* Mode dot no longer pulses - it's not a "live" indicator */
 
 .header__mode-label {
   font-size: 11px;
@@ -356,7 +366,15 @@ const modeInfo = computed(() => {
 /* Camera slots */
 .header__cameras {
   display: flex;
-  gap: 4px;
+  align-items: center;
+  gap: 6px;
+}
+
+.header__cameras-icon {
+  width: 18px;
+  height: 18px;
+  color: var(--preke-text-muted);
+  flex-shrink: 0;
 }
 
 .header__camera {

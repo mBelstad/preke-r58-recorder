@@ -189,12 +189,14 @@ onUnmounted(() => {
               <svg v-else-if="item.icon === 'record'" class="sidebar__icon" fill="currentColor" viewBox="0 0 24 24">
                 <circle cx="12" cy="12" r="8"/>
               </svg>
-              <!-- Video Mixer Icon (multi-screen layout) -->
+              <!-- Video Mixer Icon (grid layout with broadcast symbol) -->
               <svg v-else-if="item.icon === 'mixer'" class="sidebar__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8">
-                <rect x="3" y="3" width="8" height="8" rx="1"/>
-                <rect x="13" y="3" width="8" height="5" rx="1"/>
-                <rect x="13" y="10" width="8" height="5" rx="1"/>
-                <rect x="3" y="13" width="8" height="8" rx="1"/>
+                <rect x="2" y="2" width="9" height="6" rx="1"/>
+                <rect x="13" y="2" width="9" height="6" rx="1"/>
+                <rect x="2" y="10" width="9" height="6" rx="1"/>
+                <rect x="13" y="10" width="9" height="6" rx="1"/>
+                <circle cx="12" cy="20" r="2" fill="currentColor"/>
+                <path d="M9 19.5a4 4 0 0 1 6 0" stroke-linecap="round"/>
               </svg>
               <svg v-else-if="item.icon === 'folder'" class="sidebar__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>

@@ -182,9 +182,9 @@ async function toggleRecording() {
 </script>
 
 <template>
-  <div class="flex items-center gap-4">
+  <div class="recorder-controls">
     <!-- Duration display -->
-    <div v-if="isRecording" class="font-mono text-xl text-r58-accent-danger">
+    <div v-if="isRecording" class="recorder-controls__duration">
       {{ duration }}
     </div>
     
@@ -192,25 +192,21 @@ async function toggleRecording() {
     <button
       @click="toggleRecording"
       :disabled="isButtonDisabled"
-      class="flex items-center gap-2 px-6 py-2 rounded-lg font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-      :class="[
-        isRecording 
-          ? 'bg-r58-accent-danger hover:bg-red-600 text-white' 
-          : 'bg-r58-accent-success hover:bg-green-600 text-white'
-      ]"
+      class="recorder-controls__btn"
+      :class="isRecording ? 'recorder-controls__btn--stop' : 'recorder-controls__btn--start'"
       :title="buttonDisabledReason || (isRecording ? 'Stop Recording (Space)' : 'Start Recording (Space)')"
     >
-      <span v-if="isStarting || isStopping || isPreflight" class="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
+      <span v-if="isStarting || isStopping || isPreflight" class="recorder-controls__spinner"></span>
       <template v-else>
-        <span v-if="isRecording" class="w-3 h-3 bg-white rounded-sm"></span>
-        <span v-else class="w-3 h-3 bg-white rounded-full"></span>
+        <span v-if="isRecording" class="recorder-controls__icon recorder-controls__icon--stop"></span>
+        <span v-else class="recorder-controls__icon recorder-controls__icon--record"></span>
       </template>
       <span>{{ isPreflight ? 'Checking...' : (isRecording ? 'Stop' : 'Start Recording') }}</span>
     </button>
     
     <!-- Keyboard hint -->
-    <span class="text-xs text-r58-text-secondary hidden md:inline">
-      Press <kbd class="px-1 py-0.5 bg-r58-bg-tertiary rounded text-xs font-mono">Space</kbd> to {{ isRecording ? 'stop' : 'start' }}
+    <span class="recorder-controls__hint">
+      Press <kbd>Space</kbd> to {{ isRecording ? 'stop' : 'start' }}
     </span>
   </div>
   
@@ -233,4 +229,107 @@ async function toggleRecording() {
     @cancel="handleSessionNameCancel"
   />
 </template>
+
+<style scoped>
+.recorder-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.recorder-controls__duration {
+  font-family: var(--preke-font-mono, monospace);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--preke-red);
+}
+
+.recorder-controls__btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.recorder-controls__btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.recorder-controls__btn--start {
+  background: var(--preke-green);
+  color: white;
+}
+
+.recorder-controls__btn--start:hover:not(:disabled) {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.recorder-controls__btn--stop {
+  background: var(--preke-red);
+  color: white;
+}
+
+.recorder-controls__btn--stop:hover:not(:disabled) {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.recorder-controls__spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.recorder-controls__icon {
+  width: 12px;
+  height: 12px;
+}
+
+.recorder-controls__icon--record {
+  background: white;
+  border-radius: 50%;
+}
+
+.recorder-controls__icon--stop {
+  background: white;
+  border-radius: 2px;
+}
+
+.recorder-controls__hint {
+  font-size: 12px;
+  color: var(--preke-text-muted);
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .recorder-controls__hint {
+    display: inline;
+  }
+}
+
+.recorder-controls__hint kbd {
+  padding: 2px 6px;
+  font-family: var(--preke-font-mono, monospace);
+  font-size: 11px;
+  background: var(--preke-bg);
+  border: 1px solid var(--preke-border);
+  border-radius: 4px;
+  color: var(--preke-text);
+}
+</style>
 

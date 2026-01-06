@@ -9,15 +9,24 @@ const props = withDefaults(defineProps<{
   maxTime?: number
   /** Signal from parent that content is ready */
   contentReady?: boolean
+  /** Show cancel button */
+  showCancel?: boolean
 }>(), {
   minTime: 1500,  // Show for at least 1.5 seconds
   maxTime: 8000,  // Max 8 seconds before auto-dismiss
-  contentReady: false
+  contentReady: false,
+  showCancel: false
 })
 
 const emit = defineEmits<{
   (e: 'ready'): void
+  (e: 'cancel'): void
 }>()
+
+// Cancel handler
+function handleCancel() {
+  emit('cancel')
+}
 
 // Track if minimum time has passed
 const minTimePassed = ref(false)
@@ -165,6 +174,18 @@ onUnmounted(() => {
           }"
         ></div>
       </div>
+      
+      <!-- Cancel button -->
+      <button 
+        v-if="showCancel"
+        @click="handleCancel"
+        class="loading-cancel-btn"
+      >
+        <svg class="loading-cancel-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+        </svg>
+        Go back
+      </button>
     </div>
   </div>
 </template>
@@ -222,5 +243,33 @@ onUnmounted(() => {
 
 .animate-bounce-dot {
   animation: bounce-dot 1.2s ease-in-out infinite;
+}
+
+/* Cancel button */
+.loading-cancel-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 32px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--preke-text-muted);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--preke-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.loading-cancel-btn:hover {
+  color: var(--preke-text);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--preke-border-light);
+}
+
+.loading-cancel-btn__icon {
+  width: 16px;
+  height: 16px;
 }
 </style>

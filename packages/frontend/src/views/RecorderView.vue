@@ -112,21 +112,19 @@ watch(showLeaveConfirmation, (show) => {
   <!-- Content fades in when loading complete -->
   <Transition name="content-fade">
     <div v-show="!isLoading" class="h-full flex flex-col">
-    <!-- Header - Riverside-inspired -->
-    <header class="preke-header">
-      <div class="flex items-center gap-4">
-        <div class="flex items-center gap-2">
+    <!-- Header - minimal, clean -->
+    <header class="recorder-header">
+      <div class="recorder-header__left">
+        <div class="recorder-header__title">
           <span 
-            class="w-3 h-3 rounded-full"
-            :class="isRecording ? 'bg-preke-red animate-recording' : 'bg-preke-border'"
+            class="recorder-header__indicator"
+            :class="{ 'recorder-header__indicator--active': isRecording }"
           ></span>
-          <span class="text-lg font-semibold text-preke-text">Recorder</span>
+          <span class="recorder-header__label">Recorder</span>
         </div>
-        <span v-if="isRecording" class="preke-badge preke-badge-live">
+        <span v-if="isRecording" class="recorder-header__badge">
           REC
         </span>
-        
-        <!-- Recording health indicator -->
         <RecordingHealth />
       </div>
       
@@ -185,6 +183,64 @@ watch(showLeaveConfirmation, (show) => {
 .content-fade-enter-to {
   opacity: 1;
   transform: translateY(0);
+}
+
+/* Recorder Header */
+.recorder-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--preke-surface);
+  border-bottom: 1px solid var(--preke-surface-border);
+}
+
+.recorder-header__left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.recorder-header__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.recorder-header__indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--preke-border);
+  transition: all 0.3s ease;
+}
+
+.recorder-header__indicator--active {
+  background: var(--preke-red);
+  box-shadow: 0 0 12px var(--preke-red);
+  animation: recording-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes recording-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(0.9); }
+}
+
+.recorder-header__label {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--preke-text);
+}
+
+.recorder-header__badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 4px 10px;
+  background: rgba(212, 90, 90, 0.15);
+  color: var(--preke-red);
+  border: 1px solid rgba(212, 90, 90, 0.3);
+  border-radius: 6px;
 }
 </style>
 

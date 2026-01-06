@@ -203,7 +203,13 @@ function getStatusText(): string {
           isStreaming ? 'control-bar__btn--stop' : 'control-bar__btn--start'
         ]"
       >
-        {{ isStreaming ? '⏹ Stop' : '▶ Start Streaming' }}
+        <svg v-if="isStreaming" class="control-bar__btn-icon" fill="currentColor" viewBox="0 0 24 24">
+          <rect x="6" y="6" width="12" height="12" rx="1"/>
+        </svg>
+        <svg v-else class="control-bar__btn-icon" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M8 5.14v14l11-7-11-7z"/>
+        </svg>
+        {{ isStreaming ? 'Stop' : 'Start Streaming' }}
       </button>
       
       <!-- Quick Setup Button (shows when no destinations) -->
@@ -215,7 +221,10 @@ function getStatusText(): string {
           showQuickSetup ? 'control-bar__btn--active' : ''
         ]"
       >
-        🔑 Add Stream Key
+        <svg class="control-bar__btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+        </svg>
+        Add Stream Key
       </button>
       
       <!-- Watch Program Button -->
@@ -224,16 +233,23 @@ function getStatusText(): string {
         class="control-bar__btn control-bar__btn--secondary"
         title="Open program output in new window"
       >
-        👁 Watch
+        <svg class="control-bar__btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+          <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+        </svg>
+        Watch
       </button>
       
       <!-- Streaming Settings Button -->
       <button
         @click="openStreamingSettings"
-        class="control-bar__btn control-bar__btn--secondary"
+        class="control-bar__btn control-bar__btn--secondary control-bar__btn--icon-only"
         title="Configure streaming destinations"
       >
-        ⚙️
+        <svg class="control-bar__btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
       </button>
       
       <!-- Active Destinations Indicator -->
@@ -387,6 +403,9 @@ function getStatusText(): string {
 
 /* Buttons */
 .control-bar__btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   padding: 6px 12px;
   font-size: 12px;
   font-weight: 500;
@@ -435,6 +454,21 @@ function getStatusText(): string {
 .control-bar__btn--active {
   border-color: var(--preke-gold);
   color: var(--preke-gold);
+}
+
+.control-bar__btn-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.control-bar__btn--icon-only {
+  padding: 6px;
+}
+
+.control-bar__btn--icon-only .control-bar__btn-icon {
+  width: 16px;
+  height: 16px;
 }
 
 .control-bar__destinations {
