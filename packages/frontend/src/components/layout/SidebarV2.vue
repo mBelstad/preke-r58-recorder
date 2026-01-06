@@ -189,15 +189,10 @@ onUnmounted(() => {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
               </svg>
               <svg v-else-if="item.icon === 'record'" class="sidebar__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8">
-                <!-- Multi-track recording bars -->
-                <rect x="2" y="4" width="14" height="4" rx="1"/>
-                <rect x="2" y="10" width="14" height="4" rx="1"/>
-                <rect x="2" y="16" width="14" height="4" rx="1"/>
-                <!-- Recording indicator circle -->
-                <circle cx="20" cy="6" r="3" fill="currentColor" stroke="none"/>
-                <!-- Camera lens element -->
-                <circle cx="20" cy="15" r="3"/>
-                <circle cx="20" cy="15" r="1.5" fill="currentColor" stroke="none"/>
+                <!-- Video camera with REC dot -->
+                <rect x="2" y="5" width="14" height="12" rx="2"/>
+                <path d="M16 9l4-2v8l-4-2"/>
+                <circle cx="6" cy="8" r="2" fill="currentColor" stroke="none"/>
               </svg>
               <!-- Video Mixer Icon (grid layout with broadcast symbol) -->
               <svg v-else-if="item.icon === 'mixer'" class="sidebar__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8">
@@ -246,25 +241,24 @@ onUnmounted(() => {
   width: 72px;
   min-width: 72px;
   
-  /* Liquid glass effect - slightly darker than header */
+  /* Darker glass effect */
   background: linear-gradient(
     90deg,
-    rgba(28, 28, 32, 0.9) 0%,
-    rgba(24, 24, 28, 0.85) 50%,
-    rgba(22, 22, 26, 0.9) 100%
+    rgba(16, 16, 18, 0.98) 0%,
+    rgba(14, 14, 16, 0.95) 50%,
+    rgba(12, 12, 14, 0.98) 100%
   );
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
   
-  /* 3D depth with highlights and shadows */
-  border-right: 1px solid rgba(255, 255, 255, 0.04);
+  /* Border and outside shadow */
+  border-right: 1px solid rgba(255, 255, 255, 0.03);
   box-shadow: 
-    /* Left inner highlight */
-    inset 1px 0 0 rgba(255, 255, 255, 0.06),
-    /* Inner glow */
-    inset 0 0 40px rgba(255, 255, 255, 0.015),
-    /* Right shadow for depth */
-    4px 0 20px rgba(0, 0, 0, 0.25);
+    /* Inner left highlight */
+    inset 1px 0 0 rgba(255, 255, 255, 0.03),
+    /* Outside shadow for depth */
+    4px 0 30px rgba(0, 0, 0, 0.4),
+    8px 0 50px rgba(0, 0, 0, 0.2);
   
   display: flex;
   flex-direction: column;
@@ -273,17 +267,18 @@ onUnmounted(() => {
   z-index: 90;
 }
 
-/* Liquid glass left edge reflection */
+/* Subtle left edge reflection */
 .sidebar::before {
   content: '';
   position: absolute;
   top: 0;
   left: 0;
   bottom: 0;
-  width: 50%;
+  width: 1px;
   background: linear-gradient(
-    90deg,
-    rgba(255, 255, 255, 0.03) 0%,
+    180deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.04) 50%,
     transparent 100%
   );
   pointer-events: none;

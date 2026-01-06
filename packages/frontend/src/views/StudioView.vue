@@ -172,60 +172,59 @@ async function selectMode(mode: 'recorder' | 'mixer') {
     
     <!-- Content overlay -->
     <div class="studio__content">
-      <button
-        @click="selectMode('recorder')"
-        :disabled="switching"
-        class="studio__card studio__card--recorder"
-        :class="{ 'studio__card--selected': selectedMode === 'recorder' }"
-      >
-        <div class="studio__icon studio__icon--recorder">
-          <svg v-if="switching && selectedMode === 'recorder'" class="animate-spin" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-          <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-            <!-- Multi-track recording bars -->
-            <rect x="2" y="4" width="14" height="4" rx="1"/>
-            <rect x="2" y="10" width="14" height="4" rx="1"/>
-            <rect x="2" y="16" width="14" height="4" rx="1"/>
-            <!-- Recording indicator circle -->
-            <circle cx="20" cy="6" r="3" fill="currentColor" stroke="none"/>
-            <!-- Camera lens element -->
-            <circle cx="20" cy="15" r="3"/>
-            <circle cx="20" cy="15" r="1.5" fill="currentColor" stroke="none"/>
-          </svg>
-        </div>
-        <h3>Recorder</h3>
-        <p>{{ switching && selectedMode === 'recorder' ? 'Starting...' : 'Multi-cam ISO' }}</p>
-      </button>
+      <div class="studio__side studio__side--left">
+        <button
+          @click="selectMode('recorder')"
+          :disabled="switching"
+          class="studio__card studio__card--recorder"
+          :class="{ 'studio__card--selected': selectedMode === 'recorder' }"
+        >
+          <div class="studio__icon studio__icon--recorder">
+            <svg v-if="switching && selectedMode === 'recorder'" class="animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <!-- Simplified recorder icon: video camera with REC dot -->
+            <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <rect x="2" y="5" width="14" height="12" rx="2"/>
+              <path d="M16 9l4-2v8l-4-2"/>
+              <circle cx="6" cy="8" r="2" fill="currentColor" stroke="none"/>
+            </svg>
+          </div>
+          <h3>Recorder</h3>
+          <p>{{ switching && selectedMode === 'recorder' ? 'Starting...' : 'Multi-cam ISO' }}</p>
+        </button>
+      </div>
       
       <div class="studio__center">
         <span class="studio__badge">Choose</span>
       </div>
       
-      <button
-        @click="selectMode('mixer')"
-        :disabled="switching"
-        class="studio__card studio__card--mixer"
-        :class="{ 'studio__card--selected': selectedMode === 'mixer' }"
-      >
-        <div class="studio__icon studio__icon--mixer">
-          <svg v-if="switching && selectedMode === 'mixer'" class="animate-spin" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-          <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-            <rect x="2" y="2" width="9" height="6" rx="1"/>
-            <rect x="13" y="2" width="9" height="6" rx="1"/>
-            <rect x="2" y="10" width="9" height="6" rx="1"/>
-            <rect x="13" y="10" width="9" height="6" rx="1"/>
-            <circle cx="12" cy="20" r="2" fill="currentColor"/>
-            <path d="M9 19.5a4 4 0 0 1 6 0" stroke-linecap="round"/>
-          </svg>
-        </div>
-        <h3>Mixer</h3>
-        <p>{{ switching && selectedMode === 'mixer' ? 'Starting...' : 'Live Switching' }}</p>
-      </button>
+      <div class="studio__side studio__side--right">
+        <button
+          @click="selectMode('mixer')"
+          :disabled="switching"
+          class="studio__card studio__card--mixer"
+          :class="{ 'studio__card--selected': selectedMode === 'mixer' }"
+        >
+          <div class="studio__icon studio__icon--mixer">
+            <svg v-if="switching && selectedMode === 'mixer'" class="animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <rect x="2" y="2" width="9" height="6" rx="1"/>
+              <rect x="13" y="2" width="9" height="6" rx="1"/>
+              <rect x="2" y="10" width="9" height="6" rx="1"/>
+              <rect x="13" y="10" width="9" height="6" rx="1"/>
+              <circle cx="12" cy="20" r="2" fill="currentColor"/>
+              <path d="M9 19.5a4 4 0 0 1 6 0" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <h3>Mixer</h3>
+          <p>{{ switching && selectedMode === 'mixer' ? 'Starting...' : 'Live Switching' }}</p>
+        </button>
+      </div>
     </div>
     
     <!-- Error message -->
@@ -591,17 +590,23 @@ async function selectMode(mode: 'recorder' | 'mixer') {
   }
 }
 
-/* Content overlay */
+/* Content overlay - matches Combined proposal */
 .studio__content {
   position: relative;
   z-index: 10;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8rem;
+  gap: 3rem;
   width: 100%;
-  max-width: 1100px;
+  max-width: 900px;
   padding: 2rem;
+}
+
+.studio__side {
+  flex: 1;
+  display: flex;
+  justify-content: center;
 }
 
 /* Cards */
@@ -616,7 +621,7 @@ async function selectMode(mode: 'recorder' | 'mixer') {
   cursor: pointer;
 }
 
-.studio__card:hover:not(:disabled) {
+.studio__side:hover .studio__card:not(:disabled) {
   transform: translateY(-8px);
   box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4);
 }
@@ -626,7 +631,7 @@ async function selectMode(mode: 'recorder' | 'mixer') {
   cursor: wait;
 }
 
-.studio__card--recorder:hover:not(:disabled) {
+.studio__side--left:hover .studio__card:not(:disabled) {
   border-color: rgba(212, 90, 90, 0.3);
   box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4), 0 0 40px rgba(212, 90, 90, 0.1);
 }
@@ -636,7 +641,7 @@ async function selectMode(mode: 'recorder' | 'mixer') {
   background: rgba(212, 90, 90, 0.1);
 }
 
-.studio__card--mixer:hover:not(:disabled) {
+.studio__side--right:hover .studio__card:not(:disabled) {
   border-color: rgba(124, 58, 237, 0.3);
   box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4), 0 0 40px rgba(124, 58, 237, 0.1);
 }
@@ -668,7 +673,7 @@ async function selectMode(mode: 'recorder' | 'mixer') {
   color: #d45a5a;
 }
 
-.studio__card:hover .studio__icon--recorder {
+.studio__side--left:hover .studio__icon--recorder {
   background: rgba(212, 90, 90, 0.25);
   box-shadow: 0 0 30px rgba(212, 90, 90, 0.3);
 }
@@ -678,7 +683,7 @@ async function selectMode(mode: 'recorder' | 'mixer') {
   color: #a78bfa;
 }
 
-.studio__card:hover .studio__icon--mixer {
+.studio__side--right:hover .studio__icon--mixer {
   background: rgba(124, 58, 237, 0.25);
   box-shadow: 0 0 30px rgba(124, 58, 237, 0.3);
 }

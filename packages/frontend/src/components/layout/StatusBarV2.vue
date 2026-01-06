@@ -136,20 +136,12 @@ const modeInfo = computed(() => {
 </script>
 
 <template>
-  <header class="header">
+  <header class="header" :class="{ 'header--recorder': currentMode === 'recorder', 'header--mixer': currentMode === 'mixer' }">
     <!-- Spacer for macOS traffic lights (only in Electron on macOS) -->
     <div v-if="isElectron && isMacOS" class="header__spacer"></div>
     
     <!-- Left: Status indicators -->
     <div class="header__left">
-      <!-- Mode indicator (if active) -->
-      <div v-if="modeInfo" class="header__mode" :class="`header__mode--${modeInfo.color}`">
-        <span class="header__mode-dot"></span>
-        <span class="header__mode-label">{{ modeInfo.label }}</span>
-      </div>
-      
-      <div v-if="modeInfo" class="header__divider"></div>
-      
       <!-- Connection status -->
       <div class="header__status" :title="statusInfo.text">
         <span 
@@ -231,26 +223,24 @@ const modeInfo = computed(() => {
   min-height: 56px;
   flex-shrink: 0;
   
-  /* Liquid glass effect */
+  /* Darker glass effect */
   background: linear-gradient(
     180deg,
-    rgba(32, 32, 36, 0.85) 0%,
-    rgba(24, 24, 28, 0.9) 50%,
-    rgba(20, 20, 24, 0.95) 100%
+    rgba(18, 18, 20, 0.95) 0%,
+    rgba(14, 14, 16, 0.98) 50%,
+    rgba(12, 12, 14, 1) 100%
   );
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
   
-  /* 3D depth with multiple borders and shadows */
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  /* Border and outside shadow for depth */
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
   box-shadow: 
-    /* Top inner highlight - creates 3D edge */
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    /* Inner subtle glow */
-    inset 0 0 30px rgba(255, 255, 255, 0.02),
-    /* Bottom shadow for depth */
-    0 4px 20px rgba(0, 0, 0, 0.3),
-    0 1px 3px rgba(0, 0, 0, 0.2);
+    /* Inner top highlight */
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    /* Outside shadow for depth and standout effect */
+    0 4px 30px rgba(0, 0, 0, 0.5),
+    0 8px 40px rgba(0, 0, 0, 0.3);
   
   display: flex;
   align-items: center;
@@ -258,23 +248,44 @@ const modeInfo = computed(() => {
   gap: 20px;
   -webkit-app-region: drag;
   z-index: 100;
+  transition: box-shadow 0.4s ease;
 }
 
-/* Liquid glass reflection overlay */
+/* Mode glow - Recorder (red) */
+.header--recorder {
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 4px 30px rgba(0, 0, 0, 0.5),
+    0 8px 40px rgba(0, 0, 0, 0.3),
+    0 0 60px rgba(212, 90, 90, 0.15),
+    0 0 100px rgba(212, 90, 90, 0.08);
+}
+
+/* Mode glow - Mixer (purple) */
+.header--mixer {
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 4px 30px rgba(0, 0, 0, 0.5),
+    0 8px 40px rgba(0, 0, 0, 0.3),
+    0 0 60px rgba(124, 58, 237, 0.15),
+    0 0 100px rgba(124, 58, 237, 0.08);
+}
+
+/* Subtle top edge reflection */
 .header::before {
   content: '';
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  height: 50%;
+  height: 1px;
   background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.05) 0%,
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.06) 50%,
     transparent 100%
   );
   pointer-events: none;
-  border-radius: inherit;
 }
 
 .header__status,

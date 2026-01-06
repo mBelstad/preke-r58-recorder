@@ -56,12 +56,9 @@ function selectMode(mode: 'recorder' | 'mixer') {
         <div class="split-home__content">
           <div class="split-home__icon split-home__icon--recorder">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-              <rect x="2" y="4" width="14" height="4" rx="1"/>
-              <rect x="2" y="10" width="14" height="4" rx="1"/>
-              <rect x="2" y="16" width="14" height="4" rx="1"/>
-              <circle cx="20" cy="6" r="3" fill="currentColor" stroke="none"/>
-              <circle cx="20" cy="15" r="3"/>
-              <circle cx="20" cy="15" r="1.5" fill="currentColor" stroke="none"/>
+              <rect x="2" y="5" width="14" height="12" rx="2"/>
+              <path d="M16 9l4-2v8l-4-2"/>
+              <circle cx="6" cy="8" r="2" fill="currentColor" stroke="none"/>
             </svg>
           </div>
           <h2 class="split-home__title">Recorder</h2>
