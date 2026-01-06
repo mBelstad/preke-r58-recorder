@@ -153,45 +153,24 @@ function selectMode(mode: 'recorder' | 'mixer') {
          PROPOSAL 3: COMBINED
          ═══════════════════════════════════════════ -->
     <div v-show="activeProposal === 3" class="proposal combined">
-      <!-- Moving gold glow behind shapes -->
-      <div class="combined__glow"></div>
-      
-      <!-- Geometric background with many smaller shapes -->
+      <!-- Geometric background - same as Geometric 3D -->
       <div class="combined__geo">
-        <!-- Row 1: Top -->
-        <div class="comb-shape comb-shape--1"></div>
-        <div class="comb-shape comb-shape--2"></div>
-        <div class="comb-shape comb-shape--3"></div>
-        <div class="comb-shape comb-shape--4"></div>
-        <div class="comb-shape comb-shape--5"></div>
-        
-        <!-- Row 2: Upper-mid -->
-        <div class="comb-shape comb-shape--6"></div>
-        <div class="comb-shape comb-shape--7"></div>
-        <div class="comb-shape comb-shape--8"></div>
-        <div class="comb-shape comb-shape--9"></div>
-        <div class="comb-shape comb-shape--10"></div>
-        <div class="comb-shape comb-shape--11"></div>
-        
-        <!-- Row 3: Center -->
-        <div class="comb-shape comb-shape--12"></div>
-        <div class="comb-shape comb-shape--13"></div>
-        <div class="comb-shape comb-shape--14"></div>
-        <div class="comb-shape comb-shape--15"></div>
-        <div class="comb-shape comb-shape--16"></div>
-        
-        <!-- Row 4: Lower-mid -->
-        <div class="comb-shape comb-shape--17"></div>
-        <div class="comb-shape comb-shape--18"></div>
-        <div class="comb-shape comb-shape--19"></div>
-        <div class="comb-shape comb-shape--20"></div>
-        <div class="comb-shape comb-shape--21"></div>
-        
-        <!-- Row 5: Bottom -->
-        <div class="comb-shape comb-shape--22"></div>
-        <div class="comb-shape comb-shape--23"></div>
-        <div class="comb-shape comb-shape--24"></div>
-        <div class="comb-shape comb-shape--25"></div>
+        <div class="geo-layer geo-layer--1">
+          <div class="geo-shape geo-shape--1"></div>
+          <div class="geo-shape geo-shape--2"></div>
+          <div class="geo-shape geo-shape--3"></div>
+        </div>
+        <div class="geo-layer geo-layer--2">
+          <div class="geo-shape geo-shape--4"></div>
+          <div class="geo-shape geo-shape--5"></div>
+        </div>
+        <div class="geo-layer geo-layer--3">
+          <div class="geo-shape geo-shape--6"></div>
+          <div class="geo-shape geo-shape--7"></div>
+        </div>
+        <!-- Gold glimmers behind shapes -->
+        <div class="geo-glimmer geo-glimmer--1"></div>
+        <div class="geo-glimmer geo-glimmer--2"></div>
       </div>
       
       <!-- Split content overlay -->
@@ -423,9 +402,36 @@ function selectMode(mode: 'recorder' | 'mixer') {
 
 .split-home__grid {
   position: absolute;
-  inset: 0;
-  opacity: 0.02;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='49' viewBox='0 0 28 49'%3E%3Cg fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M13.99 9.25l13 7.5v15l-13 7.5L1 31.75v-15l12.99-7.5zM3 17.9v12.7l10.99 6.34 11-6.35V17.9l-11-6.34L3 17.9z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  inset: -50%;
+  opacity: 0.06;
+  background: 
+    repeating-linear-gradient(
+      60deg,
+      transparent,
+      transparent 20px,
+      rgba(255, 255, 255, 0.02) 20px,
+      rgba(255, 255, 255, 0.02) 21px
+    ),
+    repeating-linear-gradient(
+      -60deg,
+      transparent,
+      transparent 20px,
+      rgba(255, 255, 255, 0.02) 20px,
+      rgba(255, 255, 255, 0.02) 21px
+    ),
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 35px,
+      rgba(255, 255, 255, 0.015) 35px,
+      rgba(255, 255, 255, 0.015) 36px
+    );
+  animation: grid-shift 20s linear infinite;
+}
+
+@keyframes grid-shift {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(36px); }
 }
 
 .split-home__content {
@@ -738,62 +744,57 @@ function selectMode(mode: 'recorder' | 'mixer') {
   50% { transform: translate(5px, -3px); opacity: 0.95; }
 }
 
-/* Gold glimmer effects - catching the light */
+/* Gold glimmer effects - behind shapes, casting light on them */
 .geo-glimmer {
   position: absolute;
   pointer-events: none;
-  z-index: 5;
+  z-index: 0;
+  filter: blur(8px);
+  box-shadow: 0 0 40px rgba(224, 160, 48, 0.4), 0 0 80px rgba(224, 160, 48, 0.2);
 }
 
 .geo-glimmer--1 {
-  width: 200px;
-  height: 3px;
+  width: 300px;
+  height: 30px;
   top: 38%;
   left: 25%;
-  background: linear-gradient(90deg, 
-    transparent 0%, 
-    rgba(224, 160, 48, 0.4) 30%,
-    rgba(224, 160, 48, 0.8) 50%,
-    rgba(224, 160, 48, 0.4) 70%,
-    transparent 100%
+  background: radial-gradient(ellipse, 
+    rgba(224, 160, 48, 0.6) 0%,
+    rgba(224, 160, 48, 0.3) 40%,
+    transparent 70%
   );
   transform: rotate(-5deg);
   animation: glimmer-1 8s ease-in-out infinite;
-  filter: blur(1px);
 }
 
 .geo-glimmer--2 {
-  width: 150px;
-  height: 2px;
+  width: 250px;
+  height: 25px;
   top: 52%;
   right: 22%;
-  background: linear-gradient(90deg, 
-    transparent 0%, 
-    rgba(224, 160, 48, 0.3) 40%,
-    rgba(224, 160, 48, 0.6) 50%,
-    rgba(224, 160, 48, 0.3) 60%,
-    transparent 100%
+  background: radial-gradient(ellipse, 
+    rgba(224, 160, 48, 0.5) 0%,
+    rgba(224, 160, 48, 0.25) 40%,
+    transparent 70%
   );
   transform: rotate(8deg);
   animation: glimmer-2 10s ease-in-out infinite;
   animation-delay: 2s;
-  filter: blur(1px);
 }
 
 .geo-glimmer--3 {
-  width: 100px;
-  height: 2px;
+  width: 200px;
+  height: 20px;
   bottom: 30%;
   left: 15%;
-  background: linear-gradient(90deg, 
-    transparent 0%, 
-    rgba(224, 160, 48, 0.5) 50%,
-    transparent 100%
+  background: radial-gradient(ellipse, 
+    rgba(224, 160, 48, 0.55) 0%,
+    rgba(224, 160, 48, 0.28) 40%,
+    transparent 70%
   );
   transform: rotate(-12deg);
   animation: glimmer-3 6s ease-in-out infinite;
   animation-delay: 4s;
-  filter: blur(0.5px);
 }
 
 @keyframes glimmer-1 {
@@ -843,317 +844,10 @@ function selectMode(mode: 'recorder' | 'mixer') {
   overflow: hidden;
 }
 
-/* Moving gold glow behind shapes */
-.combined__glow {
-  position: absolute;
-  width: 120%;
-  height: 120%;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: radial-gradient(ellipse at 50% 50%, rgba(224, 160, 48, 0.25) 0%, rgba(224, 160, 48, 0.1) 30%, transparent 60%);
-  animation: glow-move 12s ease-in-out infinite;
-  z-index: 1;
-}
-
-@keyframes glow-move {
-  0%, 100% { 
-    transform: translate(-50%, -50%) scale(1);
-    background: radial-gradient(ellipse at 40% 40%, rgba(224, 160, 48, 0.3) 0%, rgba(224, 160, 48, 0.1) 30%, transparent 60%);
-  }
-  25% { 
-    transform: translate(-48%, -52%) scale(1.05);
-    background: radial-gradient(ellipse at 60% 35%, rgba(224, 160, 48, 0.35) 0%, rgba(224, 160, 48, 0.12) 30%, transparent 60%);
-  }
-  50% { 
-    transform: translate(-50%, -50%) scale(1.02);
-    background: radial-gradient(ellipse at 55% 60%, rgba(224, 160, 48, 0.28) 0%, rgba(224, 160, 48, 0.1) 30%, transparent 60%);
-  }
-  75% { 
-    transform: translate(-52%, -48%) scale(1.04);
-    background: radial-gradient(ellipse at 45% 55%, rgba(224, 160, 48, 0.32) 0%, rgba(224, 160, 48, 0.11) 30%, transparent 60%);
-  }
-}
-
 .combined__geo {
   position: absolute;
-  inset: -10%;
+  inset: 0;
   overflow: hidden;
-  z-index: 2;
-}
-
-/* Individual solid shapes - smaller, organized grid pattern */
-.comb-shape {
-  position: absolute;
-  background: #0f0f11;
-  border: 1px solid rgba(224, 160, 48, 0.08);
-  transition: border-color 0.3s ease;
-  animation: shape-glow 8s ease-in-out infinite;
-}
-
-@keyframes shape-glow {
-  0%, 100% { border-color: rgba(224, 160, 48, 0.05); }
-  50% { border-color: rgba(224, 160, 48, 0.15); }
-}
-
-/* Row 1: Top - staggered parallelograms */
-.comb-shape--1 {
-  width: 120px;
-  height: 80px;
-  top: 5%;
-  left: 5%;
-  clip-path: polygon(20% 0%, 100% 0%, 80% 100%, 0% 100%);
-  animation-delay: 0s;
-}
-
-.comb-shape--2 {
-  width: 150px;
-  height: 90px;
-  top: 3%;
-  left: 18%;
-  clip-path: polygon(15% 0%, 100% 0%, 85% 100%, 0% 100%);
-  background: #111113;
-  animation-delay: 0.5s;
-}
-
-.comb-shape--3 {
-  width: 180px;
-  height: 100px;
-  top: 0%;
-  left: 38%;
-  clip-path: polygon(10% 0%, 100% 0%, 90% 100%, 0% 100%);
-  background: #121214;
-  animation-delay: 1s;
-}
-
-.comb-shape--4 {
-  width: 150px;
-  height: 90px;
-  top: 3%;
-  right: 18%;
-  clip-path: polygon(15% 0%, 100% 0%, 85% 100%, 0% 100%);
-  background: #111113;
-  animation-delay: 0.5s;
-}
-
-.comb-shape--5 {
-  width: 120px;
-  height: 80px;
-  top: 5%;
-  right: 5%;
-  clip-path: polygon(20% 0%, 100% 0%, 80% 100%, 0% 100%);
-  animation-delay: 0s;
-}
-
-/* Row 2: Upper-mid */
-.comb-shape--6 {
-  width: 100px;
-  height: 70px;
-  top: 18%;
-  left: 0%;
-  clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
-  background: #0d0d0f;
-  animation-delay: 1.5s;
-}
-
-.comb-shape--7 {
-  width: 140px;
-  height: 85px;
-  top: 16%;
-  left: 12%;
-  clip-path: polygon(18% 0%, 100% 0%, 82% 100%, 0% 100%);
-  background: #131315;
-  animation-delay: 2s;
-}
-
-.comb-shape--8 {
-  width: 160px;
-  height: 95px;
-  top: 14%;
-  left: 30%;
-  clip-path: polygon(12% 0%, 100% 0%, 88% 100%, 0% 100%);
-  background: #151517;
-  animation-delay: 2.5s;
-}
-
-.comb-shape--9 {
-  width: 160px;
-  height: 95px;
-  top: 14%;
-  right: 30%;
-  clip-path: polygon(12% 0%, 100% 0%, 88% 100%, 0% 100%);
-  background: #151517;
-  animation-delay: 2.5s;
-}
-
-.comb-shape--10 {
-  width: 140px;
-  height: 85px;
-  top: 16%;
-  right: 12%;
-  clip-path: polygon(18% 0%, 100% 0%, 82% 100%, 0% 100%);
-  background: #131315;
-  animation-delay: 2s;
-}
-
-.comb-shape--11 {
-  width: 100px;
-  height: 70px;
-  top: 18%;
-  right: 0%;
-  clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
-  background: #0d0d0f;
-  animation-delay: 1.5s;
-}
-
-/* Row 3: Center - larger shapes, more gold reflection */
-.comb-shape--12 {
-  width: 130px;
-  height: 90px;
-  top: 35%;
-  left: 5%;
-  clip-path: polygon(20% 0%, 100% 0%, 80% 100%, 0% 100%);
-  background: #161618;
-  border-color: rgba(224, 160, 48, 0.12);
-  animation-delay: 3s;
-}
-
-.comb-shape--13 {
-  width: 170px;
-  height: 110px;
-  top: 32%;
-  left: 18%;
-  clip-path: polygon(15% 0%, 100% 0%, 85% 100%, 0% 100%);
-  background: #181819;
-  border-color: rgba(224, 160, 48, 0.15);
-  animation-delay: 3.5s;
-}
-
-.comb-shape--14 {
-  width: 200px;
-  height: 120px;
-  top: 30%;
-  left: 50%;
-  transform: translateX(-50%);
-  clip-path: polygon(10% 0%, 90% 0%, 100% 100%, 0% 100%);
-  background: #1a1a1c;
-  border-color: rgba(224, 160, 48, 0.18);
-  animation-delay: 4s;
-}
-
-.comb-shape--15 {
-  width: 170px;
-  height: 110px;
-  top: 32%;
-  right: 18%;
-  clip-path: polygon(15% 0%, 100% 0%, 85% 100%, 0% 100%);
-  background: #181819;
-  border-color: rgba(224, 160, 48, 0.15);
-  animation-delay: 3.5s;
-}
-
-.comb-shape--16 {
-  width: 130px;
-  height: 90px;
-  top: 35%;
-  right: 5%;
-  clip-path: polygon(20% 0%, 100% 0%, 80% 100%, 0% 100%);
-  background: #161618;
-  border-color: rgba(224, 160, 48, 0.12);
-  animation-delay: 3s;
-}
-
-/* Row 4: Lower-mid */
-.comb-shape--17 {
-  width: 110px;
-  height: 75px;
-  bottom: 22%;
-  left: 8%;
-  clip-path: polygon(22% 0%, 100% 0%, 78% 100%, 0% 100%);
-  background: #131315;
-  animation-delay: 4.5s;
-}
-
-.comb-shape--18 {
-  width: 150px;
-  height: 90px;
-  bottom: 20%;
-  left: 22%;
-  clip-path: polygon(16% 0%, 100% 0%, 84% 100%, 0% 100%);
-  background: #141416;
-  animation-delay: 5s;
-}
-
-.comb-shape--19 {
-  width: 180px;
-  height: 100px;
-  bottom: 18%;
-  left: 50%;
-  transform: translateX(-50%);
-  clip-path: polygon(12% 0%, 88% 0%, 100% 100%, 0% 100%);
-  background: #151517;
-  animation-delay: 5.5s;
-}
-
-.comb-shape--20 {
-  width: 150px;
-  height: 90px;
-  bottom: 20%;
-  right: 22%;
-  clip-path: polygon(16% 0%, 100% 0%, 84% 100%, 0% 100%);
-  background: #141416;
-  animation-delay: 5s;
-}
-
-.comb-shape--21 {
-  width: 110px;
-  height: 75px;
-  bottom: 22%;
-  right: 8%;
-  clip-path: polygon(22% 0%, 100% 0%, 78% 100%, 0% 100%);
-  background: #131315;
-  animation-delay: 4.5s;
-}
-
-/* Row 5: Bottom */
-.comb-shape--22 {
-  width: 100px;
-  height: 65px;
-  bottom: 5%;
-  left: 12%;
-  clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
-  background: #0e0e10;
-  animation-delay: 6s;
-}
-
-.comb-shape--23 {
-  width: 140px;
-  height: 80px;
-  bottom: 3%;
-  left: 30%;
-  clip-path: polygon(18% 0%, 100% 0%, 82% 100%, 0% 100%);
-  background: #101012;
-  animation-delay: 6.5s;
-}
-
-.comb-shape--24 {
-  width: 140px;
-  height: 80px;
-  bottom: 3%;
-  right: 30%;
-  clip-path: polygon(18% 0%, 100% 0%, 82% 100%, 0% 100%);
-  background: #101012;
-  animation-delay: 6.5s;
-}
-
-.comb-shape--25 {
-  width: 100px;
-  height: 65px;
-  bottom: 5%;
-  right: 12%;
-  clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
-  background: #0e0e10;
-  animation-delay: 6s;
 }
 
 .combined__split {
@@ -1292,115 +986,115 @@ function selectMode(mode: 'recorder' | 'mixer') {
   transform-origin: center;
 }
 
-/* Layer 1: Back ribbons (darkest) - going both directions */
+/* Layer 1: Back ribbons - horizontal, centered, minimal rotation */
 .ribbon--1 {
-  width: 180%;
-  height: 60px;
-  top: 5%;
-  left: -40%;
+  width: 140%;
+  height: 50px;
+  top: 28%;
+  left: -20%;
   background: linear-gradient(135deg, #0e0e10 0%, #0a0a0c 100%);
-  transform: rotate(-25deg);
+  transform: rotate(-4deg);
   animation: ribbon-glow 14s ease-in-out infinite;
 }
 
 .ribbon--2 {
-  width: 180%;
+  width: 150%;
   height: 45px;
-  top: 15%;
-  left: -40%;
+  top: 36%;
+  left: -25%;
   background: linear-gradient(135deg, #0f0f11 0%, #0b0b0d 100%);
-  transform: rotate(22deg);
+  transform: rotate(3deg);
   animation: ribbon-glow 16s ease-in-out infinite;
   animation-delay: 1s;
 }
 
 .ribbon--3 {
-  width: 160%;
+  width: 145%;
   height: 55px;
-  bottom: 25%;
-  left: -30%;
+  top: 44%;
+  left: -22%;
   background: linear-gradient(135deg, #0d0d0f 0%, #090909 100%);
-  transform: rotate(-28deg);
+  transform: rotate(-5deg);
   animation: ribbon-glow 12s ease-in-out infinite;
   animation-delay: 2s;
 }
 
 .ribbon--4 {
-  width: 170%;
-  height: 50px;
-  bottom: 10%;
-  left: -35%;
+  width: 155%;
+  height: 48px;
+  top: 52%;
+  left: -27%;
   background: linear-gradient(135deg, #0e0e10 0%, #0a0a0c 100%);
-  transform: rotate(20deg);
+  transform: rotate(4deg);
   animation: ribbon-glow 15s ease-in-out infinite;
   animation-delay: 0.5s;
 }
 
 .ribbon--5 {
-  width: 150%;
-  height: 40px;
-  top: 40%;
-  left: -25%;
+  width: 140%;
+  height: 42px;
+  top: 60%;
+  left: -20%;
   background: linear-gradient(135deg, #0c0c0e 0%, #080808 100%);
-  transform: rotate(-18deg);
+  transform: rotate(-3deg);
   animation: ribbon-glow 13s ease-in-out infinite;
   animation-delay: 3s;
 }
 
 .ribbon--6 {
-  width: 140%;
-  height: 35px;
-  bottom: 40%;
-  left: -20%;
+  width: 135%;
+  height: 38px;
+  top: 68%;
+  left: -17%;
   background: linear-gradient(135deg, #0d0d0f 0%, #090909 100%);
-  transform: rotate(30deg);
+  transform: rotate(5deg);
   animation: ribbon-glow 11s ease-in-out infinite;
   animation-delay: 1.5s;
 }
 
-/* Layer 2: Mid ribbons - more prominent */
+/* Layer 2: Mid ribbons - slightly more visible, centered */
 .ribbon--7 {
-  width: 160%;
-  height: 70px;
-  top: 20%;
-  left: -30%;
+  width: 145%;
+  height: 65px;
+  top: 32%;
+  left: -22%;
   background: linear-gradient(135deg, #121214 0%, #0d0d0f 100%);
-  transform: rotate(-22deg);
+  transform: rotate(-6deg);
   box-shadow: 0 5px 30px rgba(0, 0, 0, 0.5);
   animation: ribbon-glow 10s ease-in-out infinite;
 }
 
 .ribbon--8 {
-  width: 170%;
+  width: 150%;
   height: 55px;
-  top: 35%;
-  left: -35%;
+  top: 42%;
+  left: -25%;
   background: linear-gradient(135deg, #141416 0%, #0f0f11 100%);
-  transform: rotate(25deg);
+  transform: rotate(5deg);
   box-shadow: 0 5px 30px rgba(0, 0, 0, 0.5);
   animation: ribbon-glow 12s ease-in-out infinite;
   animation-delay: 2s;
 }
 
 .ribbon--9 {
-  width: 150%;
-  height: 50px;
-  bottom: 30%;
-  left: -25%;
+  width: 140%;
+  height: 52px;
+  top: 52%;
+  left: -20%;
   background: linear-gradient(135deg, #131315 0%, #0e0e10 100%);
-  transform: rotate(-20deg);
+  transform: rotate(-4deg);
   box-shadow: 0 5px 30px rgba(0, 0, 0, 0.5);
   animation: ribbon-glow 14s ease-in-out infinite;
   animation-delay: 1s;
 }
 
 .ribbon--10 {
-  width: 140%;
-  height: 45px;
-  bottom: 20%;
-  left: -20%;
+  width: 135%;
+  height: 48px;
+  top: 62%;
+  left: -17%;
   background: linear-gradient(135deg, #121214 0%, #0c0c0e 100%);
-  transform: rotate(28deg);
+  transform: rotate(6deg);
   box-shadow: 0 5px 30px rgba(0, 0, 0, 0.5);
   animation: ribbon-glow 11s ease-in-out infinite;
   animation-delay: 3s;
@@ -1408,51 +1102,51 @@ function selectMode(mode: 'recorder' | 'mixer') {
 
 .ribbon--11 {
   width: 130%;
-  height: 40px;
-  top: 55%;
+  height: 44px;
+  top: 25%;
   left: -15%;
   background: linear-gradient(135deg, #101012 0%, #0b0b0d 100%);
-  transform: rotate(-32deg);
+  transform: rotate(-3deg);
   box-shadow: 0 3px 20px rgba(0, 0, 0, 0.4);
   animation: ribbon-glow 13s ease-in-out infinite;
   animation-delay: 0.5s;
 }
 
 .ribbon--12 {
-  width: 120%;
-  height: 35px;
-  top: 65%;
-  left: -10%;
+  width: 125%;
+  height: 40px;
+  top: 70%;
+  left: -12%;
   background: linear-gradient(135deg, #111113 0%, #0c0c0e 100%);
-  transform: rotate(15deg);
+  transform: rotate(4deg);
   box-shadow: 0 3px 20px rgba(0, 0, 0, 0.4);
   animation: ribbon-glow 15s ease-in-out infinite;
   animation-delay: 2.5s;
 }
 
-/* Layer 3: Front ribbons - lightest with gold edge highlights */
+/* Layer 3: Front ribbons - most visible, gold edges, centered */
 .ribbon--13 {
-  width: 150%;
-  height: 80px;
-  top: 30%;
-  left: -25%;
+  width: 140%;
+  height: 75px;
+  top: 38%;
+  left: -20%;
   background: linear-gradient(135deg, #1a1a1c 0%, #141416 100%);
-  transform: rotate(-18deg);
+  transform: rotate(-5deg);
   box-shadow: 
-    inset 0 1px 0 rgba(224, 160, 48, 0.08),
+    inset 0 1px 0 rgba(224, 160, 48, 0.1),
     0 8px 40px rgba(0, 0, 0, 0.6);
   animation: ribbon-glow-front 8s ease-in-out infinite;
 }
 
 .ribbon--14 {
-  width: 140%;
-  height: 65px;
-  top: 45%;
-  left: -20%;
+  width: 135%;
+  height: 68px;
+  top: 48%;
+  left: -17%;
   background: linear-gradient(135deg, #1c1c1e 0%, #161618 100%);
-  transform: rotate(22deg);
+  transform: rotate(4deg);
   box-shadow: 
-    inset 0 1px 0 rgba(224, 160, 48, 0.1),
+    inset 0 1px 0 rgba(224, 160, 48, 0.12),
     0 8px 40px rgba(0, 0, 0, 0.6);
   animation: ribbon-glow-front 10s ease-in-out infinite;
   animation-delay: 1s;
@@ -1460,27 +1154,27 @@ function selectMode(mode: 'recorder' | 'mixer') {
 
 .ribbon--15 {
   width: 130%;
-  height: 55px;
-  bottom: 35%;
+  height: 60px;
+  top: 56%;
   left: -15%;
   background: linear-gradient(135deg, #1b1b1d 0%, #151517 100%);
-  transform: rotate(-25deg);
+  transform: rotate(-6deg);
   box-shadow: 
-    inset 0 1px 0 rgba(224, 160, 48, 0.12),
+    inset 0 1px 0 rgba(224, 160, 48, 0.14),
     0 8px 40px rgba(0, 0, 0, 0.6);
   animation: ribbon-glow-front 9s ease-in-out infinite;
   animation-delay: 0.5s;
 }
 
 .ribbon--16 {
-  width: 120%;
-  height: 50px;
-  bottom: 25%;
-  left: -10%;
+  width: 125%;
+  height: 55px;
+  top: 64%;
+  left: -12%;
   background: linear-gradient(135deg, #1d1d1f 0%, #171719 100%);
-  transform: rotate(18deg);
+  transform: rotate(5deg);
   box-shadow: 
-    inset 0 1px 0 rgba(224, 160, 48, 0.15),
+    inset 0 1px 0 rgba(224, 160, 48, 0.16),
     0 8px 40px rgba(0, 0, 0, 0.6);
   animation: ribbon-glow-front 11s ease-in-out infinite;
   animation-delay: 1.5s;
