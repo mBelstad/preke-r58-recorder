@@ -1,9 +1,9 @@
 <script setup lang="ts">
 /**
  * Preke Studio Logo Component
- * White Preke logo with waveform + "studio" text
+ * White Preke logo with waveform + "studio" text (cropped for optimal sizing)
  */
-import logoPrekeWhite from '@/assets/logo-preke-white.svg'
+import logoPrekeWhiteCropped from '@/assets/logo-preke-white-cropped.svg'
 
 defineProps<{
   height?: number
@@ -12,7 +12,7 @@ defineProps<{
 
 <template>
   <div class="preke-studio-logo">
-    <img :src="logoPrekeWhite" alt="Preke" class="preke-studio-logo__image" />
+    <img :src="logoPrekeWhiteCropped" alt="Preke" class="preke-studio-logo__image" />
     <span class="preke-studio-logo__text">studio</span>
   </div>
 </template>
