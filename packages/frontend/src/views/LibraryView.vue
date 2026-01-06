@@ -236,14 +236,14 @@ onMounted(() => {
 <template>
   <div class="h-full flex flex-col">
     <!-- Header -->
-    <header class="flex items-center justify-between px-6 py-4 border-b border-r58-bg-tertiary bg-r58-bg-secondary">
-      <h1 class="text-xl font-semibold">Recording Library</h1>
+    <header class="flex items-center justify-between px-6 py-4 border-b border-preke-surface-border bg-preke-surface/50 backdrop-blur-sm">
+      <h1 class="text-xl font-semibold text-preke-text">Recording Library</h1>
       <div class="flex items-center gap-4">
-        <button @click="fetchSessions" class="btn" :disabled="loading">
-          <svg v-if="loading" class="animate-spin w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <button @click="fetchSessions" class="btn-v2 btn-v2--primary" :disabled="loading">
+          <svg v-if="loading" class="animate-spin w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
-          <span v-else>Refresh</span>
+          <span>{{ loading ? 'Loading...' : 'Refresh' }}</span>
         </button>
       </div>
     </header>
@@ -252,25 +252,42 @@ onMounted(() => {
     <div class="flex-1 p-6 overflow-y-auto">
       <!-- Loading state -->
       <div v-if="loading" class="flex items-center justify-center h-64">
-        <div class="animate-spin w-8 h-8 border-2 border-r58-accent-primary border-t-transparent rounded-full"></div>
+        <div class="flex flex-col items-center gap-4">
+          <div class="animate-spin w-10 h-10 border-3 border-preke-gold border-t-transparent rounded-full"></div>
+          <span class="text-preke-text-muted text-sm">Loading recordings...</span>
+        </div>
       </div>
       
       <!-- Error state -->
       <div v-else-if="error" class="flex flex-col items-center justify-center h-64 text-center">
-        <svg class="w-12 h-12 text-r58-accent-danger mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-        </svg>
-        <p class="text-r58-text-secondary">{{ error }}</p>
-        <button @click="fetchSessions" class="btn mt-4">Try Again</button>
+        <div class="glass-card p-8 rounded-2xl max-w-md">
+          <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-preke-red/10 flex items-center justify-center">
+            <svg class="w-8 h-8 text-preke-red" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h3 class="text-lg font-semibold text-preke-text mb-2">Connection Error</h3>
+          <p class="text-preke-text-muted text-sm mb-6">{{ error }}</p>
+          <button @click="fetchSessions" class="btn-v2 btn-v2--primary">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Try Again
+          </button>
+        </div>
       </div>
       
       <!-- Empty state -->
       <div v-else-if="sessions.length === 0" class="flex flex-col items-center justify-center h-64 text-center">
-        <svg class="w-16 h-16 text-r58-text-secondary mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-        </svg>
-        <p class="text-lg font-medium">No Recordings Yet</p>
-        <p class="text-sm text-r58-text-secondary mt-2">Recordings will appear here after you record from the Recorder page.</p>
+        <div class="glass-card p-8 rounded-2xl max-w-md">
+          <div class="w-20 h-20 mx-auto mb-4 rounded-full bg-preke-gold/10 flex items-center justify-center">
+            <svg class="w-10 h-10 text-preke-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+            </svg>
+          </div>
+          <h3 class="text-lg font-semibold text-preke-text mb-2">No Recordings Yet</h3>
+          <p class="text-preke-text-muted text-sm">Recordings will appear here after you record from the Recorder page.</p>
+        </div>
       </div>
       
       <!-- Session list -->
@@ -278,7 +295,7 @@ onMounted(() => {
         <div 
           v-for="session in sessions" 
           :key="session.id"
-          class="card flex items-center justify-between hover:border-r58-accent-primary/50 transition-colors"
+          class="glass-card p-4 rounded-xl flex items-center justify-between hover:border-preke-gold/30 transition-all duration-200"
         >
           <div class="flex items-center gap-4">
             <!-- Thumbnail: show camera icons for files in session -->
@@ -314,10 +331,10 @@ onMounted(() => {
                 <button @click="cancelRename" class="text-r58-text-secondary text-sm">Cancel</button>
               </div>
               <div v-else class="flex items-center gap-2">
-                <h3 class="font-medium">{{ session.name || session.id.substring(0, 8) }}</h3>
+                <h3 class="font-medium text-preke-text">{{ session.name || session.id.substring(0, 8) }}</h3>
                 <button 
                   @click.stop="startRename(session)"
-                  class="text-r58-text-secondary hover:text-r58-text-primary"
+                  class="text-preke-text-muted hover:text-preke-gold transition-colors"
                   title="Rename session"
                 >
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -325,17 +342,17 @@ onMounted(() => {
                   </svg>
                 </button>
               </div>
-              <p class="text-sm text-r58-text-secondary">{{ session.date }} · {{ session.duration }}</p>
+              <p class="text-sm text-preke-text-muted">{{ session.date }} · {{ session.duration }}</p>
             </div>
           </div>
           
-          <div class="flex items-center gap-4 text-sm text-r58-text-secondary">
-            <span>{{ session.file_count }} files</span>
-            <span>{{ session.total_size }}</span>
-            <button @click="openSession(session)" class="btn">Open</button>
+          <div class="flex items-center gap-4 text-sm text-preke-text-muted">
+            <span class="px-2 py-1 bg-preke-surface rounded text-xs">{{ session.file_count }} files</span>
+            <span class="px-2 py-1 bg-preke-surface rounded text-xs">{{ session.total_size }}</span>
+            <button @click="openSession(session)" class="btn-v2 btn-v2--secondary text-sm">Open</button>
             <button 
               @click.stop="deleteSession(session)" 
-              class="btn text-r58-accent-danger hover:bg-r58-accent-danger/10"
+              class="btn-v2 btn-v2--ghost text-preke-red hover:bg-preke-red/10"
               title="Delete session"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

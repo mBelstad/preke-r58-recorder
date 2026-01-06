@@ -51,6 +51,11 @@ const router = createRouter({
       meta: { title: 'Admin', requiresAuth: true }
     },
     {
+      path: '/settings',
+      name: 'settings',
+      redirect: { name: 'admin', query: { tab: 'settings' } }
+    },
+    {
       path: '/guest',
       name: 'guest',
       component: () => import('@/views/GuestView.vue'),

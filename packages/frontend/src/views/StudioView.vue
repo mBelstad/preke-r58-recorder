@@ -42,7 +42,7 @@ async function selectMode(mode: 'recorder' | 'mixer') {
     }
     
     // Navigate to the mode view
-    router.push(`/${mode}`)
+  router.push(`/${mode}`)
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Failed to switch mode'
     switchError.value = message

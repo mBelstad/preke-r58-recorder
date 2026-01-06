@@ -141,7 +141,7 @@ watch(showLeaveConfirmation, (show) => {
       </div>
       
       <!-- Sidebar -->
-      <aside class="w-72 flex-shrink-0 border-l border-preke-border bg-preke-bg-elevated p-4 overflow-y-auto">
+      <aside class="w-72 flex-shrink-0 border-l border-preke-surface-border bg-preke-surface/80 backdrop-blur-lg p-4 overflow-y-auto">
         <SessionInfo />
       </aside>
     </div>

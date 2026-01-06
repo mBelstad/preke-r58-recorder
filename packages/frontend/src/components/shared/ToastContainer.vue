@@ -26,32 +26,33 @@ function getIcon(type: ToastType): string {
 }
 
 function getColorClasses(type: ToastType): string {
+  const base = 'backdrop-blur-lg border '
   switch (type) {
     case 'success':
-      return 'bg-emerald-900/90 border-emerald-500 text-emerald-100'
+      return base + 'bg-preke-green/15 border-preke-green/50 text-preke-text'
     case 'error':
-      return 'bg-red-900/90 border-red-500 text-red-100'
+      return base + 'bg-preke-red/15 border-preke-red/50 text-preke-text'
     case 'warning':
-      return 'bg-amber-900/90 border-amber-500 text-amber-100'
+      return base + 'bg-preke-gold/15 border-preke-gold/50 text-preke-text'
     case 'info':
-      return 'bg-blue-900/90 border-blue-500 text-blue-100'
+      return base + 'bg-preke-surface border-preke-surface-border text-preke-text'
     default:
-      return 'bg-zinc-800/90 border-zinc-600 text-zinc-100'
+      return base + 'bg-preke-surface border-preke-surface-border text-preke-text'
   }
 }
 
 function getIconColorClass(type: ToastType): string {
   switch (type) {
     case 'success':
-      return 'text-emerald-400'
+      return 'text-preke-green'
     case 'error':
-      return 'text-red-400'
+      return 'text-preke-red'
     case 'warning':
-      return 'text-amber-400'
+      return 'text-preke-gold'
     case 'info':
-      return 'text-blue-400'
+      return 'text-preke-text-muted'
     default:
-      return 'text-zinc-400'
+      return 'text-preke-text-muted'
   }
 }
 </script>
@@ -72,7 +73,7 @@ function getIconColorClass(type: ToastType): string {
           v-for="toast in toasts"
           :key="toast.id"
           :class="[
-            'pointer-events-auto min-w-[320px] max-w-[420px] rounded-lg border-l-4 p-4 shadow-xl backdrop-blur-sm',
+            'pointer-events-auto min-w-[320px] max-w-[420px] rounded-xl border p-4 shadow-2xl',
             getColorClasses(toast.type)
           ]"
           role="alert"

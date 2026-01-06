@@ -57,8 +57,8 @@ function handleIframeLoad() {
 
 function handleLoadingReady() {
   isLoading.value = false
-}
-
+  }
+  
 // Check if bridge has started by checking mode manager status
 async function waitForBridge(): Promise<void> {
   const startTime = performance.now()
@@ -187,8 +187,8 @@ onMounted(async () => {
           <span class="text-r58-text-secondary">Loading VDO.ninja mixer...</span>
           <span class="text-xs text-r58-text-secondary/60">Cameras will appear when bridge is running</span>
         </div>
-      </div>
-    </div>
+        </div>
+        </div>
     </div>
   </Transition>
 </template>
