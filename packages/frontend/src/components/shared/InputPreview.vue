@@ -68,6 +68,11 @@ function handleConnectionChange(conn: WHEPConnection) {
         if (videoRef.value.srcObject !== conn.mediaStream) {
           videoRef.value.srcObject = conn.mediaStream
           
+          // Explicitly play the video (required in some Electron/browser contexts)
+          videoRef.value.play().catch((e) => {
+            console.warn(`[InputPreview ${props.inputId}] Autoplay prevented:`, e)
+          })
+          
           // Emit videoReady when first frame is displayed
           if (!videoReadyEmitted) {
             videoRef.value.onloadeddata = () => {

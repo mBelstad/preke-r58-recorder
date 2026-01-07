@@ -81,6 +81,8 @@ DEPLOY_COMMANDS="cd /opt/preke-r58-recorder && \
     git checkout $DEPLOY_BRANCH && \
     git pull origin $DEPLOY_BRANCH && \
     echo 'Latest commit:' && git log -1 --oneline && \
+    echo 'Setting up VDO.ninja if needed...' && \
+    sudo bash scripts/setup-vdoninja.sh && \
     sudo systemctl restart preke-recorder && \
     echo 'Deployment complete!'"
 
