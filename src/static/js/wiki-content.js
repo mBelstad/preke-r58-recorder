@@ -896,7 +896,7 @@ The R58 is pre-configured with:
 # System dependencies
 apt-get install python3-pip python3-venv gstreamer1.0-tools \\
     gstreamer1.0-plugins-base gstreamer1.0-plugins-good \\
-    gstreamer1.0-plugins-bad python3-gi
+    gstreamer1.0-plugins-bad gstreamer1.0-rtsp python3-gi
 
 # Application installed at
 /opt/preke-r58-recorder/

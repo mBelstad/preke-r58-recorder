@@ -240,7 +240,7 @@ function getInputTooltip(input: InputStatus): string {
   padding: 0.375rem 0.75rem;
   background: rgba(245, 158, 11, 0.1);
   border: 1px solid rgba(245, 158, 11, 0.3);
-  border-radius: 0.5rem;
+  border-radius: 6px;
   color: #fbbf24;
   font-size: 0.875rem;
 }
@@ -283,7 +283,7 @@ function getInputTooltip(input: InputStatus): string {
 /* Video tile - maintains aspect ratio within grid cell */
 .input-grid__tile {
   position: relative;
-  border-radius: 0.5rem;
+  border-radius: 6px;
   overflow: hidden;
   border-width: 2px;
   background: #000;
@@ -295,10 +295,10 @@ function getInputTooltip(input: InputStatus): string {
   justify-content: center;
 }
 
-/* Make video fill tile maintaining 16:9 aspect */
+/* Make video fit within tile, showing full content (no cropping) */
 .input-grid__tile :deep(video) {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
 </style>
