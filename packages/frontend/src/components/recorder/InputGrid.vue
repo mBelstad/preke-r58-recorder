@@ -295,10 +295,10 @@ function getInputTooltip(input: InputStatus): string {
   justify-content: center;
 }
 
-/* Make video fit within tile, showing full content (no cropping) */
+/* Make video fill tile completely (no black bars, slight crop if needed) */
 .input-grid__tile :deep(video) {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
 }
 </style>
