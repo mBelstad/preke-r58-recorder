@@ -32,7 +32,7 @@ VDO_SIGNALING_DIR="/opt/vdo-signaling"
 VDO_VERSION="v28.0.0"  # Minimum version with WHEP support
 VDO_PORT=8443
 VDO_WEBAPP_PORT=8444
-FRP_CONFIG="/opt/frp/frpc.toml"
+FRP_CONFIG="/etc/frp/frpc.toml"
 
 # Check if VDO.ninja is already installed
 if [[ -d "$VDO_INSTALL_DIR" ]] || [[ -d "$VDO_SIGNALING_DIR" ]]; then
