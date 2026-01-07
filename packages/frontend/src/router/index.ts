@@ -92,16 +92,19 @@ const router = createRouter({
       meta: { title: 'Style Guide v2 - Glassmorphism' }
     },
     {
+      path: '/background-drafts',
+      name: 'background-drafts',
+      component: () => import('@/views/BackgroundDesignDraftsView.vue'),
+      meta: { title: 'Background Design Drafts' }
+    },
+    // Legacy routes - redirect to combined page
+    {
       path: '/experiments',
-      name: 'experiments',
-      component: () => import('@/views/BackgroundExperimentsView.vue'),
-      meta: { title: 'Background Experiments' }
+      redirect: { name: 'background-drafts' }
     },
     {
       path: '/proposals',
-      name: 'proposals',
-      component: () => import('@/views/DesignProposalsView.vue'),
-      meta: { title: 'Design Proposals' }
+      redirect: { name: 'background-drafts' }
     },
     {
       path: '/design-archive',

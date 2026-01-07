@@ -63,7 +63,7 @@ function openConfirmDialog() {
     <div class="max-w-6xl mx-auto space-y-12">
       <!-- Back button -->
       <button 
-        @click="router.push('/admin')"
+        @click="router.back()"
         class="inline-flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-preke-text-dim text-sm font-medium hover:bg-white/10 hover:text-preke-text hover:border-white/20 transition-all"
       >
         <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

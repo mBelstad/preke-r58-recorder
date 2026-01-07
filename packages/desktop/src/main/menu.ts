@@ -62,6 +62,20 @@ function getMenuTemplate(): MenuItemConstructorOptions[] {
       ]
     }] : []),
 
+    // Edit menu (for copy/paste)
+    {
+      label: 'Edit',
+      submenu: [
+        { role: 'undo' as const },
+        { role: 'redo' as const },
+        { type: 'separator' as const },
+        { role: 'cut' as const },
+        { role: 'copy' as const },
+        { role: 'paste' as const },
+        { role: 'selectAll' as const }
+      ]
+    },
+
     // View menu
     {
       label: 'View',

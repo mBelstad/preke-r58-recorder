@@ -49,11 +49,20 @@ npm run build
 # Build and package (no signing)
 npm run pack
 
-# Build distributable DMG (unsigned)
-npm run dist:mac:unsigned
+# macOS builds
+npm run dist:mac              # Signed + notarized DMG
+npm run dist:mac:unsigned     # Unsigned DMG
 
-# Build distributable DMG (signed + notarized)
-npm run dist:mac
+# Windows builds
+npm run dist:win              # Signed installer (if certs available)
+npm run dist:win:unsigned     # Unsigned installer
+
+# All platforms
+npm run dist:all              # All platforms (signed)
+npm run dist:all:unsigned    # All platforms (unsigned)
+
+# Convert icons (run before first build)
+npm run convert-icons
 ```
 
 ## Project Structure
@@ -222,10 +231,16 @@ For signed builds that still show warnings:
 - Check that port 8000 is accessible (or the configured port)
 - Look for WS errors in the DevTools console
 
+## Installation Guides
+
+For end-user installation instructions, see:
+- [macOS Installation Guide](INSTALL_MACOS.md)
+- [Windows Installation Guide](INSTALL_WINDOWS.md)
+
 ## Future Enhancements
 
 - [ ] Auto-update via electron-updater
-- [ ] Windows distribution
+- [x] Windows distribution
 - [ ] Linux AppImage
 - [ ] Device discovery via mDNS/Bonjour
 

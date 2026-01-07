@@ -26,7 +26,9 @@ interface WHEPConnection {
   lastConnectedAt: number | null
   reconnectAttempts: number
   reconnectTimeout: ReturnType<typeof setTimeout> | null
+  disconnectedTimeout: ReturnType<typeof setTimeout> | null  // Timeout for disconnected state recovery
   connectionStartTime: number | null  // For timing measurements
+  isConnecting: boolean  // Guard flag to prevent multiple simultaneous connection attempts
 }
 
 // Known IPs for connection type detection
@@ -37,6 +39,27 @@ const P2P_IPS = ['100.98.37.53', '192.168.1.24']
 const MAX_RECONNECT_ATTEMPTS = 5
 const INITIAL_RECONNECT_DELAY = 1000  // 1 second
 const MAX_RECONNECT_DELAY = 30000     // 30 seconds
+
+// Network debug logging
+const isNetworkDebugEnabled = (): boolean => {
+  return import.meta.env.VITE_NETWORK_DEBUG === '1' || 
+         (typeof window !== 'undefined' && (window as any).__NETWORK_DEBUG__ === true)
+}
+
+// Rate-limited logging (max 1 log per second per subsystem)
+const logThrottle = new Map<string, number>()
+const LOG_THROTTLE_MS = 1000
+
+function networkDebugLog(subsystem: string, message: string, ...args: any[]): void {
+  if (!isNetworkDebugEnabled()) return
+  
+  const now = Date.now()
+  const lastLog = logThrottle.get(subsystem) || 0
+  if (now - lastLog < LOG_THROTTLE_MS) return
+  
+  logThrottle.set(subsystem, now)
+  console.log(`[NETWORK DEBUG ${subsystem}] ${message}`, ...args)
+}
 
 // Active connections (singleton map)
 const connections = new Map<string, WHEPConnection>()
@@ -158,7 +181,7 @@ function notifyListeners(cameraId: string) {
 }
 
 /**
- * Schedule a reconnection attempt with exponential backoff
+ * Schedule a reconnection attempt with exponential backoff and jitter
  */
 function scheduleReconnect(cameraId: string) {
   const conn = connections.get(cameraId)
@@ -172,11 +195,16 @@ function scheduleReconnect(cameraId: string) {
   }
   
   conn.reconnectAttempts++
-  const delay = Math.min(
+  const baseDelay = Math.min(
     INITIAL_RECONNECT_DELAY * Math.pow(2, conn.reconnectAttempts - 1),
     MAX_RECONNECT_DELAY
   )
   
+  // Add ±20% jitter to prevent thundering herd
+  const jitter = baseDelay * 0.2 * (Math.random() * 2 - 1)  // -20% to +20%
+  const delay = Math.max(100, Math.round(baseDelay + jitter))  // Minimum 100ms
+  
+  networkDebugLog('WHEP', `Camera ${cameraId}: Reconnect #${conn.reconnectAttempts} in ${delay}ms (base: ${baseDelay}ms)`)
   console.log(`[WHEP Manager ${cameraId}] Scheduling reconnect #${conn.reconnectAttempts} in ${delay}ms`)
   conn.state = 'connecting'
   notifyListeners(cameraId)
@@ -202,6 +230,19 @@ async function createConnection(cameraId: string): Promise<WHEPConnection> {
     return conn
   }
   
+  // Prevent multiple simultaneous connection attempts
+  if (conn?.isConnecting) {
+    networkDebugLog('WHEP', `Camera ${cameraId}: Connection already in progress, skipping duplicate attempt`)
+    console.log(`[WHEP Manager ${cameraId}] Connection already in progress, waiting...`)
+    // Wait for existing connection attempt to complete
+    while (conn.isConnecting && conn.state === 'connecting') {
+      await new Promise(resolve => setTimeout(resolve, 100))
+      conn = connections.get(cameraId)
+      if (!conn) break
+    }
+    if (conn) return conn
+  }
+  
   // Wait for device URL to be set (handles race condition on startup)
   // Reduced wait time for faster loading
   let deviceUrl = getDeviceUrl()
@@ -215,12 +256,24 @@ async function createConnection(cameraId: string): Promise<WHEPConnection> {
   
   const startTime = performance.now()
   const whepUrl = buildWhepUrl(cameraId)
+  networkDebugLog('WHEP', `Camera ${cameraId}: Creating connection to ${whepUrl}`)
   console.log(`[WHEP Manager ${cameraId}] Creating connection to: ${whepUrl}`)
   console.log(`[WHEP Manager ${cameraId}] Device URL was: ${deviceUrl}`)
   
   // Clean up old connection if exists
   if (conn?.peerConnection) {
     conn.peerConnection.close()
+  }
+  
+  // Clear any existing disconnected timeout
+  if (conn?.disconnectedTimeout) {
+    clearTimeout(conn.disconnectedTimeout)
+    conn.disconnectedTimeout = null
+  }
+  
+  // Set connecting flag
+  if (conn) {
+    conn.isConnecting = true
   }
   
   // Create new peer connection
@@ -243,9 +296,11 @@ async function createConnection(cameraId: string): Promise<WHEPConnection> {
       refCount: 0,
       whepUrl,
       lastConnectedAt: null,
-      reconnectAttempts: conn?.reconnectAttempts || 0,
+      reconnectAttempts: 0,
       reconnectTimeout: null,
+      disconnectedTimeout: null,
       connectionStartTime: startTime,
+      isConnecting: true,
     }
     connections.set(cameraId, conn)
   } else {
@@ -255,6 +310,7 @@ async function createConnection(cameraId: string): Promise<WHEPConnection> {
     conn.mediaStream = null
     conn.connectionType = 'unknown'
     conn.connectionStartTime = startTime
+    conn.isConnecting = true
   }
   
   // Track events
@@ -268,13 +324,21 @@ async function createConnection(cameraId: string): Promise<WHEPConnection> {
   
   pc.oniceconnectionstatechange = async () => {
     const state = pc.iceConnectionState
+    networkDebugLog('WHEP', `Camera ${cameraId}: ICE state changed to ${state}`)
     console.log(`[WHEP Manager ${cameraId}] ICE state: ${state}`)
     
     if (state === 'connected' || state === 'completed') {
       conn!.state = 'connected'
       conn!.lastConnectedAt = Date.now()
       conn!.reconnectAttempts = 0  // Reset on success
+      conn!.isConnecting = false  // Clear connecting flag
       conn!.connectionType = await detectConnectionType(pc, cameraId)
+      
+      // Clear any disconnected timeout
+      if (conn!.disconnectedTimeout) {
+        clearTimeout(conn!.disconnectedTimeout)
+        conn!.disconnectedTimeout = null
+      }
       
       // Log connection time for performance analysis
       const elapsed = conn!.connectionStartTime 
@@ -285,6 +349,7 @@ async function createConnection(cameraId: string): Promise<WHEPConnection> {
     } else if (state === 'failed') {
       conn!.state = 'failed'
       conn!.connectionType = 'unknown'
+      conn!.isConnecting = false  // Clear connecting flag
       notifyListeners(cameraId)
       
       // Only reconnect if there are still subscribers
@@ -292,16 +357,24 @@ async function createConnection(cameraId: string): Promise<WHEPConnection> {
         scheduleReconnect(cameraId)
       }
     } else if (state === 'disconnected') {
-      // Wait for potential recovery
-      setTimeout(() => {
+      // Clear any existing disconnected timeout to prevent stacking
+      if (conn!.disconnectedTimeout) {
+        clearTimeout(conn!.disconnectedTimeout)
+      }
+      
+      // Wait for potential recovery (with timeout tracking)
+      conn!.disconnectedTimeout = setTimeout(() => {
+        // Check if still disconnected (might have recovered)
         if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed') {
           conn!.state = 'disconnected'
+          conn!.isConnecting = false  // Clear connecting flag
           notifyListeners(cameraId)
           
           if (conn!.refCount > 0) {
             scheduleReconnect(cameraId)
           }
         }
+        conn!.disconnectedTimeout = null
       }, 3000)
     }
   }
@@ -331,6 +404,7 @@ async function createConnection(cameraId: string): Promise<WHEPConnection> {
   } catch (e) {
     console.error(`[WHEP Manager ${cameraId}] Connection error:`, e)
     conn.state = 'failed'
+    conn.isConnecting = false  // Clear connecting flag on error
     notifyListeners(cameraId)
     
     if (conn.refCount > 0) {
@@ -400,6 +474,10 @@ export function releaseConnection(
     
     if (conn.reconnectTimeout) {
       clearTimeout(conn.reconnectTimeout)
+    }
+    
+    if (conn.disconnectedTimeout) {
+      clearTimeout(conn.disconnectedTimeout)
     }
     
     conn.peerConnection.close()

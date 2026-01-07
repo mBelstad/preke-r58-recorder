@@ -21,7 +21,7 @@ extraResources:
 
 mac:
   category: public.app-category.video
-  icon: resources/icon.png
+  icon: resources/icon.icns
   hardenedRuntime: true
   gatekeeperAssess: false
   entitlements: resources/entitlements.mac.plist
@@ -41,6 +41,7 @@ mac:
 
 dmg:
   sign: false
+  title: "${productName} ${version}"
   contents:
     - x: 130
       y: 220
@@ -48,18 +49,39 @@ dmg:
       y: 220
       type: link
       path: /Applications
+  window:
+    width: 540
+    height: 380
+  background: resources/Stock bakgrunn.jpeg
 
-# Windows config (for future)
 win:
   target:
     - target: nsis
       arch:
         - x64
-  icon: resources/icon.png
+  icon: resources/icon.ico
+  publisherName: Itagenten
+  verifyUpdateCodeSignature: false
+  requestedExecutionLevel: asInvoker
+  sign: false
 
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
+  allowElevation: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  menuCategory: false
+  shortcutName: Preke Studio
+  uninstallDisplayName: Preke Studio
+  installerIcon: resources/icon.ico
+  uninstallerIcon: resources/icon.ico
+  installerHeaderIcon: resources/icon.ico
+  # Custom installer text
+  installerLanguages:
+    - en_US
+  # License file (optional - uncomment if you have a license file)
+  # license: resources/license.txt
 
 # Linux config (for future)
 linux:

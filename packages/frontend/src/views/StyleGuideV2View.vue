@@ -60,7 +60,7 @@ const scanBars = 24
     
     <div class="styleguide-v2__content">
       <!-- Back button -->
-      <button class="styleguide-v2__back" @click="router.push('/admin')">
+      <button class="styleguide-v2__back" @click="router.back()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M19 12H5M12 19l-7-7 7-7"/>
         </svg>
@@ -570,6 +570,8 @@ export default {
   max-width: 900px;
   margin: 0 auto;
   padding: 2rem;
+  height: 100vh;
+  overflow-y: auto;
 }
 
 /* Back button */

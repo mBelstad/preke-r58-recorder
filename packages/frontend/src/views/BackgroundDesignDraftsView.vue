@@ -1,22 +1,44 @@
 <script setup lang="ts">
 /**
- * Design Proposals View
- * Test page for exploring new design directions
- * Navigate to /proposals to view these live
+ * Background Design Drafts View
+ * Combined view of design proposals and background experiments
+ * Navigate to /background-drafts to view these live
  */
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import geometricPattern from '@/assets/geometric-pattern.jpeg'
 
 const router = useRouter()
-const activeProposal = ref<number>(1)
-const proposals = [
+const route = useRoute()
+const activeDraft = ref<number>(1)
+
+// Combined list: proposals (1-6) + experiments (7-11)
+const drafts = [
+  // Design Proposals
   { id: 1, name: 'Split Home', desc: 'Two-mode split design for home' },
   { id: 2, name: 'Geometric 3D', desc: 'Animated 3D geometric shapes' },
   { id: 3, name: 'Combined', desc: 'Split + geometric together' },
   { id: 4, name: 'Ribbons', desc: 'Complex intersecting ribbons' },
   { id: 5, name: 'Stock Image', desc: 'Photo background with light effects' },
   { id: 6, name: 'Cyberpunk', desc: 'Neon circuits with glowing edges' },
+  // Background Experiments
+  { id: 7, name: 'Breathing Tech', desc: 'Organic breathing with subtle pulse' },
+  { id: 8, name: 'Tron Grid', desc: 'Hexagonal overlay with scan lines' },
+  { id: 9, name: 'Circuit Flow', desc: 'Data flowing through circuits' },
+  { id: 10, name: 'Holographic', desc: 'Hologram-like distortion effect' },
+  { id: 11, name: 'Neural Net', desc: 'Connected nodes pulsing with life' },
 ]
+
+// Handle draft query parameter
+onMounted(() => {
+  const draftParam = route.query.draft
+  if (draftParam) {
+    const draftId = parseInt(draftParam as string, 10)
+    if (draftId >= 1 && draftId <= 11) {
+      activeDraft.value = draftId
+    }
+  }
+})
 
 // Simulated mode selection (for demo)
 function selectMode(mode: 'recorder' | 'mixer') {
@@ -26,33 +48,33 @@ function selectMode(mode: 'recorder' | 'mixer') {
 </script>
 
 <template>
-  <div class="proposals">
+  <div class="drafts">
     <!-- Navigation -->
-    <div class="proposals__nav">
-      <button class="proposals__back" @click="router.back()">
+    <div class="drafts__nav">
+      <button class="drafts__back" @click="router.back()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M19 12H5M12 19l-7-7 7-7"/>
         </svg>
         Back
       </button>
-      <h1 class="proposals__title">Design Proposals</h1>
-      <div class="proposals__tabs">
+      <h1 class="drafts__title">Background Design Drafts</h1>
+      <div class="drafts__tabs">
         <button 
-          v-for="p in proposals" 
-          :key="p.id"
-          @click="activeProposal = p.id"
-          class="proposals__tab"
-          :class="{ 'proposals__tab--active': activeProposal === p.id }"
+          v-for="d in drafts" 
+          :key="d.id"
+          @click="activeDraft = d.id"
+          class="drafts__tab"
+          :class="{ 'drafts__tab--active': activeDraft === d.id }"
         >
-          {{ p.name }}
+          {{ d.name }}
         </button>
       </div>
     </div>
 
     <!-- ═══════════════════════════════════════════
-         PROPOSAL 1: SPLIT HOME
+         DRAFT 1: SPLIT HOME
          ═══════════════════════════════════════════ -->
-    <div v-show="activeProposal === 1" class="proposal split-home">
+    <div v-show="activeDraft === 1" class="draft split-home">
       <!-- Recorder Side (Left) -->
       <div class="split-home__side split-home__side--recorder" @click="selectMode('recorder')">
         <div class="split-home__bg">
@@ -112,9 +134,9 @@ function selectMode(mode: 'recorder' | 'mixer') {
     </div>
 
     <!-- ═══════════════════════════════════════════
-         PROPOSAL 2: GEOMETRIC 3D
+         DRAFT 2: GEOMETRIC 3D
          ═══════════════════════════════════════════ -->
-    <div v-show="activeProposal === 2" class="proposal geometric">
+    <div v-show="activeDraft === 2" class="draft geometric">
       <div class="geometric__canvas">
         <!-- Layer 1: Background shapes (darkest) -->
         <div class="geo-layer geo-layer--1">
@@ -151,9 +173,9 @@ function selectMode(mode: 'recorder' | 'mixer') {
     </div>
 
     <!-- ═══════════════════════════════════════════
-         PROPOSAL 3: COMBINED
+         DRAFT 3: COMBINED
          ═══════════════════════════════════════════ -->
-    <div v-show="activeProposal === 3" class="proposal combined">
+    <div v-show="activeDraft === 3" class="draft combined">
       <!-- Geometric background - 20 parallelograms evenly distributed -->
       <div class="combined__geo">
         <!-- Row 1: Top edge shapes -->
@@ -237,9 +259,9 @@ function selectMode(mode: 'recorder' | 'mixer') {
     </div>
 
     <!-- ═══════════════════════════════════════════
-         PROPOSAL 4: COMPLEX RIBBONS
+         DRAFT 4: COMPLEX RIBBONS
          ═══════════════════════════════════════════ -->
-    <div v-show="activeProposal === 4" class="proposal ribbons">
+    <div v-show="activeDraft === 4" class="draft ribbons">
       <!-- Complex ribbon background - more shapes, semi-symmetrical -->
       <div class="ribbons__canvas">
         <!-- Layer 1: Back ribbons (darkest) -->
@@ -318,10 +340,10 @@ function selectMode(mode: 'recorder' | 'mixer') {
     </div>
 
     <!-- ═══════════════════════════════════════════
-         PROPOSAL 5: STOCK IMAGE
+         DRAFT 5: STOCK IMAGE
          Photo background with animated light
          ═══════════════════════════════════════════ -->
-    <div v-show="activeProposal === 5" class="proposal stock-image">
+    <div v-show="activeDraft === 5" class="draft stock-image">
       <!-- Moving light behind the image -->
       <div class="stock-image__light"></div>
       
@@ -374,11 +396,11 @@ function selectMode(mode: 'recorder' | 'mixer') {
     </div>
 
     <!-- ═══════════════════════════════════════════
-         PROPOSAL 6: CYBERPUNK
+         DRAFT 6: CYBERPUNK
          Neon circuits with glowing orange edges
          Inspired by sci-fi tech aesthetics
          ═══════════════════════════════════════════ -->
-    <div v-show="activeProposal === 6" class="proposal cyberpunk">
+    <div v-show="activeDraft === 6" class="draft cyberpunk">
       <!-- Circuit pattern background -->
       <div class="cyber__circuits"></div>
       
@@ -445,11 +467,114 @@ function selectMode(mode: 'recorder' | 'mixer') {
         </div>
       </div>
     </div>
+
+    <!-- ═══════════════════════════════════════════
+         DRAFT 7: BREATHING TECH
+         ═══════════════════════════════════════════ -->
+    <div v-show="activeDraft === 7" class="draft exp exp--breathing">
+      <div class="exp__layer">
+        <img :src="geometricPattern" alt="" class="exp__img exp__img--breathe" />
+        <div class="exp__overlay exp__overlay--dark"></div>
+        <div class="exp__pulse exp__pulse--center"></div>
+      </div>
+      <div class="exp__content">
+        <h2 class="exp__heading">Breathing Tech</h2>
+        <p class="exp__desc">The geometric pattern slowly breathes - expanding and contracting like a living organism. Subtle center pulse adds depth.</p>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════
+         DRAFT 8: TRON GRID
+         ═══════════════════════════════════════════ -->
+    <div v-show="activeDraft === 8" class="draft exp exp--tron">
+      <div class="exp__layer">
+        <img :src="geometricPattern" alt="" class="exp__img" />
+        <div class="exp__overlay exp__overlay--dark"></div>
+        <div class="exp__hex-grid"></div>
+        <div class="exp__scan-line exp__scan-line--h"></div>
+        <div class="exp__scan-line exp__scan-line--v"></div>
+      </div>
+      <div class="exp__content">
+        <h2 class="exp__heading exp__heading--tron">Tron Grid</h2>
+        <p class="exp__desc">Hexagonal grid overlay with scanning beams that sweep across. Classic Tron aesthetic.</p>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════
+         DRAFT 9: CIRCUIT FLOW
+         ═══════════════════════════════════════════ -->
+    <div v-show="activeDraft === 9" class="draft exp exp--circuit">
+      <div class="exp__layer">
+        <img :src="geometricPattern" alt="" class="exp__img" />
+        <div class="exp__overlay exp__overlay--circuit"></div>
+        <div class="circuit">
+          <div class="circuit__line circuit__line--1">
+            <div class="circuit__particle"></div>
+          </div>
+          <div class="circuit__line circuit__line--2">
+            <div class="circuit__particle"></div>
+          </div>
+          <div class="circuit__line circuit__line--3">
+            <div class="circuit__particle"></div>
+          </div>
+          <div class="circuit__node circuit__node--1"></div>
+          <div class="circuit__node circuit__node--2"></div>
+          <div class="circuit__node circuit__node--3"></div>
+        </div>
+      </div>
+      <div class="exp__content">
+        <h2 class="exp__heading exp__heading--gold">Circuit Flow</h2>
+        <p class="exp__desc">Data particles flowing through circuit traces. Nodes pulse as data passes through.</p>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════
+         DRAFT 10: HOLOGRAPHIC
+         ═══════════════════════════════════════════ -->
+    <div v-show="activeDraft === 10" class="draft exp exp--holo">
+      <div class="exp__layer">
+        <img :src="geometricPattern" alt="" class="exp__img exp__img--holo" />
+        <div class="exp__overlay exp__overlay--holo"></div>
+        <div class="exp__scanlines"></div>
+        <div class="exp__glitch"></div>
+      </div>
+      <div class="exp__content">
+        <h2 class="exp__heading exp__heading--holo">Holographic</h2>
+        <p class="exp__desc">Hologram-like effect with scan lines and subtle chromatic aberration. Feels like projected technology.</p>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════
+         DRAFT 11: NEURAL NET
+         ═══════════════════════════════════════════ -->
+    <div v-show="activeDraft === 11" class="draft exp exp--neural">
+      <div class="exp__layer">
+        <img :src="geometricPattern" alt="" class="exp__img" />
+        <div class="exp__overlay exp__overlay--neural"></div>
+        <div class="neural">
+          <div class="neural__node neural__node--1"></div>
+          <div class="neural__node neural__node--2"></div>
+          <div class="neural__node neural__node--3"></div>
+          <div class="neural__node neural__node--4"></div>
+          <div class="neural__node neural__node--5"></div>
+          <svg class="neural__connections" viewBox="0 0 100 100" preserveAspectRatio="none">
+            <line x1="20" y1="30" x2="50" y2="50" class="neural__line" />
+            <line x1="80" y1="25" x2="50" y2="50" class="neural__line neural__line--delay1" />
+            <line x1="15" y1="70" x2="50" y2="50" class="neural__line neural__line--delay2" />
+            <line x1="85" y1="75" x2="50" y2="50" class="neural__line neural__line--delay3" />
+          </svg>
+        </div>
+      </div>
+      <div class="exp__content">
+        <h2 class="exp__heading exp__heading--purple">Neural Network</h2>
+        <p class="exp__desc">Connected nodes that pulse with activity. Lines glow as signals pass between neurons.</p>
+      </div>
+    </div>
   </div>
 </template>
 
 <style scoped>
-.proposals {
+.drafts {
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -457,7 +582,7 @@ function selectMode(mode: 'recorder' | 'mixer') {
   overflow-y: auto;
 }
 
-.proposals__nav {
+.drafts__nav {
   position: sticky;
   top: 0;
   z-index: 100;
@@ -467,8 +592,15 @@ function selectMode(mode: 'recorder' | 'mixer') {
   border-bottom: 1px solid var(--preke-border);
 }
 
+/* Light mode navigation bar */
+[data-theme="light"] .drafts__nav {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
 /* Back button */
-.proposals__back {
+.drafts__back {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -484,30 +616,41 @@ function selectMode(mode: 'recorder' | 'mixer') {
   transition: all 0.2s ease;
 }
 
-.proposals__back:hover {
+[data-theme="light"] .drafts__back {
+  background: rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.drafts__back:hover {
   background: rgba(255, 255, 255, 0.1);
   color: var(--preke-text);
   border-color: rgba(255, 255, 255, 0.2);
 }
 
-.proposals__back svg {
+[data-theme="light"] .drafts__back:hover {
+  background: rgba(0, 0, 0, 0.1);
+  border-color: rgba(0, 0, 0, 0.2);
+}
+
+.drafts__back svg {
   width: 16px;
   height: 16px;
 }
 
-.proposals__title {
+.drafts__title {
   font-size: 1.25rem;
   font-weight: 600;
   color: var(--preke-text);
   margin-bottom: 1rem;
 }
 
-.proposals__tabs {
+.drafts__tabs {
   display: flex;
   gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
-.proposals__tab {
+.drafts__tab {
   padding: 0.5rem 1rem;
   font-size: 0.875rem;
   font-weight: 500;
@@ -519,18 +662,18 @@ function selectMode(mode: 'recorder' | 'mixer') {
   transition: all 0.2s ease;
 }
 
-.proposals__tab:hover {
+.drafts__tab:hover {
   color: var(--preke-text);
   border-color: var(--preke-border-light);
 }
 
-.proposals__tab--active {
+.drafts__tab--active {
   color: var(--preke-gold);
   background: rgba(224, 160, 48, 0.1);
   border-color: var(--preke-gold);
 }
 
-.proposal {
+.draft {
   flex: 1;
   position: relative;
   overflow: hidden;
@@ -2297,6 +2440,406 @@ function selectMode(mode: 'recorder' | 'mixer') {
   box-shadow: 
     0 0 20px rgba(255, 80, 30, 0.15),
     inset 0 0 10px rgba(255, 100, 40, 0.05);
+}
+/* ═══════════════════════════════════════════
+   EXPERIMENT STYLES (Drafts 7-11)
+   ═══════════════════════════════════════════ */
+.exp {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.exp__layer {
+  position: absolute;
+  inset: 0;
+}
+
+.exp__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: invert(1) brightness(0.12) contrast(1.3);
+}
+
+.exp__overlay {
+  position: absolute;
+  inset: 0;
+}
+
+.exp__overlay--dark {
+  background: rgba(10, 10, 15, 0.75);
+}
+
+.exp__content {
+  position: relative;
+  z-index: 10;
+  text-align: center;
+  padding: 2rem;
+}
+
+.exp__heading {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--preke-text);
+  margin-bottom: 1rem;
+}
+
+.exp__heading--tron {
+  color: #00d4ff;
+  text-shadow: 0 0 20px rgba(0, 212, 255, 0.5), 0 0 40px rgba(0, 212, 255, 0.3);
+}
+
+.exp__heading--gold {
+  color: var(--preke-gold);
+  text-shadow: 0 0 20px rgba(224, 160, 48, 0.5);
+}
+
+.exp__heading--holo {
+  color: #00ffcc;
+  text-shadow: 
+    0 0 20px rgba(0, 255, 204, 0.5),
+    2px 0 rgba(255, 0, 128, 0.3),
+    -2px 0 rgba(0, 255, 255, 0.3);
+}
+
+.exp__heading--purple {
+  color: #a78bfa;
+  text-shadow: 0 0 20px rgba(167, 139, 250, 0.5);
+}
+
+.exp__desc {
+  font-size: 1rem;
+  color: var(--preke-text-muted);
+  max-width: 500px;
+  line-height: 1.6;
+  margin: 0 auto;
+}
+
+/* DRAFT 7: BREATHING TECH */
+.exp__img--breathe {
+  animation: img-breathe 8s ease-in-out infinite;
+  transform-origin: center center;
+}
+
+@keyframes img-breathe {
+  0%, 100% {
+    transform: scale(1);
+    filter: invert(1) brightness(0.12) contrast(1.3);
+  }
+  50% {
+    transform: scale(1.03);
+    filter: invert(1) brightness(0.15) contrast(1.35);
+  }
+}
+
+.exp__pulse--center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 300px;
+  height: 300px;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(224, 160, 48, 0.15) 0%, transparent 70%);
+  border-radius: 50%;
+  animation: pulse-breathe 6s ease-in-out infinite;
+}
+
+@keyframes pulse-breathe {
+  0%, 100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.3;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.3);
+    opacity: 0.6;
+  }
+}
+
+/* DRAFT 8: TRON GRID */
+.exp__hex-grid {
+  position: absolute;
+  inset: 0;
+  opacity: 0.04;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='49' viewBox='0 0 28 49'%3E%3Cg fill-rule='evenodd'%3E%3Cg fill='%2300d4ff' fill-opacity='1'%3E%3Cpath d='M13.99 9.25l13 7.5v15l-13 7.5L1 31.75v-15l12.99-7.5zM3 17.9v12.7l10.99 6.34 11-6.35V17.9l-11-6.34L3 17.9zM0 15l12.98-7.5V0h-2v6.35L0 12.69v2.3zm0 18.5L12.98 41v8h-2v-6.85L0 35.81v-2.3zM15 0v7.5L27.99 15H28v-2.31h-.01L17 6.35V0h-2zm0 49v-8l12.99-7.5H28v2.31h-.01L17 42.15V49h-2z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  animation: grid-pulse 4s ease-in-out infinite;
+}
+
+@keyframes grid-pulse {
+  0%, 100% { opacity: 0.03; }
+  50% { opacity: 0.06; }
+}
+
+.exp__scan-line {
+  position: absolute;
+  pointer-events: none;
+}
+
+.exp__scan-line--h {
+  width: 100%;
+  height: 2px;
+  left: 0;
+  top: -2px;
+  background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.8), transparent);
+  box-shadow: 0 0 20px rgba(0, 212, 255, 0.5), 0 0 40px rgba(0, 212, 255, 0.3);
+  animation: scan-down 6s linear infinite;
+}
+
+.exp__scan-line--v {
+  width: 2px;
+  height: 100%;
+  left: -2px;
+  top: 0;
+  background: linear-gradient(180deg, transparent, rgba(0, 212, 255, 0.6), transparent);
+  box-shadow: 0 0 20px rgba(0, 212, 255, 0.4), 0 0 40px rgba(0, 212, 255, 0.2);
+  animation: scan-right 8s linear infinite;
+  animation-delay: 3s;
+}
+
+@keyframes scan-down {
+  0% { top: -2px; opacity: 0; }
+  5% { opacity: 1; }
+  95% { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+
+@keyframes scan-right {
+  0% { left: -2px; opacity: 0; }
+  5% { opacity: 1; }
+  95% { opacity: 1; }
+  100% { left: 100%; opacity: 0; }
+}
+
+/* DRAFT 9: CIRCUIT FLOW */
+.exp__overlay--circuit {
+  background: linear-gradient(135deg, rgba(10, 10, 15, 0.85) 0%, rgba(20, 15, 10, 0.8) 100%);
+}
+
+.circuit {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.circuit__line {
+  position: absolute;
+  height: 1px;
+  background: rgba(224, 160, 48, 0.2);
+  overflow: hidden;
+}
+
+.circuit__line--1 {
+  top: 30%;
+  left: 10%;
+  width: 35%;
+  transform: rotate(-5deg);
+}
+
+.circuit__line--2 {
+  top: 50%;
+  left: 50%;
+  width: 40%;
+  transform: rotate(3deg);
+}
+
+.circuit__line--3 {
+  top: 70%;
+  left: 20%;
+  width: 30%;
+  transform: rotate(-2deg);
+}
+
+.circuit__particle {
+  position: absolute;
+  top: -2px;
+  left: 0;
+  width: 20px;
+  height: 5px;
+  background: linear-gradient(90deg, transparent, var(--preke-gold), transparent);
+  border-radius: 50%;
+  box-shadow: 0 0 10px var(--preke-gold), 0 0 20px rgba(224, 160, 48, 0.5);
+  animation: particle-flow 3s linear infinite;
+}
+
+.circuit__line--2 .circuit__particle {
+  animation-delay: 1s;
+  animation-duration: 4s;
+}
+
+.circuit__line--3 .circuit__particle {
+  animation-delay: 2s;
+  animation-duration: 3.5s;
+}
+
+@keyframes particle-flow {
+  0% { left: -20px; opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { left: 100%; opacity: 0; }
+}
+
+.circuit__node {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: var(--preke-gold);
+  border-radius: 50%;
+  box-shadow: 0 0 15px var(--preke-gold), 0 0 30px rgba(224, 160, 48, 0.4);
+  animation: node-glow 2s ease-in-out infinite;
+}
+
+.circuit__node--1 { top: 30%; left: 45%; }
+.circuit__node--2 { top: 50%; left: 90%; animation-delay: 0.5s; }
+.circuit__node--3 { top: 70%; left: 50%; animation-delay: 1s; }
+
+@keyframes node-glow {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 15px var(--preke-gold), 0 0 30px rgba(224, 160, 48, 0.4);
+  }
+  50% {
+    transform: scale(1.3);
+    box-shadow: 0 0 25px var(--preke-gold), 0 0 50px rgba(224, 160, 48, 0.6);
+  }
+}
+
+/* DRAFT 10: HOLOGRAPHIC */
+.exp__img--holo {
+  filter: invert(1) brightness(0.15) contrast(1.2) hue-rotate(140deg);
+  animation: holo-shift 10s ease-in-out infinite;
+}
+
+@keyframes holo-shift {
+  0%, 100% {
+    filter: invert(1) brightness(0.15) contrast(1.2) hue-rotate(140deg);
+    transform: scale(1);
+  }
+  25% {
+    filter: invert(1) brightness(0.18) contrast(1.25) hue-rotate(150deg);
+  }
+  50% {
+    filter: invert(1) brightness(0.12) contrast(1.3) hue-rotate(160deg);
+    transform: scale(1.01);
+  }
+  75% {
+    filter: invert(1) brightness(0.16) contrast(1.22) hue-rotate(145deg);
+  }
+}
+
+.exp__overlay--holo {
+  background: linear-gradient(180deg, 
+    rgba(0, 20, 30, 0.8) 0%, 
+    rgba(0, 40, 50, 0.7) 50%,
+    rgba(0, 20, 30, 0.8) 100%
+  );
+}
+
+.exp__scanlines {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0px,
+    transparent 2px,
+    rgba(0, 0, 0, 0.15) 2px,
+    rgba(0, 0, 0, 0.15) 4px
+  );
+  pointer-events: none;
+  animation: scanlines-scroll 0.5s linear infinite;
+}
+
+@keyframes scanlines-scroll {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(4px); }
+}
+
+.exp__glitch {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(0, 255, 200, 0.03) 50%, 
+    transparent 100%
+  );
+  animation: glitch-sweep 8s ease-in-out infinite;
+}
+
+@keyframes glitch-sweep {
+  0%, 90%, 100% { transform: translateX(-100%); opacity: 0; }
+  92% { transform: translateX(0); opacity: 1; }
+  98% { transform: translateX(100%); opacity: 0; }
+}
+
+/* DRAFT 11: NEURAL NETWORK */
+.exp__overlay--neural {
+  background: radial-gradient(ellipse at center, 
+    rgba(15, 10, 25, 0.7) 0%, 
+    rgba(10, 5, 20, 0.85) 100%
+  );
+}
+
+.neural {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.neural__node {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: #a78bfa;
+  border-radius: 50%;
+  box-shadow: 0 0 20px #a78bfa, 0 0 40px rgba(167, 139, 250, 0.4);
+  animation: neural-pulse 3s ease-in-out infinite;
+}
+
+.neural__node--1 { top: 30%; left: 20%; animation-delay: 0s; }
+.neural__node--2 { top: 25%; left: 80%; animation-delay: 0.5s; }
+.neural__node--3 { top: 50%; left: 50%; animation-delay: 1s; width: 16px; height: 16px; }
+.neural__node--4 { top: 70%; left: 15%; animation-delay: 1.5s; }
+.neural__node--5 { top: 75%; left: 85%; animation-delay: 2s; }
+
+@keyframes neural-pulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 20px #a78bfa, 0 0 40px rgba(167, 139, 250, 0.4);
+  }
+  50% {
+    transform: scale(1.4);
+    box-shadow: 0 0 35px #a78bfa, 0 0 70px rgba(167, 139, 250, 0.6);
+  }
+}
+
+.neural__connections {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.neural__line {
+  stroke: rgba(167, 139, 250, 0.3);
+  stroke-width: 0.3;
+  animation: line-pulse 3s ease-in-out infinite;
+}
+
+.neural__line--delay1 { animation-delay: 0.5s; }
+.neural__line--delay2 { animation-delay: 1s; }
+.neural__line--delay3 { animation-delay: 1.5s; }
+
+@keyframes line-pulse {
+  0%, 100% {
+    stroke: rgba(167, 139, 250, 0.2);
+    stroke-width: 0.3;
+  }
+  50% {
+    stroke: rgba(167, 139, 250, 0.6);
+    stroke-width: 0.5;
+  }
 }
 </style>
 

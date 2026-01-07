@@ -6,6 +6,27 @@ import { useRecorderStore } from '@/stores/recorder'
 import { useMixerStore } from '@/stores/mixer'
 import { buildWsUrl, hasDeviceConfigured } from '@/lib/api'
 
+// Network debug logging
+const isNetworkDebugEnabled = (): boolean => {
+  return import.meta.env.VITE_NETWORK_DEBUG === '1' || 
+         (typeof window !== 'undefined' && (window as any).__NETWORK_DEBUG__ === true)
+}
+
+// Rate-limited logging (max 1 log per second per subsystem)
+const logThrottle = new Map<string, number>()
+const LOG_THROTTLE_MS = 1000
+
+function networkDebugLog(subsystem: string, message: string, ...args: any[]): void {
+  if (!isNetworkDebugEnabled()) return
+  
+  const now = Date.now()
+  const lastLog = logThrottle.get(subsystem) || 0
+  if (now - lastLog < LOG_THROTTLE_MS) return
+  
+  logThrottle.set(subsystem, now)
+  console.log(`[NETWORK DEBUG ${subsystem}] ${message}`, ...args)
+}
+
 interface BaseEvent {
   v: number
   type: string
@@ -59,6 +80,7 @@ export function useR58WebSocket() {
     ws = new WebSocket(url)
     
     ws.onopen = () => {
+      networkDebugLog('WebSocket', 'Connected')
       console.log('[WebSocket] Connected')
       isConnected.value = true
       reconnectAttempts.value = 0
@@ -87,6 +109,7 @@ export function useR58WebSocket() {
     
     ws.onclose = (event) => {
       isConnected.value = false
+      networkDebugLog('WebSocket', `Disconnected (code: ${event.code}, attempts: ${reconnectAttempts.value})`)
       
       // Check if this was a failed connection (not a graceful disconnect)
       // WebSocket close code 1006 = abnormal closure (connection never established)
@@ -120,6 +143,8 @@ export function useR58WebSocket() {
     // Exponential backoff: 2s, 4s, 8s
     const delay = Math.min(2000 * Math.pow(2, reconnectAttempts.value), 60000)
     reconnectAttempts.value++
+    
+    networkDebugLog('WebSocket', `Scheduling reconnect #${reconnectAttempts.value} in ${delay}ms`)
     
     reconnectTimeout = window.setTimeout(() => {
       connect()

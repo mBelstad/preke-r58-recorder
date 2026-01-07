@@ -23,7 +23,7 @@ const experiments = [
   <div class="experiments">
     <!-- Navigation -->
     <div class="experiments__nav">
-      <button class="experiments__back" @click="router.push('/admin')">
+      <button class="experiments__back" @click="router.back()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M19 12H5M12 19l-7-7 7-7"/>
         </svg>

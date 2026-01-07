@@ -238,18 +238,21 @@ onMounted(() => {
             class="input w-24"
           />
         </div>
+        
+        <!-- Reset to Defaults - only resets recording path settings -->
+        <div class="pt-4 border-t border-preke-surface-border">
+          <button 
+            @click="resetToDefaults"
+            class="btn-v2 btn-v2--secondary w-full"
+          >
+            Reset to Defaults
+          </button>
+        </div>
       </div>
     </div>
     
     <!-- Actions -->
-    <div class="flex items-center justify-between">
-      <button 
-        @click="resetToDefaults"
-        class="btn-v2 btn-v2--secondary"
-      >
-        Reset to Defaults
-      </button>
-      
+    <div class="flex items-center justify-end">
       <button 
         @click="saveSettings"
         class="btn-v2 btn-v2--primary"

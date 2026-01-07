@@ -4,11 +4,43 @@
  * White Preke logo with waveform + "studio" text (cropped for optimal sizing)
  */
 import logoPrekeWhiteCropped from '@/assets/logo-preke-white-cropped.svg'
+import logoPrekeDark from '@/assets/logo-preke.svg'
+import { ref, onMounted, onUnmounted } from 'vue'
+
+const logoSrc = ref(logoPrekeWhiteCropped)
+
+function updateLogo() {
+  const theme = document.documentElement.getAttribute('data-theme')
+  logoSrc.value = theme === 'light' ? logoPrekeDark : logoPrekeWhiteCropped
+}
+
+let observer: MutationObserver | null = null
+
+onMounted(() => {
+  updateLogo()
+  // Watch for theme changes
+  observer = new MutationObserver(updateLogo)
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['data-theme']
+  })
+})
+
+onUnmounted(() => {
+  if (observer) {
+    observer.disconnect()
+    observer = null
+  }
+})
 </script>
 
 <template>
   <div class="preke-studio-logo">
-    <img :src="logoPrekeWhiteCropped" alt="Preke" class="preke-studio-logo__image" />
+    <img 
+      :src="logoSrc" 
+      alt="Preke" 
+      class="preke-studio-logo__image" 
+    />
     <span class="preke-studio-logo__text">STUDIO</span>
   </div>
 </template>
@@ -30,6 +62,8 @@ import logoPrekeWhiteCropped from '@/assets/logo-preke-white-cropped.svg'
   flex-shrink: 0;
 }
 
+/* Light mode: Use dark logo (no filter needed - we switch the image source) */
+
 .preke-studio-logo__text {
   font-family: var(--preke-font-sans);
   font-size: 32px; /* Slightly smaller */
@@ -39,6 +73,7 @@ import logoPrekeWhiteCropped from '@/assets/logo-preke-white-cropped.svg'
   line-height: 1;
   flex-shrink: 0;
   white-space: nowrap;
+  transform: translateY(-3px); /* Lift up a couple of pixels */
 }
 </style>
 

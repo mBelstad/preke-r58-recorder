@@ -6,8 +6,14 @@
  */
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useTheme } from '@/composables/useTheme'
 
 const router = useRouter()
+const previewTheme = ref<'light' | 'dark'>('dark')
+
+function togglePreviewTheme() {
+  previewTheme.value = previewTheme.value === 'light' ? 'dark' : 'light'
+}
 
 // Types
 type DesignCategory = 'home-page' | 'background' | 'experiment' | 'component' | 'style-guide'
@@ -59,7 +65,6 @@ const designs = ref<DesignItem[]>([
     category: 'home-page',
     status: 'proposed',
     thumbnail: 'split',
-    route: '/proposals?design=split-home',
     tags: ['split-screen', 'grid', 'recorder', 'mixer'],
     createdAt: '2024-01-04',
     updatedAt: '2024-01-06',
@@ -75,7 +80,6 @@ const designs = ref<DesignItem[]>([
     category: 'home-page',
     status: 'proposed',
     thumbnail: 'geo3d',
-    route: '/proposals?design=geometric-3d',
     tags: ['3d', 'depth', 'gold', 'layers'],
     createdAt: '2024-01-04',
     updatedAt: '2024-01-05',
@@ -91,7 +95,6 @@ const designs = ref<DesignItem[]>([
     category: 'home-page',
     status: 'proposed',
     thumbnail: 'ribbons',
-    route: '/proposals?design=ribbons',
     tags: ['ribbons', 'horizontal', 'glow', 'opacity'],
     createdAt: '2024-01-04',
     updatedAt: '2024-01-06',
@@ -107,7 +110,6 @@ const designs = ref<DesignItem[]>([
     category: 'home-page',
     status: 'proposed',
     thumbnail: 'stock',
-    route: '/proposals?design=stock-image',
     tags: ['image', 'photo', 'contrast', 'overlay'],
     createdAt: '2024-01-04',
     updatedAt: '2024-01-06',
@@ -123,7 +125,6 @@ const designs = ref<DesignItem[]>([
     category: 'home-page',
     status: 'proposed',
     thumbnail: 'cyber',
-    route: '/proposals?design=cyberpunk',
     tags: ['cyberpunk', 'neon', 'circuit', 'sci-fi'],
     createdAt: '2024-01-05',
     updatedAt: '2024-01-06',
@@ -158,7 +159,6 @@ const designs = ref<DesignItem[]>([
     category: 'experiment',
     status: 'experiment',
     thumbnail: 'breathing',
-    route: '/experiments?exp=breathing-tech',
     tags: ['breathing', 'organic', 'pulse', 'geometric'],
     createdAt: '2024-01-03',
     updatedAt: '2024-01-03',
@@ -174,7 +174,6 @@ const designs = ref<DesignItem[]>([
     category: 'experiment',
     status: 'experiment',
     thumbnail: 'tron',
-    route: '/experiments?exp=tron-grid',
     tags: ['tron', 'hexagon', 'scan', 'beam'],
     createdAt: '2024-01-03',
     updatedAt: '2024-01-03',
@@ -190,7 +189,6 @@ const designs = ref<DesignItem[]>([
     category: 'experiment',
     status: 'experiment',
     thumbnail: 'circuit',
-    route: '/experiments?exp=circuit-flow',
     tags: ['circuit', 'data', 'flow', 'particles'],
     createdAt: '2024-01-03',
     updatedAt: '2024-01-03',
@@ -206,7 +204,6 @@ const designs = ref<DesignItem[]>([
     category: 'experiment',
     status: 'experiment',
     thumbnail: 'holo',
-    route: '/experiments?exp=holographic',
     tags: ['holographic', 'distortion', 'chromatic', 'glitch'],
     createdAt: '2024-01-03',
     updatedAt: '2024-01-03',
@@ -222,13 +219,39 @@ const designs = ref<DesignItem[]>([
     category: 'experiment',
     status: 'experiment',
     thumbnail: 'neural',
-    route: '/experiments?exp=neural-net',
     tags: ['neural', 'network', 'nodes', 'connections'],
     createdAt: '2024-01-03',
     updatedAt: '2024-01-03',
     details: {
       features: ['Animated nodes', 'Connection lines', 'Pulsing glow'],
       techStack: ['SVG', 'CSS animations', 'pseudo-elements']
+    }
+  },
+  
+  // ═══════════════════════════════════════════
+  // COMPONENT DESIGNS
+  // ═══════════════════════════════════════════
+  {
+    id: 'sidebar-buttons-premium',
+    name: 'Sidebar Buttons - Premium',
+    description: 'Refined sidebar navigation buttons with enhanced depth, sophisticated borders, and premium hover effects. Features pill-shaped design, refined shadows, and elegant icon treatment.',
+    category: 'component',
+    status: 'active',
+    thumbnail: 'sidebar-premium',
+    tags: ['sidebar', 'navigation', 'buttons', 'premium', 'refined'],
+    createdAt: '2024-01-08',
+    updatedAt: '2024-01-08',
+    details: {
+      features: [
+        'Pill-shaped buttons with refined borders',
+        'Enhanced depth with multi-layer shadows',
+        'Sophisticated hover animations',
+        'Premium icon treatment with subtle glow',
+        'Elegant active state indicators',
+        'Smooth transitions and micro-interactions'
+      ],
+      techStack: ['CSS gradients', 'box-shadow layers', 'backdrop-filter', 'CSS transforms'],
+      notes: 'Alternative design for sidebar navigation buttons. Features more refined aesthetics with better depth perception and premium feel compared to current square buttons.'
     }
   },
   
@@ -281,6 +304,7 @@ const categories: { value: DesignCategory | 'all'; label: string; icon: string }
   { value: 'home-page', label: 'Home Page', icon: '🏠' },
   { value: 'background', label: 'Background', icon: '🎨' },
   { value: 'experiment', label: 'Experiment', icon: '🧪' },
+  { value: 'component', label: 'Component', icon: '🧩' },
   { value: 'style-guide', label: 'Style Guide', icon: '📐' }
 ]
 
@@ -376,7 +400,9 @@ function getThumbnailGradient(design: DesignItem) {
     'holo': 'linear-gradient(135deg, #2a1a3e 0%, #1a2a3e 50%, #3a1a2e 100%)',
     'neural': 'linear-gradient(135deg, #1a2a2e 0%, #1a1a3e 100%)',
     'styleguide': 'linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%)',
-    'styleguide2': 'linear-gradient(135deg, #1a1a2e 0%, #2a2a3e 100%)'
+    'styleguide2': 'linear-gradient(135deg, #1a1a2e 0%, #2a2a3e 100%)',
+    'sidebar-premium': 'linear-gradient(135deg, #1a1a2e 0%, #2a2a3e 50%, #1a2a2e 100%)',
+    'sidebar-original': 'linear-gradient(135deg, #1a1a2e 0%, #2a2a3e 100%)'
   }
   return gradients[design.thumbnail || ''] || 'linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%)'
 }
@@ -389,12 +415,24 @@ function formatDate(dateStr: string) {
   })
 }
 
-function viewDesign(design: DesignItem) {
-  if (design.route) {
-    router.push(design.route)
-  } else {
-    selectedDesign.value = design
+function getDesignRoute(design: DesignItem): string | null {
+  // Only return routes for style guides (external pages)
+  if (design.category === 'style-guide') {
+    if (design.id === 'style-guide-v2') {
+      return '/styleguide-v2'
+    }
+    if (design.id === 'style-guide-v1') {
+      return '/styleguide'
+    }
   }
+  return null
+}
+
+function viewDesign(design: DesignItem) {
+  // Always show modal with embedded design
+  selectedDesign.value = design
+  // Reset preview theme to dark when opening
+  previewTheme.value = 'dark'
 }
 
 function closeDetail() {
@@ -409,11 +447,11 @@ function toggleSortOrder() {
 <template>
   <div class="archive">
     <!-- Back button -->
-    <button class="archive__back" @click="router.push('/admin')">
+    <button class="archive__back" @click="router.back()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M19 12H5M12 19l-7-7 7-7"/>
       </svg>
-      Back to Settings
+      Back
     </button>
     
     <!-- Header -->
@@ -488,7 +526,6 @@ function toggleSortOrder() {
         v-for="design in filteredDesigns" 
         :key="design.id"
         class="archive__card"
-        :class="{ 'archive__card--clickable': design.route }"
         @click="viewDesign(design)"
       >
         <!-- Thumbnail -->
@@ -509,6 +546,11 @@ function toggleSortOrder() {
           </div>
           <div v-else-if="design.thumbnail === 'cyber'" class="thumb-deco thumb-deco--cyber">
             <div class="thumb-circuit"></div>
+          </div>
+          <div v-else-if="design.thumbnail === 'sidebar-premium'" class="thumb-deco thumb-deco--sidebar">
+            <div class="thumb-sidebar-btn"></div>
+            <div class="thumb-sidebar-btn"></div>
+            <div class="thumb-sidebar-btn thumb-sidebar-btn--active"></div>
           </div>
           <div v-else class="thumb-deco thumb-deco--default">
             <div class="thumb-orb"></div>
@@ -542,11 +584,8 @@ function toggleSortOrder() {
           <!-- Footer -->
           <div class="archive__card-footer">
             <span class="archive__date">Updated {{ formatDate(design.updatedAt) }}</span>
-            <span v-if="design.route" class="archive__action">
-              View →
-            </span>
-            <span v-else class="archive__action archive__action--details">
-              Details →
+            <span class="archive__action archive__action--details">
+              View Details →
             </span>
           </div>
         </div>
@@ -595,25 +634,186 @@ function toggleSortOrder() {
     <!-- Detail Modal -->
     <Teleport to="body">
       <div v-if="selectedDesign" class="archive__modal-overlay" @click="closeDetail">
-        <div class="archive__modal" @click.stop>
+        <div 
+          class="archive__modal" 
+          :class="{
+            'archive__modal--narrow': selectedDesign.category === 'component',
+            'archive__modal--wide': selectedDesign.category === 'background' || selectedDesign.category === 'experiment' || selectedDesign.category === 'home-page'
+          }"
+          @click.stop
+        >
           <button class="archive__modal-close" @click="closeDetail">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M6 18L18 6M6 6l12 12"/>
             </svg>
           </button>
           
-          <div class="archive__modal-thumb" :style="{ background: getThumbnailGradient(selectedDesign) }">
-            <span 
-              class="archive__status archive__status--large"
-              :style="{ color: getStatusColor(selectedDesign.status), borderColor: getStatusColor(selectedDesign.status) }"
-            >
-              {{ getStatusLabel(selectedDesign.status) }}
-            </span>
+          <!-- Preview Section with embedded design -->
+          <div class="archive__modal-preview-container">
+            <div class="archive__modal-preview-wrapper" :data-theme="previewTheme">
+              <!-- Theme toggle in top right -->
+              <button 
+                @click="togglePreviewTheme"
+                class="archive__modal-theme-toggle"
+                :title="previewTheme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'"
+              >
+                <svg v-if="previewTheme === 'light'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="5"/>
+                  <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+                </svg>
+                <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                </svg>
+              </button>
+              
+              <!-- Embedded design preview -->
+              <div class="archive__modal-embedded-preview">
+                <!-- Background designs -->
+                <div v-if="selectedDesign.category === 'background' || selectedDesign.category === 'experiment' || selectedDesign.category === 'home-page'" class="embedded-design">
+                  <div v-if="selectedDesign.id === 'combined-parallelograms'" class="embedded-combined">
+                    <!-- Combined design preview -->
+                    <div class="embedded-combined__geo">
+                      <div class="embedded-combined__shape"></div>
+                      <div class="embedded-combined__shape"></div>
+                      <div class="embedded-combined__shape"></div>
+                    </div>
+                    <div class="embedded-combined__content">
+                      <div class="embedded-combined__card">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                          <rect x="2" y="5" width="14" height="12" rx="2"/>
+                          <path d="M16 9l4-2v8l-4-2"/>
+                          <circle cx="6" cy="8" r="2" fill="currentColor" stroke="none"/>
+                        </svg>
+                        <h3>Recorder</h3>
+                      </div>
+                      <div class="embedded-combined__card">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                          <rect x="2" y="2" width="9" height="6" rx="1"/>
+                          <rect x="13" y="2" width="9" height="6" rx="1"/>
+                          <rect x="2" y="10" width="9" height="6" rx="1"/>
+                          <rect x="13" y="10" width="9" height="6" rx="1"/>
+                          <circle cx="12" cy="20" r="2" fill="currentColor"/>
+                          <path d="M9 19.5a4 4 0 0 1 6 0" stroke-linecap="round"/>
+                        </svg>
+                        <h3>Mixer</h3>
+                      </div>
+                    </div>
+                  </div>
+                  <div v-else-if="selectedDesign.id === 'split-home'" class="embedded-split">
+                    <div class="embedded-split__side embedded-split__side--left">
+                      <div class="embedded-split__icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                          <rect x="2" y="5" width="14" height="12" rx="2"/>
+                          <path d="M16 9l4-2v8l-4-2"/>
+                          <circle cx="6" cy="8" r="2" fill="currentColor" stroke="none"/>
+                        </svg>
+                      </div>
+                      <h3>Recorder</h3>
+                    </div>
+                    <div class="embedded-split__side embedded-split__side--right">
+                      <div class="embedded-split__icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                          <rect x="2" y="2" width="9" height="6" rx="1"/>
+                          <rect x="13" y="2" width="9" height="6" rx="1"/>
+                          <rect x="2" y="10" width="9" height="6" rx="1"/>
+                          <rect x="13" y="10" width="9" height="6" rx="1"/>
+                          <circle cx="12" cy="20" r="2" fill="currentColor"/>
+                          <path d="M9 19.5a4 4 0 0 1 6 0" stroke-linecap="round"/>
+                        </svg>
+                      </div>
+                      <h3>Mixer</h3>
+                    </div>
+                  </div>
+                  <div v-else class="embedded-default">
+                    <div class="embedded-default__gradient" :style="{ background: getThumbnailGradient(selectedDesign) }">
+                      <div v-if="selectedDesign.thumbnail === 'combined'" class="thumb-deco thumb-deco--parallelograms">
+                        <div class="thumb-shape"></div>
+                        <div class="thumb-shape"></div>
+                        <div class="thumb-shape"></div>
+                      </div>
+                      <div v-else-if="selectedDesign.thumbnail === 'split'" class="thumb-deco thumb-deco--split">
+                        <div class="thumb-line"></div>
+                      </div>
+                      <div v-else-if="selectedDesign.thumbnail === 'cyber'" class="thumb-deco thumb-deco--cyber">
+                        <div class="thumb-circuit"></div>
+                      </div>
+                      <div v-else class="thumb-deco thumb-deco--default">
+                        <div class="thumb-orb"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- Component designs -->
+                <div v-else-if="selectedDesign.category === 'component'" class="embedded-component">
+                  <div v-if="selectedDesign.id === 'sidebar-buttons-premium'" class="embedded-sidebar">
+                    <div class="embedded-sidebar__container">
+                      <div class="embedded-sidebar__btn embedded-sidebar__btn--default">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                          <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                        </svg>
+                      </div>
+                      <div class="embedded-sidebar__btn embedded-sidebar__btn--default">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                          <rect x="2" y="5" width="14" height="12" rx="2"/>
+                          <path d="M16 9l4-2v8l-4-2"/>
+                          <circle cx="6" cy="8" r="2" fill="currentColor" stroke="none"/>
+                        </svg>
+                      </div>
+                      <div class="embedded-sidebar__btn embedded-sidebar__btn--active">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                          <rect x="2" y="2" width="9" height="6" rx="1"/>
+                          <rect x="13" y="2" width="9" height="6" rx="1"/>
+                          <rect x="2" y="10" width="9" height="6" rx="1"/>
+                          <rect x="13" y="10" width="9" height="6" rx="1"/>
+                          <circle cx="12" cy="20" r="2" fill="currentColor"/>
+                          <path d="M9 19.5a4 4 0 0 1 6 0" stroke-linecap="round"/>
+                        </svg>
+                      </div>
+                      <div class="embedded-sidebar__btn embedded-sidebar__btn--default">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                          <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- Default thumbnail for other designs -->
+                <div v-else class="embedded-default">
+                  <div class="embedded-default__gradient" :style="{ background: getThumbnailGradient(selectedDesign) }">
+                    <div v-if="selectedDesign.thumbnail === 'sidebar-premium'" class="thumb-deco thumb-deco--sidebar">
+                      <div class="thumb-sidebar-btn"></div>
+                      <div class="thumb-sidebar-btn"></div>
+                      <div class="thumb-sidebar-btn thumb-sidebar-btn--active"></div>
+                    </div>
+                    <div v-else class="thumb-deco thumb-deco--default">
+                      <div class="thumb-orb"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
           
           <div class="archive__modal-content">
-            <h2>{{ selectedDesign.name }}</h2>
-            <p class="archive__modal-desc">{{ selectedDesign.description }}</p>
+            <div class="archive__modal-header">
+              <div>
+                <h2>{{ selectedDesign.name }}</h2>
+                <p class="archive__modal-desc">{{ selectedDesign.description }}</p>
+              </div>
+              <button 
+                v-if="getDesignRoute(selectedDesign)"
+                @click="viewDesignInAction(selectedDesign)"
+                class="archive__modal-action-btn"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                  <path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                </svg>
+                View in Action
+              </button>
+            </div>
             
             <div class="archive__modal-meta">
               <div class="archive__modal-meta-item">
@@ -651,6 +851,158 @@ function toggleSortOrder() {
             <div v-if="selectedDesign.details?.notes" class="archive__modal-section">
               <h4>Notes</h4>
               <p>{{ selectedDesign.details.notes }}</p>
+            </div>
+            
+            <!-- Code preview for component designs -->
+            <div v-if="selectedDesign.category === 'component' && selectedDesign.id === 'sidebar-buttons-premium'" class="archive__modal-section">
+              <h4>Design Alternatives</h4>
+              <p style="font-size: 0.85rem; color: var(--preke-text-muted); margin-bottom: 1.5rem;">
+                Compare different button styles with and without text labels
+              </p>
+              
+              <!-- Alternative 1: Current (Icon only, compact) -->
+              <div class="sidebar-alternative">
+                <h5>Alternative 1: Icon Only (Current)</h5>
+                <div class="preview-sidebar">
+                  <div class="preview-btn preview-btn--default">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                      <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                    </svg>
+                  </div>
+                  <div class="preview-btn preview-btn--default">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                      <rect x="2" y="5" width="14" height="12" rx="2"/>
+                      <path d="M16 9l4-2v8l-4-2"/>
+                      <circle cx="6" cy="8" r="2" fill="currentColor" stroke="none"/>
+                    </svg>
+                  </div>
+                  <div class="preview-btn preview-btn--active">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                      <rect x="2" y="2" width="9" height="6" rx="1"/>
+                      <rect x="13" y="2" width="9" height="6" rx="1"/>
+                      <rect x="2" y="10" width="9" height="6" rx="1"/>
+                      <rect x="13" y="10" width="9" height="6" rx="1"/>
+                      <circle cx="12" cy="20" r="2" fill="currentColor"/>
+                      <path d="M9 19.5a4 4 0 0 1 6 0" stroke-linecap="round"/>
+                    </svg>
+                  </div>
+                  <div class="preview-btn preview-btn--default">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                      <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Alternative 2: Icon + Text (Compact) -->
+              <div class="sidebar-alternative">
+                <h5>Alternative 2: Icon + Text (Compact)</h5>
+                <div class="preview-sidebar preview-sidebar--with-text">
+                  <div class="preview-btn preview-btn--default preview-btn--text">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                      <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                    </svg>
+                    <span>Home</span>
+                  </div>
+                  <div class="preview-btn preview-btn--default preview-btn--text">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                      <rect x="2" y="5" width="14" height="12" rx="2"/>
+                      <path d="M16 9l4-2v8l-4-2"/>
+                      <circle cx="6" cy="8" r="2" fill="currentColor" stroke="none"/>
+                    </svg>
+                    <span>Recorder</span>
+                  </div>
+                  <div class="preview-btn preview-btn--active preview-btn--text">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                      <rect x="2" y="2" width="9" height="6" rx="1"/>
+                      <rect x="13" y="2" width="9" height="6" rx="1"/>
+                      <rect x="2" y="10" width="9" height="6" rx="1"/>
+                      <rect x="13" y="10" width="9" height="6" rx="1"/>
+                      <circle cx="12" cy="20" r="2" fill="currentColor"/>
+                      <path d="M9 19.5a4 4 0 0 1 6 0" stroke-linecap="round"/>
+                    </svg>
+                    <span>Mixer</span>
+                  </div>
+                  <div class="preview-btn preview-btn--default preview-btn--text">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                      <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+                    </svg>
+                    <span>Library</span>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Alternative 3: Icon Only (Wider, more padding) -->
+              <div class="sidebar-alternative">
+                <h5>Alternative 3: Icon Only (Wider, More Padding)</h5>
+                <div class="preview-sidebar preview-sidebar--wide">
+                  <div class="preview-btn preview-btn--default preview-btn--wide">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                      <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                    </svg>
+                  </div>
+                  <div class="preview-btn preview-btn--default preview-btn--wide">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                      <rect x="2" y="5" width="14" height="12" rx="2"/>
+                      <path d="M16 9l4-2v8l-4-2"/>
+                      <circle cx="6" cy="8" r="2" fill="currentColor" stroke="none"/>
+                    </svg>
+                  </div>
+                  <div class="preview-btn preview-btn--active preview-btn--wide">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                      <rect x="2" y="2" width="9" height="6" rx="1"/>
+                      <rect x="13" y="2" width="9" height="6" rx="1"/>
+                      <rect x="2" y="10" width="9" height="6" rx="1"/>
+                      <rect x="13" y="10" width="9" height="6" rx="1"/>
+                      <circle cx="12" cy="20" r="2" fill="currentColor"/>
+                      <path d="M9 19.5a4 4 0 0 1 6 0" stroke-linecap="round"/>
+                    </svg>
+                  </div>
+                  <div class="preview-btn preview-btn--default preview-btn--wide">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                      <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Alternative 4: Icon + Text (Wider, more padding) -->
+              <div class="sidebar-alternative">
+                <h5>Alternative 4: Icon + Text (Wider, More Padding)</h5>
+                <div class="preview-sidebar preview-sidebar--with-text preview-sidebar--wide">
+                  <div class="preview-btn preview-btn--default preview-btn--text preview-btn--wide">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                      <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                    </svg>
+                    <span>Home</span>
+                  </div>
+                  <div class="preview-btn preview-btn--default preview-btn--text preview-btn--wide">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                      <rect x="2" y="5" width="14" height="12" rx="2"/>
+                      <path d="M16 9l4-2v8l-4-2"/>
+                      <circle cx="6" cy="8" r="2" fill="currentColor" stroke="none"/>
+                    </svg>
+                    <span>Recorder</span>
+                  </div>
+                  <div class="preview-btn preview-btn--active preview-btn--text preview-btn--wide">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                      <rect x="2" y="2" width="9" height="6" rx="1"/>
+                      <rect x="13" y="2" width="9" height="6" rx="1"/>
+                      <rect x="2" y="10" width="9" height="6" rx="1"/>
+                      <rect x="13" y="10" width="9" height="6" rx="1"/>
+                      <circle cx="12" cy="20" r="2" fill="currentColor"/>
+                      <path d="M9 19.5a4 4 0 0 1 6 0" stroke-linecap="round"/>
+                    </svg>
+                    <span>Mixer</span>
+                  </div>
+                  <div class="preview-btn preview-btn--default preview-btn--text preview-btn--wide">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                      <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+                    </svg>
+                    <span>Library</span>
+                  </div>
+                </div>
+              </div>
             </div>
             
             <div class="archive__modal-section">
@@ -881,7 +1233,7 @@ function toggleSortOrder() {
 /* Thumbnail */
 .archive__thumbnail {
   position: relative;
-  height: 120px;
+  height: 80px;
   overflow: hidden;
 }
 
@@ -901,8 +1253,13 @@ function toggleSortOrder() {
   padding: 4px 10px;
   border-radius: 100px;
   font-size: 11px;
-  color: var(--preke-text);
+  color: rgba(255, 255, 255, 0.95);
   font-weight: 500;
+}
+
+[data-theme="light"] .archive__category-badge {
+  background: rgba(255, 255, 255, 0.9);
+  color: rgba(0, 0, 0, 0.8);
 }
 
 /* Thumbnail decorations */
@@ -967,6 +1324,56 @@ function toggleSortOrder() {
   border-radius: 50%;
   background: radial-gradient(circle at 30% 30%, rgba(224, 160, 48, 0.3), transparent);
   box-shadow: 0 0 30px rgba(224, 160, 48, 0.2);
+}
+
+/* Sidebar premium buttons thumbnail */
+.thumb-deco--sidebar {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.thumb-sidebar-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.08) 0%,
+    rgba(255, 255, 255, 0.03) 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 
+    0 2px 8px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  position: relative;
+}
+
+.thumb-sidebar-btn--active {
+  background: linear-gradient(
+    145deg,
+    rgba(224, 160, 48, 0.25) 0%,
+    rgba(224, 160, 48, 0.15) 50%,
+    rgba(224, 160, 48, 0.08) 100%
+  );
+  border-color: rgba(224, 160, 48, 0.4);
+  box-shadow: 
+    0 0 20px rgba(224, 160, 48, 0.2),
+    0 2px 8px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.thumb-sidebar-btn::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.2);
 }
 
 /* Card content */
@@ -1159,6 +1566,16 @@ function toggleSortOrder() {
   width: 100%;
   max-height: 90vh;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.archive__modal--wide {
+  max-width: 1200px;
+}
+
+.archive__modal--narrow {
+  max-width: 500px;
 }
 
 .archive__modal-close {
@@ -1188,6 +1605,348 @@ function toggleSortOrder() {
   height: 18px;
 }
 
+.archive__modal-preview-container {
+  margin-bottom: 1.5rem;
+}
+
+.archive__modal-preview-wrapper {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--preke-bg-base);
+  min-height: 400px;
+}
+
+/* Theme-aware styles for embedded preview */
+.archive__modal-preview-wrapper[data-theme="light"] {
+  background: #f5f5f5;
+}
+
+.archive__modal-preview-wrapper[data-theme="light"] .embedded-combined,
+.archive__modal-preview-wrapper[data-theme="light"] .embedded-split,
+.archive__modal-preview-wrapper[data-theme="light"] .embedded-sidebar {
+  background: #f5f5f5;
+}
+
+.archive__modal-preview-wrapper[data-theme="light"] .embedded-combined__card {
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.archive__modal-preview-wrapper[data-theme="light"] .embedded-sidebar__container {
+  background: #f5f5f5;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.archive__modal-theme-toggle {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: var(--preke-text);
+  cursor: pointer;
+  z-index: 10;
+  transition: all 0.2s ease;
+}
+
+.archive__modal-theme-toggle:hover {
+  background: rgba(0, 0, 0, 0.8);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.archive__modal-theme-toggle svg {
+  width: 18px;
+  height: 18px;
+}
+
+.archive__modal-embedded-preview {
+  width: 100%;
+  height: 500px;
+  position: relative;
+  overflow: hidden;
+}
+
+.archive__modal--wide .archive__modal-embedded-preview {
+  height: 600px;
+}
+
+.archive__modal--narrow .archive__modal-embedded-preview {
+  height: 400px;
+}
+
+.embedded-design {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+/* Combined design preview */
+.embedded-combined {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  background: var(--preke-bg-base);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  box-sizing: border-box;
+}
+
+.embedded-combined__geo {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+}
+
+.embedded-combined__shape {
+  width: 80px;
+  height: 120px;
+  background: linear-gradient(135deg, rgba(224, 160, 48, 0.15) 0%, rgba(224, 160, 48, 0.05) 100%);
+  border: 1px solid rgba(224, 160, 48, 0.2);
+  clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
+  transform: rotate(45deg);
+}
+
+.embedded-combined__shape:nth-child(2) {
+  transform: rotate(115deg);
+}
+
+.embedded-combined__shape:nth-child(3) {
+  transform: rotate(45deg);
+}
+
+.embedded-combined__content {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  gap: 2rem;
+  align-items: center;
+}
+
+.embedded-combined__card {
+  padding: 2rem 1.5rem;
+  background: var(--preke-glass-card);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--preke-border-light);
+  border-radius: 20px;
+  text-align: center;
+  min-width: 200px;
+}
+
+.embedded-combined__card svg {
+  width: 48px;
+  height: 48px;
+  color: var(--preke-gold);
+  margin-bottom: 0.5rem;
+}
+
+.embedded-combined__card h3 {
+  font-size: 1.25rem;
+  color: var(--preke-text);
+  margin: 0;
+}
+
+/* Split design preview */
+.embedded-split {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  position: relative;
+  padding: 1rem;
+  box-sizing: border-box;
+}
+
+.embedded-split__side {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  position: relative;
+}
+
+.embedded-split__side--left {
+  background: linear-gradient(135deg, rgba(212, 90, 90, 0.1) 0%, transparent 100%);
+}
+
+.embedded-split__side--right {
+  background: linear-gradient(135deg, transparent 0%, rgba(124, 58, 237, 0.1) 100%);
+}
+
+.embedded-split__icon {
+  width: 64px;
+  height: 64px;
+  color: var(--preke-text);
+}
+
+.embedded-split__icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.embedded-split__side h3 {
+  font-size: 1.5rem;
+  color: var(--preke-text);
+  margin: 0;
+}
+
+/* Sidebar component preview */
+.embedded-sidebar {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(
+    90deg,
+    var(--preke-bg-elevated) 0%,
+    var(--preke-bg-surface) 50%,
+    var(--preke-bg-elevated) 100%
+  );
+}
+
+.embedded-sidebar__container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 1rem;
+  background: var(--preke-bg-elevated);
+  border-radius: 16px;
+  border: 1px solid var(--preke-border);
+}
+
+.embedded-sidebar__btn {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  color: var(--preke-text-muted);
+  
+  /* Premium design */
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.1) 0%,
+    rgba(255, 255, 255, 0.05) 50%,
+    rgba(255, 255, 255, 0.02) 100%
+  );
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 
+    0 4px 12px rgba(0, 0, 0, 0.3),
+    0 2px 4px rgba(0, 0, 0, 0.2),
+    inset 0 1px 2px rgba(255, 255, 255, 0.15),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.1);
+}
+
+.embedded-sidebar__btn svg {
+  width: 28px;
+  height: 28px;
+}
+
+.embedded-sidebar__btn:hover {
+  color: var(--preke-text);
+  transform: translateY(-2px);
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.15) 0%,
+    rgba(255, 255, 255, 0.08) 50%,
+    rgba(255, 255, 255, 0.04) 100%
+  );
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 
+    0 6px 16px rgba(0, 0, 0, 0.4),
+    0 3px 6px rgba(0, 0, 0, 0.3),
+    inset 0 1px 2px rgba(255, 255, 255, 0.2),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.15);
+}
+
+.embedded-sidebar__btn:hover svg {
+  transform: scale(1.1);
+}
+
+.embedded-sidebar__btn--active {
+  color: var(--preke-gold);
+  background: linear-gradient(
+    145deg,
+    rgba(224, 160, 48, 0.25) 0%,
+    rgba(224, 160, 48, 0.18) 50%,
+    rgba(224, 160, 48, 0.12) 100%
+  );
+  border-color: rgba(224, 160, 48, 0.5);
+  box-shadow: 
+    0 0 30px rgba(224, 160, 48, 0.25),
+    0 0 60px rgba(224, 160, 48, 0.1),
+    0 4px 12px rgba(0, 0, 0, 0.3),
+    0 2px 4px rgba(0, 0, 0, 0.2),
+    inset 0 1px 2px rgba(255, 255, 255, 0.2),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.1);
+}
+
+.embedded-sidebar__btn--active:hover {
+  background: linear-gradient(
+    145deg,
+    rgba(224, 160, 48, 0.3) 0%,
+    rgba(224, 160, 48, 0.22) 50%,
+    rgba(224, 160, 48, 0.15) 100%
+  );
+  box-shadow: 
+    0 0 40px rgba(224, 160, 48, 0.3),
+    0 0 80px rgba(224, 160, 48, 0.15),
+    0 6px 16px rgba(0, 0, 0, 0.4),
+    0 3px 6px rgba(0, 0, 0, 0.3),
+    inset 0 1px 2px rgba(255, 255, 255, 0.25),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.15);
+}
+
+.embedded-default {
+  width: 100%;
+  height: 100%;
+}
+
+.embedded-default__gradient {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.archive__modal-preview-large {
+  height: 200px;
+  border-radius: 12px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-start;
+  padding: 1rem;
+}
+
+.archive__modal-preview-thumb {
+  height: 200px;
+  border-radius: 12px;
+  position: relative;
+  overflow: hidden;
+}
+
 .archive__modal-thumb {
   height: 160px;
   display: flex;
@@ -1196,8 +1955,45 @@ function toggleSortOrder() {
   padding: 1rem;
 }
 
+.archive__modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1.5rem;
+  gap: 1rem;
+}
+
+.archive__modal-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  background: var(--preke-gold);
+  color: var(--preke-bg);
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.archive__modal-action-btn:hover {
+  background: rgba(224, 160, 48, 0.9);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(224, 160, 48, 0.3);
+}
+
+.archive__modal-action-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
 .archive__modal-content {
   padding: 1.5rem;
+  flex: 1;
+  overflow-y: auto;
 }
 
 .archive__modal-content h2 {
@@ -1286,5 +2082,217 @@ function toggleSortOrder() {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+}
+
+/* Code preview for component designs */
+.archive__code-preview {
+  background: var(--preke-surface);
+  border: 1px solid var(--preke-border);
+  border-radius: 12px;
+  padding: 2rem;
+  margin-top: 1rem;
+}
+
+.preview-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  padding: 1rem;
+  background: linear-gradient(
+    90deg,
+    var(--preke-bg-elevated) 0%,
+    var(--preke-bg-surface) 50%,
+    var(--preke-bg-elevated) 100%
+  );
+  border-radius: 16px;
+  border: 1px solid var(--preke-border);
+  width: fit-content;
+  margin: 0 auto;
+}
+
+.preview-btn {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  color: var(--preke-text-muted);
+  
+  /* Premium design - refined borders and depth */
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.1) 0%,
+    rgba(255, 255, 255, 0.05) 50%,
+    rgba(255, 255, 255, 0.02) 100%
+  );
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 
+    /* Outer glow */
+    0 0 0 0 rgba(224, 160, 48, 0),
+    /* Depth shadow */
+    0 4px 12px rgba(0, 0, 0, 0.3),
+    0 2px 4px rgba(0, 0, 0, 0.2),
+    /* Inner highlights */
+    inset 0 1px 2px rgba(255, 255, 255, 0.15),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.1);
+}
+
+.preview-btn svg {
+  width: 28px;
+  height: 28px;
+  transition: transform 0.2s ease;
+}
+
+.preview-btn:hover {
+  color: var(--preke-text);
+  transform: translateY(-2px);
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.15) 0%,
+    rgba(255, 255, 255, 0.08) 50%,
+    rgba(255, 255, 255, 0.04) 100%
+  );
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 
+    0 0 0 0 rgba(224, 160, 48, 0),
+    0 6px 16px rgba(0, 0, 0, 0.4),
+    0 3px 6px rgba(0, 0, 0, 0.3),
+    inset 0 1px 2px rgba(255, 255, 255, 0.2),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.15);
+}
+
+.preview-btn:hover svg {
+  transform: scale(1.1);
+}
+
+.preview-btn--active {
+  color: var(--preke-gold);
+  background: linear-gradient(
+    145deg,
+    rgba(224, 160, 48, 0.25) 0%,
+    rgba(224, 160, 48, 0.18) 50%,
+    rgba(224, 160, 48, 0.12) 100%
+  );
+  border-color: rgba(224, 160, 48, 0.5);
+  box-shadow: 
+    /* Gold glow */
+    0 0 30px rgba(224, 160, 48, 0.25),
+    0 0 60px rgba(224, 160, 48, 0.1),
+    /* Depth */
+    0 4px 12px rgba(0, 0, 0, 0.3),
+    0 2px 4px rgba(0, 0, 0, 0.2),
+    /* Inner highlights */
+    inset 0 1px 2px rgba(255, 255, 255, 0.2),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.1);
+}
+
+.preview-btn--active:hover {
+  background: linear-gradient(
+    145deg,
+    rgba(224, 160, 48, 0.3) 0%,
+    rgba(224, 160, 48, 0.22) 50%,
+    rgba(224, 160, 48, 0.15) 100%
+  );
+  box-shadow: 
+    0 0 40px rgba(224, 160, 48, 0.3),
+    0 0 80px rgba(224, 160, 48, 0.15),
+    0 6px 16px rgba(0, 0, 0, 0.4),
+    0 3px 6px rgba(0, 0, 0, 0.3),
+    inset 0 1px 2px rgba(255, 255, 255, 0.25),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.15);
+}
+
+/* Alternative button designs */
+.sidebar-alternative {
+  margin-bottom: 2.5rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid var(--preke-border);
+}
+
+.sidebar-alternative:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.sidebar-alternative h5 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--preke-text);
+  margin-bottom: 1rem;
+}
+
+/* Sidebar with text */
+.preview-sidebar--with-text {
+  align-items: stretch;
+}
+
+.preview-sidebar--with-text .preview-btn {
+  width: auto;
+  min-width: 64px;
+  padding: 0 1rem;
+  justify-content: flex-start;
+  gap: 0.75rem;
+}
+
+.preview-sidebar--with-text .preview-btn span {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: inherit;
+  white-space: nowrap;
+}
+
+/* Wider buttons */
+.preview-sidebar--wide .preview-btn {
+  width: 72px;
+  height: 72px;
+  padding: 0;
+}
+
+.preview-sidebar--wide.preview-sidebar--with-text .preview-btn {
+  width: auto;
+  min-width: 80px;
+  height: 72px;
+  padding: 0 1.25rem;
+}
+
+.preview-sidebar--wide .preview-btn svg {
+  width: 32px;
+  height: 32px;
+}
+
+/* Text button variants */
+.preview-btn--text {
+  flex-direction: row;
+  justify-content: flex-start;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+.preview-btn--text svg {
+  flex-shrink: 0;
+}
+
+.preview-btn--text span {
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+/* Wide button variant */
+.preview-btn--wide {
+  width: 72px;
+  height: 72px;
+}
+
+.preview-btn--wide.preview-btn--text {
+  width: auto;
+  min-width: 80px;
+  padding: 0 1.25rem;
 }
 </style>

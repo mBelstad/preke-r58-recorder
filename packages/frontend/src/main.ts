@@ -10,6 +10,25 @@ import { platform } from './lib/platform'
 import './styles/preke-design-system.css'
 import './style.css'
 
+// Initialize theme before app mounts (prevent flash)
+function initializeTheme() {
+  try {
+    const stored = localStorage.getItem('preke-theme')
+    const root = document.documentElement
+    if (stored === 'light') {
+      root.setAttribute('data-theme', 'light')
+    } else {
+      root.setAttribute('data-theme', 'dark')
+    }
+  } catch (error) {
+    // Use default (dark)
+    document.documentElement.setAttribute('data-theme', 'dark')
+  }
+}
+
+// Initialize theme immediately
+initializeTheme()
+
 /**
  * Initialize the application
  */

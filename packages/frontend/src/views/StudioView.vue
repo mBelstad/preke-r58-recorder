@@ -116,6 +116,14 @@ async function selectMode(mode: 'recorder' | 'mixer') {
         <div class="geo-shape geo-shape--14"></div>
         <div class="geo-shape geo-shape--15"></div>
       </div>
+      <!-- Row 3.5: Middle-lower shapes (new row) -->
+      <div class="geo-layer geo-layer--3-5">
+        <div class="geo-shape geo-shape--26"></div>
+        <div class="geo-shape geo-shape--27"></div>
+        <div class="geo-shape geo-shape--28"></div>
+        <div class="geo-shape geo-shape--29"></div>
+        <div class="geo-shape geo-shape--30"></div>
+      </div>
       <!-- Row 4: Lower middle shapes -->
       <div class="geo-layer geo-layer--4">
         <div class="geo-shape geo-shape--16"></div>
@@ -151,30 +159,85 @@ async function selectMode(mode: 'recorder' | 'mixer') {
         <div class="soundwave__bar" style="--i: 14; --h: 0.4"></div>
       </div>
       <div class="soundwave soundwave--2">
+        <div class="soundwave__bar" style="--i: 0; --h: 0.2"></div>
+        <div class="soundwave__bar" style="--i: 1; --h: 0.9"></div>
+        <div class="soundwave__bar" style="--i: 2; --h: 0.4"></div>
+        <div class="soundwave__bar" style="--i: 3; --h: 1"></div>
+        <div class="soundwave__bar" style="--i: 4; --h: 0.6"></div>
+        <div class="soundwave__bar" style="--i: 5; --h: 0.3"></div>
+        <div class="soundwave__bar" style="--i: 6; --h: 0.8"></div>
+        <div class="soundwave__bar" style="--i: 7; --h: 0.5"></div>
+        <div class="soundwave__bar" style="--i: 8; --h: 0.7"></div>
+        <div class="soundwave__bar" style="--i: 9; --h: 0.4"></div>
+        <div class="soundwave__bar" style="--i: 10; --h: 0.9"></div>
+      </div>
+      <div class="soundwave soundwave--3">
+        <div class="soundwave__bar" style="--i: 0; --h: 0.6"></div>
+        <div class="soundwave__bar" style="--i: 1; --h: 0.3"></div>
+        <div class="soundwave__bar" style="--i: 2; --h: 0.9"></div>
+        <div class="soundwave__bar" style="--i: 3; --h: 0.5"></div>
+        <div class="soundwave__bar" style="--i: 4; --h: 1"></div>
+        <div class="soundwave__bar" style="--i: 5; --h: 0.4"></div>
+        <div class="soundwave__bar" style="--i: 6; --h: 0.8"></div>
+        <div class="soundwave__bar" style="--i: 7; --h: 0.2"></div>
+        <div class="soundwave__bar" style="--i: 8; --h: 0.7"></div>
+        <div class="soundwave__bar" style="--i: 9; --h: 0.5"></div>
+        <div class="soundwave__bar" style="--i: 10; --h: 0.6"></div>
+        <div class="soundwave__bar" style="--i: 11; --h: 0.3"></div>
+      </div>
+      <div class="soundwave soundwave--4">
         <div class="soundwave__bar" style="--i: 0; --h: 0.4"></div>
+        <div class="soundwave__bar" style="--i: 1; --h: 0.8"></div>
+        <div class="soundwave__bar" style="--i: 2; --h: 0.5"></div>
+        <div class="soundwave__bar" style="--i: 3; --h: 1"></div>
+        <div class="soundwave__bar" style="--i: 4; --h: 0.3"></div>
+        <div class="soundwave__bar" style="--i: 5; --h: 0.7"></div>
+        <div class="soundwave__bar" style="--i: 6; --h: 0.2"></div>
+        <div class="soundwave__bar" style="--i: 7; --h: 0.9"></div>
+        <div class="soundwave__bar" style="--i: 8; --h: 0.6"></div>
+      </div>
+      <div class="soundwave soundwave--5">
+        <div class="soundwave__bar" style="--i: 0; --h: 0.7"></div>
+        <div class="soundwave__bar" style="--i: 1; --h: 0.4"></div>
+        <div class="soundwave__bar" style="--i: 2; --h: 0.9"></div>
+        <div class="soundwave__bar" style="--i: 3; --h: 0.5"></div>
+        <div class="soundwave__bar" style="--i: 4; --h: 1"></div>
+        <div class="soundwave__bar" style="--i: 5; --h: 0.3"></div>
+        <div class="soundwave__bar" style="--i: 6; --h: 0.8"></div>
+        <div class="soundwave__bar" style="--i: 7; --h: 0.6"></div>
+      </div>
+      <div class="soundwave soundwave--6">
+        <div class="soundwave__bar" style="--i: 0; --h: 0.5"></div>
+        <div class="soundwave__bar" style="--i: 1; --h: 0.2"></div>
+        <div class="soundwave__bar" style="--i: 2; --h: 0.8"></div>
+        <div class="soundwave__bar" style="--i: 3; --h: 0.4"></div>
+        <div class="soundwave__bar" style="--i: 4; --h: 1"></div>
+        <div class="soundwave__bar" style="--i: 5; --h: 0.7"></div>
+        <div class="soundwave__bar" style="--i: 6; --h: 0.3"></div>
+        <div class="soundwave__bar" style="--i: 7; --h: 0.9"></div>
+        <div class="soundwave__bar" style="--i: 8; --h: 0.5"></div>
+        <div class="soundwave__bar" style="--i: 9; --h: 0.6"></div>
+      </div>
+      <div class="soundwave soundwave--7">
+        <div class="soundwave__bar" style="--i: 0; --h: 0.3"></div>
         <div class="soundwave__bar" style="--i: 1; --h: 0.7"></div>
         <div class="soundwave__bar" style="--i: 2; --h: 0.5"></div>
         <div class="soundwave__bar" style="--i: 3; --h: 0.9"></div>
-        <div class="soundwave__bar" style="--i: 4; --h: 1"></div>
-        <div class="soundwave__bar" style="--i: 5; --h: 0.6"></div>
-        <div class="soundwave__bar" style="--i: 6; --h: 0.8"></div>
-        <div class="soundwave__bar" style="--i: 7; --h: 0.4"></div>
-        <div class="soundwave__bar" style="--i: 8; --h: 0.7"></div>
-        <div class="soundwave__bar" style="--i: 9; --h: 0.5"></div>
-        <div class="soundwave__bar" style="--i: 10; --h: 0.3"></div>
-        <div class="soundwave__bar" style="--i: 11; --h: 0.6"></div>
+        <div class="soundwave__bar" style="--i: 4; --h: 0.4"></div>
+        <div class="soundwave__bar" style="--i: 5; --h: 1"></div>
+        <div class="soundwave__bar" style="--i: 6; --h: 0.6"></div>
+        <div class="soundwave__bar" style="--i: 7; --h: 0.2"></div>
       </div>
-      <div class="soundwave soundwave--3">
-        <div class="soundwave__bar" style="--i: 0; --h: 0.5"></div>
-        <div class="soundwave__bar" style="--i: 1; --h: 0.3"></div>
-        <div class="soundwave__bar" style="--i: 2; --h: 0.7"></div>
-        <div class="soundwave__bar" style="--i: 3; --h: 0.6"></div>
-        <div class="soundwave__bar" style="--i: 4; --h: 1"></div>
-        <div class="soundwave__bar" style="--i: 5; --h: 0.8"></div>
-        <div class="soundwave__bar" style="--i: 6; --h: 0.4"></div>
-        <div class="soundwave__bar" style="--i: 7; --h: 0.9"></div>
-        <div class="soundwave__bar" style="--i: 8; --h: 0.5"></div>
-        <div class="soundwave__bar" style="--i: 9; --h: 0.7"></div>
+      <div class="soundwave soundwave--8">
+        <div class="soundwave__bar" style="--i: 0; --h: 0.8"></div>
+        <div class="soundwave__bar" style="--i: 1; --h: 0.4"></div>
+        <div class="soundwave__bar" style="--i: 2; --h: 0.6"></div>
+        <div class="soundwave__bar" style="--i: 3; --h: 1"></div>
+        <div class="soundwave__bar" style="--i: 4; --h: 0.3"></div>
+        <div class="soundwave__bar" style="--i: 5; --h: 0.9"></div>
+        <div class="soundwave__bar" style="--i: 6; --h: 0.5"></div>
+        <div class="soundwave__bar" style="--i: 7; --h: 0.7"></div>
+        <div class="soundwave__bar" style="--i: 8; --h: 0.4"></div>
       </div>
       
       <!-- Subtle purple background lights -->
@@ -186,6 +249,8 @@ async function selectMode(mode: 'recorder' | 'mixer') {
     
     <!-- Content overlay -->
     <div class="studio__content">
+      <!-- Gradient light from top -->
+      <div class="studio__gradient-light"></div>
       <div class="studio__side studio__side--left">
         <button
           @click="selectMode('recorder')"
@@ -211,7 +276,7 @@ async function selectMode(mode: 'recorder' | 'mixer') {
       </div>
       
       <div class="studio__center">
-        <span class="studio__badge">Choose</span>
+        <span class="studio__badge">Choose Mode</span>
       </div>
       
       <div class="studio__side studio__side--right">
@@ -255,7 +320,7 @@ async function selectMode(mode: 'recorder' | 'mixer') {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #0a0a0c;
+  background: var(--preke-bg-base);
   overflow: hidden;
 }
 
@@ -276,12 +341,18 @@ async function selectMode(mode: 'recorder' | 'mixer') {
 .geo-layer--1 { z-index: 1; }
 .geo-layer--2 { z-index: 2; }
 .geo-layer--3 { z-index: 3; }
+.geo-layer--3-5 { z-index: 3; }
 .geo-layer--4 { z-index: 4; }
 
-/* Individual shapes - parallelograms */
+/* Individual shapes - parallelograms - adapts to theme */
 .geo-shape {
   position: absolute;
-  background: linear-gradient(135deg, rgba(21, 21, 24, 0.6) 0%, rgba(13, 13, 15, 0.6) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--preke-bg-surface) 0%,
+    var(--preke-bg-elevated) 100%
+  );
+  opacity: 0.6;
   transform-origin: center;
 }
 
@@ -557,6 +628,62 @@ async function selectMode(mode: 'recorder' | 'mixer') {
   animation-delay: 2.5s;
 }
 
+/* Row 3.5 - New middle-lower row (between row 3 and 4) */
+.geo-shape--26 {
+  width: 18%;
+  height: 22%;
+  top: 51%;
+  left: -6%;
+  clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
+  transform: rotate(115deg);
+  animation: shape-breathe-115 12s ease-in-out infinite;
+  animation-delay: 1.5s;
+}
+
+.geo-shape--27 {
+  width: 20%;
+  height: 24%;
+  top: 53%;
+  left: 13%;
+  clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
+  transform: rotate(45deg);
+  animation: shape-breathe-45 14s ease-in-out infinite;
+  animation-delay: 0.5s;
+}
+
+.geo-shape--28 {
+  width: 22%;
+  height: 26%;
+  top: 51%;
+  left: 32%;
+  clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
+  transform: rotate(115deg);
+  animation: shape-breathe-115 13s ease-in-out infinite;
+  animation-delay: 2s;
+}
+
+.geo-shape--29 {
+  width: 18%;
+  height: 22%;
+  top: 53%;
+  left: 55%;
+  clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
+  transform: rotate(45deg);
+  animation: shape-breathe-45 11s ease-in-out infinite;
+  animation-delay: 1s;
+}
+
+.geo-shape--30 {
+  width: 20%;
+  height: 24%;
+  top: 51%;
+  right: -7%;
+  clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
+  transform: rotate(115deg);
+  animation: shape-breathe-115 15s ease-in-out infinite;
+  animation-delay: 2.5s;
+}
+
 /* Breathing animations - two variants for alternating rotations */
 @keyframes shape-breathe-45 {
   0%, 100% { transform: rotate(45deg) translate(0, 0); opacity: 0.75; }
@@ -643,46 +770,198 @@ async function selectMode(mode: 'recorder' | 'mixer') {
     0 0 25px rgba(224, 160, 48, 0.08);
 }
 
-/* Soundwave 1 - Left side */
+/* Soundwave 1 - Random position with variation */
 .soundwave--1 {
-  top: 30%;
-  left: 10%;
-  transform: rotate(-5deg);
+  top: 12%;
+  left: 5%;
+  transform: rotate(-18deg);
   opacity: 0;
-  animation: soundwave-fade 14s ease-in-out infinite;
+  animation: soundwave-fade-1 5.5s ease-in-out infinite;
+  animation-delay: 0.3s;
 }
 
 .soundwave--1 .soundwave__bar {
-  height: calc(var(--h) * 60px);
+  height: calc(var(--h) * 65px);
 }
 
-/* Soundwave 2 - Right side */
+.soundwave--1::before {
+  width: 280px;
+  height: 220px;
+}
+
+.soundwave--1::after {
+  width: 380px;
+  height: 300px;
+}
+
+/* Soundwave 2 - Random position with variation */
 .soundwave--2 {
-  top: 50%;
-  right: 12%;
-  transform: rotate(3deg);
+  top: 42%;
+  right: 8%;
+  transform: rotate(22deg);
   opacity: 0;
-  animation: soundwave-fade 14s ease-in-out infinite;
-  animation-delay: 4.5s;
+  animation: soundwave-fade-2 7s ease-in-out infinite;
+  animation-delay: 1.8s;
 }
 
 .soundwave--2 .soundwave__bar {
-  height: calc(var(--h) * 55px);
+  height: calc(var(--h) * 48px);
 }
 
-/* Soundwave 3 - Bottom left */
+.soundwave--2::before {
+  width: 320px;
+  height: 260px;
+}
+
+.soundwave--2::after {
+  width: 420px;
+  height: 340px;
+}
+
+/* Soundwave 3 - Random position with variation */
 .soundwave--3 {
-  bottom: 20%;
-  left: 18%;
-  transform: rotate(-2deg);
+  bottom: 18%;
+  left: 28%;
+  transform: rotate(-14deg);
   opacity: 0;
-  animation: soundwave-fade 14s ease-in-out infinite;
-  animation-delay: 9s;
+  animation: soundwave-fade-3 6.2s ease-in-out infinite;
+  animation-delay: 3.5s;
 }
 
 .soundwave--3 .soundwave__bar {
+  height: calc(var(--h) * 58px);
+}
+
+.soundwave--3::before {
+  width: 300px;
+  height: 240px;
+}
+
+.soundwave--3::after {
+  width: 400px;
+  height: 320px;
+}
+
+/* Soundwave 4 - Random position */
+.soundwave--4 {
+  top: 25%;
+  left: 45%;
+  transform: rotate(8deg);
+  opacity: 0;
+  animation: soundwave-fade-1 6.8s ease-in-out infinite;
+  animation-delay: 4.2s;
+}
+
+.soundwave--4 .soundwave__bar {
+  height: calc(var(--h) * 52px);
+}
+
+.soundwave--4::before {
+  width: 290px;
+  height: 230px;
+}
+
+.soundwave--4::after {
+  width: 390px;
+  height: 310px;
+}
+
+/* Soundwave 5 - Random position */
+.soundwave--5 {
+  top: 60%;
+  left: 15%;
+  transform: rotate(-25deg);
+  opacity: 0;
+  animation: soundwave-fade-2 5.8s ease-in-out infinite;
+  animation-delay: 5.1s;
+}
+
+.soundwave--5 .soundwave__bar {
+  height: calc(var(--h) * 54px);
+}
+
+.soundwave--5::before {
+  width: 310px;
+  height: 250px;
+}
+
+.soundwave--5::after {
+  width: 410px;
+  height: 330px;
+}
+
+/* Soundwave 6 - Random position */
+.soundwave--6 {
+  bottom: 35%;
+  right: 25%;
+  transform: rotate(15deg);
+  opacity: 0;
+  animation: soundwave-fade-3 6.5s ease-in-out infinite;
+  animation-delay: 6.3s;
+}
+
+.soundwave--6 .soundwave__bar {
   height: calc(var(--h) * 50px);
 }
+
+.soundwave--6::before {
+  width: 270px;
+  height: 210px;
+}
+
+.soundwave--6::after {
+  width: 370px;
+  height: 290px;
+}
+
+/* Soundwave 7 - Random position */
+.soundwave--7 {
+  top: 8%;
+  right: 30%;
+  transform: rotate(-12deg);
+  opacity: 0;
+  animation: soundwave-fade-1 7.2s ease-in-out infinite;
+  animation-delay: 7.5s;
+}
+
+.soundwave--7 .soundwave__bar {
+  height: calc(var(--h) * 56px);
+}
+
+.soundwave--7::before {
+  width: 300px;
+  height: 240px;
+}
+
+.soundwave--7::after {
+  width: 400px;
+  height: 320px;
+}
+
+/* Soundwave 8 - Random position */
+.soundwave--8 {
+  bottom: 12%;
+  left: 50%;
+  transform: rotate(20deg);
+  opacity: 0;
+  animation: soundwave-fade-2 6.0s ease-in-out infinite;
+  animation-delay: 8.7s;
+}
+
+.soundwave--8 .soundwave__bar {
+  height: calc(var(--h) * 48px);
+}
+
+.soundwave--8::before {
+  width: 280px;
+  height: 220px;
+}
+
+.soundwave--8::after {
+  width: 380px;
+  height: 300px;
+}
+
 
 /* Realistic wave animation - bars move like audio levels */
 @keyframes soundwave-wave {
@@ -716,19 +995,49 @@ async function selectMode(mode: 'recorder' | 'mixer') {
   }
 }
 
-/* Fade in/out animation for the whole soundwave - slow and smooth */
-@keyframes soundwave-fade {
+/* Fade in/out animations - varied timing for each soundwave */
+@keyframes soundwave-fade-1 {
+  0%, 12%, 88%, 100% {
+    opacity: 0;
+    transform: rotate(-18deg) translateX(-8px) translateY(3px);
+  }
+  28%, 72% {
+    opacity: 0.65;
+    transform: rotate(-18deg) translateX(0) translateY(0);
+  }
+  48%, 52% {
+    opacity: 0.8;
+    transform: rotate(-18deg) translateX(2px) translateY(-2px);
+  }
+}
+
+@keyframes soundwave-fade-2 {
   0%, 8%, 92%, 100% {
     opacity: 0;
-    transform: rotate(var(--rotation, 0deg)) translateX(-5px);
+    transform: rotate(22deg) translateX(6px) translateY(-4px);
   }
-  20%, 80% {
+  22%, 78% {
     opacity: 0.7;
-    transform: rotate(var(--rotation, 0deg)) translateX(0);
+    transform: rotate(22deg) translateX(0) translateY(0);
   }
-  40%, 60% {
+  42%, 58% {
+    opacity: 0.9;
+    transform: rotate(22deg) translateX(-3px) translateY(2px);
+  }
+}
+
+@keyframes soundwave-fade-3 {
+  0%, 15%, 85%, 100% {
+    opacity: 0;
+    transform: rotate(-14deg) translateX(-5px) translateY(5px);
+  }
+  30%, 70% {
+    opacity: 0.6;
+    transform: rotate(-14deg) translateX(0) translateY(0);
+  }
+  50% {
     opacity: 0.85;
-    transform: rotate(var(--rotation, 0deg)) translateX(0);
+    transform: rotate(-14deg) translateX(3px) translateY(-3px);
   }
 }
 
@@ -864,11 +1173,36 @@ async function selectMode(mode: 'recorder' | 'mixer') {
   display: flex;
   align-items: center;
   justify-content: space-around;
-  gap: 3rem;
+  gap: 1.5rem;
   width: 100%;
   max-width: 100%;
   padding: 2rem;
   box-sizing: border-box;
+}
+
+/* Gradient light from top - similar to loading screen */
+.studio__gradient-light {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 60vh;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 100% 80% at 50% 0%,
+    rgba(224, 160, 48, 0.06) 0%,
+    transparent 50%
+  );
+  z-index: 0;
+}
+
+/* Light mode gradient */
+[data-theme="light"] .studio__gradient-light {
+  background: radial-gradient(
+    ellipse 100% 80% at 50% 0%,
+    rgba(224, 160, 48, 0.04) 0%,
+    transparent 50%
+  );
 }
 
 .studio__side {
@@ -879,12 +1213,12 @@ async function selectMode(mode: 'recorder' | 'mixer') {
   max-width: none;
 }
 
-/* Cards */
+/* Cards - adapts to theme */
 .studio__card {
-  padding: 3.5rem 2rem;
-  background: rgba(0, 0, 0, 0.25);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 5rem 2rem;
+  background: var(--preke-glass-card);
+  backdrop-filter: blur(20px) saturate(150%);
+  border: 1px solid var(--preke-border-light);
   border-radius: 20px;
   text-align: center;
   transition: all 0.4s ease;
@@ -892,11 +1226,78 @@ async function selectMode(mode: 'recorder' | 'mixer') {
   width: 100%;
   max-width: 320px;
   box-sizing: border-box;
+  /* Liquid glass glow effect - adapts to theme */
+  box-shadow: 
+    var(--preke-shadow-lg),
+    0 0 0 1px var(--preke-border-light) inset,
+    0 1px 0 var(--preke-border-light) inset,
+    0 0 20px var(--preke-glass-light);
+  position: relative;
+}
+
+.studio__card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--preke-border-light),
+    transparent
+  );
+  border-radius: 20px 20px 0 0;
+  pointer-events: none;
+}
+
+/* Light mode: More transparent and liquid glass effect */
+[data-theme="light"] .studio__card {
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.4) 0%,
+    rgba(255, 255, 255, 0.25) 50%,
+    rgba(255, 255, 255, 0.15) 100%
+  );
+  backdrop-filter: blur(30px) saturate(180%);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.08),
+    0 0 0 1px rgba(255, 255, 255, 0.5) inset,
+    0 1px 0 rgba(255, 255, 255, 0.6) inset,
+    0 0 40px rgba(255, 255, 255, 0.2),
+    /* Outer glow */
+    0 0 60px rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="light"] .studio__card::before {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.6),
+    transparent
+  );
+}
+
+[data-theme="light"] .studio__card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 20px;
+  background: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.15) 0%,
+    rgba(255, 255, 255, 0.05) 30%,
+    transparent 60%
+  );
+  pointer-events: none;
 }
 
 .studio__side:hover .studio__card:not(:disabled) {
   transform: translateY(-8px);
-  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--preke-shadow-xl);
 }
 
 .studio__card:disabled {
@@ -905,23 +1306,23 @@ async function selectMode(mode: 'recorder' | 'mixer') {
 }
 
 .studio__side--left:hover .studio__card:not(:disabled) {
-  border-color: rgba(212, 90, 90, 0.3);
-  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4), 0 0 40px rgba(212, 90, 90, 0.1);
+  border-color: var(--preke-red);
+  box-shadow: var(--preke-shadow-xl), 0 0 40px var(--preke-red-bg);
 }
 
 .studio__card--recorder.studio__card--selected {
-  border-color: rgba(212, 90, 90, 0.5);
-  background: rgba(212, 90, 90, 0.08);
+  border-color: var(--preke-red);
+  background: var(--preke-red-bg);
 }
 
 .studio__side--right:hover .studio__card:not(:disabled) {
-  border-color: rgba(124, 58, 237, 0.3);
-  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4), 0 0 40px rgba(124, 58, 237, 0.1);
+  border-color: var(--preke-purple);
+  box-shadow: var(--preke-shadow-xl), 0 0 40px var(--preke-purple-bg);
 }
 
 .studio__card--mixer.studio__card--selected {
-  border-color: rgba(124, 58, 237, 0.5);
-  background: rgba(124, 58, 237, 0.08);
+  border-color: var(--preke-purple);
+  background: var(--preke-purple-bg);
 }
 
 /* Icons */
@@ -942,23 +1343,23 @@ async function selectMode(mode: 'recorder' | 'mixer') {
 }
 
 .studio__icon--recorder {
-  background: rgba(212, 90, 90, 0.15);
-  color: #d45a5a;
+  background: var(--preke-red-bg);
+  color: var(--preke-red);
 }
 
 .studio__side--left:hover .studio__icon--recorder {
-  background: rgba(212, 90, 90, 0.25);
-  box-shadow: 0 0 30px rgba(212, 90, 90, 0.3);
+  background: var(--preke-red-bg);
+  box-shadow: 0 0 30px var(--preke-red-bg);
 }
 
 .studio__icon--mixer {
-  background: rgba(124, 58, 237, 0.15);
-  color: #a78bfa;
+  background: var(--preke-purple-bg);
+  color: var(--preke-purple);
 }
 
 .studio__side--right:hover .studio__icon--mixer {
-  background: rgba(124, 58, 237, 0.25);
-  box-shadow: 0 0 30px rgba(124, 58, 237, 0.3);
+  background: var(--preke-purple-bg);
+  box-shadow: 0 0 30px var(--preke-purple-bg);
 }
 
 .studio__card h3 {
@@ -987,10 +1388,11 @@ async function selectMode(mode: 'recorder' | 'mixer') {
   color: var(--preke-gold);
   text-transform: uppercase;
   letter-spacing: 0.2em;
-  background: var(--preke-bg);
+  background: var(--preke-bg-elevated);
   padding: 0.5rem 1rem;
   border-radius: 100px;
-  border: 1px solid rgba(224, 160, 48, 0.2);
+  border: 1px solid var(--preke-border-gold);
+  box-shadow: var(--preke-shadow-sm);
 }
 
 /* Error */

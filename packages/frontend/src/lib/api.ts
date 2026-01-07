@@ -208,6 +208,41 @@ export function clearPendingIdempotencyKey(operation: string): void {
   sessionStorage.removeItem(`pending_${operation}_key`)
 }
 
+// Network debug logging
+const isNetworkDebugEnabled = (): boolean => {
+  return import.meta.env.VITE_NETWORK_DEBUG === '1' || 
+         (typeof window !== 'undefined' && (window as any).__NETWORK_DEBUG__ === true)
+}
+
+// Rate-limited logging (max 1 log per second per subsystem)
+const apiLogThrottle = new Map<string, number>()
+const API_LOG_THROTTLE_MS = 1000
+
+function networkDebugLog(subsystem: string, message: string, ...args: any[]): void {
+  if (!isNetworkDebugEnabled()) return
+  
+  const now = Date.now()
+  const lastLog = apiLogThrottle.get(subsystem) || 0
+  if (now - lastLog < API_LOG_THROTTLE_MS) return
+  
+  apiLogThrottle.set(subsystem, now)
+  console.log(`[NETWORK DEBUG ${subsystem}] ${message}`, ...args)
+}
+
+// Track request count for rate monitoring
+let apiRequestCount = 0
+let apiRequestCountStartTime = Date.now()
+
+function trackApiRequest(): void {
+  apiRequestCount++
+  const elapsed = Date.now() - apiRequestCountStartTime
+  if (elapsed >= 60000) {  // Every minute
+    networkDebugLog('API', `Request rate: ${apiRequestCount} requests/minute`)
+    apiRequestCount = 0
+    apiRequestCountStartTime = Date.now()
+  }
+}
+
 /**
  * Make an API request with automatic retry and timeout.
  * 
@@ -256,6 +291,9 @@ export async function apiRequest<T>(
   }
 
   let lastError: ApiError | null = null
+  
+  trackApiRequest()
+  networkDebugLog('API', `Request: ${fetchOptions.method || 'GET'} ${url}`)
 
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
@@ -276,6 +314,7 @@ export async function apiRequest<T>(
         if (response.ok) {
           // Record successful connection
           recordConnectionSuccess()
+          networkDebugLog('API', `Request succeeded: ${fetchOptions.method || 'GET'} ${url}`)
           
           // Handle empty responses
           const text = await response.text()
@@ -329,7 +368,9 @@ export async function apiRequest<T>(
         const delay = RETRY_DELAYS[Math.min(attempt, RETRY_DELAYS.length - 1)]
         // Add jitter (±20%)
         const jitter = delay * 0.2 * (Math.random() * 2 - 1)
-        console.log(`[API] Retry ${attempt + 1}/${retries} for ${url} in ${Math.round(delay + jitter)}ms`)
+        const retryDelay = Math.round(delay + jitter)
+        networkDebugLog('API', `Retry ${attempt + 1}/${retries} for ${url} in ${retryDelay}ms`)
+        console.log(`[API] Retry ${attempt + 1}/${retries} for ${url} in ${retryDelay}ms`)
         await sleep(delay + jitter)
       }
 

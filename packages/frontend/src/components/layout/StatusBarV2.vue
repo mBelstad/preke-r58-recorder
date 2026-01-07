@@ -7,6 +7,7 @@ import { useConnectionStatus } from '@/composables/useConnectionStatus'
 import { useTailscaleStatus } from '@/composables/useTailscaleStatus'
 import { useRecorderStore } from '@/stores/recorder'
 import { useCapabilitiesStore } from '@/stores/capabilities'
+import { useTheme } from '@/composables/useTheme'
 import { platform } from '@/lib/platform'
 import PrekeStudioLogo from '@/components/shared/PrekeStudioLogo.vue'
 
@@ -18,6 +19,7 @@ const { state, latencyMs, reconnectAttempts } = useConnectionStatus()
 const { connectionMethod, connectionLabel } = useTailscaleStatus()
 const recorderStore = useRecorderStore()
 const capabilitiesStore = useCapabilitiesStore()
+const { theme, toggleTheme } = useTheme()
 
 const currentTime = ref(new Date())
 let timeInterval: number | null = null
@@ -211,6 +213,21 @@ const modeInfo = computed(() => {
       
       <!-- Time -->
       <span class="header__time">{{ formattedTime }}</span>
+      
+      <!-- Theme Toggle -->
+      <button
+        @click="toggleTheme"
+        class="header__theme-toggle"
+        :title="theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'"
+      >
+        <svg v-if="theme === 'dark'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="header__theme-icon">
+          <circle cx="12" cy="12" r="5"/>
+          <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+        </svg>
+        <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="header__theme-icon">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+      </button>
     </div>
   </header>
 </template>
@@ -580,14 +597,115 @@ const modeInfo = computed(() => {
   font-size: 14px;
   font-weight: 600;
   color: var(--preke-text);
-  letter-spacing: 0.05em;
-  padding: 4px 10px;
+}
+
+/* Theme Toggle */
+.header__theme-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: var(--preke-glass-light);
+  border: 1px solid var(--preke-border);
+  border-radius: var(--preke-radius-md);
+  color: var(--preke-text-muted);
+  cursor: pointer;
+  transition: all var(--preke-transition-base);
+  -webkit-app-region: no-drag;
+  flex-shrink: 0;
+}
+
+.header__theme-toggle:hover {
+  background: var(--preke-glass-hover);
+  color: var(--preke-text);
+  border-color: var(--preke-border-light);
+}
+
+.header__theme-toggle:active {
+  transform: scale(0.95);
+}
+
+.header__theme-icon {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2;
+}
+
+/* Light mode styles for top bar */
+[data-theme="light"] .header {
+  /* Light glass effect */
   background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.05) 0%,
-    rgba(255, 255, 255, 0.02) 100%
+    180deg,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(250, 250, 250, 0.98) 50%,
+    rgba(245, 245, 245, 1) 100%
   );
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  
+  /* Border and shadow for light mode */
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 
+    /* Inner top highlight */
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    /* Outside shadow for depth */
+    0 4px 30px rgba(0, 0, 0, 0.08),
+    0 8px 40px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="light"] .header::before {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(0, 0, 0, 0.04) 50%,
+    transparent 100%
+  );
+}
+
+/* Light mode - Recorder glow */
+[data-theme="light"] .header--recorder {
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    0 4px 30px rgba(0, 0, 0, 0.08),
+    0 8px 40px rgba(0, 0, 0, 0.05),
+    0 0 60px rgba(212, 90, 90, 0.12),
+    0 0 100px rgba(212, 90, 90, 0.06);
+}
+
+/* Light mode - Mixer glow */
+[data-theme="light"] .header--mixer {
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    0 4px 30px rgba(0, 0, 0, 0.08),
+    0 8px 40px rgba(0, 0, 0, 0.05),
+    0 0 60px rgba(124, 58, 237, 0.12),
+    0 0 100px rgba(124, 58, 237, 0.06);
+}
+
+/* Light mode - Active camera indicators (lighter background) */
+[data-theme="light"] .header__camera--active {
+  background: linear-gradient(
+    145deg,
+    rgba(52, 211, 153, 0.35) 0%,
+    rgba(52, 211, 153, 0.25) 100%
+  );
+  border-color: rgba(52, 211, 153, 0.6);
+  box-shadow: 
+    0 0 8px rgba(52, 211, 153, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+[data-theme="light"] .header__camera--recording {
+  background: linear-gradient(
+    145deg,
+    rgba(212, 90, 90, 0.4) 0%,
+    rgba(212, 90, 90, 0.3) 100%
+  );
+  border-color: rgba(212, 90, 90, 0.6);
+  box-shadow: 
+    0 0 10px rgba(212, 90, 90, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 </style>

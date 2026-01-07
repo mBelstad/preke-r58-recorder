@@ -71,6 +71,9 @@ html, body {
   font-family: var(--preke-font-sans);
   color: var(--preke-text);
   background-color: var(--preke-bg);
+  /* Enable text selection for copy/paste */
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 #app {

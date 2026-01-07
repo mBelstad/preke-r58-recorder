@@ -38,7 +38,7 @@ async function downloadSupportBundle() {
   <div class="h-full flex flex-col bg-preke-bg">
     <!-- Header -->
     <header class="px-6 py-4 border-b border-preke-surface-border bg-preke-surface/50 backdrop-blur-sm">
-      <h1 class="text-xl font-semibold text-preke-text mb-4">Settings</h1>
+      <h1 class="text-xl font-semibold text-preke-text mb-4">Admin</h1>
       
       <!-- Tabs -->
       <div class="flex gap-1">
@@ -96,47 +96,12 @@ async function downloadSupportBundle() {
             </svg>
           </router-link>
           
-          <!-- Interactive Views -->
-          <div class="design-links__group">
-            <h4 class="design-links__group-title">Interactive Views</h4>
-            
-            <router-link to="/proposals" class="design-link">
-              <div class="design-link__icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                  <path d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/>
-                </svg>
-              </div>
-              <div class="design-link__content">
-                <h3>Design Proposals</h3>
-                <p>Live interactive previews</p>
-              </div>
-              <svg class="design-link__arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M9 5l7 7-7 7"/>
-              </svg>
-            </router-link>
-            
-            <router-link to="/experiments" class="design-link">
-              <div class="design-link__icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                  <path d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/>
-                </svg>
-              </div>
-              <div class="design-link__content">
-                <h3>Background Experiments</h3>
-                <p>Sci-fi animation tests</p>
-              </div>
-              <svg class="design-link__arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M9 5l7 7-7 7"/>
-              </svg>
-            </router-link>
-          </div>
-          
           <!-- Documentation -->
           <div class="design-links__group">
             <h4 class="design-links__group-title">Documentation</h4>
             
             <router-link to="/styleguide-v2" class="design-link">
-              <div class="design-link__icon">
+              <div class="design-link__icon design-link__icon--gold">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                   <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                 </svg>
@@ -151,7 +116,7 @@ async function downloadSupportBundle() {
             </router-link>
             
             <router-link to="/styleguide" class="design-link">
-              <div class="design-link__icon">
+              <div class="design-link__icon design-link__icon--gold">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                   <path d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/>
                 </svg>
@@ -217,6 +182,20 @@ async function downloadSupportBundle() {
 .design-link__icon svg {
   width: 22px;
   height: 22px;
+  color: var(--preke-gold);
+}
+
+/* Light mode: All design link icons should be gold (same as dark mode) */
+[data-theme="light"] .design-link__icon svg {
+  color: var(--preke-gold);
+}
+
+/* Light mode: Passive state - make icons and arrows gold */
+[data-theme="light"] .design-link .design-link__arrow {
+  color: var(--preke-gold);
+}
+
+[data-theme="light"] .design-link:hover .design-link__arrow {
   color: var(--preke-gold);
 }
 
