@@ -49,16 +49,20 @@ echo ""
 
 # Check FRP tunnel
 echo "3. FRP Tunnel Configuration:"
-if [[ -f "/opt/frp/frpc.toml" ]]; then
-    if grep -q "vdoninja\|18443" /opt/frp/frpc.toml; then
+FRP_CONFIG="/etc/frp/frpc.toml"
+if [[ ! -f "$FRP_CONFIG" ]]; then
+    FRP_CONFIG="/opt/frp/frpc.toml"
+fi
+if [[ -f "$FRP_CONFIG" ]]; then
+    if grep -q "vdoninja\|18443" "$FRP_CONFIG"; then
         echo "   ✓ VDO.ninja FRP tunnel configured"
-        grep -A 3 "vdoninja\|18443" /opt/frp/frpc.toml | head -10
+        grep -A 3 "vdoninja\|18443" "$FRP_CONFIG" | head -10
     else
         echo "   ✗ VDO.ninja FRP tunnel NOT configured"
         echo "   Run: sudo bash /opt/preke-r58-recorder/scripts/setup-vdoninja.sh"
     fi
 else
-    echo "   ✗ FRP config not found at /opt/frp/frpc.toml"
+    echo "   ✗ FRP config not found at /etc/frp/frpc.toml or /opt/frp/frpc.toml"
 fi
 echo ""
 
