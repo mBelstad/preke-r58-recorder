@@ -96,15 +96,13 @@ class IngestManager:
         mediamtx_path = f"rtsp://localhost:{self.config.mediamtx.rtsp_port}/{cam_id}"
 
         # Build ingest pipeline
-        # Use config's output_bitrate (default 8000 kbps) - can be lowered for slow connections
-        preview_bitrate = getattr(self.config, 'output_bitrate', 4000)  # Default 4 Mbps for preview
         try:
             pipeline = build_ingest_pipeline(
                 platform=self.config.platform,
                 cam_id=cam_id,
                 device=cam_config.device,
                 resolution=cam_config.resolution,
-                bitrate=preview_bitrate,  # Use configurable bitrate instead of hardcoded 18Mbps
+                bitrate=18000,  # 18Mbps for high-quality recording via subscriber
                 codec=cam_config.codec,
                 mediamtx_path=mediamtx_path,
             )

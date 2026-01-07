@@ -921,23 +921,6 @@ async def get_mode_status() -> Dict[str, Any]:
     return asdict(status)
 
 
-@app.post("/api/mode/idle")
-async def switch_to_idle_mode() -> Dict[str, Any]:
-    """Switch to Idle Mode (Studio/Portal).
-    
-    Stops all camera-related processes. Use this when on the Studio page.
-    """
-    if not mode_manager:
-        raise HTTPException(status_code=503, detail="Mode manager not available")
-    
-    result = await mode_manager.switch_to_idle()
-    
-    if not result["success"]:
-        raise HTTPException(status_code=500, detail=result["message"])
-    
-    return result
-
-
 @app.post("/api/mode/recorder")
 async def switch_to_recorder() -> Dict[str, Any]:
     """Switch to Recorder Mode."""
@@ -1093,23 +1076,10 @@ async def proxy_whep(stream_path: str, request: Request):
     """
     # Handle OPTIONS preflight
     if request.method == "OPTIONS":
-        # Get origin from request
-        origin = request.headers.get("origin", "")
-        allowed_origins = [
-            "https://preke.no", "https://itagenten.no",
-            "http://localhost", "http://127.0.0.1",
-        ]
-        # Check if origin matches allowed patterns
-        allow_origin = "*"  # Fallback
-        for allowed in allowed_origins:
-            if origin.startswith(allowed) or "192.168." in origin or "100." in origin:
-                allow_origin = origin
-                break
-        
         return Response(
             status_code=200,
             headers={
-                "Access-Control-Allow-Origin": allow_origin,
+                "Access-Control-Allow-Origin": "*",
                 "Access-Control-Allow-Methods": "POST, PATCH, OPTIONS",
                 "Access-Control-Allow-Headers": "Content-Type, Accept",
                 "Access-Control-Max-Age": "86400",
@@ -1120,9 +1090,9 @@ async def proxy_whep(stream_path: str, request: Request):
         # Get request body
         body = await request.body()
         
-        # Forward to MediaMTX WHEP endpoint (HTTP - MediaMTX on port 8889)
-        async with httpx.AsyncClient() as client:
-            mediamtx_url = f"http://localhost:8889/{stream_path}/whep"
+        # Forward to MediaMTX WHEP endpoint (HTTPS - MediaMTX uses TLS on 8889)
+        async with httpx.AsyncClient(verify=False) as client:
+            mediamtx_url = f"https://localhost:8889/{stream_path}/whep"
             
             response = await client.post(
                 mediamtx_url,
@@ -1142,10 +1112,10 @@ async def proxy_whep(stream_path: str, request: Request):
             }
             if location:
                 # Rewrite Location header to point to our proxy
-                if location.startswith("http://localhost:8889/"):
-                    location = location.replace("http://localhost:8889/", "/whep-resource/")
-                elif location.startswith("https://localhost:8889/"):
+                if location.startswith("https://localhost:8889/"):
                     location = location.replace("https://localhost:8889/", "/whep-resource/")
+                elif location.startswith("http://localhost:8889/"):
+                    location = location.replace("http://localhost:8889/", "/whep-resource/")
                 response_headers["Location"] = location
             
             # Log the response for debugging
@@ -1181,8 +1151,8 @@ async def proxy_whep_resource(stream_path: str, request: Request):
     try:
         body = await request.body()
         
-        async with httpx.AsyncClient() as client:
-            mediamtx_url = f"http://localhost:8889/{stream_path}"
+        async with httpx.AsyncClient(verify=False) as client:
+            mediamtx_url = f"https://localhost:8889/{stream_path}"
             
             response = await client.patch(
                 mediamtx_url,
@@ -1218,10 +1188,10 @@ async def proxy_whip(stream_path: str, request: Request):
         # Read the SDP offer from request body
         sdp_offer = await request.body()
         
-        # Forward to MediaMTX WHIP endpoint (HTTP - MediaMTX on port 8889)
-        mediamtx_whip_url = f"http://localhost:8889/{stream_path}/whip"
+        # Forward to MediaMTX WHIP endpoint (HTTPS - MediaMTX uses TLS)
+        mediamtx_whip_url = f"https://localhost:8889/{stream_path}/whip"
         
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(verify=False) as client:
             response = await client.post(
                 mediamtx_whip_url,
                 content=sdp_offer,
@@ -1305,9 +1275,9 @@ async def mediamtx_whip_compat(stream_name: str, request: Request):
     
     try:
         sdp_offer = await request.body()
-        mediamtx_url = f"http://localhost:8889/{stream_name}/whip"
+        mediamtx_url = f"https://localhost:8889/{stream_name}/whip"
         
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(verify=False) as client:
             response = await client.post(
                 mediamtx_url,
                 content=sdp_offer,
@@ -1359,9 +1329,9 @@ async def mediamtx_whep_compat(stream_name: str, request: Request):
     
     try:
         body = await request.body()
-        mediamtx_url = f"http://localhost:8889/{stream_name}/whep"
+        mediamtx_url = f"https://localhost:8889/{stream_name}/whep"
         
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(verify=False) as client:
             response = await client.post(
                 mediamtx_url,
                 content=body,
@@ -4625,246 +4595,6 @@ async def get_ingest_status() -> Dict[str, Any]:
         "streaming_count": sum(1 for s in statuses.values() if s.status == "streaming"),
         "signal_count": sum(1 for s in statuses.values() if s.has_signal)
     }
-
-
-# ============================================
-# Streaming API Endpoints (RTMP/SRT relay)
-# ============================================
-
-# MediaMTX API endpoint for streaming configuration
-MEDIAMTX_STREAMING_API = "http://localhost:9997"
-
-
-def build_rtmp_relay_command(destinations: List[Dict[str, Any]]) -> str:
-    """
-    Build FFmpeg command to relay mixer_program to RTMP destinations.
-    
-    Uses -c copy for zero-CPU remuxing (no transcoding).
-    For multiple destinations, uses FFmpeg tee muxer.
-    """
-    if not destinations:
-        return ""
-    
-    # Filter to only enabled destinations with valid stream keys
-    valid_dests = [d for d in destinations if d.get("enabled") and d.get("stream_key")]
-    
-    if not valid_dests:
-        return ""
-    
-    # Single destination - simple command
-    if len(valid_dests) == 1:
-        dest = valid_dests[0]
-        rtmp_url = f"{dest['rtmp_url']}{dest['stream_key']}"
-        # Use -re for real-time streaming, -c copy for no transcoding
-        return f"ffmpeg -re -i rtsp://localhost:8554/mixer_program -c copy -f flv '{rtmp_url}'"
-    
-    # Multiple destinations - use tee muxer
-    outputs = []
-    for dest in valid_dests:
-        rtmp_url = f"{dest['rtmp_url']}{dest['stream_key']}"
-        outputs.append(f"[f=flv]{rtmp_url}")
-    
-    tee_output = "|".join(outputs)
-    return f"ffmpeg -re -i rtsp://localhost:8554/mixer_program -c copy -f tee '{tee_output}'"
-
-
-@app.post("/api/streaming/rtmp/start")
-async def start_rtmp_streaming(request: Request) -> Dict[str, Any]:
-    """
-    Start RTMP relay using MediaMTX's runOnReady hook.
-    
-    MediaMTX will automatically spawn FFmpeg when mixer_program stream is published.
-    Benefits:
-    - Auto-start when stream is published
-    - Auto-stop when stream ends  
-    - Auto-restart on FFmpeg crash (runOnReadyRestart: true)
-    - Process lifecycle managed by MediaMTX
-    
-    Expected request body:
-    {
-        "destinations": [
-            {
-                "platform": "youtube",
-                "rtmp_url": "rtmp://a.rtmp.youtube.com/live2/",
-                "stream_key": "xxxx-xxxx-xxxx-xxxx",
-                "enabled": true
-            }
-        ]
-    }
-    """
-    try:
-        body = await request.json()
-        destinations = body.get("destinations", [])
-        
-        if not destinations:
-            raise HTTPException(status_code=400, detail="No destinations provided")
-        
-        enabled_dests = [d for d in destinations if d.get("enabled")]
-        if not enabled_dests:
-            raise HTTPException(status_code=400, detail="No enabled destinations")
-        
-        # Build FFmpeg relay command
-        ffmpeg_cmd = build_rtmp_relay_command(destinations)
-        
-        if not ffmpeg_cmd:
-            raise HTTPException(status_code=400, detail="No valid destinations with stream keys")
-        
-        logger.info(f"[Streaming] Configuring RTMP relay: {ffmpeg_cmd[:100]}...")
-        
-        # Configure MediaMTX mixer_program path with runOnReady hook
-        config_payload = {
-            "source": "publisher",
-            "runOnReady": ffmpeg_cmd,
-            "runOnReadyRestart": True  # Restart FFmpeg if it crashes
-        }
-        
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            # Try to patch existing path first
-            try:
-                response = await client.patch(
-                    f"{MEDIAMTX_STREAMING_API}/v3/config/paths/patch/mixer_program",
-                    json=config_payload
-                )
-                
-                if response.status_code == 404:
-                    # Path doesn't exist, create it
-                    response = await client.post(
-                        f"{MEDIAMTX_STREAMING_API}/v3/config/paths/add/mixer_program",
-                        json=config_payload
-                    )
-                
-                if response.status_code >= 400:
-                    error_detail = response.text
-                    logger.error(f"[Streaming] MediaMTX API error: {response.status_code} - {error_detail}")
-                    raise HTTPException(
-                        status_code=502,
-                        detail=f"MediaMTX configuration failed: {error_detail}"
-                    )
-                    
-            except httpx.RequestError as e:
-                logger.error(f"[Streaming] MediaMTX connection failed: {e}")
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Cannot connect to MediaMTX API: {str(e)}"
-                )
-        
-        destination_names = [d.get("platform", "unknown") for d in enabled_dests]
-        logger.info(f"[Streaming] RTMP relay configured for: {destination_names}")
-        
-        return {
-            "status": "success",
-            "message": f"RTMP relay configured for {len(enabled_dests)} destination(s)",
-            "destinations": destination_names,
-            "note": "FFmpeg will start automatically when mixer_program is published"
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"[Streaming] Failed to start RTMP relay: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/api/streaming/rtmp/stop")
-async def stop_rtmp_streaming() -> Dict[str, Any]:
-    """
-    Stop RTMP relay by removing runOnReady hook from MediaMTX.
-    
-    This will terminate any running FFmpeg processes managed by MediaMTX.
-    """
-    try:
-        config_payload = {
-            "source": "publisher",
-            "runOnReady": "",  # Clear the hook
-            "runOnReadyRestart": False
-        }
-        
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            try:
-                response = await client.patch(
-                    f"{MEDIAMTX_STREAMING_API}/v3/config/paths/patch/mixer_program",
-                    json=config_payload
-                )
-                
-                # 404 is OK - path might not exist
-                if response.status_code not in [200, 204, 404]:
-                    logger.warning(f"[Streaming] Unexpected response when stopping: {response.status_code}")
-                    
-            except httpx.RequestError as e:
-                logger.warning(f"[Streaming] Could not connect to MediaMTX to stop relay: {e}")
-                # Don't fail - the relay might not have been started
-        
-        logger.info("[Streaming] RTMP relay stopped")
-        
-        return {
-            "status": "success",
-            "message": "RTMP relay stopped"
-        }
-        
-    except Exception as e:
-        logger.error(f"[Streaming] Failed to stop RTMP relay: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/api/streaming/status")
-async def get_streaming_status() -> Dict[str, Any]:
-    """
-    Get current streaming status from MediaMTX.
-    
-    Returns:
-    - Whether mixer_program stream is active
-    - Current runOnReady configuration (if any)
-    - Whether RTMP relay is configured
-    """
-    try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            # Check if mixer_program path is active
-            mixer_active = False
-            
-            try:
-                paths_response = await client.get(f"{MEDIAMTX_STREAMING_API}/v3/paths/list")
-                if paths_response.status_code == 200:
-                    paths_data = paths_response.json()
-                    for path in paths_data.get("items", []):
-                        if path.get("name") == "mixer_program":
-                            mixer_active = path.get("ready", False)
-                            break
-            except Exception as e:
-                logger.debug(f"[Streaming] Could not get paths list: {e}")
-            
-            # Get runOnReady config
-            run_on_ready = None
-            rtmp_configured = False
-            
-            try:
-                config_response = await client.get(
-                    f"{MEDIAMTX_STREAMING_API}/v3/config/paths/get/mixer_program"
-                )
-                if config_response.status_code == 200:
-                    config_data = config_response.json()
-                    run_on_ready = config_data.get("runOnReady", "")
-                    rtmp_configured = bool(run_on_ready and "rtmp://" in run_on_ready)
-            except Exception as e:
-                logger.debug(f"[Streaming] Could not get path config: {e}")
-            
-            return {
-                "active": mixer_active and rtmp_configured,
-                "mixer_program_active": mixer_active,
-                "rtmp_relay_configured": rtmp_configured,
-                "run_on_ready": run_on_ready or None,
-                "mediamtx_available": True
-            }
-            
-    except Exception as e:
-        logger.error(f"[Streaming] Failed to get status: {e}")
-        return {
-            "active": False,
-            "mixer_program_active": False,
-            "rtmp_relay_configured": False,
-            "run_on_ready": None,
-            "mediamtx_available": False,
-            "error": str(e)
-        }
 
 
 if __name__ == "__main__":

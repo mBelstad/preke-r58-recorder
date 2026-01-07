@@ -53,7 +53,7 @@ class ModeManager:
     Ingest pipelines always run in both modes (for preview).
     """
     
-    MODES = ["idle", "recorder", "mixer"]
+    MODES = ["recorder", "mixer"]
     STATE_FILE = Path("/tmp/r58_mode_state.json")
     
     def __init__(self, ingest_manager=None, recorder=None, mixer_core=None, config=None):
@@ -69,47 +69,8 @@ class ModeManager:
         self.recorder = recorder
         self.mixer_core = mixer_core
         self.config = config
-        self._current_mode: str = "idle"
+        self._current_mode: str = "recorder"
         self._load_state()
-        
-        # Cleanup: Ensure bridge is stopped on startup (prevents orphaned instances)
-        self._startup_cleanup()
-    
-    def _startup_cleanup(self):
-        """Clean up any orphaned bridge instances on startup.
-        
-        This runs synchronously at init time to ensure clean state.
-        """
-        try:
-            import subprocess
-            # Check if any Chromium processes are running
-            result = subprocess.run(
-                ["pgrep", "-c", "chromium"],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
-            count = int(result.stdout.strip()) if result.returncode == 0 else 0
-            
-            if count > 0:
-                logger.warning(f"Found {count} orphaned Chromium processes on startup, cleaning up...")
-                # Stop bridge service
-                subprocess.run(
-                    ["sudo", "systemctl", "stop", "vdoninja-bridge"],
-                    capture_output=True,
-                    timeout=15
-                )
-                # Force kill any remaining Chromium
-                subprocess.run(
-                    ["sudo", "pkill", "-9", "chromium"],
-                    capture_output=True,
-                    timeout=5
-                )
-                logger.info("Startup cleanup complete")
-            else:
-                logger.info("No orphaned bridge instances on startup")
-        except Exception as e:
-            logger.warning(f"Startup cleanup error: {e}")
     
     def _load_state(self):
         """Load mode state from file."""
@@ -117,15 +78,15 @@ class ModeManager:
             if self.STATE_FILE.exists():
                 with open(self.STATE_FILE, 'r') as f:
                     data = json.load(f)
-                    self._current_mode = data.get('mode', 'idle')
+                    self._current_mode = data.get('mode', 'recorder')
                     logger.info(f"Loaded mode state: {self._current_mode}")
             else:
-                # Default to idle mode (no cameras active)
-                self._current_mode = 'idle'
+                # Default to recorder mode
+                self._current_mode = 'recorder'
                 self._save_state()
         except Exception as e:
             logger.error(f"Failed to load mode state: {e}")
-            self._current_mode = 'idle'
+            self._current_mode = 'recorder'
     
     def _save_state(self):
         """Save mode state to file."""
@@ -175,67 +136,10 @@ class ModeManager:
             message=f"Currently in {current_mode} mode. Ingest pipelines always running for preview."
         )
     
-    async def switch_to_idle(self) -> Dict[str, any]:
-        """Switch to Idle Mode (Studio/Portal).
-        
-        Stops all camera-related processes including the VDO.ninja bridge.
-        This is the default mode when entering the Studio page.
-        No WebRTC sessions should be active in this mode.
-        
-        Returns:
-            Dict with success status and message
-        """
-        if self._current_mode == "idle":
-            logger.info("Already in idle mode")
-            return {
-                "success": True,
-                "mode": "idle",
-                "message": "Already in idle mode"
-            }
-        
-        logger.info("Switching to idle mode...")
-        
-        # Stop mixer if running
-        if self.mixer_core:
-            try:
-                mixer_status = self.mixer_core.get_status()
-                if mixer_status.get("state") == "PLAYING":
-                    logger.info("Stopping mixer...")
-                    self.mixer_core.stop()
-            except Exception as e:
-                logger.warning(f"Failed to stop mixer: {e}")
-        
-        # Stop all individual recordings
-        stopped_recordings = []
-        if self.recorder:
-            try:
-                for cam_id, state in self.recorder.states.items():
-                    if state == "recording":
-                        self.recorder.stop_recording(cam_id)
-                        stopped_recordings.append(cam_id)
-            except Exception as e:
-                logger.warning(f"Failed to stop recordings: {e}")
-        
-        # Stop VDO.ninja bridge to free up resources
-        bridge_stopped = await self._stop_vdoninja_bridge()
-        
-        # Update mode
-        self._current_mode = "idle"
-        self._save_state()
-        
-        logger.info("Switched to idle mode")
-        return {
-            "success": True,
-            "mode": "idle",
-            "message": "Switched to idle mode. All camera processes stopped.",
-            "bridge_stopped": bridge_stopped,
-            "stopped_recordings": stopped_recordings
-        }
-    
     async def switch_to_recorder(self) -> Dict[str, any]:
         """Switch to Recorder Mode.
         
-        Stops the mixer/compositor and VDO.ninja bridge, enables individual camera recording.
+        Stops the mixer/compositor and enables individual camera recording.
         Ingest pipelines continue running (preview always available).
         
         Returns:
@@ -261,9 +165,6 @@ class ModeManager:
             except Exception as e:
                 logger.warning(f"Failed to stop mixer: {e}")
         
-        # Stop VDO.ninja bridge to free up resources
-        bridge_stopped = await self._stop_vdoninja_bridge()
-        
         # Update mode
         self._current_mode = "recorder"
         self._save_state()
@@ -272,14 +173,13 @@ class ModeManager:
         return {
             "success": True,
             "mode": "recorder",
-            "message": "Switched to recorder mode. Individual camera recording enabled.",
-            "bridge_stopped": bridge_stopped
+            "message": "Switched to recorder mode. Individual camera recording enabled."
         }
     
     async def switch_to_mixer(self) -> Dict[str, any]:
         """Switch to Mixer Mode.
         
-        Stops all individual camera recordings, starts VDO.ninja bridge, and enables the mixer.
+        Stops all individual camera recordings and enables the mixer/compositor.
         Ingest pipelines continue running (preview always available).
         
         Returns:
@@ -294,12 +194,12 @@ class ModeManager:
             }
         
         logger.info("Switching to mixer mode...")
-        stopped_cameras = []
         
         # Stop all individual recordings
         if self.recorder:
             try:
                 logger.info("Stopping all individual recordings...")
+                stopped_cameras = []
                 for cam_id, state in self.recorder.states.items():
                     if state == "recording":
                         self.recorder.stop_recording(cam_id)
@@ -308,9 +208,6 @@ class ModeManager:
                     logger.info(f"Stopped recordings for: {', '.join(stopped_cameras)}")
             except Exception as e:
                 logger.warning(f"Failed to stop recordings: {e}")
-        
-        # Start VDO.ninja bridge for camera sharing
-        bridge_started = await self._start_vdoninja_bridge()
         
         # Update mode
         self._current_mode = "mixer"
@@ -321,8 +218,7 @@ class ModeManager:
             "success": True,
             "mode": "mixer",
             "message": "Switched to mixer mode. Individual recording disabled, mixer enabled.",
-            "stopped_recordings": stopped_cameras,
-            "bridge_started": bridge_started
+            "stopped_recordings": stopped_cameras if self.recorder else []
         }
     
     async def switch_to_vdoninja(self) -> Dict[str, any]:
@@ -341,115 +237,6 @@ class ModeManager:
             "mode": self._current_mode,
             "message": "VDO.ninja now uses MediaMTX WHEP mode. Open mixer/director with &mediamtx= parameter. No mode switch required."
         }
-    
-    async def _stop_vdoninja_bridge(self) -> bool:
-        """Stop VDO.ninja bridge service to free up resources.
-        
-        The bridge consumes camera streams via WHEP and pushes to VDO.ninja room.
-        Stopping it reduces WebRTC sessions and CPU usage when in Recorder mode.
-        
-        Returns:
-            True if stopped successfully, False otherwise
-        """
-        try:
-            import subprocess
-            logger.info("Stopping vdoninja-bridge service...")
-            result = subprocess.run(
-                ["sudo", "systemctl", "stop", "vdoninja-bridge"],
-                capture_output=True,
-                text=True,
-                timeout=30  # Bridge may take time to stop all Chromium tabs
-            )
-            if result.returncode == 0:
-                logger.info("VDO.ninja bridge stopped")
-                return True
-            else:
-                logger.warning(f"Failed to stop vdoninja-bridge: {result.stderr}")
-                return False
-        except Exception as e:
-            logger.warning(f"Error stopping vdoninja-bridge: {e}")
-            return False
-    
-    def _is_bridge_running(self) -> bool:
-        """Check if the VDO.ninja bridge is currently running.
-        
-        Returns:
-            True if Chromium processes from bridge are running
-        """
-        try:
-            import subprocess
-            result = subprocess.run(
-                ["pgrep", "-c", "chromium"],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
-            count = int(result.stdout.strip()) if result.returncode == 0 else 0
-            return count > 0
-        except Exception:
-            return False
-    
-    async def _cleanup_orphaned_bridge(self):
-        """Kill any orphaned Chromium processes from previous bridge instances.
-        
-        This prevents accumulation of zombie bridge tabs.
-        """
-        try:
-            import subprocess
-            # First try graceful stop via systemctl
-            subprocess.run(
-                ["sudo", "systemctl", "stop", "vdoninja-bridge"],
-                capture_output=True,
-                timeout=10
-            )
-            # If chromium still running, kill it
-            if self._is_bridge_running():
-                logger.warning("Orphaned Chromium processes found, killing...")
-                subprocess.run(
-                    ["sudo", "pkill", "-9", "chromium"],
-                    capture_output=True,
-                    timeout=5
-                )
-                logger.info("Orphaned Chromium processes killed")
-        except Exception as e:
-            logger.warning(f"Error during bridge cleanup: {e}")
-    
-    async def _start_vdoninja_bridge(self) -> bool:
-        """Start VDO.ninja bridge service for camera sharing in Mixer mode.
-        
-        The bridge consumes camera streams via WHEP and pushes them to the
-        VDO.ninja room so they appear in the Mixer director interface.
-        
-        Note: This is non-blocking - the bridge starts in the background and
-        the API returns immediately. The frontend polls for bridge status.
-        
-        Safety: Always cleans up any orphaned instances before starting.
-        
-        Returns:
-            True if command was issued successfully, False otherwise
-        """
-        try:
-            import subprocess
-            
-            # Safety: Clean up any orphaned bridge instances first
-            if self._is_bridge_running():
-                logger.warning("Bridge already running, cleaning up first...")
-                await self._cleanup_orphaned_bridge()
-            
-            logger.info("Starting vdoninja-bridge service (async)...")
-            # Use Popen for non-blocking startup - don't wait for bridge
-            # The systemd service handles the actual startup
-            process = subprocess.Popen(
-                ["sudo", "systemctl", "start", "vdoninja-bridge"],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL
-            )
-            # Don't wait for completion - let it start in background
-            logger.info("VDO.ninja bridge start command issued")
-            return True
-        except Exception as e:
-            logger.warning(f"Error starting vdoninja-bridge: {e}")
-            return False
     
     async def _stop_recorder_services(self):
         """Stop recorder ingest pipelines."""
