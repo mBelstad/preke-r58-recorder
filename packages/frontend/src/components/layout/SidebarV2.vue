@@ -101,7 +101,7 @@ async function switchModeAndNavigate(mode: 'recorder' | 'mixer', path: string) {
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 10000)
     
-    const response = await fetch(buildApiUrl(`/api/mode/${mode}`), { 
+    const response = await fetch(await buildApiUrl(`/api/mode/${mode}`), { 
       method: 'POST',
       signal: controller.signal
     }).finally(() => clearTimeout(timeoutId))

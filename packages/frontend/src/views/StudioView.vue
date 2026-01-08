@@ -17,7 +17,7 @@ let switchAbortController: AbortController | null = null
 // Switch to idle mode when entering Studio page (stops all camera processes)
 onMounted(async () => {
   try {
-    const response = await fetch(buildApiUrl('/api/mode/idle'), { method: 'POST' })
+    const response = await fetch(await buildApiUrl('/api/mode/idle'), { method: 'POST' })
     if (response.ok) {
       console.log('[Studio] Switched to idle mode')
       // Refresh capabilities to update sidebar
@@ -47,7 +47,7 @@ async function selectMode(mode: 'recorder' | 'mixer') {
   
   try {
     // Call mode switch API to prepare device resources
-    const response = await fetch(buildApiUrl(`/api/mode/${mode}`), { 
+    const response = await fetch(await buildApiUrl(`/api/mode/${mode}`), { 
       method: 'POST',
       signal 
     })

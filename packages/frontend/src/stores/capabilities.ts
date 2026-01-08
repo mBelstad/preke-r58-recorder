@@ -95,11 +95,23 @@ export const useCapabilitiesStore = defineStore('capabilities', () => {
     error.value = null
     
     try {
+      // Try to fetch from /api/v1/capabilities first (more complete)
+      // Fallback to individual endpoints if not available
+      let fullCapabilities: any = null
+      try {
+        const capabilitiesRes = await fetch(await buildApiUrl('/api/v1/capabilities'))
+        if (capabilitiesRes.ok) {
+          fullCapabilities = await capabilitiesRes.json()
+        }
+      } catch (e) {
+        console.log('[Capabilities] /api/v1/capabilities not available, using individual endpoints')
+      }
+
       // Fetch from multiple endpoints and combine
       const [healthRes, modeRes, ingestRes] = await Promise.all([
-        fetch(buildApiUrl('/health')),
-        fetch(buildApiUrl('/api/mode/status')),
-        fetch(buildApiUrl('/api/ingest/status')),
+        fetch(await buildApiUrl('/health')),
+        fetch(await buildApiUrl('/api/mode/status')),
+        fetch(await buildApiUrl('/api/ingest/status')),
       ])
 
       const health = healthRes.ok ? await healthRes.json() : {}
@@ -118,36 +130,46 @@ export const useCapabilitiesStore = defineStore('capabilities', () => {
         has_signal: cam.has_signal || false,
       }))
 
-      // Construct capabilities from available data
-      capabilities.value = {
-        device_id: 'r58-device',
-        device_name: 'Preke R58',
-        platform: health.platform || 'R58',
-        api_version: '2.0',
-        mixer_available: mode.available_modes?.includes('mixer') ?? true,
-        recorder_available: mode.available_modes?.includes('recorder') ?? true,
-        graphics_available: true, // Graphics endpoints exist
-        fleet_agent_connected: false,
-        inputs,
-        codecs: [
-          { id: 'h264', name: 'H.264', hardware_accelerated: true, max_bitrate_kbps: 50000 },
-        ],
-        preview_modes: [
-          { id: 'whep', protocol: 'WebRTC', latency_ms: 100, url_template: '/{cam_id}/whep' },
-        ],
-        vdoninja: {
-          enabled: true,
-          host: 'r58-vdo.itagenten.no',
-          port: 443,
-          room: 'studio',
-        },
-        mediamtx_base_url: 'rtsp://127.0.0.1:8554',
-        max_simultaneous_recordings: 4,
-        max_output_resolution: '4K',
-        storage_total_gb: 0, // Not available from API
-        storage_available_gb: 0, // Not available from API
-        current_mode: mode.current_mode || 'recorder',
-        reveal_js: health.reveal_js || { available: false },
+      // Use full capabilities if available, otherwise construct from individual endpoints
+      if (fullCapabilities) {
+        // Use the complete capabilities from /api/v1/capabilities
+        capabilities.value = {
+          ...fullCapabilities,
+          inputs, // Use inputs from ingest status (more detailed)
+          reveal_js: fullCapabilities.reveal_js || health.reveal_js || { available: false },
+        }
+      } else {
+        // Construct capabilities from available data (fallback)
+        capabilities.value = {
+          device_id: 'r58-device',
+          device_name: 'Preke R58',
+          platform: health.platform || 'R58',
+          api_version: '2.0',
+          mixer_available: mode.available_modes?.includes('mixer') ?? true,
+          recorder_available: mode.available_modes?.includes('recorder') ?? true,
+          graphics_available: true, // Graphics endpoints exist
+          fleet_agent_connected: false,
+          inputs,
+          codecs: [
+            { id: 'h264', name: 'H.264', hardware_accelerated: true, max_bitrate_kbps: 50000 },
+          ],
+          preview_modes: [
+            { id: 'whep', protocol: 'WebRTC', latency_ms: 100, url_template: '/{cam_id}/whep' },
+          ],
+          vdoninja: {
+            enabled: true,
+            host: 'r58-vdo.itagenten.no',
+            port: 443,
+            room: 'studio',
+          },
+          mediamtx_base_url: 'rtsp://127.0.0.1:8554',
+          max_simultaneous_recordings: 4,
+          max_output_resolution: '4K',
+          storage_total_gb: 0, // Not available from API
+          storage_available_gb: 0, // Not available from API
+          current_mode: mode.current_mode || 'recorder',
+          reveal_js: health.reveal_js || { available: false },
+        }
       }
 
       error.value = null

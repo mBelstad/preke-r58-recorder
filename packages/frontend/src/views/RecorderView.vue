@@ -49,7 +49,7 @@ async function ensureRecorderMode() {
   if (currentMode && currentMode !== 'recorder') {
     console.log('[Recorder] Not in recorder mode, switching...')
     try {
-      const response = await fetch(buildApiUrl('/api/mode/recorder'), { method: 'POST' })
+      const response = await fetch(await buildApiUrl('/api/mode/recorder'), { method: 'POST' })
       if (response.ok) {
         await capabilitiesStore.fetchCapabilities()
         toast.success('Switched to Recorder mode')

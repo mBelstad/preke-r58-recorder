@@ -54,9 +54,9 @@ async function fetchStatus() {
     
     // Fetch all data in parallel
     const [healthRes, ingestRes, systemInfoRes] = await Promise.all([
-      fetch(buildApiUrl('/health')),
-      fetch(buildApiUrl('/api/ingest/status')),
-      fetch(buildApiUrl('/api/system/info'))
+      fetch(await buildApiUrl('/health')),
+      fetch(await buildApiUrl('/api/ingest/status')),
+      fetch(await buildApiUrl('/api/system/info'))
     ])
     
     const health = healthRes.ok ? await healthRes.json() : { status: 'unknown' }
@@ -100,7 +100,7 @@ async function fetchStatus() {
 async function restartServices(service: string) {
   try {
     const { buildApiUrl } = await import('@/lib/api')
-    const response = await fetch(buildApiUrl(`/api/system/restart-service/${service}`), {
+    const response = await fetch(await buildApiUrl(`/api/system/restart-service/${service}`), {
       method: 'POST'
     })
     const data = await response.json()
@@ -124,7 +124,7 @@ async function rebootDevice() {
   
   try {
     const { buildApiUrl } = await import('@/lib/api')
-    const response = await fetch(buildApiUrl('/api/system/reboot'), {
+    const response = await fetch(await buildApiUrl('/api/system/reboot'), {
       method: 'POST'
     })
     const data = await response.json()
@@ -142,7 +142,7 @@ async function rebootDevice() {
 async function stopPipeline(pipelineId: string) {
   try {
     const { buildApiUrl } = await import('@/lib/api')
-    const response = await fetch(buildApiUrl(`/api/ingest/stop/${pipelineId}`), {
+    const response = await fetch(await buildApiUrl(`/api/ingest/stop/${pipelineId}`), {
       method: 'POST'
     })
     const data = await response.json()

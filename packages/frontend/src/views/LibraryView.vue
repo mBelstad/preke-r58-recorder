@@ -86,8 +86,8 @@ function getCameraColor(camId: string): string {
   return colors[camId] || 'bg-preke-bg-surface text-preke-text-dim'
 }
 
-function playVideo(file: RecordingFile) {
-  const url = buildApiUrl(file.url)
+async function playVideo(file: RecordingFile) {
+  const url = await buildApiUrl(file.url)
   playingVideo.value = { url, label: `${getCameraLabel(file.cam_id)} - ${file.filename}` }
 }
 
@@ -113,8 +113,15 @@ async function fetchSessions() {
   error.value = null
   
   try {
-    const url = buildApiUrl('/api/recordings')
-    const response = await fetch(url)
+    const url = await buildApiUrl('/api/recordings')
+    // Add cache-busting parameter to ensure we get fresh data
+    const urlWithCache = `${url}${url.includes('?') ? '&' : '?'}_t=${Date.now()}`
+    const response = await fetch(urlWithCache, {
+      cache: 'no-cache',
+      headers: {
+        'Cache-Control': 'no-cache',
+      }
+    })
     if (!response.ok) {
       throw new Error(`Failed to fetch sessions: ${response.status}`)
     }
@@ -164,7 +171,7 @@ function closeSession() {
 
 async function downloadFile(session: Session, file: RecordingFile) {
   // Use fetch + blob for proper download with correct filename
-  const fullUrl = buildApiUrl(file.url)
+  const fullUrl = await buildApiUrl(file.url)
   try {
     const response = await fetch(fullUrl)
     if (!response.ok) {
@@ -212,7 +219,7 @@ async function deleteSession(session: Session) {
   }
   
   try {
-    const url = buildApiUrl(`/api/sessions/${session.id}`)
+    const url = await buildApiUrl(`/api/sessions/${session.id}`)
     const response = await fetch(url, {
       method: 'DELETE',
     })

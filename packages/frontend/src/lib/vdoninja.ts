@@ -53,7 +53,11 @@ export async function getVdoHost(): Promise<string | null> {
     console.log('[VDO.ninja] Device does not provide VDO.ninja host configuration')
   }
   
-  return null
+  // Default fallback to r58-vdo.itagenten.no
+  const defaultHost = 'r58-vdo.itagenten.no'
+  cachedVdoHost = defaultHost
+  console.log(`[VDO.ninja] Using default host: ${defaultHost}`)
+  return defaultHost
 }
 
 // Protocol for VDO.ninja URLs

@@ -22,7 +22,7 @@ let refreshInterval: number | null = null
 async function fetchLogs() {
   loading.value = true
   try {
-    const response = await fetch(buildApiUrl(`/api/system/logs?service=${selectedService.value}&lines=${lineCount.value}`))
+    const response = await fetch(await buildApiUrl(`/api/system/logs?service=${selectedService.value}&lines=${lineCount.value}`))
     const data = await response.json()
     logs.value = data.logs || 'No logs available'
   } catch (e) {

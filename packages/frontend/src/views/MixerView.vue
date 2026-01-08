@@ -49,8 +49,11 @@ const activeCameras = computed(() =>
 // - Top menu for layout buttons
 // - Chat module
 // - Director iframe with video cards
-const mixerUrl = computed(() => {
-  const VDO_HOST = getVdoHost()  // r58-vdo.itagenten.no
+const mixerUrl = ref<string>('')
+
+// Initialize mixer URL on mount (getVdoHost is async)
+async function initializeMixerUrl() {
+  const VDO_HOST = await getVdoHost() || 'r58-vdo.itagenten.no'  // Fallback to default
   const VDO_PROTOCOL = getVdoProtocol()  // https
   
   // Use mixer.html for full mixer interface
@@ -61,8 +64,8 @@ const mixerUrl = computed(() => {
   // Add custom CSS via URL parameter (more reliable than <link> tag)
   url.searchParams.set('css', `${VDO_PROTOCOL}://${VDO_HOST}/css/preke-colors.css`)
   
-  return url.toString()
-})
+  mixerUrl.value = url.toString()
+}
 
 function handleIframeLoad() {
   console.log('[Mixer] VDO.ninja mixer iframe loaded')
@@ -82,7 +85,7 @@ async function waitForBridge(): Promise<void> {
   // Poll for bridge to be ready (max 20 seconds)
   for (let i = 0; i < 40; i++) {
     try {
-      const response = await fetch(buildApiUrl('/api/mode/status'))
+      const response = await fetch(await buildApiUrl('/api/mode/status'))
       const data = await response.json()
       
       // Check if bridge service is running via ingest services
@@ -121,7 +124,7 @@ async function ensureMixerMode() {
     console.log('[Mixer] Not in mixer mode, switching...')
     loadingStatus.value = 'Switching to mixer mode...'
     try {
-      const response = await fetch(buildApiUrl('/api/mode/mixer'), { method: 'POST' })
+      const response = await fetch(await buildApiUrl('/api/mode/mixer'), { method: 'POST' })
       if (response.ok) {
         await capabilitiesStore.fetchCapabilities()
         toast.success('Switched to Mixer mode')
@@ -135,6 +138,9 @@ async function ensureMixerMode() {
 // Fetch inputs on mount - parallelized for speed
 onMounted(async () => {
   const startTime = performance.now()
+  
+  // Initialize mixer URL first
+  await initializeMixerUrl()
   
   // Phase 1: Mode switch and data fetch in parallel
   await Promise.all([

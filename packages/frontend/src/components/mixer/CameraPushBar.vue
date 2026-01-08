@@ -27,29 +27,36 @@ const camerasWithSignal = computed(() =>
   recorderStore.inputs.filter(i => i.hasSignal)
 )
 
-// Build WHEP URL for a camera using the PUBLIC URL
-// VDO.ninja (running remotely) needs a publicly accessible URL
-function getWhepUrl(cameraId: string): string {
-  return getPublicWhepUrl(cameraId)
-}
-
 // Initialize or update camera push states when cameras change
-watch(camerasWithSignal, (cameras) => {
+watch(camerasWithSignal, async (cameras) => {
   // Add new cameras
   for (const camera of cameras) {
     if (!cameraPushStates.value.has(camera.id)) {
-      const whepUrl = getWhepUrl(camera.id)
-      const iframeSrc = buildCameraContributionUrl(
-        camera.id,
-        whepUrl,
-        camera.label
-      )
-      cameraPushStates.value.set(camera.id, {
-        cameraId: camera.id,
-        label: camera.label,
-        status: 'connecting',
-        iframeSrc,
-      })
+      try {
+        // Both functions are async - need to await them
+        const whepUrl = await getPublicWhepUrl(camera.id)
+        if (!whepUrl) {
+          console.error(`[CameraPush] No WHEP URL for ${camera.id}`)
+          continue
+        }
+        const iframeSrc = await buildCameraContributionUrl(
+          camera.id,
+          whepUrl,
+          camera.label
+        )
+        if (!iframeSrc) {
+          console.error(`[CameraPush] Failed to build contribution URL for ${camera.id}`)
+          continue
+        }
+        cameraPushStates.value.set(camera.id, {
+          cameraId: camera.id,
+          label: camera.label,
+          status: 'connecting',
+          iframeSrc,
+        })
+      } catch (e) {
+        console.error(`[CameraPush] Error setting up ${camera.id}:`, e)
+      }
     }
   }
   
@@ -81,24 +88,36 @@ function handleIframeError(cameraId: string) {
 }
 
 // Retry connection for a camera
-function retryConnection(cameraId: string) {
+async function retryConnection(cameraId: string) {
   const camera = recorderStore.inputs.find(i => i.id === cameraId)
   if (!camera || !camera.hasSignal) return
   
-  const whepUrl = getWhepUrl(cameraId)
-  const iframeSrc = buildCameraContributionUrl(
-    cameraId,
-    whepUrl,
-    camera.label
-  )
-  
-  // Force iframe reload by changing src
-  cameraPushStates.value.set(cameraId, {
-    cameraId,
-    label: camera.label,
-    status: 'connecting',
-    iframeSrc: iframeSrc + `&_t=${Date.now()}`,
-  })
+  try {
+    const whepUrl = await getPublicWhepUrl(cameraId)
+    if (!whepUrl) {
+      console.error(`[CameraPush] No WHEP URL for ${cameraId}`)
+      return
+    }
+    const iframeSrc = await buildCameraContributionUrl(
+      cameraId,
+      whepUrl,
+      camera.label
+    )
+    if (!iframeSrc) {
+      console.error(`[CameraPush] Failed to build contribution URL for ${cameraId}`)
+      return
+    }
+    
+    // Force iframe reload by changing src
+    cameraPushStates.value.set(cameraId, {
+      cameraId,
+      label: camera.label,
+      status: 'connecting',
+      iframeSrc: iframeSrc + `&_t=${Date.now()}`,
+    })
+  } catch (e) {
+    console.error(`[CameraPush] Error retrying ${cameraId}:`, e)
+  }
 }
 
 // Status color helper

@@ -1,11 +1,25 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref, computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useCapabilitiesStore } from '@/stores/capabilities'
 import { buildApiUrl } from '@/lib/api'
 
 const capabilitiesStore = useCapabilitiesStore()
 const { capabilities, loading, error } = storeToRefs(capabilitiesStore)
+
+// Computed properties for reveal.js URLs (buildApiUrl is async, so we need to handle it)
+const revealDemoUrl = ref<string>('')
+const revealGraphicsUrl = ref<string>('')
+
+// Initialize URLs when component mounts
+onMounted(async () => {
+  try {
+    revealDemoUrl.value = await buildApiUrl('/reveal')
+    revealGraphicsUrl.value = await buildApiUrl('/reveal/graphics')
+  } catch (e) {
+    console.error('Failed to build reveal.js URLs:', e)
+  }
+})
 
 const switchingMode = ref(false)
 const modeError = ref<string | null>(null)
@@ -18,7 +32,7 @@ async function switchMode(mode: 'recorder' | 'mixer') {
   modeError.value = null
   
   try {
-    const response = await fetch(buildApiUrl(`/api/mode/${mode}`), { method: 'POST' })
+    const response = await fetch(await buildApiUrl(`/api/mode/${mode}`), { method: 'POST' })
     if (!response.ok) {
       const data = await response.json().catch(() => ({}))
       throw new Error(data.detail || `Failed to switch to ${mode} mode`)
@@ -113,7 +127,8 @@ onUnmounted(() => {
           </div>
           <div class="flex flex-col gap-1 text-xs">
             <a 
-              :href="buildApiUrl('/reveal')" 
+              v-if="revealDemoUrl"
+              :href="revealDemoUrl" 
               target="_blank"
               class="text-preke-blue hover:text-preke-gold transition-colors truncate"
               title="Open Reveal.js Demo"
@@ -121,7 +136,8 @@ onUnmounted(() => {
               Demo Presentation
             </a>
             <a 
-              :href="buildApiUrl('/reveal/graphics')" 
+              v-if="revealGraphicsUrl"
+              :href="revealGraphicsUrl" 
               target="_blank"
               class="text-preke-blue hover:text-preke-gold transition-colors truncate"
               title="Open Reveal.js Graphics"

@@ -552,6 +552,11 @@ export async function buildApiUrl(path: string, useFallback: boolean = false): P
   const currentPort = window.location.port
   const protocol = window.location.protocol
   
+  // If accessed from app.itagenten.no, use r58-api.itagenten.no as backend
+  if (host === 'app.itagenten.no') {
+    return `https://r58-api.itagenten.no${path}`
+  }
+  
   // If accessed via standard port (no port in URL, or 80/443), API is same-origin
   if (!currentPort || currentPort === '80' || currentPort === '443') {
     return path // Same-origin API (frontend + backend served together)
@@ -675,9 +680,15 @@ export function buildWsUrl(path: string): string {
   }
 
   // Fall back to browser-based URL construction
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
   const host = window.location.hostname
   const currentPort = window.location.port
+  
+  // If accessed from app.itagenten.no, use r58-api.itagenten.no as backend
+  if (host === 'app.itagenten.no') {
+    return `wss://r58-api.itagenten.no${path}`
+  }
+  
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
   
   // If on standard ports, use same host
   if (!currentPort || currentPort === '80' || currentPort === '443') {
