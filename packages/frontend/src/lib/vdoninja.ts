@@ -1,12 +1,59 @@
 /**
  * VDO.ninja URL builder and configuration
  * 
- * Uses self-hosted VDO.ninja instance at r58-vdo.itagenten.no
+ * VDO.ninja host is configurable via device configuration or environment variable.
+ * Returns null if not configured (disables VDO.ninja features).
  */
 
-// VDO.ninja host - self-hosted instance with HTTPS
-export function getVdoHost(): string {
-  return 'r58-vdo.itagenten.no'
+// Cached VDO.ninja host from device config
+let cachedVdoHost: string | null = null
+
+/**
+ * Get VDO.ninja host from device configuration or environment variable
+ * Returns null if not configured
+ */
+export async function getVdoHost(): Promise<string | null> {
+  // If already cached, return it
+  if (cachedVdoHost) {
+    return cachedVdoHost
+  }
+
+  // Check environment variable first
+  const envHost = import.meta.env.VITE_VDO_HOST || import.meta.env.VDO_HOST
+  if (envHost) {
+    cachedVdoHost = envHost
+    return cachedVdoHost
+  }
+
+  // Try to get from device configuration
+  try {
+    const { getDeviceUrl } = await import('./api')
+    const deviceUrl = getDeviceUrl()
+    if (deviceUrl) {
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 3000)
+      
+      const response = await fetch(`${deviceUrl}/api/config`, {
+        signal: controller.signal,
+        mode: 'cors',
+        cache: 'no-cache'
+      })
+      clearTimeout(timeout)
+      
+      if (response.ok) {
+        const config = await response.json()
+        if (config.vdo_host || config.vdoninja_host) {
+          cachedVdoHost = config.vdo_host || config.vdoninja_host
+          return cachedVdoHost
+        }
+      }
+    }
+  } catch (e) {
+    // Device doesn't support /api/config or not reachable
+    console.log('[VDO.ninja] Device does not provide VDO.ninja host configuration')
+  }
+  
+  return null
 }
 
 // Protocol for VDO.ninja URLs
@@ -314,12 +361,16 @@ export function applyVdoTheme(
 
 /**
  * Build a VDO.ninja URL from a profile and variable substitutions
+ * Returns null if VDO.ninja is not configured
  */
-export function buildVdoUrl(
+export async function buildVdoUrl(
   profile: keyof typeof embedProfiles,
   vars: Record<string, string> = {}
-): string {
-  const VDO_HOST = getVdoHost()
+): Promise<string | null> {
+  const VDO_HOST = await getVdoHost()
+  if (!VDO_HOST) {
+    return null
+  }
   const VDO_PROTOCOL = getVdoProtocol()
   const config = embedProfiles[profile]
   const basePath = config.base || '/'
@@ -376,9 +427,13 @@ export function buildVdoUrl(
 
 /**
  * Build a guest invite URL
+ * Returns null if VDO.ninja is not configured
  */
-export function buildGuestInviteUrl(guestName: string, guestId?: string): string {
-  const VDO_HOST = getVdoHost()
+export async function buildGuestInviteUrl(guestName: string, guestId?: string): Promise<string | null> {
+  const VDO_HOST = await getVdoHost()
+  if (!VDO_HOST) {
+    return null
+  }
   const VDO_PROTOCOL = getVdoProtocol()
   const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/`)
   
@@ -402,12 +457,15 @@ export function buildGuestInviteUrl(guestName: string, guestId?: string): string
  * uses MediaMTX SFU for transport instead of P2P WebRTC. This is required
  * for working through FRP tunnels where P2P doesn't work.
  */
-export function buildCameraContributionUrl(
+export async function buildCameraContributionUrl(
   cameraId: string,
   whepUrl: string,
   label: string
-): string {
-  const VDO_HOST = getVdoHost()
+): Promise<string | null> {
+  const VDO_HOST = await getVdoHost()
+  if (!VDO_HOST) {
+    return null
+  }
   const VDO_PROTOCOL = getVdoProtocol()
   const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/`)
   
@@ -423,7 +481,10 @@ export function buildCameraContributionUrl(
   
   // CRITICAL: Use MediaMTX SFU instead of P2P for sharing to the room
   // Without this, the camera's video won't reach the director through FRP tunnels
-  url.searchParams.set('mediamtx', getMediaMtxHost())
+  const mediamtxHost = await getMediaMtxHost()
+  if (mediamtxHost) {
+    url.searchParams.set('mediamtx', mediamtxHost)
+  }
   
   // Add custom CSS only if available
   const cssUrl = getVdoCssUrl()
@@ -443,8 +504,11 @@ export function buildCameraContributionUrl(
  * Note: &whip= is for VIEWING a WHIP stream published TO VDO.ninja
  *       &whipout= is for PUBLISHING FROM VDO.ninja TO an external WHIP server
  */
-export function buildProgramOutputUrl(whipUrl: string): string {
-  const VDO_HOST = getVdoHost()
+export async function buildProgramOutputUrl(whipUrl: string): Promise<string | null> {
+  const VDO_HOST = await getVdoHost()
+  if (!VDO_HOST) {
+    return null
+  }
   const VDO_PROTOCOL = getVdoProtocol()
   const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/`)
   
@@ -480,11 +544,14 @@ export function buildProgramOutputUrl(whipUrl: string): string {
  * WHEP/WHIP transport instead of P2P WebRTC, which is required
  * for working through FRP tunnels.
  */
-export function buildMixerUrl(options: {
+export async function buildMixerUrl(options: {
   mediamtxHost?: string
   room?: string
-} = {}): string {
-  const VDO_HOST = getVdoHost()
+} = {}): Promise<string | null> {
+  const VDO_HOST = await getVdoHost()
+  if (!VDO_HOST) {
+    return null
+  }
   const VDO_PROTOCOL = getVdoProtocol()
   // Use standard mixer.html (alpha mixer lacks bundled dependencies)
   const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/mixer.html`)
@@ -512,53 +579,79 @@ export function buildMixerUrl(options: {
  * Get the MediaMTX host for VDO.ninja's &mediamtx= parameter
  * 
  * This host is used by VDO.ninja for MediaMTX SFU mode, which requires HTTPS.
- * Always use the FRP-proxied URL for reliable HTTPS access.
+ * Gets from device configuration or constructs from FRP URL.
  */
-export function getMediaMtxHost(): string {
-  // Always use FRP-proxied MediaMTX for VDO.ninja (HTTPS required)
-  return 'r58-mediamtx.itagenten.no'
+export async function getMediaMtxHost(): Promise<string | null> {
+  // Try to get from device config
+  try {
+    const { getDeviceUrl, getFrpUrl } = await import('./api')
+    const frpUrl = await getFrpUrl()
+    if (frpUrl) {
+      try {
+        const url = new URL(frpUrl)
+        // Construct MediaMTX host from FRP base
+        const mediamtxHost = url.hostname.replace('api', 'mediamtx')
+        return `https://${mediamtxHost}`
+      } catch (e) {
+        console.warn('[VDO.ninja] Failed to construct MediaMTX host from FRP URL')
+      }
+    }
+  } catch (e) {
+    // Not available
+  }
+  return null
 }
 
 /**
  * Get the public R58 API host for external services (like VDO.ninja)
  * This is the URL that external services can use to reach the R58 device
  * 
- * Uses Tailscale Funnel when available (HTTPS public access)
- * Falls back to FRP tunnel otherwise
+ * Gets from device configuration (FRP URL)
  */
-export function getPublicR58Host(): string {
-  const hostname = window.location.hostname
-  
-  // If accessing via Tailscale IP or hostname, use Tailscale Funnel
-  if (hostname.includes('.ts.net') || hostname.match(/^100\.\d+\.\d+\.\d+$/)) {
-    return 'https://linaro-alip.tailab6fd7.ts.net'
-  }
-  
-  // Default to FRP tunnel
-  return 'https://r58-api.itagenten.no'
+export async function getPublicR58Host(): Promise<string | null> {
+  const { getFrpUrl } = await import('./api')
+  return await getFrpUrl()
 }
 
 /**
  * Build a WHEP URL for a camera that VDO.ninja can access
  * 
  * In Electron: We enable allowRunningInsecureContent, so VDO.ninja can
- * load HTTP content (direct Tailscale P2P) for much better performance.
+ * load HTTP content (direct connection) for much better performance.
  * 
  * In Browser: Must use FRP-proxied HTTPS URL due to mixed content security.
  */
-export function getPublicWhepUrl(cameraId: string): string {
-  // In Electron, use direct Tailscale P2P when available (mixed content allowed)
+export async function getPublicWhepUrl(cameraId: string): Promise<string | null> {
+  const { getDeviceUrl, getFrpUrl } = await import('./api')
+  
+  // In Electron, use direct connection when available (mixed content allowed)
   if (typeof window !== 'undefined' && (window as any).electronAPI) {
-    const deviceUrl = (window as any).__R58_DEVICE_URL__
-    if (deviceUrl && deviceUrl.includes('100.98.37.53')) {
-      // Direct Tailscale P2P - bypasses FRP tunnel for much better performance!
-      console.log(`[VDO.ninja] Using direct P2P WHEP for ${cameraId}`)
-      return `http://100.98.37.53:8889/${cameraId}/whep`
+    const deviceUrl = getDeviceUrl()
+    if (deviceUrl) {
+      try {
+        const url = new URL(deviceUrl)
+        // Direct connection - bypasses FRP tunnel for much better performance!
+        console.log(`[VDO.ninja] Using direct WHEP for ${cameraId}`)
+        return `http://${url.hostname}:8889/${cameraId}/whep`
+      } catch (e) {
+        // Invalid URL, fall through to FRP
+      }
     }
   }
   
-  // Browser fallback: Always use FRP-proxied MediaMTX (HTTPS required)
-  return `https://r58-mediamtx.itagenten.no/${cameraId}/whep`
+  // Browser fallback: Use FRP-proxied MediaMTX (HTTPS required)
+  const frpUrl = await getFrpUrl()
+  if (frpUrl) {
+    try {
+      const url = new URL(frpUrl)
+      const mediamtxHost = url.hostname.replace('api', 'mediamtx')
+      return `https://${mediamtxHost}/${cameraId}/whep`
+    } catch (e) {
+      console.warn('[VDO.ninja] Failed to construct MediaMTX WHEP URL')
+    }
+  }
+  
+  return null
 }
 
 /**
@@ -578,15 +671,18 @@ export function getPublicWhepUrl(cameraId: string): string {
  * @param options.muted - Mute audio (default: false, use true for preview)
  * @param options.quality - Video quality 0-2 (default: 2 for program, 1 for preview)
  */
-export function buildSceneOutputUrl(
+export async function buildSceneOutputUrl(
   sceneNumber: number,
   options: {
     muted?: boolean
     quality?: number
     room?: string
   } = {}
-): string {
-  const VDO_HOST = getVdoHost()
+): Promise<string | null> {
+  const VDO_HOST = await getVdoHost()
+  if (!VDO_HOST) {
+    return null
+  }
   const VDO_PROTOCOL = getVdoProtocol()
   const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/`)
   
@@ -624,7 +720,7 @@ export function buildSceneOutputUrl(
  * Build a VDO.ninja preview monitor URL (PVW)
  * Muted, lower quality for preview purposes
  */
-export function buildPreviewUrl(sceneNumber: number, room?: string): string {
+export async function buildPreviewUrl(sceneNumber: number, room?: string): Promise<string | null> {
   return buildSceneOutputUrl(sceneNumber, { muted: true, quality: 1, room })
 }
 
@@ -633,7 +729,7 @@ export function buildPreviewUrl(sceneNumber: number, room?: string): string {
  * Full quality, audio enabled for live output
  * Uses scene=1 which receives sources added via addToScene director command
  */
-export function buildProgramUrl(sceneNumber: number = 1, room?: string): string {
+export async function buildProgramUrl(sceneNumber: number = 1, room?: string): Promise<string | null> {
   return buildSceneOutputUrl(sceneNumber, { muted: false, quality: 2, room })
 }
 
@@ -642,10 +738,14 @@ export function buildProgramUrl(sceneNumber: number = 1, room?: string): string 
  * Opens a new browser window with the program feed
  * 
  * @param sceneNumber - VDO.ninja scene number (default: 1 for program)
- * @returns Window reference or null if popup blocked
+ * @returns Window reference or null if popup blocked or VDO.ninja not configured
  */
-export function openProgramPopup(sceneNumber: number = 1): Window | null {
-  const url = buildProgramUrl(sceneNumber)
+export async function openProgramPopup(sceneNumber: number = 1): Promise<Window | null> {
+  const url = await buildProgramUrl(sceneNumber)
+  if (!url) {
+    console.warn('[VDO.ninja] Cannot open popup - VDO.ninja not configured')
+    return null
+  }
   const windowFeatures = 'width=1280,height=720,menubar=no,toolbar=no,location=no,status=no'
   const popup = window.open(url, 'R58_Program_Output', windowFeatures)
   

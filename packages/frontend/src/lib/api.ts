@@ -57,11 +57,11 @@ interface AppInfo {
 // Device URL Management
 // ============================================
 
-/** FRP fallback API URL - used when device is unreachable */
-const FRP_API_URL = 'https://r58-api.itagenten.no'
-
 /** Cached device URL for synchronous access */
 let cachedDeviceUrl: string | null = null
+
+/** Cached FRP fallback URL from device configuration */
+let cachedFrpUrl: string | null = null
 
 /** Whether we're currently using FRP fallback (device unreachable) */
 let usingFrpFallback = false
@@ -69,6 +69,49 @@ let usingFrpFallback = false
 /** Track consecutive connection failures to trigger fallback */
 let consecutiveFailures = 0
 const FAILURES_BEFORE_FALLBACK = 2
+
+/**
+ * Get FRP fallback URL from device configuration
+ * Returns null if device doesn't provide FRP URL
+ */
+async function getFrpUrl(): Promise<string | null> {
+  // If already cached, return it
+  if (cachedFrpUrl) {
+    return cachedFrpUrl
+  }
+
+  const deviceUrl = getDeviceUrl()
+  if (!deviceUrl) {
+    return null
+  }
+
+  try {
+    // Try to fetch FRP URL from device config endpoint
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 3000)
+    
+    const response = await fetch(`${deviceUrl}/api/config`, {
+      signal: controller.signal,
+      mode: 'cors',
+      cache: 'no-cache'
+    })
+    clearTimeout(timeout)
+    
+    if (response.ok) {
+      const config = await response.json()
+      if (config.frp_url || config.frp_api_url) {
+        cachedFrpUrl = config.frp_url || config.frp_api_url
+        console.log('[API] FRP URL configured:', cachedFrpUrl)
+        return cachedFrpUrl
+      }
+    }
+  } catch (e) {
+    // Device doesn't support /api/config or not reachable
+    console.log('[API] Device does not provide FRP URL configuration')
+  }
+  
+  return null
+}
 
 /**
  * Initialize the device URL from Electron
@@ -352,12 +395,12 @@ export async function apiRequest<T>(
         if (e instanceof Error && e.name === 'AbortError') {
           lastError = createApiError('Request timeout', 408, 'Request Timeout')
           lastError.retryable = true
-          recordConnectionFailure()
+          await recordConnectionFailure()
         } else if (e instanceof TypeError) {
           // Network error - likely device unreachable
           lastError = createApiError('Network error: ' + e.message)
           lastError.retryable = true
-          recordConnectionFailure()
+          await recordConnectionFailure()
         } else {
           throw e
         }
@@ -383,19 +426,26 @@ export async function apiRequest<T>(
   // All retries exhausted - try FRP fallback if we haven't already
   if (lastError && isElectron() && !usingFrpFallback) {
     console.log('[API] Primary device unreachable, trying FRP fallback...')
-    enableFrpFallback()
     
-    // Extract path from URL and rebuild with FRP
-    try {
-      const urlObj = new URL(url)
-      const frpUrl = `${FRP_API_URL}${urlObj.pathname}${urlObj.search}`
-      console.log('[API] Retrying with FRP:', frpUrl)
+    // Get FRP URL from device configuration
+    const frpUrl = await getFrpUrl()
+    if (frpUrl) {
+      enableFrpFallback()
       
-      // Try once with FRP (no retries to avoid long delays)
-      return await apiRequest<T>(frpUrl, { ...options, retries: 0 })
-    } catch (frpError) {
-      console.error('[API] FRP fallback also failed:', frpError)
-      // Fall through to original error
+      // Extract path from URL and rebuild with FRP
+      try {
+        const urlObj = new URL(url)
+        const frpFullUrl = `${frpUrl}${urlObj.pathname}${urlObj.search}`
+        console.log('[API] Retrying with FRP:', frpFullUrl)
+        
+        // Try once with FRP (no retries to avoid long delays)
+        return await apiRequest<T>(frpFullUrl, { ...options, retries: 0 })
+      } catch (frpError) {
+        console.error('[API] FRP fallback also failed:', frpError)
+        // Fall through to original error
+      }
+    } else {
+      console.log('[API] No FRP fallback configured on device')
     }
   }
 
@@ -473,10 +523,15 @@ export function hasDeviceConfigured(): boolean {
  * 
  * @throws Error if in Electron and no device URL is configured
  */
-export function buildApiUrl(path: string, useFallback: boolean = false): string {
+export async function buildApiUrl(path: string, useFallback: boolean = false): Promise<string> {
   // If explicitly using fallback or we've detected device is unreachable
   if (useFallback || usingFrpFallback) {
-    return `${FRP_API_URL}${path}`
+    const frpUrl = await getFrpUrl()
+    if (frpUrl) {
+      return `${frpUrl}${path}`
+    }
+    // No FRP configured - throw error instead of using hardcoded URL
+    throw new Error('Device unreachable and no FRP fallback configured')
   }
   
   // Priority 1: Electron with configured device URL
@@ -487,10 +542,9 @@ export function buildApiUrl(path: string, useFallback: boolean = false): string 
     return `${baseUrl}${path}`
   }
 
-  // In Electron without device URL, use FRP fallback
+  // In Electron without device URL, require device setup
   if (isElectron()) {
-    console.log('[API] No device configured, using FRP fallback')
-    return `${FRP_API_URL}${path}`
+    throw new Error('No device configured. Please add a device in Settings.')
   }
 
   // Priority 2 & 3: Web browser access
@@ -510,12 +564,22 @@ export function buildApiUrl(path: string, useFallback: boolean = false): string 
 
 /**
  * Enable FRP fallback mode (call when device is detected as unreachable)
+ * Only works if device has FRP URL configured
  */
-export function enableFrpFallback(): void {
-  if (!usingFrpFallback) {
+export async function enableFrpFallback(): Promise<boolean> {
+  if (usingFrpFallback) {
+    return true
+  }
+  
+  const frpUrl = await getFrpUrl()
+  if (frpUrl) {
     console.log('[API] Enabling FRP fallback - device unreachable')
     usingFrpFallback = true
+    return true
   }
+  
+  console.log('[API] Cannot enable FRP fallback - no FRP URL configured')
+  return false
 }
 
 /**
@@ -539,10 +603,10 @@ export function isUsingFrpFallback(): boolean {
 /**
  * Record a connection failure (triggers fallback after threshold)
  */
-export function recordConnectionFailure(): void {
+export async function recordConnectionFailure(): Promise<void> {
   consecutiveFailures++
   if (consecutiveFailures >= FAILURES_BEFORE_FALLBACK && !usingFrpFallback) {
-    enableFrpFallback()
+    await enableFrpFallback()
   }
 }
 
@@ -641,7 +705,7 @@ export const r58Api = {
       platform?: string
       gstreamer?: string
       gstreamer_error?: string | null 
-    }>(buildApiUrl('/health'))
+    }>(await buildApiUrl('/health'))
   },
 
   async getDetailedHealth() {
@@ -651,7 +715,7 @@ export const r58Api = {
       platform?: string
       gstreamer?: string
       gstreamer_error?: string | null
-    }>(buildApiUrl('/health'))
+    }>(await buildApiUrl('/health'))
   },
 
   // Camera/Recorder Status
@@ -662,7 +726,7 @@ export const r58Api = {
         status: string
         config: boolean
       }>
-    }>(buildApiUrl('/status'))
+    }>(await buildApiUrl('/status'))
   },
 
   async getInputsStatus() {
@@ -680,7 +744,7 @@ export const r58Api = {
           error: number
           total: number
         }
-      }>(buildApiUrl('/api/ingest/status'))
+      }>(await buildApiUrl('/api/ingest/status'))
     } catch {
       // Fallback to /status if /api/ingest/status fails
       const status = await this.getRecorderStatus()
@@ -713,7 +777,7 @@ export const r58Api = {
         target_fps: number
         status: string
       }
-    }>(buildApiUrl('/api/fps'))
+    }>(await buildApiUrl('/api/fps'))
   },
 
   async startRecording(_options?: { name?: string; inputs?: string[] }) {
@@ -722,7 +786,7 @@ export const r58Api = {
       status: string
       cameras: Record<string, string>
     }>(
-      buildApiUrl('/record/start-all'),
+      await buildApiUrl('/record/start-all'),
       undefined,
       { idempotent: true }
     )
@@ -746,7 +810,7 @@ export const r58Api = {
       status: string
       cameras: Record<string, string>
     }>(
-      buildApiUrl('/record/stop-all'),
+      await buildApiUrl('/record/stop-all'),
       undefined,
       { idempotent: true }
     )
@@ -795,7 +859,7 @@ export const r58Api = {
         should_disable_previews: boolean
         can_start_recording: boolean
       }
-    }>(buildApiUrl('/api/v1/degradation'))
+    }>(await buildApiUrl('/api/v1/degradation'))
   },
 
   // Alerts
@@ -816,12 +880,12 @@ export const r58Api = {
         resolved: boolean
       }>
       counts: { critical: number; warning: number; info: number; total: number }
-    }>(buildApiUrl(`/api/v1/alerts${query ? '?' + query : ''}`))
+    }>(await buildApiUrl(`/api/v1/alerts${query ? '?' + query : ''}`))
   },
 
   async resolveAlert(alertId: string) {
     return apiPost<{ status: string; alert_id: string }>(
-      buildApiUrl(`/api/v1/alerts/${alertId}/resolve`)
+      await buildApiUrl(`/api/v1/alerts/${alertId}/resolve`)
     )
   },
 
@@ -837,7 +901,7 @@ export const r58Api = {
         last_seen: string
         api_version?: string
         capabilities?: Record<string, unknown>
-      }>>(buildApiUrl('/api/v1/lan-devices'))
+      }>>(await buildApiUrl('/api/v1/lan-devices'))
     },
 
     async scan() {
@@ -846,7 +910,7 @@ export const r58Api = {
         name: string
         ip: string
         status: string
-      }>>(buildApiUrl('/api/v1/lan-devices/scan'))
+      }>>(await buildApiUrl('/api/v1/lan-devices/scan'))
     },
 
     async getDevice(deviceId: string) {
@@ -858,7 +922,7 @@ export const r58Api = {
         status: string
         last_seen: string
         api_version?: string
-      }>(buildApiUrl(`/api/v1/lan-devices/${deviceId}`))
+      }>(await buildApiUrl(`/api/v1/lan-devices/${deviceId}`))
     },
 
     async connect(deviceId: string) {
@@ -866,7 +930,7 @@ export const r58Api = {
         connected: boolean
         device?: { id: string; name: string; ip: string }
         error?: string
-      }>(buildApiUrl(`/api/v1/lan-devices/${deviceId}/connect`))
+      }>(await buildApiUrl(`/api/v1/lan-devices/${deviceId}/connect`))
     },
   },
 

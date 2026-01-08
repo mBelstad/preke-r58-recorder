@@ -24,11 +24,8 @@ const ALLOWED_NAVIGATION_ORIGINS = [
   'http://localhost:5174',            // Vite fallback port
 ]
 
-const ALLOWED_IFRAME_ORIGINS = [
-  'https://r58-vdo.itagenten.no',     // Self-hosted VDO.ninja
-  'https://vdo.itagenten.no',         // Alternate VDO.ninja
-  'https://vdo.ninja',                // Public VDO.ninja (fallback)
-]
+// ALLOWED_IFRAME_ORIGINS is now dynamic - built from device configuration
+// VDO.ninja origins are added dynamically when device is configured
 
 /**
  * Get the path to the renderer (Vue frontend)
@@ -135,34 +132,43 @@ export function createMainWindow(): BrowserWindow {
 }
 
 /**
- * Setup URL rewriting to redirect FRP WHEP requests to direct Tailscale P2P
- * This dramatically improves VDO.ninja mixer performance when on Tailscale
+ * Setup URL rewriting to redirect FRP WHEP requests to direct connection when available
+ * This dramatically improves performance when direct connection is possible
  */
 function setupWhepRedirect(win: BrowserWindow): void {
-  // Intercept requests to FRP MediaMTX and redirect to Tailscale when available
   win.webContents.session.webRequest.onBeforeRequest(
-    { urls: ['https://r58-api.itagenten.no/*/whep*', 'https://r58-mediamtx.itagenten.no/*/whep*'] },
+    { urls: ['*://*/*/whep*'] }, // Match any WHEP URL
     (details, callback) => {
       const activeDevice = deviceStore.getActiveDevice()
       
-      // Check if we have a direct Tailscale connection
-      if (activeDevice && activeDevice.url.includes('100.98.37.53')) {
-        // Extract the camera ID from the URL (e.g., /cam0/whep -> cam0)
-        const match = details.url.match(/\/(cam\d+)\/whep/)
-        if (match) {
-          const cameraId = match[1]
-          const directUrl = `http://100.98.37.53:8889/${cameraId}/whep`
-          log.info(`[WHEP P2P] Redirecting ${details.url} -> ${directUrl}`)
-          callback({ redirectURL: directUrl })
-          return
+      // Only redirect if we have a direct device connection and the request is going through FRP
+      if (activeDevice) {
+        try {
+          const requestUrl = new URL(details.url)
+          const deviceUrl = new URL(activeDevice.url)
+          
+          // If request is going to a different host than the device, try to redirect to device
+          if (requestUrl.hostname !== deviceUrl.hostname) {
+            // Extract the camera ID from the URL (e.g., /cam0/whep -> cam0)
+            const match = details.url.match(/\/(cam\d+)\/whep/)
+            if (match) {
+              const cameraId = match[1]
+              const directUrl = `http://${deviceUrl.hostname}:8889/${cameraId}/whep`
+              log.info(`[WHEP P2P] Redirecting ${details.url} -> ${directUrl}`)
+              callback({ redirectURL: directUrl })
+              return
+            }
+          }
+        } catch (e) {
+          // Invalid URL, continue with original
         }
       }
       
-      // No redirect - use original FRP URL
+      // No redirect - use original URL
       callback({})
     }
   )
-  log.info('WHEP P2P redirect enabled for Tailscale connections')
+  log.info('WHEP redirect enabled - will use direct connection when available')
 }
 
 /**
@@ -192,10 +198,8 @@ function setupNavigationSecurity(win: BrowserWindow): void {
   win.webContents.setWindowOpenHandler(({ url }) => {
     log.info(`New window requested for: ${url}`)
     
-    // Check if it's a VDO.ninja related URL - open in external browser
-    const isVdoUrl = ALLOWED_IFRAME_ORIGINS.some(origin => url.startsWith(origin))
-    
-    if (isVdoUrl || url.startsWith('https://')) {
+    // Open HTTPS URLs in external browser
+    if (url.startsWith('https://')) {
       shell.openExternal(url)
     }
     
@@ -212,12 +216,13 @@ function setupNavigationSecurity(win: BrowserWindow): void {
       return
     }
 
-    // Allow VDO.ninja iframes
-    const isAllowedIframe = ALLOWED_IFRAME_ORIGINS.some(origin => 
-      details.url.startsWith(origin)
-    )
+    // Allow VDO.ninja iframes (check if URL looks like VDO.ninja)
+    // VDO.ninja URLs are typically: https://<host>/mixer.html or https://<host>/?director=...
+    const isVdoUrl = details.url.includes('/mixer.html') || 
+                     details.url.includes('?director=') ||
+                     details.url.includes('?room=')
     
-    if (isAllowedIframe && details.responseHeaders) {
+    if (isVdoUrl && details.responseHeaders) {
       // Remove X-Frame-Options to allow embedding
       delete details.responseHeaders['x-frame-options']
       delete details.responseHeaders['X-Frame-Options']

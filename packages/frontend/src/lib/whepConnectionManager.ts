@@ -31,9 +31,15 @@ interface WHEPConnection {
   isConnecting: boolean  // Guard flag to prevent multiple simultaneous connection attempts
 }
 
-// Known IPs for connection type detection
-const RELAY_IPS = ['65.109.32.111']
-const P2P_IPS = ['100.98.37.53', '192.168.1.24']
+// Helper to check if an IP is in a private range (P2P)
+function isPrivateIP(ip: string): boolean {
+  return ip.startsWith('192.168.') || 
+         ip.startsWith('10.') || 
+         ip.startsWith('172.') ||
+         ip.startsWith('100.') || // Tailscale IPs
+         ip === '127.0.0.1' ||
+         ip === 'localhost'
+}
 
 // Reconnection configuration
 const MAX_RECONNECT_ATTEMPTS = 5
@@ -71,7 +77,7 @@ const listeners = new Map<string, Set<(conn: WHEPConnection) => void>>()
  * Build the WHEP URL for a camera
  * Prioritizes direct P2P connection over FRP tunnel
  */
-function buildWhepUrl(cameraId: string): string {
+async function buildWhepUrl(cameraId: string): Promise<string> {
   const deviceUrl = getDeviceUrl()
   const usingFrp = isUsingFrpFallback()
   
@@ -86,8 +92,28 @@ function buildWhepUrl(cameraId: string): string {
     }
   }
   
-  // FRP fallback
-  return `https://r58-mediamtx.itagenten.no/${cameraId}/whep`
+  // FRP fallback - get from device config
+  const { getFrpUrl } = await import('./api')
+  const frpUrl = await getFrpUrl()
+  if (frpUrl) {
+    try {
+      const url = new URL(frpUrl)
+      // Use MediaMTX subdomain pattern if FRP URL is available
+      // Or construct from FRP base URL
+      if (url.hostname.includes('mediamtx')) {
+        return `${frpUrl}/${cameraId}/whep`
+      } else {
+        // Try to construct MediaMTX URL from FRP base
+        const mediamtxHost = url.hostname.replace('api', 'mediamtx')
+        return `https://${mediamtxHost}/${cameraId}/whep`
+      }
+    } catch (e) {
+      console.warn(`[WHEP Manager] Invalid FRP URL, cannot build WHEP URL`)
+    }
+  }
+  
+  // No FRP configured - throw error
+  throw new Error('No device configured and no FRP fallback available')
 }
 
 /**
@@ -117,15 +143,9 @@ async function detectConnectionType(pc: RTCPeerConnection, cameraId: string): Pr
       return 'relay'
     }
     
-    // Tailscale IP = P2P via Tailscale
-    if (host.startsWith('100.')) {
-      console.log(`[WHEP Manager ${cameraId}] Detected P2P (Tailscale IP: ${host})`)
-      return 'p2p'
-    }
-    
-    // LAN IP = P2P via LAN
-    if (host.startsWith('192.168.') || host.startsWith('10.') || host.startsWith('172.')) {
-      console.log(`[WHEP Manager ${cameraId}] Detected P2P (LAN IP: ${host})`)
+    // Private IP ranges = P2P (LAN or Tailscale)
+    if (isPrivateIP(host)) {
+      console.log(`[WHEP Manager ${cameraId}] Detected P2P (private IP: ${host})`)
       return 'p2p'
     }
   } catch (e) {
@@ -145,10 +165,10 @@ async function detectConnectionType(pc: RTCPeerConnection, cameraId: string): Pr
           return 'relay'
         }
         
-        // Check for VPS IP (explicit relay)
+        // If remote IP is not private, it's likely a relay
         const remoteIP = remoteCandidate?.address
-        if (remoteIP && RELAY_IPS.includes(remoteIP)) {
-          console.log(`[WHEP Manager ${cameraId}] Detected relay (VPS IP: ${remoteIP})`)
+        if (remoteIP && !isPrivateIP(remoteIP)) {
+          console.log(`[WHEP Manager ${cameraId}] Detected relay (public IP: ${remoteIP})`)
           return 'relay'
         }
       }
@@ -255,7 +275,7 @@ async function createConnection(cameraId: string): Promise<WHEPConnection> {
   }
   
   const startTime = performance.now()
-  const whepUrl = buildWhepUrl(cameraId)
+  const whepUrl = await buildWhepUrl(cameraId)
   networkDebugLog('WHEP', `Camera ${cameraId}: Creating connection to ${whepUrl}`)
   console.log(`[WHEP Manager ${cameraId}] Creating connection to: ${whepUrl}`)
   console.log(`[WHEP Manager ${cameraId}] Device URL was: ${deviceUrl}`)
