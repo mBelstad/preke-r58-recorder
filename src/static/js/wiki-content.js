@@ -110,11 +110,15 @@ linaro@linaro-alip:~$
 
 ## Step 2: Access Web Interfaces
 
-Open these URLs in your browser:
+Open the **Preke Studio** web app in your browser:
 
-- **Studio (Multiview)**: https://r58-api.itagenten.no/static/studio.html
-- **Main App**: https://r58-api.itagenten.no/static/app.html
-- **Guest Portal**: https://r58-api.itagenten.no/static/guest.html
+**Main URL**: https://app.itagenten.no/vue/#/
+
+**Views**:
+- **Recorder**: https://app.itagenten.no/vue/#/recorder
+- **Mixer**: https://app.itagenten.no/vue/#/mixer
+- **Library**: https://app.itagenten.no/vue/#/library
+- **Admin**: https://app.itagenten.no/vue/#/admin
 
 All URLs use valid Let's Encrypt SSL certificates.
 

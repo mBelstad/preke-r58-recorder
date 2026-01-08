@@ -99,11 +99,20 @@ sshpass -p linaro ssh -p 10022 linaro@65.109.32.111
 
 **URLs** (All HTTPS with valid certificates):
 
-- **Studio**: https://r58-api.itagenten.no/static/studio.html
-- **Main App**: https://r58-api.itagenten.no/static/app.html
-- **Guest Portal**: https://r58-api.itagenten.no/static/guest.html
+**Preke Studio (Vue Frontend)**:
+- **Main App**: https://app.itagenten.no/vue/#/
+- **Recorder**: https://app.itagenten.no/vue/#/recorder
+- **Mixer**: https://app.itagenten.no/vue/#/mixer
+- **Library**: https://app.itagenten.no/vue/#/library
+- **Admin**: https://app.itagenten.no/vue/#/admin
+
+**API & Documentation**:
 - **API Docs**: https://r58-api.itagenten.no/docs
 - **This Wiki**: https://r58-api.itagenten.no/static/wiki.html
+
+**VDO.ninja**:
+- **Mixer**: https://r58-vdo.itagenten.no/mixer.html?room=studio
+- **Director**: https://r58-vdo.itagenten.no/?director=studio
 
 **Use cases**:
 - View camera feeds
@@ -315,41 +324,35 @@ All pages work on phones, tablets, and computers.
         content: `
 ## Available Interfaces
 
-### Studio (Multiview)
-**URL**: https://r58-api.itagenten.no/static/studio.html
+### Preke Studio (Vue Frontend)
+**URL**: https://app.itagenten.no/vue/#/
+
+**Views**:
+- **/recorder** - Camera control and recording
+- **/mixer** - VDO.ninja mixer integration
+- **/library** - Recording library and playback
+- **/admin** - System administration
 
 **Features**:
 - 4-camera multiview grid
-- Real-time WebRTC streams
+- Real-time WebRTC streams (WHEP)
+- Recording control
 - Audio level meters
-- Recording status indicators
-- Scene switching controls
-- Dark mode support
+- Dark/light mode
+- PWA support
 
-**Use case**: Production monitoring, live switching
+**Use case**: Production monitoring, recording, administration
 
-### Main App
-**URL**: https://r58-api.itagenten.no/static/app.html
-
-**Features**:
-- Camera control (start/stop recording)
-- System status monitoring
-- Configuration management
-- File browser
-- Log viewer
-
-**Use case**: System administration, recording control
-
-### Guest Portal
-**URL**: https://r58-api.itagenten.no/static/guest.html
+### VDO.ninja Mixer
+**URL**: https://r58-vdo.itagenten.no/mixer.html?room=studio
 
 **Features**:
-- WHIP publishing (WebRTC)
-- Camera/microphone selection
-- Connection status
-- Audio level monitoring
+- Live mixing interface
+- Multi-camera switching
+- Guest management
+- Effects and transitions
 
-**Use case**: Remote speakers, guests joining remotely
+**Use case**: Live production, remote guests
 
 ### API Documentation
 **URL**: https://r58-api.itagenten.no/docs
