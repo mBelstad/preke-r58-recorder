@@ -145,6 +145,20 @@ const modeInfo = computed(() => {
     
     <!-- Left: Status indicators -->
     <div class="header__left">
+      <!-- Connection status -->
+      <div class="header__status" :title="statusInfo.tooltip">
+        <span 
+          class="header__dot"
+          :class="[
+            `header__dot--${statusInfo.dot}`,
+            { 'header__dot--pulse': statusInfo.pulse }
+          ]"
+        ></span>
+        <span class="header__status-text">{{ statusInfo.text }}</span>
+      </div>
+      
+      <div class="header__divider"></div>
+      
       <!-- Active camera indicator -->
       <div class="header__cameras" :title="`Camera inputs`">
         <svg class="header__cameras-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
@@ -162,20 +176,6 @@ const modeInfo = computed(() => {
         >
           <span class="header__camera-num">{{ slot.id }}</span>
         </div>
-      </div>
-      
-      <div class="header__divider"></div>
-      
-      <!-- Connection status -->
-      <div class="header__status" :title="statusInfo.tooltip">
-        <span 
-          class="header__dot"
-          :class="[
-            `header__dot--${statusInfo.dot}`,
-            { 'header__dot--pulse': statusInfo.pulse }
-          ]"
-        ></span>
-        <span class="header__status-text">{{ statusInfo.text }}</span>
       </div>
     </div>
     

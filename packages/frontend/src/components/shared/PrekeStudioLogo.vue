@@ -73,7 +73,7 @@ onUnmounted(() => {
   line-height: 1;
   flex-shrink: 0;
   white-space: nowrap;
-  transform: translateY(-1px); /* 1 pixel lower than before (was -2px, now -1px) */
+  transform: translateY(0px); /* 1 pixel lower than before (was -1px, now 0px) */
 }
 </style>
 
