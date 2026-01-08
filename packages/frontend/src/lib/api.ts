@@ -1196,31 +1196,29 @@ export const r58Api = {
 
     async setISO(cameraName: string, value: number) {
       return apiPut<{ success: boolean; camera: string; parameter: string; value: number }>(
-        await buildApiUrl(`/api/v1/cameras/${cameraName}/settings/iso?value=${value}`),
-        {}
+        await buildApiUrl(`/api/v1/cameras/${cameraName}/settings/iso`),
+        { value }
       )
     },
 
     async setShutter(cameraName: string, value: number) {
       return apiPut<{ success: boolean; camera: string; parameter: string; value: number }>(
-        await buildApiUrl(`/api/v1/cameras/${cameraName}/settings/shutter?value=${value}`),
-        {}
+        await buildApiUrl(`/api/v1/cameras/${cameraName}/settings/shutter`),
+        { value }
       )
     },
 
     async setIris(cameraName: string, mode: 'auto' | 'manual', value?: number) {
-      const params = new URLSearchParams({ mode })
-      if (value !== undefined) params.set('value', value.toString())
       return apiPut<{ success: boolean; camera: string; parameter: string }>(
-        await buildApiUrl(`/api/v1/cameras/${cameraName}/settings/iris?${params}`),
-        {}
+        await buildApiUrl(`/api/v1/cameras/${cameraName}/settings/iris`),
+        { mode, value }
       )
     },
 
     async setGain(cameraName: string, value: number) {
       return apiPut<{ success: boolean; camera: string; parameter: string; value: number }>(
-        await buildApiUrl(`/api/v1/cameras/${cameraName}/settings/gain?value=${value}`),
-        {}
+        await buildApiUrl(`/api/v1/cameras/${cameraName}/settings/gain`),
+        { value }
       )
     },
 

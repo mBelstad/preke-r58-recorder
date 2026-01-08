@@ -6,9 +6,10 @@ import json
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, UploadFile, File, Response, Request, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, UploadFile, File, Response, Request, WebSocket, WebSocketDisconnect, Body
 from fastapi.responses import JSONResponse, FileResponse, HTMLResponse, StreamingResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 import shutil
 import uuid
 import httpx
@@ -21,6 +22,8 @@ from .preview import PreviewManager
 from .database import Database
 from .files import FileManager
 from .camera_control import CameraControlManager
+from .camera_control.blackmagic import BlackmagicCamera
+from .camera_control.obsbot import ObsbotTail2
 from .fps_monitor import get_fps_monitor, FpsMonitor
 
 # Configure logging
@@ -4753,6 +4756,309 @@ async def get_ingest_status() -> Dict[str, Any]:
         "streaming_count": sum(1 for s in statuses.values() if s.status == "streaming"),
         "signal_count": sum(1 for s in statuses.values() if s.has_signal)
     }
+
+
+# ============================================================================
+# Camera Control API Endpoints (External Cameras)
+# ============================================================================
+
+@app.get("/api/v1/cameras/")
+async def list_external_cameras() -> List[str]:
+    """List all configured external cameras"""
+    if not camera_control_manager:
+        return []
+    return list(camera_control_manager.cameras.keys())
+
+
+@app.get("/api/v1/cameras/{camera_name}/status")
+async def get_external_camera_status(camera_name: str) -> Dict[str, Any]:
+    """Get camera status and connection info"""
+    if not camera_control_manager:
+        raise HTTPException(status_code=503, detail="Camera control not available")
+    
+    if camera_name not in camera_control_manager.cameras:
+        raise HTTPException(status_code=404, detail=f"Camera '{camera_name}' not found")
+    
+    camera = camera_control_manager.cameras[camera_name]
+    connected = await camera.check_connection()
+    camera_type = "blackmagic" if isinstance(camera, BlackmagicCamera) else "obsbot_tail2"
+    
+    settings = None
+    if connected:
+        try:
+            settings = await camera.get_settings()
+        except Exception as e:
+            logger.warning(f"Failed to get settings from {camera_name}: {e}")
+    
+    return {
+        "name": camera_name,
+        "type": camera_type,
+        "connected": connected,
+        "settings": settings
+    }
+
+
+@app.get("/api/v1/cameras/{camera_name}/settings")
+async def get_external_camera_settings(camera_name: str) -> Dict[str, Any]:
+    """Get all camera settings"""
+    if not camera_control_manager:
+        raise HTTPException(status_code=503, detail="Camera control not available")
+    
+    if camera_name not in camera_control_manager.cameras:
+        raise HTTPException(status_code=404, detail=f"Camera '{camera_name}' not found")
+    
+    camera = camera_control_manager.cameras[camera_name]
+    settings = await camera.get_settings()
+    if settings is None:
+        raise HTTPException(status_code=503, detail="Failed to get camera settings")
+    
+    return {"name": camera_name, "settings": settings}
+
+
+class SetFocusRequest(BaseModel):
+    mode: str
+    value: Optional[float] = None
+
+@app.put("/api/v1/cameras/{camera_name}/settings/focus")
+async def set_camera_focus(camera_name: str, request: SetFocusRequest = Body(...)) -> Dict[str, Any]:
+    """Set camera focus"""
+    if not camera_control_manager:
+        raise HTTPException(status_code=503, detail="Camera control not available")
+    
+    if camera_name not in camera_control_manager.cameras:
+        raise HTTPException(status_code=404, detail=f"Camera '{camera_name}' not found")
+    
+    camera = camera_control_manager.cameras[camera_name]
+    if not isinstance(camera, (BlackmagicCamera, ObsbotTail2)):
+        raise HTTPException(status_code=400, detail="Camera does not support focus control")
+    
+    success = await camera.set_focus(request.mode, request.value)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to set focus")
+    
+    return {"success": True, "camera": camera_name, "parameter": "focus"}
+
+
+class SetWhiteBalanceRequest(BaseModel):
+    mode: str
+    temperature: Optional[int] = None
+
+@app.put("/api/v1/cameras/{camera_name}/settings/whiteBalance")
+async def set_camera_white_balance(camera_name: str, request: SetWhiteBalanceRequest = Body(...)) -> Dict[str, Any]:
+    """Set camera white balance"""
+    if not camera_control_manager:
+        raise HTTPException(status_code=503, detail="Camera control not available")
+    
+    if camera_name not in camera_control_manager.cameras:
+        raise HTTPException(status_code=404, detail=f"Camera '{camera_name}' not found")
+    
+    camera = camera_control_manager.cameras[camera_name]
+    if not isinstance(camera, (BlackmagicCamera, ObsbotTail2)):
+        raise HTTPException(status_code=400, detail="Camera does not support white balance control")
+    
+    success = await camera.set_white_balance(request.mode, request.temperature)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to set white balance")
+    
+    return {"success": True, "camera": camera_name, "parameter": "whiteBalance"}
+
+
+class SetExposureRequest(BaseModel):
+    mode: str
+    value: Optional[float] = None
+
+@app.put("/api/v1/cameras/{camera_name}/settings/exposure")
+async def set_camera_exposure(camera_name: str, request: SetExposureRequest = Body(...)) -> Dict[str, Any]:
+    """Set camera exposure (OBSbot)"""
+    if not camera_control_manager:
+        raise HTTPException(status_code=503, detail="Camera control not available")
+    
+    if camera_name not in camera_control_manager.cameras:
+        raise HTTPException(status_code=404, detail=f"Camera '{camera_name}' not found")
+    
+    camera = camera_control_manager.cameras[camera_name]
+    if isinstance(camera, ObsbotTail2):
+        success = await camera.set_exposure(request.mode, request.value)
+    elif isinstance(camera, BlackmagicCamera):
+        raise HTTPException(status_code=400, detail="Use /settings/iso and /settings/shutter for Blackmagic cameras")
+    else:
+        raise HTTPException(status_code=400, detail="Camera does not support exposure control")
+    
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to set exposure")
+    
+    return {"success": True, "camera": camera_name, "parameter": "exposure"}
+
+
+class SetValueRequest(BaseModel):
+    value: float
+
+@app.put("/api/v1/cameras/{camera_name}/settings/iso")
+async def set_camera_iso(camera_name: str, request: SetValueRequest = Body(...)) -> Dict[str, Any]:
+    """Set camera ISO (Blackmagic only)"""
+    if not camera_control_manager:
+        raise HTTPException(status_code=503, detail="Camera control not available")
+    
+    if camera_name not in camera_control_manager.cameras:
+        raise HTTPException(status_code=404, detail=f"Camera '{camera_name}' not found")
+    
+    camera = camera_control_manager.cameras[camera_name]
+    if not isinstance(camera, BlackmagicCamera):
+        raise HTTPException(status_code=400, detail="Camera does not support ISO control")
+    
+    success = await camera.set_iso(int(request.value))
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to set ISO")
+    
+    return {"success": True, "camera": camera_name, "parameter": "iso", "value": int(request.value)}
+
+
+@app.put("/api/v1/cameras/{camera_name}/settings/shutter")
+async def set_camera_shutter(camera_name: str, request: SetValueRequest = Body(...)) -> Dict[str, Any]:
+    """Set camera shutter speed (Blackmagic only)"""
+    if not camera_control_manager:
+        raise HTTPException(status_code=503, detail="Camera control not available")
+    
+    if camera_name not in camera_control_manager.cameras:
+        raise HTTPException(status_code=404, detail=f"Camera '{camera_name}' not found")
+    
+    camera = camera_control_manager.cameras[camera_name]
+    if not isinstance(camera, BlackmagicCamera):
+        raise HTTPException(status_code=400, detail="Camera does not support shutter control")
+    
+    success = await camera.set_shutter(request.value)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to set shutter")
+    
+    return {"success": True, "camera": camera_name, "parameter": "shutter", "value": request.value}
+
+
+class SetIrisRequest(BaseModel):
+    mode: str
+    value: Optional[float] = None
+
+@app.put("/api/v1/cameras/{camera_name}/settings/iris")
+async def set_camera_iris(camera_name: str, request: SetIrisRequest = Body(...)) -> Dict[str, Any]:
+    """Set camera iris (Blackmagic only)"""
+    if not camera_control_manager:
+        raise HTTPException(status_code=503, detail="Camera control not available")
+    
+    if camera_name not in camera_control_manager.cameras:
+        raise HTTPException(status_code=404, detail=f"Camera '{camera_name}' not found")
+    
+    camera = camera_control_manager.cameras[camera_name]
+    if not isinstance(camera, BlackmagicCamera):
+        raise HTTPException(status_code=400, detail="Camera does not support iris control")
+    
+    success = await camera.set_iris(request.mode, request.value)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to set iris")
+    
+    return {"success": True, "camera": camera_name, "parameter": "iris"}
+
+
+@app.put("/api/v1/cameras/{camera_name}/settings/gain")
+async def set_camera_gain(camera_name: str, request: SetValueRequest = Body(...)) -> Dict[str, Any]:
+    """Set camera gain (Blackmagic only)"""
+    if not camera_control_manager:
+        raise HTTPException(status_code=503, detail="Camera control not available")
+    
+    if camera_name not in camera_control_manager.cameras:
+        raise HTTPException(status_code=404, detail=f"Camera '{camera_name}' not found")
+    
+    camera = camera_control_manager.cameras[camera_name]
+    if not isinstance(camera, BlackmagicCamera):
+        raise HTTPException(status_code=400, detail="Camera does not support gain control")
+    
+    success = await camera.set_gain(request.value)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to set gain")
+    
+    return {"success": True, "camera": camera_name, "parameter": "gain", "value": request.value}
+
+
+class SetPTZRequest(BaseModel):
+    pan: float
+    tilt: float
+    zoom: float
+
+@app.put("/api/v1/cameras/{camera_name}/settings/ptz")
+async def set_camera_ptz(camera_name: str, request: SetPTZRequest = Body(...)) -> Dict[str, Any]:
+    """Move PTZ camera (OBSbot only)"""
+    if not camera_control_manager:
+        raise HTTPException(status_code=503, detail="Camera control not available")
+    
+    if camera_name not in camera_control_manager.cameras:
+        raise HTTPException(status_code=404, detail=f"Camera '{camera_name}' not found")
+    
+    camera = camera_control_manager.cameras[camera_name]
+    if not isinstance(camera, ObsbotTail2):
+        raise HTTPException(status_code=400, detail="Camera does not support PTZ control")
+    
+    success = await camera.ptz_move(request.pan, request.tilt, request.zoom)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to move PTZ")
+    
+    return {"success": True, "camera": camera_name, "parameter": "ptz"}
+
+
+@app.put("/api/v1/cameras/{camera_name}/settings/ptz/preset/{preset_id}")
+async def recall_camera_ptz_preset(camera_name: str, preset_id: int) -> Dict[str, Any]:
+    """Recall PTZ preset (OBSbot only)"""
+    if not camera_control_manager:
+        raise HTTPException(status_code=503, detail="Camera control not available")
+    
+    if camera_name not in camera_control_manager.cameras:
+        raise HTTPException(status_code=404, detail=f"Camera '{camera_name}' not found")
+    
+    camera = camera_control_manager.cameras[camera_name]
+    if not isinstance(camera, ObsbotTail2):
+        raise HTTPException(status_code=400, detail="Camera does not support PTZ presets")
+    
+    success = await camera.ptz_preset(preset_id)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to recall preset")
+    
+    return {"success": True, "camera": camera_name, "preset_id": preset_id}
+
+
+class SetColorCorrectionRequest(BaseModel):
+    lift: Optional[List[float]] = None
+    gamma: Optional[List[float]] = None
+    gain: Optional[List[float]] = None
+    offset: Optional[List[float]] = None
+
+@app.put("/api/v1/cameras/{camera_name}/settings/colorCorrection")
+async def set_camera_color_correction(
+    camera_name: str,
+    request: SetColorCorrectionRequest = Body(...)
+) -> Dict[str, Any]:
+    """Set color correction (Blackmagic only)"""
+    if not camera_control_manager:
+        raise HTTPException(status_code=503, detail="Camera control not available")
+    
+    if camera_name not in camera_control_manager.cameras:
+        raise HTTPException(status_code=404, detail=f"Camera '{camera_name}' not found")
+    
+    camera = camera_control_manager.cameras[camera_name]
+    if not isinstance(camera, BlackmagicCamera):
+        raise HTTPException(status_code=400, detail="Camera does not support color correction")
+    
+    settings = {}
+    if request.lift:
+        settings["lift"] = request.lift
+    if request.gamma:
+        settings["gamma"] = request.gamma
+    if request.gain:
+        settings["gain"] = request.gain
+    if request.offset:
+        settings["offset"] = request.offset
+    
+    success = await camera.set_color_correction(settings)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to set color correction")
+    
+    return {"success": True, "camera": camera_name, "parameter": "colorCorrection"}
 
 
 if __name__ == "__main__":
