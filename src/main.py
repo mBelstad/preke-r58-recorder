@@ -214,6 +214,12 @@ if reveal_js_dist_path.exists():
     app.mount("/reveal.js", StaticFiles(directory=str(reveal_js_dist_path)), name="reveal.js")
     logger.info(f"Mounted Reveal.js dist files at /reveal.js")
 
+# Mount Reveal.js root directory for serving demo/index.html
+reveal_js_root_path = Path(__file__).parent.parent / "reveal.js"
+if reveal_js_root_path.exists():
+    app.mount("/reveal-demo", StaticFiles(directory=str(reveal_js_root_path), html=True), name="reveal-demo")
+    logger.info(f"Mounted Reveal.js root at /reveal-demo (includes index.html)")
+
 # Create uploads directory for graphics
 uploads_dir = Path(__file__).parent.parent / "uploads"
 uploads_dir.mkdir(exist_ok=True)
