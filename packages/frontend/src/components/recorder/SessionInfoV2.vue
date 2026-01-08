@@ -10,6 +10,7 @@ import { useConnectionStatus } from '@/composables/useConnectionStatus'
 import { useTailscaleStatus } from '@/composables/useTailscaleStatus'
 import { useCameraControls } from '@/composables/useCameraControls'
 import CameraControlModal from '@/components/camera/CameraControlModal.vue'
+import CameraSetupModal from '@/components/camera/CameraSetupModal.vue'
 
 const router = useRouter()
 const recorderStore = useRecorderStore()
@@ -96,6 +97,7 @@ onMounted(() => {
 const { cameras, loadCameras } = useCameraControls()
 const selectedCameraForControl = ref<string | null>(null)
 const cameraModalRef = ref<InstanceType<typeof CameraControlModal> | null>(null)
+const cameraSetupModalRef = ref<InstanceType<typeof CameraSetupModal> | null>(null)
 
 onMounted(async () => {
   await loadCameras()
@@ -108,6 +110,15 @@ function openCameraControl(cameraName: string) {
 
 function closeCameraControl() {
   selectedCameraForControl.value = null
+}
+
+function openCameraSetup() {
+  cameraSetupModalRef.value?.open()
+}
+
+function onCameraConfigUpdated() {
+  // Reload cameras after config update
+  loadCameras()
 }
 
 // Storage info
@@ -205,9 +216,21 @@ function openInputConfig() {
     <!-- IDLE STATE -->
     <template v-else>
       <!-- Camera Controls -->
-      <div v-if="cameras.length > 0" class="sidebar__card">
-        <div class="sidebar__label">Camera Controls</div>
-        <div class="cameras">
+      <div class="sidebar__card">
+        <div class="sidebar__label">
+          Camera Controls
+          <button
+            @click="openCameraSetup"
+            class="camera-setup-btn"
+            title="Setup Cameras"
+          >
+            <svg class="camera-setup-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </button>
+        </div>
+        <div v-if="cameras.length > 0" class="cameras">
           <div 
             v-for="cam in cameras" 
             :key="cam.name"
@@ -237,6 +260,12 @@ function openInputConfig() {
             </button>
           </div>
         </div>
+        <div v-else class="cameras-empty">
+          <p class="cameras-empty__text">No cameras configured</p>
+          <button @click="openCameraSetup" class="cameras-empty__btn">
+            Setup Cameras
+          </button>
+        </div>
       </div>
       
       <!-- Camera Control Modal -->
@@ -244,6 +273,12 @@ function openInputConfig() {
         ref="cameraModalRef"
         :camera-name="selectedCameraForControl"
         @close="closeCameraControl"
+      />
+      
+      <!-- Camera Setup Modal -->
+      <CameraSetupModal
+        ref="cameraSetupModalRef"
+        @updated="onCameraConfigUpdated"
       />
       
       <!-- Quick Actions -->
@@ -363,6 +398,33 @@ function openInputConfig() {
   letter-spacing: 0.05em;
   color: var(--preke-text-muted, #888);
   margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.camera-setup-btn {
+  padding: 4px 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--preke-border, rgba(255,255,255,0.1));
+  border-radius: 4px;
+  color: var(--preke-text-muted, #888);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.camera-setup-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--preke-gold, #e0a030);
+  color: var(--preke-gold, #e0a030);
+}
+
+.camera-setup-icon {
+  width: 14px;
+  height: 14px;
 }
 
 .sidebar__input {
@@ -526,6 +588,33 @@ function openInputConfig() {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.cameras-empty {
+  text-align: center;
+  padding: 24px 12px;
+  color: var(--preke-text-muted, #888);
+}
+
+.cameras-empty__text {
+  font-size: 12px;
+  margin-bottom: 12px;
+}
+
+.cameras-empty__btn {
+  padding: 8px 16px;
+  background: var(--preke-gold, #e0a030);
+  border: none;
+  border-radius: 6px;
+  color: #000;
+  font-weight: 600;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.cameras-empty__btn:hover {
+  background: #f0b040;
 }
 
 .camera {

@@ -5061,6 +5061,72 @@ async def set_camera_color_correction(
     return {"success": True, "camera": camera_name, "parameter": "colorCorrection"}
 
 
+# ============================================================================
+# Camera Configuration API (Get/Set external_cameras config)
+# ============================================================================
+
+@app.get("/api/v1/cameras/config")
+async def get_camera_config() -> Dict[str, Any]:
+    """Get external cameras configuration from config.yml"""
+    try:
+        import yaml
+        with open(config_path, 'r') as f:
+            config_data = yaml.safe_load(f)
+        
+        external_cameras = config_data.get("external_cameras", [])
+        return {
+            "cameras": external_cameras,
+            "config_path": str(config_path)
+        }
+    except Exception as e:
+        logger.error(f"Failed to read camera config: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to read config: {str(e)}")
+
+
+@app.put("/api/v1/cameras/config")
+async def update_camera_config(cameras: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Update external cameras configuration in config.yml
+    
+    Args:
+        cameras: List of camera configuration dicts
+            Each dict should have: name, type, ip, enabled, and optional port
+    """
+    try:
+        import yaml
+        
+        # Read existing config
+        with open(config_path, 'r') as f:
+            config_data = yaml.safe_load(f) or {}
+        
+        # Update external_cameras section
+        config_data["external_cameras"] = cameras
+        
+        # Write back to file
+        with open(config_path, 'w') as f:
+            yaml.dump(config_data, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
+        
+        # Reload camera control manager
+        global camera_control_manager
+        if cameras:
+            try:
+                camera_control_manager = CameraControlManager(cameras)
+                logger.info(f"Camera control manager reloaded with {camera_control_manager.get_camera_count()} camera(s)")
+            except Exception as e:
+                logger.error(f"Failed to reload camera control manager: {e}")
+                camera_control_manager = None
+        else:
+            camera_control_manager = None
+        
+        return {
+            "success": True,
+            "cameras": cameras,
+            "message": "Configuration updated. Service restart may be required for changes to take effect."
+        }
+    except Exception as e:
+        logger.error(f"Failed to update camera config: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to update config: {str(e)}")
+
+
 if __name__ == "__main__":
     import uvicorn
 

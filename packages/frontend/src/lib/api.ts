@@ -1247,6 +1247,33 @@ export const r58Api = {
         settings
       )
     },
+
+    async getConfig() {
+      return apiGet<{
+        cameras: Array<{
+          name: string
+          type: string
+          ip: string
+          port?: number
+          enabled: boolean
+        }>
+        config_path: string
+      }>(await buildApiUrl('/api/v1/cameras/config'))
+    },
+
+    async updateConfig(cameras: Array<{
+      name: string
+      type: string
+      ip: string
+      port?: number
+      enabled: boolean
+    }>) {
+      return apiPut<{
+        success: boolean
+        cameras: Array<any>
+        message: string
+      }>(await buildApiUrl('/api/v1/cameras/config'), cameras)
+    },
   },
 }
 

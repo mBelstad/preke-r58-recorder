@@ -558,5 +558,18 @@ export function setupDaVinciHandlers(getWindow: () => BrowserWindow | null): voi
     return { connected, scriptPath: getResolveScriptPath() }
   })
   
+  ipcMain.handle('davinci-open-project', async (_event, projectName?: string) => {
+    return await openOrCreateProject(projectName)
+  })
+  
+  ipcMain.handle('davinci-create-multicam', async (_event, options: {
+    projectName?: string
+    clipName?: string
+    filePaths?: string[]
+    syncMethod?: string
+  }) => {
+    return await createMulticamTimeline(options)
+  })
+  
   log.info('DaVinci IPC handlers registered')
 }
