@@ -429,6 +429,108 @@ const electronAPI = {
    * Get platform
    */
   platform: process.platform,
+
+  // ============================================
+  // DaVinci Resolve Integration
+  // ============================================
+
+  /**
+   * Start DaVinci Resolve integration (polls R58 for recording changes)
+   */
+  davinciStart: (): Promise<{ success: boolean }> => {
+    return ipcRenderer.invoke('davinci-start')
+  },
+
+  /**
+   * Stop DaVinci Resolve integration
+   */
+  davinciStop: (): Promise<{ success: boolean }> => {
+    return ipcRenderer.invoke('davinci-stop')
+  },
+
+  /**
+   * Get DaVinci integration status
+   */
+  davinciStatus: (): Promise<{
+    enabled: boolean
+    resolveConnected: boolean
+    currentSession: string | null
+  }> => {
+    return ipcRenderer.invoke('davinci-status')
+  },
+
+  /**
+   * Check if DaVinci Resolve is running and accessible
+   */
+  davinciCheckResolve: (): Promise<{
+    connected: boolean
+    scriptPath: string | null
+  }> => {
+    return ipcRenderer.invoke('davinci-check-resolve')
+  },
+
+  /**
+   * Update DaVinci config
+   */
+  davinciConfig: (config?: {
+    pollIntervalMs?: number
+    projectNamePrefix?: string
+    autoCreateProject?: boolean
+    autoImportMedia?: boolean
+    createMulticamTimeline?: boolean
+  }): Promise<{
+    enabled: boolean
+    pollIntervalMs: number
+    projectNamePrefix: string
+    autoCreateProject: boolean
+    autoImportMedia: boolean
+    createMulticamTimeline: boolean
+  }> => {
+    return ipcRenderer.invoke('davinci-config', config)
+  },
+
+  /**
+   * Listen for DaVinci session start events
+   */
+  onDavinciSessionStart: (callback: (data: {
+    sessionId: string
+    startTime: string
+    cameras: Record<string, unknown>
+  }) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, data: {
+      sessionId: string
+      startTime: string
+      cameras: Record<string, unknown>
+    }) => callback(data)
+    ipcRenderer.on('davinci-session-start', handler)
+    return () => ipcRenderer.removeListener('davinci-session-start', handler)
+  },
+
+  /**
+   * Listen for DaVinci session stop events
+   */
+  onDavinciSessionStop: (callback: (data: {
+    sessionId: string
+    cameras: Record<string, unknown>
+    filePaths: string[]
+  }) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, data: {
+      sessionId: string
+      cameras: Record<string, unknown>
+      filePaths: string[]
+    }) => callback(data)
+    ipcRenderer.on('davinci-session-stop', handler)
+    return () => ipcRenderer.removeListener('davinci-session-stop', handler)
+  },
+
+  /**
+   * Listen for DaVinci connection changes
+   */
+  onDavinciConnectionChanged: (callback: (data: { connected: boolean }) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, data: { connected: boolean }) => callback(data)
+    ipcRenderer.on('davinci-connection-changed', handler)
+    return () => ipcRenderer.removeListener('davinci-connection-changed', handler)
+  },
 }
 
 // Expose the API to the renderer

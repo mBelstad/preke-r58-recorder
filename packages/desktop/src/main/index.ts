@@ -13,6 +13,7 @@ import { deviceStore } from './deviceStore'
 import { initializeLogger, log, exportSupportBundle, readRecentLogs, getLogFilePath } from './logger'
 import { setupDiscoveryHandlers } from './discovery'
 import { setupUpdateListeners, checkForUpdates, downloadUpdate, installUpdate, getCurrentVersion } from './updater'
+import { setupDaVinciHandlers } from './davinci'
 
 // Prevent multiple instances
 const gotTheLock = app.requestSingleInstanceLock()
@@ -192,6 +193,9 @@ app.whenReady().then(() => {
   
   // Register discovery handlers
   setupDiscoveryHandlers(getMainWindow)
+  
+  // Register DaVinci Resolve integration handlers
+  setupDaVinciHandlers(getMainWindow)
   
   // Setup update listeners (must be after window creation)
   setupUpdateListeners()
