@@ -75,11 +75,33 @@ Show in UI:
 
 ---
 
+#### 6. P2P WebRTC with Intelligent Failover for VDO.ninja Mixer
+**Status:** 📋 Planned  
+**Effort:** High (8+ hours)
+
+Enable P2P connections for VDO.ninja mixer when possible:
+
+| Priority | Method | Latency | Use Case |
+|----------|--------|---------|----------|
+| 1 | LAN Direct | 1-5ms | Same network |
+| 2 | Tailscale P2P | 2-20ms | Cross-network |
+| 3 | FRP Tunnel | 100-300ms | Fallback |
+
+**Implementation:**
+- Detect network topology (same LAN, Tailscale available, etc.)
+- Try P2P first with 2-second timeout
+- Fall back gracefully to FRP
+- Works in both web app and Electron app
+
+**Why:** Currently mixer always uses FRP which adds latency. P2P would give near-instant video when on same network or via Tailscale.
+
+---
+
 ## Version 2.2 - Security & Production
 
 ### Medium Priority
 
-#### 6. API Authentication
+#### 7. API Authentication
 **Status:** 📋 Planned  
 **Effort:** High (8+ hours)
 
@@ -92,7 +114,7 @@ Add authentication for remote API access:
 
 ---
 
-#### 7. Disable SSH Password Auth
+#### 8. Disable SSH Password Auth
 **Status:** 📋 Planned  
 **Effort:** Low (30 min)
 
@@ -103,7 +125,7 @@ On production devices:
 
 ---
 
-#### 8. Per-Device FRP Tokens
+#### 9. Per-Device FRP Tokens
 **Status:** 📋 Planned  
 **Effort:** Low (1 hour)
 

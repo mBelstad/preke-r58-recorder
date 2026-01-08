@@ -58,6 +58,9 @@ const mixerUrl = computed(() => {
   url.searchParams.set('room', VDO_ROOM)
   url.searchParams.set('password', VDO_DIRECTOR_PASSWORD)
   
+  // Add custom CSS via URL parameter (more reliable than <link> tag)
+  url.searchParams.set('css', `${VDO_PROTOCOL}://${VDO_HOST}/css/preke-colors.css`)
+  
   return url.toString()
 })
 
