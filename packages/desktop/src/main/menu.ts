@@ -5,6 +5,7 @@
 import { Menu, app, shell, MenuItemConstructorOptions } from 'electron'
 import { reloadMainWindow, toggleDevTools, showDeviceSetup, getMainWindow } from './window'
 import { log } from './logger'
+import { checkForUpdates } from './updater'
 
 // Development mode detection
 const isDev = !app.isPackaged
@@ -38,6 +39,15 @@ function getMenuTemplate(): MenuItemConstructorOptions[] {
           click: () => showDeviceSetup()
         },
         { type: 'separator' as const },
+        {
+          label: 'Check for Updates...',
+          click: () => {
+            checkForUpdates().catch((error) => {
+              log.error('Failed to check for updates:', error)
+            })
+          }
+        },
+        { type: 'separator' as const },
         { role: 'services' as const },
         { type: 'separator' as const },
         { role: 'hide' as const },
@@ -56,6 +66,15 @@ function getMenuTemplate(): MenuItemConstructorOptions[] {
           label: 'Devices...',
           accelerator: 'CmdOrCtrl+,',
           click: () => showDeviceSetup()
+        },
+        { type: 'separator' as const },
+        {
+          label: 'Check for Updates...',
+          click: () => {
+            checkForUpdates().catch((error) => {
+              log.error('Failed to check for updates:', error)
+            })
+          }
         },
         { type: 'separator' as const },
         { role: 'quit' as const }

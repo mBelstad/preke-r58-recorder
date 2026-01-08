@@ -6,6 +6,7 @@ import ToastContainer from '@/components/shared/ToastContainer.vue'
 import ShortcutsHelpModal from '@/components/shared/ShortcutsHelpModal.vue'
 import KioskSleepScreen from '@/components/shared/KioskSleepScreen.vue'
 import SplashScreen from '@/components/shared/SplashScreen.vue'
+import UpdateNotification from '@/components/shared/UpdateNotification.vue'
 import { isElectron } from '@/lib/api'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import { useR58WebSocket } from '@/composables/useWebSocket'
@@ -66,6 +67,7 @@ onUnmounted(() => {
   </AppShell>
   
   <!-- Global UI components -->
+  <UpdateNotification />
   <ToastContainer />
   <ShortcutsHelpModal />
 </template>

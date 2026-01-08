@@ -91,3 +91,11 @@ linux:
         - x64
   category: AudioVideo
   icon: resources/icon.png
+
+# Auto-update configuration
+publish:
+  provider: github
+  owner: mBelstad
+  repo: preke-r58-recorder
+  # GitHub token will be read from GH_TOKEN env var or .env file
+  # For private repos, use a Personal Access Token with 'repo' scope

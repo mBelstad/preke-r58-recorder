@@ -12,6 +12,7 @@ import { createApplicationMenu } from './menu'
 import { deviceStore } from './deviceStore'
 import { initializeLogger, log, exportSupportBundle, readRecentLogs, getLogFilePath } from './logger'
 import { setupDiscoveryHandlers } from './discovery'
+import { setupUpdateListeners, checkForUpdates, downloadUpdate, installUpdate, getCurrentVersion } from './updater'
 
 // Prevent multiple instances
 const gotTheLock = app.requestSingleInstanceLock()
@@ -161,6 +162,23 @@ function registerIpcHandlers(): void {
       path: getLogFilePath()
     }
   })
+
+  // Update management
+  ipcMain.handle('check-for-updates', async () => {
+    return await checkForUpdates()
+  })
+
+  ipcMain.handle('download-update', async () => {
+    return await downloadUpdate()
+  })
+
+  ipcMain.handle('install-update', () => {
+    installUpdate()
+  })
+
+  ipcMain.handle('get-current-version', () => {
+    return getCurrentVersion()
+  })
 }
 
 /**
@@ -175,11 +193,22 @@ app.whenReady().then(() => {
   // Register discovery handlers
   setupDiscoveryHandlers(getMainWindow)
   
+  // Setup update listeners (must be after window creation)
+  setupUpdateListeners()
+  
   // Create application menu
   createApplicationMenu()
   
   // Create main window
   createMainWindow()
+  
+  // Check for updates on startup (after a short delay to not block UI)
+  setTimeout(() => {
+    log.info('Checking for updates on startup...')
+    checkForUpdates().catch((error) => {
+      log.warn('Failed to check for updates on startup:', error)
+    })
+  }, 5000) // Wait 5 seconds after app start
   
   // macOS: Re-create window when dock icon is clicked
   app.on('activate', () => {
