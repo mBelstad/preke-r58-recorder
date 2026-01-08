@@ -43,6 +43,12 @@ class EventType(str, Enum):
     # System
     HEALTH_CHANGED = "health.changed"
     STORAGE_WARNING = "storage.warning"
+    
+    # Camera Control
+    CAMERA_CONNECTED = "camera.connected"
+    CAMERA_DISCONNECTED = "camera.disconnected"
+    CAMERA_SETTINGS_CHANGED = "camera.settings.changed"
+    CAMERA_ERROR = "camera.error"
 
 
 class BaseEvent(BaseModel):
@@ -181,6 +187,96 @@ class PipelineErrorEvent(BaseEvent):
                 "pipeline_id": pipeline_id,
                 "error": error,
                 "input_id": input_id,
+            }
+        )
+
+
+class CameraSettingsChangedEvent(BaseEvent):
+    """Camera settings changed"""
+    type: EventType = EventType.CAMERA_SETTINGS_CHANGED
+
+    @classmethod
+    def create(
+        cls,
+        camera_name: str,
+        parameter: str,
+        value: Any,
+        device_id: str = "",
+        seq: int = 0
+    ) -> "CameraSettingsChangedEvent":
+        return cls(
+            seq=seq,
+            device_id=device_id,
+            payload={
+                "camera": camera_name,
+                "parameter": parameter,
+                "value": value,
+            }
+        )
+
+
+class CameraConnectedEvent(BaseEvent):
+    """Camera connected"""
+    type: EventType = EventType.CAMERA_CONNECTED
+
+    @classmethod
+    def create(
+        cls,
+        camera_name: str,
+        camera_type: str,
+        device_id: str = "",
+        seq: int = 0
+    ) -> "CameraConnectedEvent":
+        return cls(
+            seq=seq,
+            device_id=device_id,
+            payload={
+                "camera": camera_name,
+                "type": camera_type,
+            }
+        )
+
+
+class CameraDisconnectedEvent(BaseEvent):
+    """Camera disconnected"""
+    type: EventType = EventType.CAMERA_DISCONNECTED
+
+    @classmethod
+    def create(
+        cls,
+        camera_name: str,
+        device_id: str = "",
+        seq: int = 0
+    ) -> "CameraDisconnectedEvent":
+        return cls(
+            seq=seq,
+            device_id=device_id,
+            payload={
+                "camera": camera_name,
+            }
+        )
+
+
+class CameraErrorEvent(BaseEvent):
+    """Camera control error"""
+    type: EventType = EventType.CAMERA_ERROR
+
+    @classmethod
+    def create(
+        cls,
+        camera_name: str,
+        error: str,
+        parameter: Optional[str] = None,
+        device_id: str = "",
+        seq: int = 0
+    ) -> "CameraErrorEvent":
+        return cls(
+            seq=seq,
+            device_id=device_id,
+            payload={
+                "camera": camera_name,
+                "error": error,
+                "parameter": parameter,
             }
         )
 

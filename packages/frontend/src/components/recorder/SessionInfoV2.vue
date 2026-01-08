@@ -8,6 +8,8 @@ import { useRecorderStore } from '@/stores/recorder'
 import { useCapabilitiesStore } from '@/stores/capabilities'
 import { useConnectionStatus } from '@/composables/useConnectionStatus'
 import { useTailscaleStatus } from '@/composables/useTailscaleStatus'
+import { useCameraControls } from '@/composables/useCameraControls'
+import CameraControlModal from '@/components/camera/CameraControlModal.vue'
 
 const router = useRouter()
 const recorderStore = useRecorderStore()
@@ -90,20 +92,22 @@ onMounted(() => {
   sessionName.value = `Session ${dateStr}`
 })
 
-// Camera controls (placeholder values)
-const cameraControls = ref([
-  { id: 'cam1', name: 'CAM 1', focus: 'auto', wb: 'auto', shutter: 'auto', aperture: 'auto' },
-  { id: 'cam2', name: 'CAM 2', focus: 'auto', wb: 'auto', shutter: 'auto', aperture: 'auto' },
-  { id: 'cam3', name: 'CAM 3', focus: 'auto', wb: 'auto', shutter: 'auto', aperture: 'auto' },
-  { id: 'cam4', name: 'CAM 4', focus: 'auto', wb: 'auto', shutter: 'auto', aperture: 'auto' },
-])
+// Camera controls
+const { cameras, loadCameras } = useCameraControls()
+const selectedCameraForControl = ref<string | null>(null)
+const cameraModalRef = ref<InstanceType<typeof CameraControlModal> | null>(null)
 
-// Toggle a setting to auto
-function toggleAuto(camIndex: number, setting: 'focus' | 'wb' | 'shutter' | 'aperture') {
-  const cam = cameraControls.value[camIndex]
-  if (cam) {
-    cam[setting] = cam[setting] === 'auto' ? 'manual' : 'auto'
-  }
+onMounted(async () => {
+  await loadCameras()
+})
+
+function openCameraControl(cameraName: string) {
+  selectedCameraForControl.value = cameraName
+  cameraModalRef.value?.open()
+}
+
+function closeCameraControl() {
+  selectedCameraForControl.value = null
 }
 
 // Storage info
@@ -201,56 +205,46 @@ function openInputConfig() {
     <!-- IDLE STATE -->
     <template v-else>
       <!-- Camera Controls -->
-      <div class="sidebar__card">
+      <div v-if="cameras.length > 0" class="sidebar__card">
         <div class="sidebar__label">Camera Controls</div>
         <div class="cameras">
           <div 
-            v-for="(cam, index) in cameraControls" 
-            :key="cam.id"
+            v-for="cam in cameras" 
+            :key="cam.name"
             class="camera"
           >
-            <div class="camera__header">{{ cam.name }}</div>
-            <div class="camera__controls">
-              <button 
-                class="camera__btn"
-                :class="{ 'camera__btn--auto': cam.focus === 'auto' }"
-                @click="toggleAuto(index, 'focus')"
-                title="Focus"
+            <div class="camera__header">
+              {{ cam.name }}
+              <span 
+                :class="[
+                  'camera__status',
+                  cam.connected ? 'camera__status--connected' : 'camera__status--disconnected'
+                ]"
               >
-                <span class="camera__btn-icon">◎</span>
-                <span class="camera__btn-label">{{ cam.focus === 'auto' ? 'A' : 'M' }}</span>
-              </button>
-              <button 
-                class="camera__btn"
-                :class="{ 'camera__btn--auto': cam.wb === 'auto' }"
-                @click="toggleAuto(index, 'wb')"
-                title="White Balance"
-              >
-                <span class="camera__btn-icon">☀</span>
-                <span class="camera__btn-label">{{ cam.wb === 'auto' ? 'A' : 'M' }}</span>
-              </button>
-              <button 
-                class="camera__btn"
-                :class="{ 'camera__btn--auto': cam.shutter === 'auto' }"
-                @click="toggleAuto(index, 'shutter')"
-                title="Shutter"
-              >
-                <span class="camera__btn-icon">⏱</span>
-                <span class="camera__btn-label">{{ cam.shutter === 'auto' ? 'A' : 'M' }}</span>
-              </button>
-              <button 
-                class="camera__btn"
-                :class="{ 'camera__btn--auto': cam.aperture === 'auto' }"
-                @click="toggleAuto(index, 'aperture')"
-                title="Aperture"
-              >
-                <span class="camera__btn-icon">◐</span>
-                <span class="camera__btn-label">{{ cam.aperture === 'auto' ? 'A' : 'M' }}</span>
-              </button>
+                {{ cam.connected ? '●' : '○' }}
+              </span>
             </div>
+            <button 
+              class="camera__control-btn"
+              @click="openCameraControl(cam.name)"
+              :disabled="!cam.connected"
+            >
+              <svg class="camera__control-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+              <span>Controls</span>
+            </button>
           </div>
         </div>
       </div>
+      
+      <!-- Camera Control Modal -->
+      <CameraControlModal
+        ref="cameraModalRef"
+        :camera-name="selectedCameraForControl"
+        @close="closeCameraControl"
+      />
       
       <!-- Quick Actions -->
       <div class="sidebar__card">
@@ -547,47 +541,57 @@ function openInputConfig() {
   margin-bottom: 6px;
 }
 
-.camera__controls {
+.camera__header {
   display: flex;
-  gap: 4px;
-}
-
-.camera__btn {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 2px;
-  padding: 6px 4px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--preke-border, rgba(255,255,255,0.1));
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.15s ease;
+  justify-content: space-between;
 }
 
-.camera__btn:hover {
-  background: rgba(255, 255, 255, 0.08);
+.camera__status {
+  font-size: 10px;
+  margin-left: 8px;
 }
 
-.camera__btn--auto {
-  background: rgba(34, 197, 94, 0.15);
-  border-color: rgba(34, 197, 94, 0.3);
-}
-
-.camera__btn--auto .camera__btn-label {
+.camera__status--connected {
   color: var(--preke-green, #22c55e);
 }
 
-.camera__btn-icon {
-  font-size: 12px;
-  color: var(--preke-text-muted, #888);
+.camera__status--disconnected {
+  color: var(--preke-red, #d45a5a);
 }
 
-.camera__btn-label {
-  font-size: 9px;
-  font-weight: 600;
+.camera__control-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px;
+  margin-top: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--preke-border, rgba(255,255,255,0.1));
+  border-radius: 6px;
   color: var(--preke-text-muted, #888);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.camera__control-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--preke-text, #fff);
+  border-color: var(--preke-gold, #e0a030);
+}
+
+.camera__control-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.camera__control-icon {
+  width: 16px;
+  height: 16px;
 }
 
 /* Storage */

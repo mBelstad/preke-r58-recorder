@@ -1150,5 +1150,105 @@ export const r58Api = {
       }>(this.getFleetUrl(`/api/v1/releases/latest?channel=${channel}`))
     },
   },
+
+  // Camera Control
+  cameras: {
+    async list() {
+      return apiGet<string[]>(await buildApiUrl('/api/v1/cameras/'))
+    },
+
+    async getStatus(cameraName: string) {
+      return apiGet<{
+        name: string
+        type: string
+        connected: boolean
+        settings?: Record<string, any>
+      }>(await buildApiUrl(`/api/v1/cameras/${cameraName}/status`))
+    },
+
+    async getSettings(cameraName: string) {
+      return apiGet<{
+        name: string
+        settings: Record<string, any>
+      }>(await buildApiUrl(`/api/v1/cameras/${cameraName}/settings`))
+    },
+
+    async setFocus(cameraName: string, mode: 'auto' | 'manual', value?: number) {
+      return apiPut<{ success: boolean; camera: string; parameter: string }>(
+        await buildApiUrl(`/api/v1/cameras/${cameraName}/settings/focus`),
+        { mode, value }
+      )
+    },
+
+    async setWhiteBalance(cameraName: string, mode: 'auto' | 'manual' | 'preset', temperature?: number) {
+      return apiPut<{ success: boolean; camera: string; parameter: string }>(
+        await buildApiUrl(`/api/v1/cameras/${cameraName}/settings/whiteBalance`),
+        { mode, temperature }
+      )
+    },
+
+    async setExposure(cameraName: string, mode: 'auto' | 'manual', value?: number) {
+      return apiPut<{ success: boolean; camera: string; parameter: string }>(
+        await buildApiUrl(`/api/v1/cameras/${cameraName}/settings/exposure`),
+        { mode, value }
+      )
+    },
+
+    async setISO(cameraName: string, value: number) {
+      return apiPut<{ success: boolean; camera: string; parameter: string; value: number }>(
+        await buildApiUrl(`/api/v1/cameras/${cameraName}/settings/iso?value=${value}`),
+        {}
+      )
+    },
+
+    async setShutter(cameraName: string, value: number) {
+      return apiPut<{ success: boolean; camera: string; parameter: string; value: number }>(
+        await buildApiUrl(`/api/v1/cameras/${cameraName}/settings/shutter?value=${value}`),
+        {}
+      )
+    },
+
+    async setIris(cameraName: string, mode: 'auto' | 'manual', value?: number) {
+      const params = new URLSearchParams({ mode })
+      if (value !== undefined) params.set('value', value.toString())
+      return apiPut<{ success: boolean; camera: string; parameter: string }>(
+        await buildApiUrl(`/api/v1/cameras/${cameraName}/settings/iris?${params}`),
+        {}
+      )
+    },
+
+    async setGain(cameraName: string, value: number) {
+      return apiPut<{ success: boolean; camera: string; parameter: string; value: number }>(
+        await buildApiUrl(`/api/v1/cameras/${cameraName}/settings/gain?value=${value}`),
+        {}
+      )
+    },
+
+    async setPTZ(cameraName: string, pan: number, tilt: number, zoom: number) {
+      return apiPut<{ success: boolean; camera: string; parameter: string }>(
+        await buildApiUrl(`/api/v1/cameras/${cameraName}/settings/ptz`),
+        { pan, tilt, zoom }
+      )
+    },
+
+    async recallPTZPreset(cameraName: string, presetId: number) {
+      return apiPut<{ success: boolean; camera: string; preset_id: number }>(
+        await buildApiUrl(`/api/v1/cameras/${cameraName}/settings/ptz/preset/${presetId}`),
+        {}
+      )
+    },
+
+    async setColorCorrection(cameraName: string, settings: {
+      lift?: number[]
+      gamma?: number[]
+      gain?: number[]
+      offset?: number[]
+    }) {
+      return apiPut<{ success: boolean; camera: string; parameter: string }>(
+        await buildApiUrl(`/api/v1/cameras/${cameraName}/settings/colorCorrection`),
+        settings
+      )
+    },
+  },
 }
 

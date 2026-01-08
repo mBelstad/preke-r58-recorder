@@ -124,4 +124,225 @@ class BlackmagicCamera:
                 return response.status_code < 500
         except Exception:
             return False
+    
+    async def set_focus(self, mode: str, value: Optional[float] = None) -> bool:
+        """Set focus mode and value.
+        
+        Args:
+            mode: 'auto' or 'manual'
+            value: Focus value (0.0-1.0) for manual mode
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            payload = {"mode": mode}
+            if mode == "manual" and value is not None:
+                payload["value"] = value
+            
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.put(
+                    f"{self.base_url}/camera/0/focus",
+                    json=payload
+                )
+                
+                if response.status_code == 200:
+                    logger.info(f"Set focus on {self.name}: {mode}" + (f"={value}" if value else ""))
+                    return True
+                else:
+                    logger.error(f"Failed to set focus on {self.name}: HTTP {response.status_code}")
+                    return False
+        except Exception as e:
+            logger.error(f"Error setting focus on {self.name}: {e}")
+            return False
+    
+    async def set_iris(self, mode: str, value: Optional[float] = None) -> bool:
+        """Set iris mode and value.
+        
+        Args:
+            mode: 'auto' or 'manual'
+            value: Iris value (f-stop) for manual mode
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            payload = {"mode": mode}
+            if mode == "manual" and value is not None:
+                payload["value"] = value
+            
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.put(
+                    f"{self.base_url}/camera/0/iris",
+                    json=payload
+                )
+                
+                if response.status_code == 200:
+                    logger.info(f"Set iris on {self.name}: {mode}" + (f"={value}" if value else ""))
+                    return True
+                else:
+                    logger.error(f"Failed to set iris on {self.name}: HTTP {response.status_code}")
+                    return False
+        except Exception as e:
+            logger.error(f"Error setting iris on {self.name}: {e}")
+            return False
+    
+    async def set_white_balance(self, mode: str, temperature: Optional[int] = None) -> bool:
+        """Set white balance mode and temperature.
+        
+        Args:
+            mode: 'auto', 'manual', or 'preset'
+            temperature: Color temperature in Kelvin for manual mode
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            payload = {"mode": mode}
+            if mode == "manual" and temperature is not None:
+                payload["temperature"] = temperature
+            
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.put(
+                    f"{self.base_url}/camera/0/whiteBalance",
+                    json=payload
+                )
+                
+                if response.status_code == 200:
+                    logger.info(f"Set white balance on {self.name}: {mode}" + (f"={temperature}K" if temperature else ""))
+                    return True
+                else:
+                    logger.error(f"Failed to set white balance on {self.name}: HTTP {response.status_code}")
+                    return False
+        except Exception as e:
+            logger.error(f"Error setting white balance on {self.name}: {e}")
+            return False
+    
+    async def set_gain(self, value: float) -> bool:
+        """Set gain value.
+        
+        Args:
+            value: Gain in dB
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.put(
+                    f"{self.base_url}/camera/0/gain",
+                    json={"value": value}
+                )
+                
+                if response.status_code == 200:
+                    logger.info(f"Set gain on {self.name}: {value}dB")
+                    return True
+                else:
+                    logger.error(f"Failed to set gain on {self.name}: HTTP {response.status_code}")
+                    return False
+        except Exception as e:
+            logger.error(f"Error setting gain on {self.name}: {e}")
+            return False
+    
+    async def set_iso(self, value: int) -> bool:
+        """Set ISO value.
+        
+        Args:
+            value: ISO value (e.g., 400, 800, 1600)
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.put(
+                    f"{self.base_url}/camera/0/iso",
+                    json={"value": value}
+                )
+                
+                if response.status_code == 200:
+                    logger.info(f"Set ISO on {self.name}: {value}")
+                    return True
+                else:
+                    logger.error(f"Failed to set ISO on {self.name}: HTTP {response.status_code}")
+                    return False
+        except Exception as e:
+            logger.error(f"Error setting ISO on {self.name}: {e}")
+            return False
+    
+    async def set_shutter(self, value: float) -> bool:
+        """Set shutter speed.
+        
+        Args:
+            value: Shutter speed in seconds (e.g., 1/60 = 0.0167)
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.put(
+                    f"{self.base_url}/camera/0/shutter",
+                    json={"value": value}
+                )
+                
+                if response.status_code == 200:
+                    logger.info(f"Set shutter on {self.name}: {value}s")
+                    return True
+                else:
+                    logger.error(f"Failed to set shutter on {self.name}: HTTP {response.status_code}")
+                    return False
+        except Exception as e:
+            logger.error(f"Error setting shutter on {self.name}: {e}")
+            return False
+    
+    async def set_color_correction(self, settings: dict) -> bool:
+        """Set color correction parameters.
+        
+        Args:
+            settings: Dict with color correction parameters:
+                - lift: [r, g, b] (optional)
+                - gamma: [r, g, b] (optional)
+                - gain: [r, g, b] (optional)
+                - offset: [r, g, b] (optional)
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.put(
+                    f"{self.base_url}/camera/0/colorCorrection",
+                    json=settings
+                )
+                
+                if response.status_code == 200:
+                    logger.info(f"Set color correction on {self.name}")
+                    return True
+                else:
+                    logger.error(f"Failed to set color correction on {self.name}: HTTP {response.status_code}")
+                    return False
+        except Exception as e:
+            logger.error(f"Error setting color correction on {self.name}: {e}")
+            return False
+    
+    async def get_settings(self) -> Optional[dict]:
+        """Get all camera settings.
+        
+        Returns:
+            Dict with current camera settings, None on error
+        """
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                # Get camera info endpoint
+                response = await client.get(f"{self.base_url}/camera/0")
+                
+                if response.status_code == 200:
+                    return response.json()
+                else:
+                    logger.error(f"Failed to get settings from {self.name}: HTTP {response.status_code}")
+                    return None
+        except Exception as e:
+            logger.error(f"Error getting settings from {self.name}: {e}")
+            return None
 
