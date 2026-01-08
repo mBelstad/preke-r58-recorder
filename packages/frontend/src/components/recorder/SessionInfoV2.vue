@@ -178,6 +178,7 @@ async function openInDaVinci() {
   if (!electronAPI?.davinciOpenProject) return
   
   davinciLoading.value = true
+  toast.info('Opening DaVinci Resolve...')
   try {
     const result = await electronAPI.davinciOpenProject(davinciProjectName.value)
     if (result.success) {
@@ -289,7 +290,7 @@ async function createMulticamInDaVinci() {
           </svg>
           <span class="davinci__label">DaVinci Resolve</span>
         </div>
-        <p class="davinci__hint">Edit while recording with growing files</p>
+        <p class="davinci__hint">Edit while recording (mount R58 recordings via SMB)</p>
         <div class="davinci__buttons">
           <button 
             @click="openInDaVinci" 

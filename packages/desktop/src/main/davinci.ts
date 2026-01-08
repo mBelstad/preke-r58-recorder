@@ -484,8 +484,23 @@ async function openOrCreateProject(projectName?: string): Promise<{ success: boo
       } else if (process.platform === 'win32') {
         spawn('cmd.exe', ['/c', 'start', '', 'C:\\Program Files\\Blackmagic Design\\DaVinci Resolve\\Resolve.exe'], { detached: true, stdio: 'ignore' })
       }
-      // Wait for Resolve to start
-      await new Promise(resolve => setTimeout(resolve, 5000))
+      // Wait for Resolve to fully start (it takes ~10-15 seconds)
+      log.info('Waiting for DaVinci Resolve to initialize...')
+      await new Promise(resolve => setTimeout(resolve, 12000))
+      
+      // Check if it's running now
+      let attempts = 0
+      while (!isResolveRunning() && attempts < 10) {
+        await new Promise(resolve => setTimeout(resolve, 2000))
+        attempts++
+      }
+      
+      if (!isResolveRunning()) {
+        return { success: false, error: 'DaVinci Resolve failed to start. Please try again.' }
+      }
+      
+      // Give it a bit more time to be fully ready for scripting API
+      await new Promise(resolve => setTimeout(resolve, 3000))
     } catch (err) {
       log.error('Failed to launch DaVinci Resolve:', err)
       return { success: false, error: 'Failed to launch DaVinci Resolve' }
