@@ -188,21 +188,6 @@ function openInputConfig() {
         </div>
       </div>
       
-      <!-- Recording Stats -->
-      <div class="sidebar__card">
-        <div class="sidebar__label">Recording Stats</div>
-        <div class="stats">
-          <div 
-            v-for="input in recordingInputs" 
-            :key="input.id"
-            class="stats__item"
-          >
-            <span class="stats__label">{{ input.label }}</span>
-            <span class="stats__value">{{ formatBytes(input.bytesWritten) }}</span>
-          </div>
-        </div>
-      </div>
-      
       <!-- Storage Warning -->
       <div v-if="storageInfo?.isLow" class="sidebar__card sidebar__card--warning">
         <span class="warning__icon">⚠️</span>
@@ -215,15 +200,6 @@ function openInputConfig() {
     
     <!-- IDLE STATE -->
     <template v-else>
-      <!-- Status -->
-      <div class="sidebar__card">
-        <div class="sidebar__label">Status</div>
-        <p class="sidebar__hint">
-          {{ activeInputs.length }} input{{ activeInputs.length !== 1 ? 's' : '' }} with signal.
-          Press <kbd>Space</kbd> to start recording.
-        </p>
-      </div>
-      
       <!-- Camera Controls -->
       <div class="sidebar__card">
         <div class="sidebar__label">Camera Controls</div>

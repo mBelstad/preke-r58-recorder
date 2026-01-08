@@ -66,14 +66,14 @@ onUnmounted(() => {
 
 .preke-studio-logo__text {
   font-family: var(--preke-font-sans);
-  font-size: 32px; /* Slightly smaller */
+  font-size: 28px; /* Smaller than before */
   font-weight: 900; /* Heavier weight for fatter appearance */
   color: var(--preke-gold);
   letter-spacing: 0.01em; /* Tighter spacing for fatter look */
   line-height: 1;
   flex-shrink: 0;
   white-space: nowrap;
-  transform: translateY(-3px); /* Lift up a couple of pixels */
+  transform: translateY(-2px); /* 1 pixel lower than before (was -3px, now -2px) */
 }
 </style>
 

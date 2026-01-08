@@ -80,49 +80,50 @@ const storageInfo = computed(() => {
   }
 })
 
-// Unified status - add "Mode" to connection type labels
+// Unified status - always show "Connected" when connected, details in tooltip
 const statusInfo = computed(() => {
   const isConnected = state.value === 'connected'
   const isConnecting = state.value === 'connecting'
   const isDegraded = state.value === 'degraded'
   
   if (isConnected) {
-    let text = 'Connected'
+    // Always show "Connected" as text
+    let tooltip = 'Connected'
     if (connectionMethod.value !== 'unknown') {
-      // Add "Mode" to make it clearer (e.g., "Relay Mode", "P2P Mode")
       const method = connectionMethod.value
       if (method === 'relay') {
-        text = 'Relay Mode'
+        tooltip += ' · Relay'
       } else if (method === 'p2p') {
-        text = 'P2P Mode'
+        tooltip += ' · P2P'
       } else if (method === 'local') {
-        text = 'Local Mode'
+        tooltip += ' · Local'
       } else {
-        text = connectionLabel.value
+        tooltip += ` · ${connectionLabel.value}`
       }
     }
-    if (latencyMs.value && latencyMs.value >= 100) {
-      text += ` · ${latencyMs.value}ms`
+    if (latencyMs.value) {
+      tooltip += ` · ${latencyMs.value}ms`
     }
-    return { dot: 'green', text, showDetails: true }
+    return { dot: 'green', text: 'Connected', tooltip, showDetails: true }
   }
   
   if (isConnecting) {
     const text = reconnectAttempts.value > 0 
       ? `Reconnecting (${reconnectAttempts.value})...` 
       : 'Connecting...'
-    return { dot: 'amber', text, showDetails: false, pulse: true }
+    return { dot: 'amber', text, tooltip: text, showDetails: false, pulse: true }
   }
   
   if (isDegraded) {
     return { 
       dot: 'amber', 
       text: `Slow · ${latencyMs.value}ms`, 
+      tooltip: `Slow connection · ${latencyMs.value}ms`,
       showDetails: true 
     }
   }
   
-  return { dot: 'red', text: 'Offline', showDetails: false, pulse: true }
+  return { dot: 'red', text: 'Offline', tooltip: 'Offline', showDetails: false, pulse: true }
 })
 
 // Mode info for display - Full labels, no pulse (not live indicator)
@@ -144,8 +145,29 @@ const modeInfo = computed(() => {
     
     <!-- Left: Status indicators -->
     <div class="header__left">
+      <!-- Active camera indicator -->
+      <div class="header__cameras" :title="`Camera inputs`">
+        <svg class="header__cameras-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+        </svg>
+        <div 
+          v-for="slot in cameraSlots" 
+          :key="slot.id"
+          class="header__camera"
+          :class="{
+            'header__camera--active': slot.hasSignal,
+            'header__camera--recording': slot.isRecording
+          }"
+          :title="slot.label"
+        >
+          <span class="header__camera-num">{{ slot.id }}</span>
+        </div>
+      </div>
+      
+      <div class="header__divider"></div>
+      
       <!-- Connection status -->
-      <div class="header__status" :title="statusInfo.text">
+      <div class="header__status" :title="statusInfo.tooltip">
         <span 
           class="header__dot"
           :class="[
@@ -166,27 +188,6 @@ const modeInfo = computed(() => {
     <div class="header__right">
       <!-- Stats when connected -->
       <template v-if="statusInfo.showDetails">
-        <!-- Camera slots -->
-        <div class="header__cameras" :title="`Camera inputs`">
-          <svg class="header__cameras-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-          </svg>
-          <div 
-            v-for="slot in cameraSlots" 
-            :key="slot.id"
-            class="header__camera"
-            :class="{
-              'header__camera--active': slot.hasSignal,
-              'header__camera--recording': slot.isRecording
-            }"
-            :title="slot.label"
-          >
-            <span class="header__camera-num">{{ slot.id }}</span>
-          </div>
-        </div>
-        
-        <div class="header__divider"></div>
-        
         <!-- Storage bar -->
         <div class="header__storage" :title="`${storageInfo.freeGB} GB free`">
           <svg class="header__storage-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">

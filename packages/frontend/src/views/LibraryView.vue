@@ -302,11 +302,11 @@ onMounted(() => {
         <div 
           v-for="session in sessions" 
           :key="session.id"
-          class="glass-card p-4 rounded-xl flex items-center justify-between hover:border-preke-gold/30 transition-all duration-200"
+          class="glass-card p-4 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4 hover:border-preke-gold/30 transition-all duration-200"
         >
-          <div class="flex items-center gap-4">
+          <div class="flex items-center gap-4 min-w-0">
             <!-- Thumbnail: show camera icons for files in session -->
-            <div class="flex -space-x-2">
+            <div class="flex -space-x-2 shrink-0">
               <div 
                 v-for="(file, index) in session.files.slice(0, 3)" 
                 :key="file.filename"
@@ -323,25 +323,25 @@ onMounted(() => {
                 +{{ session.files.length - 3 }}
               </div>
             </div>
-            <div class="flex-1">
+            <div class="flex-1 min-w-0">
               <!-- Editable name -->
-              <div v-if="editingName === session.id" class="flex items-center gap-2">
+              <div v-if="editingName === session.id" class="flex items-center gap-2 flex-wrap">
                 <input 
                   v-model="newName"
                   @keyup.enter="saveRename(session)"
                   @keyup.escape="cancelRename"
-                  class="input text-sm py-1"
+                  class="input text-sm py-1 min-w-0 flex-1"
                   placeholder="Session name..."
                   autofocus
                 />
                 <button @click="saveRename(session)" class="text-preke-gold text-sm">Save</button>
                 <button @click="cancelRename" class="text-preke-text-dim text-sm">Cancel</button>
               </div>
-              <div v-else class="flex items-center gap-2">
-                <h3 class="font-medium text-preke-text">{{ session.name || session.id.substring(0, 8) }}</h3>
+              <div v-else class="flex items-center gap-2 min-w-0">
+                <h3 class="font-medium text-preke-text truncate">{{ session.name || session.id.substring(0, 8) }}</h3>
                 <button 
                   @click.stop="startRename(session)"
-                  class="text-preke-text-muted hover:text-preke-gold transition-colors"
+                  class="text-preke-text-muted hover:text-preke-gold transition-colors shrink-0"
                   title="Rename session"
                 >
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -349,14 +349,14 @@ onMounted(() => {
                   </svg>
                 </button>
               </div>
-              <p class="text-sm text-preke-text-muted">{{ session.date }} · {{ session.duration }}</p>
+              <p class="text-sm text-preke-text-muted truncate">{{ session.date }} · {{ session.duration }}</p>
             </div>
           </div>
           
-          <div class="flex items-center gap-4 text-sm text-preke-text-muted">
-            <span class="px-2 py-1 bg-preke-surface rounded text-xs">{{ session.file_count }} files</span>
-            <span class="px-2 py-1 bg-preke-surface rounded text-xs">{{ session.total_size }}</span>
-            <button @click="openSession(session)" class="btn-v2 btn-v2--secondary text-sm">Open</button>
+          <div class="flex items-center gap-2 md:gap-4 text-sm text-preke-text-muted flex-wrap md:flex-nowrap shrink-0">
+            <span class="px-2 py-1 bg-preke-surface rounded text-xs whitespace-nowrap">{{ session.file_count }} files</span>
+            <span class="px-2 py-1 bg-preke-surface rounded text-xs whitespace-nowrap">{{ session.total_size }}</span>
+            <button @click="openSession(session)" class="btn-v2 btn-v2--secondary text-sm whitespace-nowrap">Open</button>
             <button 
               @click.stop="deleteSession(session)" 
               class="btn-v2 btn-v2--ghost text-preke-red hover:bg-preke-red/10"
@@ -375,10 +375,10 @@ onMounted(() => {
     <Teleport to="body">
       <div 
         v-if="selectedSession"
-        class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-8"
+        class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 md:p-8"
         @click.self="closeSession"
       >
-        <div class="bg-preke-bg-elevated rounded-xl max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
+        <div class="bg-preke-bg-elevated rounded-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
           <!-- Modal Header -->
           <div class="px-6 py-4 border-b border-preke-bg-surface flex items-center justify-between">
             <div>
@@ -445,32 +445,35 @@ onMounted(() => {
     <Teleport to="body">
       <div 
         v-if="playingVideo"
-        class="fixed inset-0 bg-black/90 flex items-center justify-center z-[60] p-4"
+        class="fixed inset-0 bg-black/90 flex items-center justify-center z-[60] p-4 md:p-8"
         @click.self="closeVideoPlayer"
       >
-        <div class="relative max-w-5xl w-full">
-          <!-- Close button -->
-          <button 
-            @click="closeVideoPlayer" 
-            class="absolute -top-12 right-0 text-white/80 hover:text-white"
-          >
-            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+        <div class="relative w-full h-full max-w-6xl max-h-[90vh] flex flex-col">
+          <!-- Header with title and close button -->
+          <div class="flex items-center justify-between mb-3 px-1">
+            <p class="text-white/80 font-medium text-sm md:text-base truncate pr-4">{{ playingVideo.label }}</p>
+            <button 
+              @click="closeVideoPlayer" 
+              class="text-white/80 hover:text-white shrink-0"
+            >
+              <svg class="w-6 h-6 md:w-8 md:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
           
-          <!-- Video title -->
-          <p class="absolute -top-12 left-0 text-white/80 font-medium">{{ playingVideo.label }}</p>
-          
-          <!-- Video player -->
-          <video 
-            :src="playingVideo.url" 
-            controls 
-            autoplay 
-            class="w-full rounded-lg shadow-2xl bg-black"
-          >
-            Your browser does not support video playback.
-          </video>
+          <!-- Video player container -->
+          <div class="flex-1 min-h-0 flex items-center justify-center">
+            <video 
+              :src="playingVideo.url" 
+              controls 
+              autoplay 
+              class="max-w-full max-h-full w-auto h-auto rounded-lg shadow-2xl bg-black"
+              style="object-fit: contain;"
+            >
+              Your browser does not support video playback.
+            </video>
+          </div>
         </div>
       </div>
     </Teleport>

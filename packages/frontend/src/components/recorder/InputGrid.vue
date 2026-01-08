@@ -220,17 +220,6 @@ function getInputTooltip(input: InputStatus): string {
             <span :class="getSignalQualityColor(input)">{{ input.framerate }}fps</span>
           </div>
         </div>
-        
-        <!-- Recording indicator -->
-        <div v-if="input.isRecording" class="mt-2 flex items-center justify-between">
-          <div class="flex items-center gap-2 text-preke-red">
-            <span class="w-2 h-2 rounded-full bg-preke-red animate-recording"></span>
-            <span class="text-sm font-medium">REC</span>
-          </div>
-          <span class="text-sm font-mono text-preke-text-dim">
-            {{ formatBytes(input.bytesWritten) }}
-          </span>
-        </div>
       </div>
     </div>
     </div>
@@ -269,6 +258,7 @@ function getInputTooltip(input: InputStatus): string {
   overflow: hidden;
   place-items: center;
   place-content: center;
+  grid-auto-flow: row;
 }
 
 /* 1 camera - single tile, constrained to container */
@@ -277,24 +267,55 @@ function getInputTooltip(input: InputStatus): string {
   grid-template-rows: 1fr;
 }
 
-/* 2 cameras - side by side */
+/* 2 cameras - side by side, wrap to single column on narrow screens */
 .input-grid__container[data-count="2"] {
   grid-template-columns: repeat(2, 1fr);
   grid-template-rows: 1fr;
 }
 
-/* 3-4 cameras - 2x2 grid */
+@media (max-width: 768px) {
+  .input-grid__container[data-count="2"] {
+    grid-template-columns: 1fr;
+    grid-template-rows: repeat(2, 1fr);
+  }
+}
+
+/* 3-4 cameras - 2x2 grid, wrap to single column on narrow screens */
 .input-grid__container[data-count="3"],
 .input-grid__container[data-count="4"] {
   grid-template-columns: repeat(2, 1fr);
   grid-template-rows: repeat(2, 1fr);
 }
 
-/* 5-6 cameras - 3x2 grid */
+@media (max-width: 768px) {
+  .input-grid__container[data-count="3"],
+  .input-grid__container[data-count="4"] {
+    grid-template-columns: 1fr;
+    grid-template-rows: repeat(auto-fit, minmax(200px, 1fr));
+  }
+}
+
+/* 5-6 cameras - 3x2 grid, wrap on narrow screens */
 .input-grid__container[data-count="5"],
 .input-grid__container[data-count="6"] {
   grid-template-columns: repeat(3, 1fr);
   grid-template-rows: repeat(2, 1fr);
+}
+
+@media (max-width: 1024px) {
+  .input-grid__container[data-count="5"],
+  .input-grid__container[data-count="6"] {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(auto-fit, minmax(200px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .input-grid__container[data-count="5"],
+  .input-grid__container[data-count="6"] {
+    grid-template-columns: 1fr;
+    grid-template-rows: repeat(auto-fit, minmax(200px, 1fr));
+  }
 }
 
 /* Video tile with dynamic aspect ratio (set via :style), constrained to grid cell */
