@@ -252,28 +252,6 @@ function openInputConfig() {
         </div>
       </div>
       
-      <!-- Storage -->
-      <div v-if="storageInfo" class="sidebar__card">
-        <div class="sidebar__label">Storage</div>
-        <div class="storage">
-          <div class="storage__bar">
-            <div 
-              class="storage__fill"
-              :class="{
-                'storage__fill--ok': !storageInfo.isLow,
-                'storage__fill--low': storageInfo.isLow && !storageInfo.isCritical,
-                'storage__fill--critical': storageInfo.isCritical
-              }"
-              :style="{ width: `${storageInfo.percent}%` }"
-            ></div>
-          </div>
-          <div class="storage__info">
-            <span>{{ storageInfo.freeGB }} GB free</span>
-            <span class="storage__estimate">~{{ storageInfo.hoursRemaining }}h</span>
-          </div>
-        </div>
-      </div>
-      
       <!-- Quick Actions -->
       <div class="sidebar__card">
         <div class="sidebar__label">Quick Actions</div>
