@@ -551,12 +551,32 @@ const electronAPI = {
     clipName?: string
     filePaths?: string[]
     syncMethod?: string
+    sessionId?: string
   }): Promise<{
     success: boolean
     error?: string
     timelineName?: string
+    filesImported?: number
   }> => {
     return ipcRenderer.invoke('davinci-create-multicam', options)
+  },
+
+  /**
+   * Check if R58 recordings are mounted via SMB
+   */
+  davinciCheckMount: (): Promise<{
+    mounted: boolean
+    path: string | null
+    hint: string | null
+  }> => {
+    return ipcRenderer.invoke('davinci-check-mount')
+  },
+
+  /**
+   * Get recent recording files from mounted share
+   */
+  davinciGetRecordings: (sessionPattern?: string): Promise<string[]> => {
+    return ipcRenderer.invoke('davinci-get-recordings', sessionPattern)
   },
 }
 

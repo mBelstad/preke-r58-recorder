@@ -34,18 +34,18 @@ This guide explains how to use existing Bitfocus Companion modules with your R58
 
 **Alternative**: Use Companion's HTTP module to call our R58 API directly (recommended).
 
-## Recommended Approach: Bridge Service
+## Recommended Approach: Use Modules Appropriately
 
-We'll create a bridge service that:
-1. Accepts commands from existing Companion modules
-2. Translates them to our R58 API format
-3. Maintains centralized control and logging
+**For OBSbot Tail 2:**
+- Use Sony VISCA module **directly** to camera (simplest, works immediately)
+- OR use HTTP module with R58 API (centralized control)
 
-### Bridge Architecture
+**For Blackmagic Design:**
+- Use HTTP module with R58 API (no direct module available)
 
-```
-Companion Module → Bridge Service → R58 API → Camera
-```
+**Optional: Bridge Service**
+- For advanced use cases where you want centralized control with VISCA module
+- See `COMPANION_BRIDGE_SETUP.md` for details
 
 ## Implementation Options
 

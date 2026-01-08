@@ -65,6 +65,52 @@ let mainWindow: (() => BrowserWindow | null) | null = null
 let lastResolveCheck = 0
 const RESOLVE_CHECK_INTERVAL = 30000 // Only check Resolve connection every 30 seconds
 
+// R58 recordings mount path - where SMB share is mounted on Mac
+const R58_MOUNT_PATHS = [
+  `${process.env.HOME}/r58-recordings`,
+  '/Volumes/r58-recordings',
+  '/Volumes/recordings',
+]
+
+/**
+ * Find mounted R58 recordings path
+ */
+function findR58MountPath(): string | null {
+  for (const mountPath of R58_MOUNT_PATHS) {
+    if (fs.existsSync(mountPath) && fs.existsSync(path.join(mountPath, 'cam0'))) {
+      return mountPath
+    }
+  }
+  return null
+}
+
+/**
+ * Map R58 file path to local mounted path
+ * e.g., /data/recordings/cam0/file.mkv -> ~/r58-recordings/cam0/file.mkv
+ */
+function mapR58PathToLocal(r58Path: string): string | null {
+  const mountPath = findR58MountPath()
+  if (!mountPath) return null
+  
+  // Extract relative path from R58 path
+  // R58 paths: /data/recordings/cam0/file.mkv or /userdata/recordings/cam0/file.mkv
+  const match = r58Path.match(/(?:\/data|\/userdata)?\/recordings\/(.+)/)
+  if (match) {
+    return path.join(mountPath, match[1])
+  }
+  
+  // Try just the filename in cam folders
+  const filename = path.basename(r58Path)
+  for (const camDir of ['cam0', 'cam1', 'cam2', 'cam3']) {
+    const localPath = path.join(mountPath, camDir, filename)
+    if (fs.existsSync(localPath)) {
+      return localPath
+    }
+  }
+  
+  return null
+}
+
 // ============================================
 // DaVinci Resolve Detection
 // ============================================
@@ -580,6 +626,57 @@ sys.exit(0)
 }
 
 /**
+ * Get the most recent recording files from each camera
+ * Returns local paths from the mounted SMB share
+ */
+function getRecentRecordings(sessionPattern?: string): string[] {
+  const mountPath = findR58MountPath()
+  if (!mountPath) {
+    log.warn('R58 recordings mount not found. Mount via: mount_smbfs //guest@100.65.219.117/recordings ~/r58-recordings')
+    return []
+  }
+  
+  const files: { path: string; mtime: number }[] = []
+  
+  for (const camDir of ['cam0', 'cam1', 'cam2', 'cam3']) {
+    const camPath = path.join(mountPath, camDir)
+    if (!fs.existsSync(camPath)) continue
+    
+    try {
+      const entries = fs.readdirSync(camPath)
+      for (const entry of entries) {
+        if (!entry.endsWith('.mkv') && !entry.endsWith('.mp4')) continue
+        if (sessionPattern && !entry.includes(sessionPattern)) continue
+        
+        const filePath = path.join(camPath, entry)
+        const stat = fs.statSync(filePath)
+        
+        // Only include files > 1MB (skip empty/failed recordings)
+        if (stat.size > 1024 * 1024) {
+          files.push({ path: filePath, mtime: stat.mtimeMs })
+        }
+      }
+    } catch (err) {
+      log.debug(`Error reading ${camPath}: ${err}`)
+    }
+  }
+  
+  // Sort by modification time (newest first) and take most recent from each camera
+  files.sort((a, b) => b.mtime - a.mtime)
+  
+  // Get the most recent file per camera
+  const byCamera = new Map<string, string>()
+  for (const file of files) {
+    const cam = path.basename(path.dirname(file.path))
+    if (!byCamera.has(cam)) {
+      byCamera.set(cam, file.path)
+    }
+  }
+  
+  return Array.from(byCamera.values())
+}
+
+/**
  * Create a multicam timeline from media files
  * Supports growing files for edit-while-record workflow
  */
@@ -588,7 +685,8 @@ async function createMulticamTimeline(options: {
   clipName?: string
   filePaths?: string[]
   syncMethod?: string
-}): Promise<{ success: boolean; error?: string; timelineName?: string }> {
+  sessionId?: string
+}): Promise<{ success: boolean; error?: string; timelineName?: string; filesImported?: number }> {
   const scriptPath = getResolveScriptPath()
   if (!scriptPath) {
     return { success: false, error: 'DaVinci Resolve scripting path not found' }
@@ -598,12 +696,27 @@ async function createMulticamTimeline(options: {
     return { success: false, error: 'DaVinci Resolve is not running' }
   }
   
+  // Get file paths - either provided, or find from mounted share
+  let filePaths = options.filePaths || []
+  if (filePaths.length === 0) {
+    // Try to find recent recordings from mounted share
+    filePaths = getRecentRecordings(options.sessionId)
+    if (filePaths.length === 0) {
+      const mountPath = findR58MountPath()
+      if (!mountPath) {
+        return { 
+          success: false, 
+          error: 'R58 recordings not mounted. Connect via Finder: smb://100.65.219.117/recordings or mount_smbfs //guest@100.65.219.117/recordings ~/r58-recordings' 
+        }
+      }
+      return { success: false, error: 'No recording files found' }
+    }
+    log.info(`Found ${filePaths.length} recording files: ${filePaths.map(f => path.basename(f)).join(', ')}`)
+  }
+  
   const clipName = options.clipName || `Multicam_${new Date().toISOString().replace(/[:.]/g, '-')}`
   const syncMethod = options.syncMethod || 'timecode' // timecode, audio, in_point
-  
-  // If file paths provided, we'll import and create multicam from them
-  // Otherwise, create from selected clips in media pool
-  const filesJson = options.filePaths ? JSON.stringify(options.filePaths) : '[]'
+  const filesJson = JSON.stringify(filePaths)
   
   const pythonScript = `
 import sys
@@ -705,7 +818,7 @@ sys.exit(0)
       
       if (code === 0 && output.includes('SUCCESS')) {
         log.info(`Multicam created: ${output.trim()}`)
-        resolve({ success: true, timelineName: `${clipName}_Timeline` })
+        resolve({ success: true, timelineName: `${clipName}_Timeline`, filesImported: filePaths.length })
       } else {
         log.error(`Multicam error: ${output.trim()}`)
         resolve({ success: false, error: output.trim() })
@@ -824,8 +937,22 @@ export function setupDaVinciHandlers(getWindow: () => BrowserWindow | null): voi
     clipName?: string
     filePaths?: string[]
     syncMethod?: string
+    sessionId?: string
   }) => {
     return await createMulticamTimeline(options)
+  })
+  
+  ipcMain.handle('davinci-check-mount', () => {
+    const mountPath = findR58MountPath()
+    return {
+      mounted: !!mountPath,
+      path: mountPath,
+      hint: mountPath ? null : 'Mount via: smb://100.65.219.117/recordings or run: mount_smbfs //guest@100.65.219.117/recordings ~/r58-recordings'
+    }
+  })
+  
+  ipcMain.handle('davinci-get-recordings', (_event, sessionPattern?: string) => {
+    return getRecentRecordings(sessionPattern)
   })
   
   log.info('DaVinci IPC handlers registered')

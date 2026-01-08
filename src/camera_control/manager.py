@@ -5,6 +5,7 @@ import asyncio
 
 from .blackmagic import BlackmagicCamera
 from .obsbot import ObsbotTail2
+from .sony import SonyCamera
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +50,13 @@ class CameraControlManager:
                     camera = ObsbotTail2(ip=cam_ip, name=cam_name, port=port)
                     self.cameras[cam_name] = camera
                     logger.info(f"Initialized Obsbot Tail 2 camera: {cam_name} at {cam_ip}")
+                
+                elif cam_type == "sony" or cam_type == "sony_fx30":
+                    port = cam_config.get("port", 80)
+                    visca_port = cam_config.get("visca_port", 52381)
+                    camera = SonyCamera(ip=cam_ip, name=cam_name, port=port, visca_port=visca_port)
+                    self.cameras[cam_name] = camera
+                    logger.info(f"Initialized Sony camera: {cam_name} at {cam_ip}")
                 
                 else:
                     logger.error(f"Unknown camera type: {cam_type}")

@@ -25,7 +25,20 @@ class BlackmagicCamera:
         self.name = name
         self.port = port
         self.base_url = f"http://{ip}:{port}/control/api/v1"
-        self.timeout = 5.0
+        self.timeout = 2.0  # Reduced for faster response
+        self._http_client: Optional[httpx.AsyncClient] = None
+    
+    async def _get_client(self) -> httpx.AsyncClient:
+        """Get or create HTTP client with connection pooling for speed."""
+        if self._http_client is None:
+            # Use connection pooling for better performance
+            limits = httpx.Limits(max_keepalive_connections=5, max_connections=10)
+            self._http_client = httpx.AsyncClient(
+                timeout=self.timeout,
+                limits=limits,
+                http2=True  # Use HTTP/2 if available
+            )
+        return self._http_client
     
     async def start_recording(self, clip_name: Optional[str] = None) -> bool:
         """Start recording on the camera.
