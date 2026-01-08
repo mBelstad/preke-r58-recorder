@@ -44,17 +44,19 @@ const activeCameras = computed(() =>
 )
 
 // Build the VDO.ninja mixer URL
-// Uses our self-hosted VDO.ninja mixer.html which auto-connects to local signaling
+// Uses director view which shows cameras in a clean grid with controls
 const mixerUrl = computed(() => {
   const VDO_HOST = getVdoHost()  // r58-vdo.itagenten.no
   const VDO_PROTOCOL = getVdoProtocol()  // https
   
-  // Use self-hosted mixer.html - connects to local signaling automatically
-  // mixer.html has full director interface with scene controls
-  const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/mixer.html`)
-  url.searchParams.set('room', VDO_ROOM)
+  // Use director view (index.html with &director=) - cleaner than mixer.html
+  // Shows camera grid with controls, without the large button panels
+  const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/`)
+  url.searchParams.set('director', VDO_ROOM)
   url.searchParams.set('password', VDO_DIRECTOR_PASSWORD)
   url.searchParams.set('darkmode', '')  // VDO.ninja's built-in dark mode
+  url.searchParams.set('cleanish', '')  // Cleaner UI
+  url.searchParams.set('nologo', '')    // Hide VDO.ninja logo
   
   return url.toString()
 })
