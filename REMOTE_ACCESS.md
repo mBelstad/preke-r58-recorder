@@ -1,7 +1,7 @@
 # R58 Remote Access - Complete Guide
 
-**Last Updated**: December 31, 2025  
-**Status**: ✅ STABLE & WORKING (SSH Key Auth + Tailscale P2P)
+**Last Updated**: January 8, 2026  
+**Status**: ✅ STABLE & WORKING (Same-Domain Proxy + Tailscale P2P)
 
 ---
 
@@ -36,9 +36,10 @@
 - **WHEP cam2**: https://linaro-alip.tailab6fd7.ts.net/cam2/whep
 - **WHEP cam3**: https://linaro-alip.tailab6fd7.ts.net/cam3/whep
 
-**Legacy/Direct API Access:**
-- **Backend API**: https://r58-api.itagenten.no
-- **Legacy App**: https://r58-api.itagenten.no/static/app.html
+**Direct API Access (for testing):**
+- **API Health**: https://app.itagenten.no/health
+- **API Status**: https://app.itagenten.no/status
+- **Legacy App**: https://app.itagenten.no/static/app.html
 
 ---
 
@@ -349,14 +350,17 @@ bind_port = 10022
 
 ## 🎯 Summary
 
-### Domain Architecture
+### Domain Architecture (Same-Domain Proxy)
 | Domain | Purpose |
 |--------|---------|
-| `app.itagenten.no` | Vue web frontend (Preke Studio) |
-| `r58-api.itagenten.no` | Backend API (proxied to R58) |
+| `app.itagenten.no` | **Single entry point** - Vue frontend + API proxy |
 | `r58-vdo.itagenten.no` | Self-hosted VDO.ninja |
 
-**Note**: The web frontend at `app.itagenten.no` makes cross-origin API calls to `r58-api.itagenten.no`. CORS is configured in the VPS nginx proxy.
+**Architecture (simplified Jan 2026)**:
+- All traffic goes through `app.itagenten.no`
+- nginx proxies `/api/*` and `/cam*/whep` to R58 backend
+- **No CORS needed** - everything is same-origin
+- `r58-api.itagenten.no` redirects to `app.itagenten.no`
 
 ### Video Streaming
 | Priority | Method | URL Example |
