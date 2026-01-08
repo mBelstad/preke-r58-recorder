@@ -375,17 +375,24 @@ html, body, #app {
 
 /* Secondary button - Visible with outline */
 .btn-v2--secondary {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.08);
   color: var(--preke-text);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.25);
   font-weight: 500;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .btn-v2--secondary:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(224, 160, 48, 0.15);
   color: var(--preke-gold);
   border-color: var(--preke-gold);
   transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(224, 160, 48, 0.2);
+}
+
+.btn-v2--secondary:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
 }
 
 /* Success button - Green gradient */
