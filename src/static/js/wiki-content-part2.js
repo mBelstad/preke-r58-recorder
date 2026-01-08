@@ -325,7 +325,7 @@ All pages work on phones, tablets, and computers.
 ## Available Interfaces
 
 ### Preke Studio (Vue Frontend)
-**URL**: https://app.itagenten.no/vue/#/
+**URL**: https://app.itagenten.no/
 
 **Views**:
 - **/recorder** - Camera control and recording
