@@ -196,10 +196,10 @@ class ModeManager:
         logger.info("Switching to mixer mode...")
         
         # Stop all individual recordings
-        stopped_cameras = []
         if self.recorder:
             try:
                 logger.info("Stopping all individual recordings...")
+                stopped_cameras = []
                 for cam_id, state in self.recorder.states.items():
                     if state == "recording":
                         self.recorder.stop_recording(cam_id)

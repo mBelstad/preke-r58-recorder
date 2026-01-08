@@ -173,17 +173,15 @@ export const embedProfiles = {
 
 /**
  * Get the CSS URL for VDO.ninja reskin
+ * 
+ * NOTE: Custom CSS was disabled because it broke VDO.ninja mixer functionality.
+ * See docs/MIXER_STYLING_ATTEMPT.md for details.
+ * VDO.ninja's default dark theme is used instead via &darkmode parameter.
  */
 export function getVdoCssUrl(): string {
-  // In Electron, window.location.origin is file:// which won't work
-  // Use the VDO.ninja host for CSS or skip if in Electron
-  const origin = window.location.origin
-  if (origin.startsWith('file://')) {
-    // Skip custom CSS in Electron - VDO.ninja will use its default theme
-    return ''
-  }
-  // Use same origin as the page (works for web browser access)
-  return `${origin}/static/css/vdo-theme.css`
+  // Custom CSS disabled - it broke mixer functionality (click handlers, z-index issues)
+  // See MIXER_STYLING_ATTEMPT.md for details
+  return ''
 }
 
 /**
