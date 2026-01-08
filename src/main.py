@@ -1726,10 +1726,19 @@ async def get_recording(cam_id: str, filename: str) -> FileResponse:
     if not file_path.exists() or not file_path.is_file():
         raise HTTPException(status_code=404, detail="Recording not found")
 
+    # Determine media type from file extension
+    ext = file_path.suffix.lower()
+    media_type = {
+        ".mkv": "video/x-matroska",
+        ".mp4": "video/mp4",
+        ".webm": "video/webm",
+        ".mov": "video/quicktime",
+    }.get(ext, "application/octet-stream")
+
     return FileResponse(
         path=str(file_path),
         filename=filename,
-        media_type="video/mp4",
+        media_type=media_type,
     )
 
 
