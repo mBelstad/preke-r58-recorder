@@ -910,6 +910,7 @@ export function setupDaVinciHandlers(getWindow: () => BrowserWindow | null): voi
     const status = getDaVinciStatus()
     // Do a full Python scripting API check (not just process check)
     status.resolveConnected = await checkResolveConnection(true)
+    isResolveConnected = status.resolveConnected  // Keep module state in sync
     lastResolveCheck = Date.now()
     return status
   })
