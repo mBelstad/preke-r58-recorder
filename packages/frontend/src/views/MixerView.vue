@@ -43,20 +43,21 @@ const activeCameras = computed(() =>
   recorderStore.inputs.filter(i => i.hasSignal)
 )
 
-// Build the VDO.ninja mixer URL
-// Uses our self-hosted VDO.ninja which automatically connects to local signaling
+// Build the VDO.ninja director URL
+// Uses index.html with &director= for a cleaner camera grid view
 const mixerUrl = computed(() => {
   const VDO_HOST = getVdoHost()
   const VDO_PROTOCOL = getVdoProtocol()
   
-  // Use self-hosted mixer.html - it's configured to use local signaling
-  const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/mixer.html`)
-  url.searchParams.set('room', VDO_ROOM)
+  // Use director view (index.html) which shows camera cards in a grid
+  // mixer.html shows big button boxes which isn't ideal for our use case
+  const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/`)
+  url.searchParams.set('director', VDO_ROOM)  // Director mode
   url.searchParams.set('password', VDO_DIRECTOR_PASSWORD)
   url.searchParams.set('darkmode', '')  // VDO.ninja's dark mode
-  
-  // NOTE: Custom CSS disabled - it was breaking the mixer layout
-  // The mixer.html has complex styling that conflicts with external CSS
+  url.searchParams.set('cleanoutput', '')  // Minimal UI
+  url.searchParams.set('hideheader', '')  // Hide top header
+  url.searchParams.set('nologo', '')  // Hide VDO.ninja logo
   
   return url.toString()
 })
