@@ -1,0 +1,166 @@
+/* ============================================
+   R58 VDO.NINJA MINIMAL THEME
+   
+   Following docs/MIXER_STYLING_ATTEMPT.md lesson:
+   "Minimal Styling Only: Apply only color variables without layout changes"
+   
+   Rules:
+   - Only change colors, backgrounds, borders
+   - NO layout changes (no position, display, flex, grid changes)
+   - NO element hiding (breaks click handlers)
+   - NO z-index changes (causes unclickable elements)
+   - Minimal use of !important
+   ============================================ */
+
+/* --- Color Variables (matching R58 design tokens) --- */
+:root {
+  /* Backgrounds - slate dark theme */
+  --r58-bg-primary: #0f172a;
+  --r58-bg-secondary: #1e293b;
+  --r58-bg-tertiary: #334155;
+  
+  /* Text colors */
+  --r58-text-primary: #f8fafc;
+  --r58-text-secondary: #94a3b8;
+  --r58-text-muted: #64748b;
+  
+  /* Accent colors */
+  --r58-accent-blue: #3b82f6;
+  --r58-accent-green: #22c55e;
+  --r58-accent-red: #ef4444;
+  --r58-accent-gold: #f59e0b;
+  
+  /* Border */
+  --r58-border: #334155;
+}
+
+/* --- Background Colors --- */
+body {
+  background-color: var(--r58-bg-primary);
+  color: var(--r58-text-primary);
+}
+
+/* Main container backgrounds */
+#mainmenu,
+#guestFeatures,
+#directorLinks,
+.controlButtons {
+  background-color: var(--r58-bg-secondary);
+  border-color: var(--r58-border);
+}
+
+/* --- Button Styling (colors only) --- */
+button,
+.button,
+input[type="button"],
+input[type="submit"] {
+  background-color: var(--r58-bg-tertiary);
+  color: var(--r58-text-primary);
+  border-color: var(--r58-border);
+}
+
+button:hover,
+.button:hover {
+  background-color: var(--r58-accent-blue);
+}
+
+/* --- Input Fields --- */
+input[type="text"],
+input[type="password"],
+input[type="number"],
+select,
+textarea {
+  background-color: var(--r58-bg-tertiary);
+  color: var(--r58-text-primary);
+  border-color: var(--r58-border);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--r58-accent-blue);
+  outline-color: var(--r58-accent-blue);
+}
+
+/* --- Video Container Borders --- */
+video {
+  border-color: var(--r58-border);
+}
+
+/* Selected/active video highlight */
+.selected video,
+.focused video {
+  border-color: var(--r58-accent-blue);
+}
+
+/* --- Links --- */
+a {
+  color: var(--r58-accent-blue);
+}
+
+a:hover {
+  color: var(--r58-text-primary);
+}
+
+/* --- Text Colors --- */
+.muted,
+.secondary,
+small {
+  color: var(--r58-text-secondary);
+}
+
+/* --- Scrollbar Styling (visual only) --- */
+::-webkit-scrollbar {
+  background-color: var(--r58-bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--r58-bg-tertiary);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--r58-text-muted);
+}
+
+/* --- Modal/Dialog backgrounds --- */
+.modal,
+.dialog,
+.popup,
+[role="dialog"] {
+  background-color: var(--r58-bg-secondary);
+  border-color: var(--r58-border);
+}
+
+/* --- Card/Panel backgrounds --- */
+.card,
+.panel,
+.box {
+  background-color: var(--r58-bg-secondary);
+  border-color: var(--r58-border);
+}
+
+/* --- Status Colors --- */
+.success,
+.connected,
+.online {
+  color: var(--r58-accent-green);
+}
+
+.error,
+.disconnected,
+.offline {
+  color: var(--r58-accent-red);
+}
+
+.warning,
+.pending {
+  color: var(--r58-accent-gold);
+}
+
+/* --- Subtle transparency for overlays --- */
+.overlay,
+.backdrop {
+  background-color: rgba(15, 23, 42, 0.8);
+}
+

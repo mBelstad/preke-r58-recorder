@@ -43,15 +43,19 @@ const activeCameras = computed(() =>
   recorderStore.inputs.filter(i => i.hasSignal)
 )
 
-// Build the VDO.ninja mixer URL
-// The mixer.html is the director interface with scene controls
+// Build the VDO.ninja alpha mixer URL
+// Alpha mixer has better MediaMTX integration and improved features
+// Uses public VDO.ninja alpha mixer but connects to our self-hosted signaling
 const mixerUrl = computed(() => {
   const VDO_HOST = getVdoHost()
   const VDO_PROTOCOL = getVdoProtocol()
   
-  const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/mixer.html`)
+  // Use public VDO.ninja alpha mixer with our signaling server
+  const url = new URL('https://vdo.ninja/alpha/mixer')
   url.searchParams.set('room', VDO_ROOM)
   url.searchParams.set('password', VDO_DIRECTOR_PASSWORD)
+  url.searchParams.set('wss', `wss://${VDO_HOST}`)  // Our signaling server
+  url.searchParams.set('darkmode', '')  // VDO.ninja's dark mode
   
   return url.toString()
 })
