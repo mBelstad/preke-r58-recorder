@@ -417,7 +417,7 @@ onMounted(() => {
                   <span class="text-sm text-preke-text-dim">{{ (file.size_bytes / (1024 * 1024 * 1024)).toFixed(2) }} GB</span>
                   <button 
                     @click="playVideo(file)"
-                    class="btn btn-primary text-sm"
+                    class="btn-v2 btn-v2--primary"
                     title="Play video"
                   >
                     <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
@@ -426,7 +426,7 @@ onMounted(() => {
                   </button>
                   <button 
                     @click="downloadFile(selectedSession, file)"
-                    class="btn text-sm"
+                    class="btn-v2 btn-v2--secondary"
                     title="Download"
                   >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

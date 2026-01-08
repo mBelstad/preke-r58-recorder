@@ -373,17 +373,19 @@ html, body, #app {
   transform: translateY(-1px);
 }
 
-/* Secondary button - Subtle */
+/* Secondary button - Visible with outline */
 .btn-v2--secondary {
-  background: var(--preke-glass-light);
-  color: var(--preke-text-dim);
-  border: 1px solid var(--preke-border);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--preke-text);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  font-weight: 500;
 }
 
 .btn-v2--secondary:hover:not(:disabled) {
-  background: var(--preke-glass-hover);
-  color: var(--preke-text);
-  border-color: var(--preke-border-light);
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--preke-gold);
+  border-color: var(--preke-gold);
+  transform: translateY(-1px);
 }
 
 /* Success button - Green gradient */
