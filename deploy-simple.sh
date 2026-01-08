@@ -83,6 +83,8 @@ DEPLOY_COMMANDS="cd /opt/preke-r58-recorder && \
     echo 'Latest commit:' && git log -1 --oneline && \
     echo 'Setting up VDO.ninja if needed...' && \
     sudo bash scripts/setup-vdoninja.sh && \
+    echo 'Setting up Reveal.js if needed...' && \
+    NON_INTERACTIVE=true sudo bash setup_revealjs.sh && \
     sudo systemctl restart preke-recorder && \
     echo 'Deployment complete!'"
 
