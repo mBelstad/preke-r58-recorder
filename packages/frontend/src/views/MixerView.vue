@@ -15,7 +15,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useRecorderStore } from '@/stores/recorder'
 import { useCapabilitiesStore } from '@/stores/capabilities'
-import { getVdoHost, getVdoProtocol, getVdoCssUrl, VDO_ROOM, VDO_DIRECTOR_PASSWORD } from '@/lib/vdoninja'
+import { getVdoHost, getVdoProtocol, VDO_ROOM, VDO_DIRECTOR_PASSWORD } from '@/lib/vdoninja'
 import { buildApiUrl, hasDeviceConfigured } from '@/lib/api'
 import { toast } from '@/composables/useToast'
 
@@ -55,14 +55,8 @@ const mixerUrl = computed(() => {
   url.searchParams.set('password', VDO_DIRECTOR_PASSWORD)
   url.searchParams.set('darkmode', '')  // VDO.ninja's dark mode
   
-  // Apply custom CSS for R58 branding (colors only, no layout changes)
-  // Uses base64-encoded CSS for cross-origin compatibility
-  const cssData = getVdoCssUrl()
-  if (cssData.startsWith('b64:')) {
-    url.searchParams.set('b64css', cssData.slice(4))  // Remove 'b64:' prefix
-  } else if (cssData) {
-    url.searchParams.set('css', cssData)
-  }
+  // NOTE: Custom CSS disabled - it was breaking the mixer layout
+  // The mixer.html has complex styling that conflicts with external CSS
   
   return url.toString()
 })
