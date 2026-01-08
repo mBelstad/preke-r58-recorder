@@ -112,13 +112,13 @@ linaro@linaro-alip:~$
 
 Open the **Preke Studio** web app in your browser:
 
-**Main URL**: https://app.itagenten.no/vue/#/
+**Main URL**: https://app.itagenten.no/
 
 **Views**:
-- **Recorder**: https://app.itagenten.no/vue/#/recorder
-- **Mixer**: https://app.itagenten.no/vue/#/mixer
-- **Library**: https://app.itagenten.no/vue/#/library
-- **Admin**: https://app.itagenten.no/vue/#/admin
+- **Recorder**: https://app.itagenten.no/#/recorder
+- **Mixer**: https://app.itagenten.no/#/mixer
+- **Library**: https://app.itagenten.no/#/library
+- **Admin**: https://app.itagenten.no/#/admin
 
 All URLs use valid Let's Encrypt SSL certificates.
 

@@ -831,18 +831,24 @@ async def trigger_status() -> Dict[str, Any]:
     """Get current recording state, duration, and session info."""
     session_status = recorder.get_session_status()
     
-    # Add disk space info
-    try:
-        disk = shutil.disk_usage("/mnt/sdcard")
-        disk_info = {
-            "free_gb": round(disk.free / (1024**3), 2),
-            "total_gb": round(disk.total / (1024**3), 2),
-            "used_gb": round(disk.used / (1024**3), 2),
-            "percent_used": round((disk.used / disk.total) * 100, 1)
-        }
-    except Exception as e:
-        logger.error(f"Failed to get disk space: {e}")
-        disk_info = {"error": str(e)}
+    # Add disk space info - check /data (NVMe SSD) first, then fallback
+    disk_info = {"error": "Could not determine disk space"}
+    for disk_path in ["/data", "/mnt/sdcard", "/"]:
+        try:
+            if os.path.exists(disk_path):
+                disk = shutil.disk_usage(disk_path)
+                if disk.total > 0:
+                    disk_info = {
+                        "free_gb": round(disk.free / (1024**3), 2),
+                        "total_gb": round(disk.total / (1024**3), 2),
+                        "used_gb": round(disk.used / (1024**3), 2),
+                        "percent_used": round((disk.used / disk.total) * 100, 1),
+                        "path": disk_path
+                    }
+                    break
+        except Exception as e:
+            logger.debug(f"Could not check disk at {disk_path}: {e}")
+            continue
     
     return {
         **session_status,

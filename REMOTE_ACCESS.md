@@ -21,11 +21,11 @@
 ### Access Web Interface
 
 **Preke Studio Web App (Vue Frontend):**
-- **Main App**: https://app.itagenten.no/vue/#/
-- **Recorder View**: https://app.itagenten.no/vue/#/recorder
-- **Mixer View**: https://app.itagenten.no/vue/#/mixer
-- **Library View**: https://app.itagenten.no/vue/#/library
-- **Admin View**: https://app.itagenten.no/vue/#/admin
+- **Main App**: https://app.itagenten.no/
+- **Recorder**: https://app.itagenten.no/#/recorder
+- **Mixer**: https://app.itagenten.no/#/mixer
+- **Library**: https://app.itagenten.no/#/library
+- **Admin**: https://app.itagenten.no/#/admin
 
 **VDO.ninja (Self-Hosted):**
 - **Mixer**: https://r58-vdo.itagenten.no/mixer.html?room=studio&password=preke-r58-2024
