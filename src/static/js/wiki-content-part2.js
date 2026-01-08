@@ -100,11 +100,11 @@ sshpass -p linaro ssh -p 10022 linaro@65.109.32.111
 **URLs** (All HTTPS with valid certificates):
 
 **Preke Studio (Vue Frontend)**:
-- **Main App**: https://app.itagenten.no/vue/#/
-- **Recorder**: https://app.itagenten.no/vue/#/recorder
-- **Mixer**: https://app.itagenten.no/vue/#/mixer
-- **Library**: https://app.itagenten.no/vue/#/library
-- **Admin**: https://app.itagenten.no/vue/#/admin
+- **Main App**: https://app.itagenten.no/
+- **Recorder**: https://app.itagenten.no/#/recorder
+- **Mixer**: https://app.itagenten.no/#/mixer
+- **Library**: https://app.itagenten.no/#/library
+- **Admin**: https://app.itagenten.no/#/admin
 
 **API & Documentation**:
 - **API Docs**: https://r58-api.itagenten.no/docs
