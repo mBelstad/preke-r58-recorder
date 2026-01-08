@@ -5127,6 +5127,156 @@ async def update_camera_config(cameras: List[Dict[str, Any]]) -> Dict[str, Any]:
         raise HTTPException(status_code=500, detail=f"Failed to update config: {str(e)}")
 
 
+# ============================================================================
+# PTZ Controller API (Hardware joystick/gamepad support)
+# ============================================================================
+
+@app.get("/api/v1/ptz-controller/cameras")
+async def list_ptz_cameras() -> Dict[str, Any]:
+    """List cameras that support PTZ control."""
+    if not camera_control_manager:
+        return {"cameras": []}
+    
+    ptz_cameras = []
+    for name, camera in camera_control_manager.cameras.items():
+        if hasattr(camera, "ptz_move"):
+            ptz_cameras.append({
+                "name": name,
+                "type": camera.__class__.__name__,
+                "supports_focus": hasattr(camera, "set_focus")
+            })
+    
+    return {"cameras": ptz_cameras}
+
+
+@app.put("/api/v1/ptz-controller/{camera_name}/ptz")
+async def ptz_controller_command(camera_name: str, request: SetPTZRequest = Body(...)) -> Dict[str, Any]:
+    """Execute PTZ command from hardware controller (optimized for speed)."""
+    if not camera_control_manager:
+        raise HTTPException(status_code=503, detail="Camera control not available")
+    
+    if camera_name not in camera_control_manager.cameras:
+        raise HTTPException(status_code=404, detail=f"Camera '{camera_name}' not found")
+    
+    camera = camera_control_manager.cameras[camera_name]
+    if not hasattr(camera, "ptz_move"):
+        raise HTTPException(status_code=400, detail="Camera does not support PTZ")
+    
+    # Execute PTZ (fire-and-forget for speed)
+    asyncio.create_task(camera.ptz_move(request.pan, request.tilt, request.zoom))
+    
+    return {
+        "success": True,
+        "camera": camera_name,
+        "command": {
+            "pan": request.pan,
+            "tilt": request.tilt,
+            "zoom": request.zoom
+        }
+    }
+
+
+@app.websocket("/api/v1/ptz-controller/ws")
+async def ptz_controller_websocket(websocket: WebSocket):
+    """WebSocket endpoint for real-time PTZ control from hardware controllers."""
+    await websocket.accept()
+    logger.info("PTZ controller WebSocket connected")
+    
+    if not camera_control_manager:
+        await websocket.send_json({
+            "type": "error",
+            "message": "Camera control not available"
+        })
+        await websocket.close()
+        return
+    
+    current_camera: Optional[str] = None
+    last_command_time = 0.0
+    min_command_interval = 0.033  # ~30Hz max update rate
+    
+    try:
+        while True:
+            data = await websocket.receive_json()
+            msg_type = data.get("type")
+            
+            if msg_type == "set_camera":
+                current_camera = data.get("camera_name")
+                await websocket.send_json({
+                    "type": "camera_set",
+                    "camera": current_camera
+                })
+                logger.info(f"PTZ controller targeting camera: {current_camera}")
+            
+            elif msg_type == "ptz_command":
+                if not current_camera:
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": "No camera selected"
+                    })
+                    continue
+                
+                try:
+                    import time
+                    now = time.time()
+                    if now - last_command_time < min_command_interval:
+                        continue
+                    last_command_time = now
+                    
+                    if current_camera not in camera_control_manager.cameras:
+                        await websocket.send_json({
+                            "type": "error",
+                            "message": f"Camera '{current_camera}' not found"
+                        })
+                        continue
+                    
+                    camera = camera_control_manager.cameras[current_camera]
+                    if not hasattr(camera, "ptz_move"):
+                        await websocket.send_json({
+                            "type": "error",
+                            "message": "Camera does not support PTZ"
+                        })
+                        continue
+                    
+                    pan = data.get("pan", 0.0)
+                    tilt = data.get("tilt", 0.0)
+                    zoom = data.get("zoom", 0.0)
+                    speed = data.get("speed", 1.0)
+                    
+                    pan *= speed
+                    tilt *= speed
+                    zoom *= speed
+                    
+                    # Execute (fire-and-forget for speed)
+                    asyncio.create_task(camera.ptz_move(pan, tilt, zoom))
+                    
+                    if "focus" in data and hasattr(camera, "set_focus"):
+                        focus_value = data["focus"]
+                        if focus_value != 0:
+                            focus_normalized = (focus_value + 1.0) / 2.0
+                            asyncio.create_task(camera.set_focus("manual", focus_normalized))
+                    
+                except Exception as e:
+                    logger.error(f"Error executing PTZ command: {e}")
+            
+            elif msg_type == "ping":
+                await websocket.send_json({"type": "pong"})
+            
+            else:
+                await websocket.send_json({
+                    "type": "error",
+                    "message": f"Unknown message type: {msg_type}"
+                })
+    
+    except WebSocketDisconnect:
+        logger.info("PTZ controller WebSocket disconnected")
+    except Exception as e:
+        logger.error(f"PTZ controller WebSocket error: {e}")
+        try:
+            await websocket.close()
+        except:
+            pass
+
+
 if __name__ == "__main__":
     import uvicorn
 
