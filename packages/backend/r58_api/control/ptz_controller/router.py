@@ -15,7 +15,7 @@ def get_camera_by_name(camera_name: str, manager):
         return None
     return manager.cameras[camera_name]
 
-router = APIRouter()
+router = APIRouter(prefix="/api/v1/ptz-controller", tags=["PTZ Controller"])
 logger = logging.getLogger(__name__)
 
 
@@ -28,7 +28,7 @@ class PTZCommandRequest(BaseModel):
     speed: float = 1.0
 
 
-@router.websocket("/api/v1/ptz-controller/ws")
+@router.websocket("/ws")
 async def ptz_controller_websocket(websocket: WebSocket):
     """
     WebSocket endpoint for real-time PTZ control from hardware controllers.
@@ -146,7 +146,7 @@ async def ptz_controller_websocket(websocket: WebSocket):
             pass
 
 
-@router.put("/api/v1/ptz-controller/{camera_name}/ptz")
+@router.put("/{camera_name}/ptz")
 async def ptz_command(
     camera_name: str,
     request: PTZCommandRequest,
@@ -194,7 +194,7 @@ async def ptz_command(
     }
 
 
-@router.get("/api/v1/ptz-controller/cameras")
+@router.get("/cameras")
 async def list_ptz_cameras(manager = None) -> Dict[str, Any]:
     """List cameras that support PTZ control."""
     if manager is None:
