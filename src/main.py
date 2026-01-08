@@ -1700,7 +1700,9 @@ async def list_recordings(cam_id: str) -> Dict[str, Any]:
 
     recordings = []
     if recordings_dir.exists():
-        for file_path in sorted(recordings_dir.glob("*.mp4"), key=os.path.getmtime, reverse=True):
+        # Find both MP4 and MKV files
+        all_files = list(recordings_dir.glob("*.mp4")) + list(recordings_dir.glob("*.mkv"))
+        for file_path in sorted(all_files, key=os.path.getmtime, reverse=True):
             recordings.append({
                 "filename": file_path.name,
                 "size": file_path.stat().st_size,
@@ -1783,12 +1785,12 @@ async def list_all_recordings() -> Dict[str, Any]:
         if not recordings_dir.exists():
             continue
         
-        # Find all MP4 files
-        for file_path in recordings_dir.glob("*.mp4"):
+        # Find all video files (MP4 and MKV)
+        for file_path in list(recordings_dir.glob("*.mp4")) + list(recordings_dir.glob("*.mkv")):
             try:
                 stat = file_path.stat()
                 
-                # Extract date from filename (format: recording_YYYYMMDD_HHMMSS.mp4)
+                # Extract date from filename (format: recording_YYYYMMDD_HHMMSS.mkv or .mp4)
                 filename = file_path.name
                 if filename.startswith("recording_") and len(filename) >= 24:
                     date_str = filename[10:18]  # YYYYMMDD
