@@ -6,7 +6,6 @@ import json
 import os
 import time
 import threading
-import asyncio
 from datetime import datetime
 from typing import Dict, Optional, Any
 from pathlib import Path
@@ -510,16 +509,12 @@ class Recorder:
                 # Send webhook in background thread (fire-and-forget)
                 def send_webhook():
                     try:
-                        # Create new event loop for this thread
-                        loop = asyncio.new_event_loop()
-                        asyncio.set_event_loop(loop)
-                        loop.run_until_complete(self.webhook_manager.send_session_start(
+                        self.webhook_manager.send_session_start(
                             session_id=session_status.get("session_id", ""),
                             start_time=session_status.get("start_time", ""),
                             cameras=session_status.get("cameras", {}),
                             file_paths=file_paths
-                        ))
-                        loop.close()
+                        )
                     except Exception as e:
                         logger.warning(f"Webhook thread error: {e}")
                 
@@ -555,14 +550,11 @@ class Recorder:
             try:
                 def send_webhook():
                     try:
-                        loop = asyncio.new_event_loop()
-                        asyncio.set_event_loop(loop)
-                        loop.run_until_complete(self.webhook_manager.send_session_stop(
+                        self.webhook_manager.send_session_stop(
                             session_id=session_id,
                             end_time=datetime.now().isoformat(),
                             cameras=session_status.get("cameras", {})
-                        ))
-                        loop.close()
+                        )
                     except Exception as e:
                         logger.warning(f"Webhook thread error: {e}")
                 

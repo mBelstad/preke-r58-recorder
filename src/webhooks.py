@@ -1,16 +1,19 @@
 """Webhook management for external integrations (e.g., DaVinci Resolve automation)."""
-import asyncio
 import logging
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Any
 import httpx
 
 logger = logging.getLogger(__name__)
 
 
 class WebhookManager:
-    """Manages webhook delivery to external services."""
+    """Manages webhook delivery to external services.
     
-    def __init__(self, webhook_urls: List[str], timeout: float = 2.0):
+    Uses synchronous HTTP requests for simplicity and reliability
+    when called from background threads.
+    """
+    
+    def __init__(self, webhook_urls: List[str], timeout: float = 5.0):
         """Initialize webhook manager.
         
         Args:
@@ -20,7 +23,7 @@ class WebhookManager:
         self.webhook_urls = webhook_urls
         self.timeout = timeout
     
-    async def send_session_start(
+    def send_session_start(
         self,
         session_id: str,
         start_time: str,
@@ -46,16 +49,9 @@ class WebhookManager:
             "file_paths": file_paths
         }
         
-        # Send to all webhook URLs in parallel (fire-and-forget)
-        tasks = [
-            self._send_webhook(url, payload)
-            for url in self.webhook_urls
-        ]
-        
-        # Don't wait for completion - fire and forget
-        asyncio.create_task(self._send_all_webhooks(tasks))
+        self._send_to_all_urls(payload)
     
-    async def send_session_stop(
+    def send_session_stop(
         self,
         session_id: str,
         end_time: str,
@@ -78,14 +74,9 @@ class WebhookManager:
             "cameras": cameras
         }
         
-        tasks = [
-            self._send_webhook(url, payload)
-            for url in self.webhook_urls
-        ]
-        
-        asyncio.create_task(self._send_all_webhooks(tasks))
+        self._send_to_all_urls(payload)
     
-    async def send_file_added(
+    def send_file_added(
         self,
         session_id: str,
         cam_id: str,
@@ -108,28 +99,14 @@ class WebhookManager:
             "file_path": file_path
         }
         
-        tasks = [
+        self._send_to_all_urls(payload)
+    
+    def _send_to_all_urls(self, payload: Dict[str, Any]) -> None:
+        """Send webhook to all configured URLs."""
+        for url in self.webhook_urls:
             self._send_webhook(url, payload)
-            for url in self.webhook_urls
-        ]
-        
-        asyncio.create_task(self._send_all_webhooks(tasks))
     
-    async def _send_all_webhooks(self, tasks: List) -> None:
-        """Send all webhooks and log results."""
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-        
-        for i, result in enumerate(results):
-            if isinstance(result, Exception):
-                logger.warning(
-                    f"Failed to send webhook to {self.webhook_urls[i]}: {result}"
-                )
-            elif result is False:
-                logger.warning(
-                    f"Webhook to {self.webhook_urls[i]} returned error status"
-                )
-    
-    async def _send_webhook(self, url: str, payload: Dict[str, Any]) -> bool:
+    def _send_webhook(self, url: str, payload: Dict[str, Any]) -> bool:
         """Send a single webhook request.
         
         Args:
@@ -140,16 +117,19 @@ class WebhookManager:
             True if successful, False otherwise
         """
         try:
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
-                response = await client.post(url, json=payload)
+            with httpx.Client(timeout=self.timeout) as client:
+                response = client.post(url, json=payload)
                 response.raise_for_status()
-                logger.debug(f"Successfully sent webhook to {url}")
+                logger.info(f"Successfully sent webhook to {url}")
                 return True
         except httpx.TimeoutException:
             logger.warning(f"Webhook timeout to {url}")
             return False
         except httpx.HTTPStatusError as e:
             logger.warning(f"Webhook HTTP error to {url}: {e.response.status_code}")
+            return False
+        except httpx.ConnectError as e:
+            logger.warning(f"Webhook connection error to {url}: {e}")
             return False
         except Exception as e:
             logger.warning(f"Webhook error to {url}: {e}")
