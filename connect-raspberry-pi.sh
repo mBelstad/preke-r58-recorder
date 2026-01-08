@@ -9,7 +9,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Configuration
 PI_USER="${PI_USER:-marius}"
 PI_PASSWORD="${PI_PASSWORD:-Famalive94}"
-PI_IP="${1:-192.168.68.53}"
+PI_IP="${1:-${PI_IP:-100.107.248.29}}"
 
 # Colors
 GREEN='\033[0;32m'

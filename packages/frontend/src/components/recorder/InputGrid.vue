@@ -245,42 +245,46 @@ function getInputTooltip(input: InputStatus): string {
   font-size: 0.875rem;
 }
 
-/* Grid container that fills and scales */
+/* Grid container - centered with aspect-ratio tiles */
 .input-grid__container {
   flex: 1;
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
-  min-height: 0; /* Critical for flex shrinking */
+  min-height: 0;
   overflow: hidden;
+  align-items: center;
+  justify-content: center;
+  align-content: center;
 }
 
-/* 1 camera - full screen */
-.input-grid__container[data-count="1"] {
-  grid-template-columns: 1fr;
-  grid-template-rows: 1fr;
+/* 1 camera - single large tile */
+.input-grid__container[data-count="1"] .input-grid__tile {
+  width: 100%;
+  max-width: calc(100vh * 16 / 9 - 8rem); /* Limit width based on viewport height */
 }
 
 /* 2 cameras - side by side */
-.input-grid__container[data-count="2"] {
-  grid-template-columns: repeat(2, 1fr);
-  grid-template-rows: 1fr;
+.input-grid__container[data-count="2"] .input-grid__tile {
+  width: calc(50% - 0.25rem);
+  max-width: calc((100vh - 8rem) * 16 / 9 / 2);
 }
 
 /* 3-4 cameras - 2x2 grid */
-.input-grid__container[data-count="3"],
-.input-grid__container[data-count="4"] {
-  grid-template-columns: repeat(2, 1fr);
-  grid-template-rows: repeat(2, 1fr);
+.input-grid__container[data-count="3"] .input-grid__tile,
+.input-grid__container[data-count="4"] .input-grid__tile {
+  width: calc(50% - 0.25rem);
+  max-width: calc((100vh - 8rem) * 16 / 9 / 2);
 }
 
 /* 5-6 cameras - 3x2 grid */
-.input-grid__container[data-count="5"],
-.input-grid__container[data-count="6"] {
-  grid-template-columns: repeat(3, 1fr);
-  grid-template-rows: repeat(2, 1fr);
+.input-grid__container[data-count="5"] .input-grid__tile,
+.input-grid__container[data-count="6"] .input-grid__tile {
+  width: calc(33.333% - 0.333rem);
+  max-width: calc((100vh - 8rem) * 16 / 9 / 3);
 }
 
-/* Video tile - maintains aspect ratio within grid cell */
+/* Video tile with 16:9 aspect ratio */
 .input-grid__tile {
   position: relative;
   border-radius: 6px;
@@ -289,16 +293,13 @@ function getInputTooltip(input: InputStatus): string {
   background: #000;
   transition: all 0.15s ease;
   cursor: pointer;
-  /* Fill grid cell while maintaining video aspect ratio */
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  aspect-ratio: 16 / 9;
 }
 
-/* Make video fit within tile while preserving aspect ratio (letterboxed if needed) */
+/* Video fills tile completely (tile handles aspect ratio) */
 .input-grid__tile :deep(video) {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
 }
 </style>
