@@ -2183,6 +2183,50 @@ async def set_mixer_overlay_alpha(source: str, alpha: float) -> Dict[str, Any]:
 
 
 # Reveal.js API endpoints - supports multiple independent outputs
+@app.get("/reveal", response_class=HTMLResponse)
+async def reveal_demo():
+    """Serve a Reveal.js demo presentation page."""
+    reveal_index = Path(__file__).parent.parent / "reveal.js" / "index.html"
+    if reveal_index.exists():
+        # Read and modify the HTML to use local paths
+        html_content = reveal_index.read_text()
+        # Replace dist/ paths with /reveal.js/ paths
+        html_content = html_content.replace('href="dist/', 'href="/reveal.js/')
+        html_content = html_content.replace('src="dist/', 'src="/reveal.js/')
+        html_content = html_content.replace('href="plugin/', 'href="/reveal-demo/plugin/')
+        html_content = html_content.replace('src="plugin/', 'src="/reveal-demo/plugin/')
+        return html_content
+    else:
+        # Fallback: create a simple reveal.js page
+        return """<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Reveal.js Demo</title>
+    <link rel="stylesheet" href="/reveal.js/reveal.css">
+    <link rel="stylesheet" href="/reveal.js/theme/black.css">
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+            <section>
+                <h1>Reveal.js Demo</h1>
+                <p>reveal.js is working on R58!</p>
+            </section>
+            <section>
+                <h2>Slide 2</h2>
+                <p>Use arrow keys to navigate</p>
+            </section>
+        </div>
+    </div>
+    <script src="/reveal.js/reveal.js"></script>
+    <script>
+        Reveal.initialize({ hash: true });
+    </script>
+</body>
+</html>"""
+
+
 @app.get("/api/reveal/outputs")
 async def get_reveal_outputs() -> Dict[str, Any]:
     """Get available Reveal.js output IDs."""
