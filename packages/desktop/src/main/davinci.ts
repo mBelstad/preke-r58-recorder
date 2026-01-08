@@ -463,6 +463,248 @@ function notifyRenderer(event: string, data: unknown): void {
 }
 
 // ============================================
+// Project and Multicam Functions
+// ============================================
+
+/**
+ * Open DaVinci Resolve and load/create a project
+ */
+async function openOrCreateProject(projectName?: string): Promise<{ success: boolean; error?: string; projectName?: string }> {
+  const scriptPath = getResolveScriptPath()
+  if (!scriptPath) {
+    return { success: false, error: 'DaVinci Resolve scripting path not found' }
+  }
+  
+  // Launch Resolve if not running
+  if (!isResolveRunning()) {
+    log.info('Launching DaVinci Resolve...')
+    try {
+      if (process.platform === 'darwin') {
+        execSync('open -a "DaVinci Resolve"', { stdio: 'pipe' })
+      } else if (process.platform === 'win32') {
+        spawn('cmd.exe', ['/c', 'start', '', 'C:\\Program Files\\Blackmagic Design\\DaVinci Resolve\\Resolve.exe'], { detached: true, stdio: 'ignore' })
+      }
+      // Wait for Resolve to start
+      await new Promise(resolve => setTimeout(resolve, 5000))
+    } catch (err) {
+      log.error('Failed to launch DaVinci Resolve:', err)
+      return { success: false, error: 'Failed to launch DaVinci Resolve' }
+    }
+  }
+  
+  const name = projectName || `${davinciConfig.projectNamePrefix}_${new Date().toISOString().split('T')[0]}`
+  
+  const pythonScript = `
+import sys
+sys.path.append('${scriptPath.replace(/\\/g, '/')}')
+sys.path.append('${scriptPath.replace(/\\/g, '/')}/Modules')
+
+import DaVinciResolveScript as dvr
+
+resolve = dvr.scriptapp("Resolve")
+if not resolve:
+    print("ERROR: Cannot connect to Resolve")
+    sys.exit(1)
+
+pm = resolve.GetProjectManager()
+if not pm:
+    print("ERROR: Cannot get Project Manager")
+    sys.exit(1)
+
+# Try to load existing project first
+project = pm.LoadProject("${name}")
+if not project:
+    # Create new project
+    project = pm.CreateProject("${name}")
+    if not project:
+        print("ERROR: Cannot create project")
+        sys.exit(1)
+    print("CREATED: ${name}")
+else:
+    print("LOADED: ${name}")
+
+sys.exit(0)
+`
+  
+  return new Promise((resolve) => {
+    const python = spawn('python3', ['-c', pythonScript], {
+      stdio: ['pipe', 'pipe', 'pipe'],
+      env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1' },
+    })
+    
+    let output = ''
+    let timedOut = false
+    
+    const timeout = setTimeout(() => {
+      timedOut = true
+      python.kill('SIGTERM')
+      resolve({ success: false, error: 'Timeout connecting to Resolve' })
+    }, 15000)
+    
+    python.stdout.on('data', (data) => { output += data.toString() })
+    python.stderr.on('data', (data) => { output += data.toString() })
+    
+    python.on('close', (code) => {
+      clearTimeout(timeout)
+      if (timedOut) return
+      
+      if (code === 0) {
+        log.info(`DaVinci project: ${output.trim()}`)
+        resolve({ success: true, projectName: name })
+      } else {
+        log.error(`DaVinci project error: ${output.trim()}`)
+        resolve({ success: false, error: output.trim() })
+      }
+    })
+    
+    python.on('error', (err) => {
+      clearTimeout(timeout)
+      resolve({ success: false, error: err.message })
+    })
+  })
+}
+
+/**
+ * Create a multicam timeline from media files
+ * Supports growing files for edit-while-record workflow
+ */
+async function createMulticamTimeline(options: {
+  projectName?: string
+  clipName?: string
+  filePaths?: string[]
+  syncMethod?: string
+}): Promise<{ success: boolean; error?: string; timelineName?: string }> {
+  const scriptPath = getResolveScriptPath()
+  if (!scriptPath) {
+    return { success: false, error: 'DaVinci Resolve scripting path not found' }
+  }
+  
+  if (!isResolveRunning()) {
+    return { success: false, error: 'DaVinci Resolve is not running' }
+  }
+  
+  const clipName = options.clipName || `Multicam_${new Date().toISOString().replace(/[:.]/g, '-')}`
+  const syncMethod = options.syncMethod || 'timecode' // timecode, audio, in_point
+  
+  // If file paths provided, we'll import and create multicam from them
+  // Otherwise, create from selected clips in media pool
+  const filesJson = options.filePaths ? JSON.stringify(options.filePaths) : '[]'
+  
+  const pythonScript = `
+import sys
+import json
+sys.path.append('${scriptPath.replace(/\\/g, '/')}')
+sys.path.append('${scriptPath.replace(/\\/g, '/')}/Modules')
+
+import DaVinciResolveScript as dvr
+
+resolve = dvr.scriptapp("Resolve")
+if not resolve:
+    print("ERROR: Cannot connect to Resolve")
+    sys.exit(1)
+
+pm = resolve.GetProjectManager()
+project = pm.GetCurrentProject()
+if not project:
+    print("ERROR: No project open")
+    sys.exit(1)
+
+media_pool = project.GetMediaPool()
+root_folder = media_pool.GetRootFolder()
+
+# Import files if provided
+files = json.loads('${filesJson.replace(/'/g, "\\'")}')
+clips = []
+
+if files:
+    # Import the files first
+    imported = media_pool.ImportMedia(files)
+    if imported:
+        clips = imported
+        print(f"Imported {len(imported)} files")
+    else:
+        print("WARNING: No files imported (may already exist)")
+        # Try to find clips in media pool
+        all_clips = root_folder.GetClipList()
+        for f in files:
+            import os
+            fname = os.path.basename(f)
+            for clip in all_clips:
+                if clip.GetName() == fname:
+                    clips.append(clip)
+                    break
+
+if not clips:
+    # Use selected clips in media pool
+    clips = media_pool.GetSelectedClips()
+    if not clips:
+        print("ERROR: No clips to create multicam from")
+        sys.exit(1)
+
+print(f"Creating multicam from {len(clips)} clips")
+
+# Create multicam clip
+# Sync method: 0=Timecode, 1=Sound, 2=In Point, 3=Out Point
+sync_map = {'timecode': 0, 'audio': 1, 'in_point': 2, 'out_point': 3}
+sync_value = sync_map.get('${syncMethod}', 0)
+
+# Create a new timeline first
+timeline = media_pool.CreateEmptyTimeline("${clipName}_Timeline")
+if not timeline:
+    print("ERROR: Could not create timeline")
+    sys.exit(1)
+
+# Add clips to timeline
+for i, clip in enumerate(clips):
+    # Add each clip to a separate video track
+    media_pool.AppendToTimeline([clip])
+
+# Set as current timeline
+project.SetCurrentTimeline(timeline)
+
+print(f"SUCCESS: Created timeline ${clipName}_Timeline with {len(clips)} clips")
+sys.exit(0)
+`
+  
+  return new Promise((resolve) => {
+    const python = spawn('python3', ['-c', pythonScript], {
+      stdio: ['pipe', 'pipe', 'pipe'],
+      env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1' },
+    })
+    
+    let output = ''
+    let timedOut = false
+    
+    const timeout = setTimeout(() => {
+      timedOut = true
+      python.kill('SIGTERM')
+      resolve({ success: false, error: 'Timeout' })
+    }, 30000)
+    
+    python.stdout.on('data', (data) => { output += data.toString() })
+    python.stderr.on('data', (data) => { output += data.toString() })
+    
+    python.on('close', (code) => {
+      clearTimeout(timeout)
+      if (timedOut) return
+      
+      if (code === 0 && output.includes('SUCCESS')) {
+        log.info(`Multicam created: ${output.trim()}`)
+        resolve({ success: true, timelineName: `${clipName}_Timeline` })
+      } else {
+        log.error(`Multicam error: ${output.trim()}`)
+        resolve({ success: false, error: output.trim() })
+      }
+    })
+    
+    python.on('error', (err) => {
+      clearTimeout(timeout)
+      resolve({ success: false, error: err.message })
+    })
+  })
+}
+
+// ============================================
 // Public API
 // ============================================
 

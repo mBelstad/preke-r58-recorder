@@ -9,12 +9,15 @@ import { useCapabilitiesStore } from '@/stores/capabilities'
 import { useConnectionStatus } from '@/composables/useConnectionStatus'
 import { useTailscaleStatus } from '@/composables/useTailscaleStatus'
 import { useCameraControls } from '@/composables/useCameraControls'
+import { useToast } from '@/composables/useToast'
+import { isElectron } from '@/lib/api'
 import CameraControlModal from '@/components/camera/CameraControlModal.vue'
 import CameraSetupModal from '@/components/camera/CameraSetupModal.vue'
 
 const router = useRouter()
 const recorderStore = useRecorderStore()
 const capabilitiesStore = useCapabilitiesStore()
+const toast = useToast()
 
 // Connection status
 const { state, latencyMs } = useConnectionStatus()
@@ -153,6 +156,72 @@ function formatBytes(bytes: number): string {
 function openInputConfig() {
   router.push({ name: 'admin', query: { tab: 'settings' } })
 }
+
+// DaVinci Resolve integration (Electron only)
+const inElectron = computed(() => isElectron())
+const davinciLoading = ref(false)
+const davinciProjectName = computed(() => {
+  const session = currentSession.value
+  if (session?.id) {
+    return `Preke_${session.id}`
+  }
+  return `Preke_${sessionName.value.replace(/\s+/g, '_')}`
+})
+
+// Type assertion for extended electronAPI
+const electronAPI = window.electronAPI as typeof window.electronAPI & {
+  davinciOpenProject?: (name?: string) => Promise<{ success: boolean; error?: string; projectName?: string }>
+  davinciCreateMulticam?: (opts: { projectName?: string; clipName?: string; filePaths?: string[]; syncMethod?: string }) => Promise<{ success: boolean; error?: string; timelineName?: string }>
+}
+
+async function openInDaVinci() {
+  if (!electronAPI?.davinciOpenProject) return
+  
+  davinciLoading.value = true
+  try {
+    const result = await electronAPI.davinciOpenProject(davinciProjectName.value)
+    if (result.success) {
+      toast.success(`Opened project: ${result.projectName}`)
+    } else {
+      toast.error(result.error || 'Failed to open DaVinci project')
+    }
+  } catch (error) {
+    console.error('DaVinci error:', error)
+    toast.error('Failed to connect to DaVinci Resolve')
+  } finally {
+    davinciLoading.value = false
+  }
+}
+
+async function createMulticamInDaVinci() {
+  if (!electronAPI?.davinciCreateMulticam) return
+  
+  davinciLoading.value = true
+  try {
+    // First ensure project is open
+    if (electronAPI.davinciOpenProject) {
+      await electronAPI.davinciOpenProject(davinciProjectName.value)
+    }
+    
+    // Then create multicam timeline
+    const result = await electronAPI.davinciCreateMulticam({
+      projectName: davinciProjectName.value,
+      clipName: `Multicam_${sessionName.value.replace(/\s+/g, '_')}`,
+      syncMethod: 'timecode'
+    })
+    
+    if (result.success) {
+      toast.success(`Created timeline: ${result.timelineName}`)
+    } else {
+      toast.error(result.error || 'Failed to create multicam timeline')
+    }
+  } catch (error) {
+    console.error('DaVinci error:', error)
+    toast.error('Failed to create multicam timeline')
+  } finally {
+    davinciLoading.value = false
+  }
+}
 </script>
 
 <template>
@@ -209,6 +278,33 @@ function openInputConfig() {
         <div class="warning__text">
           <strong>Low storage</strong>
           <span>{{ storageInfo.freeGB }} GB remaining</span>
+        </div>
+      </div>
+      
+      <!-- DaVinci Resolve Integration (Electron only, during recording) -->
+      <div v-if="inElectron" class="sidebar__card sidebar__card--davinci">
+        <div class="davinci__header">
+          <svg class="davinci__icon" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+          </svg>
+          <span class="davinci__label">DaVinci Resolve</span>
+        </div>
+        <p class="davinci__hint">Edit while recording with growing files</p>
+        <div class="davinci__buttons">
+          <button 
+            @click="openInDaVinci" 
+            :disabled="davinciLoading"
+            class="davinci__btn"
+          >
+            {{ davinciLoading ? 'Opening...' : 'Open Project' }}
+          </button>
+          <button 
+            @click="createMulticamInDaVinci" 
+            :disabled="davinciLoading"
+            class="davinci__btn davinci__btn--secondary"
+          >
+            Create Multicam
+          </button>
         </div>
       </div>
     </template>
@@ -716,5 +812,77 @@ function openInputConfig() {
 
 .storage__estimate {
   color: var(--preke-text-subtle, #666);
+}
+
+/* DaVinci Resolve Integration */
+.sidebar__card--davinci {
+  background: linear-gradient(135deg, rgba(255, 90, 90, 0.1), rgba(255, 140, 50, 0.1));
+  border-color: rgba(255, 100, 100, 0.2);
+}
+
+.davinci__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.davinci__icon {
+  width: 18px;
+  height: 18px;
+  color: #ff6b6b;
+}
+
+.davinci__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--preke-text, #fff);
+}
+
+.davinci__hint {
+  font-size: 11px;
+  color: var(--preke-text-muted, #888);
+  margin-bottom: 12px;
+}
+
+.davinci__buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.davinci__btn {
+  width: 100%;
+  padding: 10px 12px;
+  background: linear-gradient(135deg, #ff6b6b, #ff8c50);
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  font-weight: 600;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.davinci__btn:hover:not(:disabled) {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.davinci__btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.davinci__btn--secondary {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 107, 107, 0.3);
+  color: var(--preke-text, #fff);
+}
+
+.davinci__btn--secondary:hover:not(:disabled) {
+  background: rgba(255, 107, 107, 0.2);
+  border-color: rgba(255, 107, 107, 0.5);
 }
 </style>

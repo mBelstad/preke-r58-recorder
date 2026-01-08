@@ -531,6 +531,33 @@ const electronAPI = {
     ipcRenderer.on('davinci-connection-changed', handler)
     return () => ipcRenderer.removeListener('davinci-connection-changed', handler)
   },
+
+  /**
+   * Open or create a DaVinci Resolve project (launches Resolve if not running)
+   */
+  davinciOpenProject: (projectName?: string): Promise<{
+    success: boolean
+    error?: string
+    projectName?: string
+  }> => {
+    return ipcRenderer.invoke('davinci-open-project', projectName)
+  },
+
+  /**
+   * Create a multicam timeline from clips
+   */
+  davinciCreateMulticam: (options: {
+    projectName?: string
+    clipName?: string
+    filePaths?: string[]
+    syncMethod?: string
+  }): Promise<{
+    success: boolean
+    error?: string
+    timelineName?: string
+  }> => {
+    return ipcRenderer.invoke('davinci-create-multicam', options)
+  },
 }
 
 // Expose the API to the renderer
