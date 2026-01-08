@@ -498,12 +498,30 @@ async def health() -> Dict[str, Any]:
     gst_status = "initialized" if is_gst_initialized() else "not_initialized"
     gst_error = get_gst_init_error()
     
-    return {
+    # Check if reveal.js is available
+    reveal_js_dist_path = Path(__file__).parent.parent / "reveal.js" / "dist"
+    reveal_available = reveal_js_dist_path.exists()
+    
+    result = {
         "status": "healthy",
         "platform": config.platform,
         "gstreamer": gst_status,
         "gstreamer_error": gst_error
     }
+    
+    # Add reveal.js URLs if available
+    if reveal_available:
+        result["reveal_js"] = {
+            "available": True,
+            "demo_url": "/reveal",
+            "graphics_url": "/reveal/graphics"
+        }
+    else:
+        result["reveal_js"] = {
+            "available": False
+        }
+    
+    return result
 
 
 @app.get("/api/system/info")
@@ -2222,6 +2240,76 @@ async def reveal_demo():
     <script src="/reveal.js/reveal.js"></script>
     <script>
         Reveal.initialize({ hash: true });
+    </script>
+</body>
+</html>"""
+
+
+@app.get("/reveal/graphics", response_class=HTMLResponse)
+async def reveal_graphics():
+    """Serve a Reveal.js presentation page for graphics/presentations.
+    
+    This endpoint is optimized for use in the graphics overlay system
+    and mixer presentations.
+    """
+    # Check if graphics.html exists (legacy graphics interface)
+    graphics_html = Path(__file__).parent / "static" / "graphics.html"
+    if graphics_html.exists():
+        # Read and modify to use local reveal.js
+        html_content = graphics_html.read_text()
+        # Replace CDN URLs with local paths
+        html_content = html_content.replace(
+            'https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.css',
+            '/reveal.js/reveal.css'
+        )
+        html_content = html_content.replace(
+            'https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/theme/',
+            '/reveal.js/theme/'
+        )
+        html_content = html_content.replace(
+            'https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.js',
+            '/reveal.js/reveal.js'
+        )
+        html_content = html_content.replace(
+            'https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/plugin/',
+            '/reveal-demo/plugin/'
+        )
+        return html_content
+    
+    # Fallback: create a graphics-optimized reveal.js page
+    return """<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Reveal.js Graphics</title>
+    <link rel="stylesheet" href="/reveal.js/reveal.css">
+    <link rel="stylesheet" href="/reveal.js/theme/black.css">
+    <style>
+        .reveal .slides section {
+            text-align: left;
+        }
+        .reveal h1, .reveal h2 {
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+            <section>
+                <h1>Reveal.js Graphics</h1>
+                <p>Presentation mode for graphics overlay</p>
+            </section>
+        </div>
+    </div>
+    <script src="/reveal.js/reveal.js"></script>
+    <script>
+        Reveal.initialize({
+            hash: true,
+            controls: false,
+            progress: false,
+            center: true
+        });
     </script>
 </body>
 </html>"""

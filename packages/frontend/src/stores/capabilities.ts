@@ -2,6 +2,12 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { buildApiUrl, hasDeviceConfigured, isUsingFrpFallback, tryDirectConnection } from '@/lib/api'
 
+export interface RevealJsInfo {
+  available: boolean
+  demo_url?: string
+  graphics_url?: string
+}
+
 export interface DeviceCapabilities {
   device_id: string
   device_name: string
@@ -21,6 +27,7 @@ export interface DeviceCapabilities {
   storage_total_gb: number
   storage_available_gb: number
   current_mode: string
+  reveal_js?: RevealJsInfo
 }
 
 export interface InputCapability {
@@ -140,6 +147,7 @@ export const useCapabilitiesStore = defineStore('capabilities', () => {
         storage_total_gb: 0, // Not available from API
         storage_available_gb: 0, // Not available from API
         current_mode: mode.current_mode || 'recorder',
+        reveal_js: health.reveal_js || { available: false },
       }
 
       error.value = null

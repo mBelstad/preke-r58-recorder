@@ -106,6 +106,30 @@ onUnmounted(() => {
           <div v-if="loading && !capabilities" class="skeleton w-20 h-5"></div>
           <span v-else class="badge badge-success">Initialized</span>
         </div>
+        <div v-if="capabilities?.reveal_js?.available" class="flex flex-col gap-2 pt-2 border-t border-preke-border">
+          <div class="flex justify-between items-center">
+            <span class="text-preke-text-dim text-xs">Reveal.js</span>
+            <span class="badge badge-success text-xs">Available</span>
+          </div>
+          <div class="flex flex-col gap-1 text-xs">
+            <a 
+              :href="buildApiUrl('/reveal')" 
+              target="_blank"
+              class="text-preke-blue hover:text-preke-gold transition-colors truncate"
+              title="Open Reveal.js Demo"
+            >
+              Demo Presentation
+            </a>
+            <a 
+              :href="buildApiUrl('/reveal/graphics')" 
+              target="_blank"
+              class="text-preke-blue hover:text-preke-gold transition-colors truncate"
+              title="Open Reveal.js Graphics"
+            >
+              Graphics Presentation
+            </a>
+          </div>
+        </div>
       </div>
     </div>
     
