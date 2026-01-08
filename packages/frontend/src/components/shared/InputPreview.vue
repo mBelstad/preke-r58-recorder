@@ -22,6 +22,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'videoReady'): void
+  (e: 'aspectRatio', ratio: number): void
 }>()
 
 const recorderStore = useRecorderStore()
@@ -73,12 +74,16 @@ function handleConnectionChange(conn: WHEPConnection) {
             console.warn(`[InputPreview ${props.inputId}] Autoplay prevented:`, e)
           })
           
-          // Emit videoReady when first frame is displayed
+          // Emit videoReady and aspectRatio when first frame is displayed
           if (!videoReadyEmitted) {
             videoRef.value.onloadeddata = () => {
-              if (!videoReadyEmitted) {
+              if (!videoReadyEmitted && videoRef.value) {
                 videoReadyEmitted = true
-                console.log(`[InputPreview ${props.inputId}] Video ready (first frame displayed)`)
+                const w = videoRef.value.videoWidth
+                const h = videoRef.value.videoHeight
+                const ratio = w && h ? w / h : 16/9
+                console.log(`[InputPreview ${props.inputId}] Video ready (${w}x${h}, ratio: ${ratio.toFixed(3)})`)
+                emit('aspectRatio', ratio)
                 emit('videoReady')
               }
             }

@@ -28,6 +28,9 @@ const emit = defineEmits<{
 // Track which cameras have video ready
 const videosReady = ref<Set<string>>(new Set())
 
+// Track aspect ratios per input (default to 16:9)
+const aspectRatios = ref<Record<string, number>>({})
+
 function handleVideoReady(inputId: string) {
   videosReady.value.add(inputId)
   console.log(`[InputGrid] Video ready: ${inputId} (${videosReady.value.size}/${inputs.value.length})`)
@@ -37,6 +40,16 @@ function handleVideoReady(inputId: string) {
     console.log('[InputGrid] All videos ready!')
     emit('allVideosReady')
   }
+}
+
+function handleAspectRatio(inputId: string, ratio: number) {
+  aspectRatios.value[inputId] = ratio
+  console.log(`[InputGrid] Aspect ratio for ${inputId}: ${ratio.toFixed(3)}`)
+}
+
+function getTileStyle(inputId: string) {
+  const ratio = aspectRatios.value[inputId] || 16/9
+  return { aspectRatio: `${ratio}` }
 }
 
 // Reset when inputs change
@@ -162,6 +175,7 @@ function getInputTooltip(input: InputStatus): string {
       :key="input.id"
       class="input-grid__tile"
       :class="getBorderClass(input)"
+      :style="getTileStyle(input.id)"
       :title="getInputTooltip(input)"
     >
       <!-- Video preview - only in recorder mode to avoid duplicate WHEP connections -->
@@ -170,6 +184,7 @@ function getInputTooltip(input: InputStatus): string {
         :input-id="input.id"
         class="w-full h-full"
         @video-ready="handleVideoReady(input.id)"
+        @aspect-ratio="(ratio) => handleAspectRatio(input.id, ratio)"
       />
       <!-- Static placeholder in mixer mode (VDO.ninja handles video) -->
       <div 
@@ -282,7 +297,7 @@ function getInputTooltip(input: InputStatus): string {
   grid-template-rows: repeat(2, 1fr);
 }
 
-/* Video tile with 16:9 aspect ratio, constrained to grid cell */
+/* Video tile with dynamic aspect ratio (set via :style), constrained to grid cell */
 .input-grid__tile {
   position: relative;
   border-radius: 6px;
@@ -291,7 +306,8 @@ function getInputTooltip(input: InputStatus): string {
   background: #000;
   transition: all 0.15s ease;
   cursor: pointer;
-  aspect-ratio: 16 / 9;
+  /* aspect-ratio set dynamically via :style based on actual video dimensions */
+  aspect-ratio: 16 / 9; /* Default fallback until video loads */
   width: 100%;
   max-width: 100%;
   max-height: 100%;
