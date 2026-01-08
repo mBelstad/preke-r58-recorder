@@ -65,9 +65,10 @@ class Recorder:
         return False
     
     def _check_disk_space(self, min_gb: float = 10.0) -> tuple[bool, float]:
-        """Check if sufficient disk space is available."""
+        """Check if sufficient disk space is available on NVMe SSD (/data)."""
         try:
-            disk = shutil.disk_usage("/mnt/sdcard")
+            # /data is symlink to /userdata where NVMe SSD is mounted
+            disk = shutil.disk_usage("/data")
             free_gb = disk.free / (1024**3)
             return free_gb >= min_gb, free_gb
         except Exception as e:
