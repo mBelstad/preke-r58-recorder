@@ -9,7 +9,6 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, UploadFile, File, Response, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse, FileResponse, HTMLResponse, StreamingResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.middleware.cors import CORSMiddleware
 import shutil
 import uuid
 import httpx
@@ -192,23 +191,8 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Configure CORS to allow cross-origin requests from the web frontend
-# This allows app.itagenten.no to make API requests to r58-api.itagenten.no
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "https://app.itagenten.no",
-        "http://localhost:5173",  # Vite dev server
-        "http://localhost:8000",  # Local development
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:8000",
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-    expose_headers=["*"],
-)
-logger.info("CORS middleware configured for cross-origin requests")
+# NOTE: CORS is handled by nginx proxy at VPS level (r58-api.itagenten.no)
+# Do not add CORSMiddleware here to avoid duplicate Access-Control-Allow-Origin headers
 
 # Mount Vue frontend assets (js, css) at /assets
 vue_dist_path = Path(__file__).parent.parent / "packages" / "frontend" / "dist"
