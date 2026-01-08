@@ -4992,7 +4992,7 @@ async def set_camera_ptz(camera_name: str, request: SetPTZRequest = Body(...)) -
         raise HTTPException(status_code=404, detail=f"Camera '{camera_name}' not found")
     
     camera = camera_control_manager.cameras[camera_name]
-    if not isinstance(camera, ObsbotTail2):
+    if not hasattr(camera, "ptz_move"):
         raise HTTPException(status_code=400, detail="Camera does not support PTZ control")
     
     success = await camera.ptz_move(request.pan, request.tilt, request.zoom)

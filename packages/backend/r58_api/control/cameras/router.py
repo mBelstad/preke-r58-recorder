@@ -333,7 +333,8 @@ async def set_ptz(
     """Move PTZ camera (OBSbot only)"""
     camera = get_camera_by_name(camera_name, manager)
     
-    if not isinstance(camera, ObsbotTail2):
+    # Check if camera supports PTZ (OBSbot, Sony, etc.)
+    if not hasattr(camera, "ptz_move"):
         raise HTTPException(status_code=400, detail="Camera does not support PTZ control")
     
     success = await camera.ptz_move(request.pan, request.tilt, request.zoom)

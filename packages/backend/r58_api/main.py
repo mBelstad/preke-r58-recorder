@@ -15,6 +15,7 @@ from .control.auth.router import router as auth_router
 # Import routers
 from .control.cameras.router import router as cameras_router
 from .control.companion.router import router as companion_router
+from .control.ptz_controller.router import router as ptz_controller_router
 from .control.devices.capabilities import router as capabilities_router
 from .control.lan_discovery.discovery import router as lan_discovery_router
 from .control.sessions.router import router as sessions_router
@@ -196,6 +197,7 @@ def create_app() -> FastAPI:
     app.include_router(capabilities_router)
     app.include_router(cameras_router)
     app.include_router(companion_router)
+    app.include_router(ptz_controller_router)
     app.include_router(lan_discovery_router)
     app.include_router(vdoninja_router)
     app.include_router(sessions_router)

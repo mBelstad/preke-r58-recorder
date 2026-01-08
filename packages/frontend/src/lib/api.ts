@@ -1275,5 +1275,36 @@ export const r58Api = {
       }>(await buildApiUrl('/api/v1/cameras/config'), cameras)
     },
   },
+
+  // PTZ Controller
+  ptzController: {
+    async listCameras() {
+      return apiGet<{
+        cameras: Array<{
+          name: string
+          type: string
+          supports_focus: boolean
+        }>
+      }>(await buildApiUrl('/api/v1/ptz-controller/cameras'))
+    },
+
+    async sendCommand(cameraName: string, command: {
+      pan: number
+      tilt: number
+      zoom: number
+      focus?: number
+      speed?: number
+    }) {
+      return apiPut<{
+        success: boolean
+        camera: string
+        command: {
+          pan: number
+          tilt: number
+          zoom: number
+        }
+      }>(await buildApiUrl(`/api/v1/ptz-controller/${cameraName}/ptz`), command)
+    },
+  },
 }
 
