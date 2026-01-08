@@ -44,17 +44,19 @@ const activeCameras = computed(() =>
 )
 
 // Build the VDO.ninja mixer URL
-// Uses director view which shows cameras with full controls including layouts
+// Uses mixer.html which provides full mixer interface with:
+// - Sidebar for stream IDs and slots
+// - Top menu for layout buttons
+// - Chat module
+// - Director iframe with video cards
 const mixerUrl = computed(() => {
   const VDO_HOST = getVdoHost()  // r58-vdo.itagenten.no
   const VDO_PROTOCOL = getVdoProtocol()  // https
   
-  // Use director view (index.html with &director=) 
-  // Full UI with top bar (layouts/compositions) and sidebar
-  const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/`)
-  url.searchParams.set('director', VDO_ROOM)
+  // Use mixer.html for full mixer interface
+  const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/mixer.html`)
+  url.searchParams.set('room', VDO_ROOM)
   url.searchParams.set('password', VDO_DIRECTOR_PASSWORD)
-  url.searchParams.set('darkmode', '')  // VDO.ninja's built-in dark mode
   
   return url.toString()
 })
