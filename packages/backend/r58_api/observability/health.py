@@ -294,23 +294,38 @@ async def _check_frp_tunnel() -> ServiceStatus:
 
 
 def get_storage_status() -> StorageStatus:
-    """Get current storage status"""
-    try:
-        usage = shutil.disk_usage("/")
-        total_gb = usage.total / (1024 ** 3)
-        available_gb = usage.free / (1024 ** 3)
-        used_percent = ((usage.total - usage.free) / usage.total) * 100
-        return StorageStatus(
-            total_gb=round(total_gb, 2),
-            available_gb=round(available_gb, 2),
-            used_percent=round(used_percent, 1),
-        )
-    except Exception:
-        return StorageStatus(
-            total_gb=0.0,
-            available_gb=0.0,
-            used_percent=0.0,
-        )
+    """Get current storage status.
+    
+    Checks storage in order of priority:
+    1. /data - NVMe SSD mount point on R58 (where recordings are stored)
+    2. / - Root filesystem fallback
+    """
+    import os
+    
+    # Priority: NVMe SSD at /data, then root
+    paths_to_check = ["/data", "/"]
+    
+    for path in paths_to_check:
+        try:
+            if os.path.exists(path):
+                usage = shutil.disk_usage(path)
+                if usage.total > 0:
+                    total_gb = usage.total / (1024 ** 3)
+                    available_gb = usage.free / (1024 ** 3)
+                    used_percent = ((usage.total - usage.free) / usage.total) * 100
+                    return StorageStatus(
+                        total_gb=round(total_gb, 2),
+                        available_gb=round(available_gb, 2),
+                        used_percent=round(used_percent, 1),
+                    )
+        except Exception:
+            continue
+    
+    return StorageStatus(
+        total_gb=0.0,
+        available_gb=0.0,
+        used_percent=0.0,
+    )
 
 
 @router.get("/health")

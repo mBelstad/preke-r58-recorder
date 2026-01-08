@@ -61,6 +61,9 @@ export default defineConfig({
           ]
         },
         workbox: {
+          // Force immediate activation of new service worker
+          skipWaiting: true,
+          clientsClaim: true,
           // Only cache static assets, not dynamic content
           globPatterns: ['**/*.{js,css,html,svg,woff,woff2}'],
           // Exclude API calls and video streams from caching

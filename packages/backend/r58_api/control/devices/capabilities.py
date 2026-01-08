@@ -131,14 +131,16 @@ def get_preview_modes(settings: Settings) -> List[PreviewMode]:
 def get_storage_info() -> tuple[float, float]:
     """Get storage information.
 
-    Prefers SD card mount at /mnt/sdcard for R58 recordings storage.
-    Falls back to root filesystem if SD card is not available.
+    Checks for recording storage in order of priority:
+    1. /data - NVMe SSD mount point on R58 (where recordings are stored)
+    2. /mnt/sdcard - Legacy SD card mount
+    3. / - Root filesystem fallback
     """
     import os
     import shutil
 
-    # Prefer SD card for R58 recordings
-    paths_to_check = ["/mnt/sdcard", "/"]
+    # Priority: NVMe SSD at /data (R58), then SD card, then root
+    paths_to_check = ["/data", "/mnt/sdcard", "/"]
 
     for path in paths_to_check:
         try:

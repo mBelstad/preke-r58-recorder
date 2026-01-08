@@ -170,19 +170,31 @@ async def get_recorder_status(
     return RecorderStatus(status="idle")
 
 
-def check_disk_space(path: str = "/opt/r58/recordings") -> tuple[float, bool]:
+def check_disk_space(path: str = "/data") -> tuple[float, bool]:
     """
     Check available disk space.
     Returns (available_gb, is_sufficient).
+    
+    Checks /data (NVMe SSD) by default, falls back to root if not available.
     """
-    try:
-        usage = shutil.disk_usage(path)
-        available_gb = usage.free / (1024 ** 3)
-        return available_gb, available_gb >= MIN_DISK_SPACE_GB
-    except OSError as e:
-        logger.warning(f"Failed to check disk space: {e}")
-        # If we can't check, assume it's OK but log warning
-        return 0.0, True
+    import os
+    
+    # Priority: specified path, then /data, then root
+    paths_to_check = [path, "/data", "/"]
+    
+    for check_path in paths_to_check:
+        try:
+            if os.path.exists(check_path):
+                usage = shutil.disk_usage(check_path)
+                if usage.total > 0:
+                    available_gb = usage.free / (1024 ** 3)
+                    return available_gb, available_gb >= MIN_DISK_SPACE_GB
+        except OSError:
+            continue
+    
+    logger.warning(f"Failed to check disk space at any path")
+    # If we can't check, assume it's OK but log warning
+    return 0.0, True
 
 
 @router.post("/start", response_model=StartRecordingResponse)

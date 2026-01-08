@@ -233,14 +233,28 @@ class DegradationPolicy:
             return 0.0
 
     def _get_disk_free_gb(self) -> float:
-        """Get free disk space in GB"""
+        """Get free disk space in GB.
+        
+        Checks storage in order of priority:
+        1. /data - NVMe SSD mount point on R58 (where recordings are stored)
+        2. /opt/r58/recordings - Legacy recordings path
+        3. / - Root filesystem fallback
+        """
         try:
-            path = "/opt/r58/recordings"
-            try:
-                usage = shutil.disk_usage(path)
-            except FileNotFoundError:
-                usage = shutil.disk_usage("/")
-            return usage.free / (1024 ** 3)
+            # Priority: NVMe SSD at /data, then legacy path, then root
+            import os
+            paths_to_check = ["/data", "/opt/r58/recordings", "/"]
+            
+            for path in paths_to_check:
+                try:
+                    if os.path.exists(path):
+                        usage = shutil.disk_usage(path)
+                        if usage.total > 0:
+                            return usage.free / (1024 ** 3)
+                except (FileNotFoundError, OSError):
+                    continue
+            
+            return shutil.disk_usage("/").free / (1024 ** 3)
         except Exception:
             return 100.0  # Assume OK if can't check
 
