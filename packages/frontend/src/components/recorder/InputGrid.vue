@@ -245,46 +245,44 @@ function getInputTooltip(input: InputStatus): string {
   font-size: 0.875rem;
 }
 
-/* Grid container - centered with aspect-ratio tiles */
+/* Grid container - CSS Grid for proper sizing within bounds */
 .input-grid__container {
   flex: 1;
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
   gap: 0.5rem;
   min-height: 0;
   overflow: hidden;
-  align-items: center;
-  justify-content: center;
-  align-content: center;
+  place-items: center;
+  place-content: center;
 }
 
-/* 1 camera - single large tile */
-.input-grid__container[data-count="1"] .input-grid__tile {
-  width: 100%;
-  max-width: calc(100vh * 16 / 9 - 8rem); /* Limit width based on viewport height */
+/* 1 camera - single tile, constrained to container */
+.input-grid__container[data-count="1"] {
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
 }
 
 /* 2 cameras - side by side */
-.input-grid__container[data-count="2"] .input-grid__tile {
-  width: calc(50% - 0.25rem);
-  max-width: calc((100vh - 8rem) * 16 / 9 / 2);
+.input-grid__container[data-count="2"] {
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: 1fr;
 }
 
 /* 3-4 cameras - 2x2 grid */
-.input-grid__container[data-count="3"] .input-grid__tile,
-.input-grid__container[data-count="4"] .input-grid__tile {
-  width: calc(50% - 0.25rem);
-  max-width: calc((100vh - 8rem) * 16 / 9 / 2);
+.input-grid__container[data-count="3"],
+.input-grid__container[data-count="4"] {
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(2, 1fr);
 }
 
 /* 5-6 cameras - 3x2 grid */
-.input-grid__container[data-count="5"] .input-grid__tile,
-.input-grid__container[data-count="6"] .input-grid__tile {
-  width: calc(33.333% - 0.333rem);
-  max-width: calc((100vh - 8rem) * 16 / 9 / 3);
+.input-grid__container[data-count="5"],
+.input-grid__container[data-count="6"] {
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(2, 1fr);
 }
 
-/* Video tile with 16:9 aspect ratio */
+/* Video tile with 16:9 aspect ratio, constrained to grid cell */
 .input-grid__tile {
   position: relative;
   border-radius: 6px;
@@ -294,6 +292,12 @@ function getInputTooltip(input: InputStatus): string {
   transition: all 0.15s ease;
   cursor: pointer;
   aspect-ratio: 16 / 9;
+  width: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  /* Ensure tile fits within grid cell */
+  justify-self: center;
+  align-self: center;
 }
 
 /* Video fills tile completely (tile handles aspect ratio) */
