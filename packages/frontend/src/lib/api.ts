@@ -552,9 +552,10 @@ export async function buildApiUrl(path: string, useFallback: boolean = false): P
   const currentPort = window.location.port
   const protocol = window.location.protocol
   
-  // If accessed from app.itagenten.no, use r58-api.itagenten.no as backend
+  // Same-domain proxy: app.itagenten.no serves both frontend AND proxies API
+  // No CORS needed - all requests are same-origin
   if (host === 'app.itagenten.no') {
-    return `https://r58-api.itagenten.no${path}`
+    return path // Same-origin (nginx proxies /api/* to R58)
   }
   
   // If accessed via standard port (no port in URL, or 80/443), API is same-origin
@@ -682,13 +683,12 @@ export function buildWsUrl(path: string): string {
   // Fall back to browser-based URL construction
   const host = window.location.hostname
   const currentPort = window.location.port
-  
-  // If accessed from app.itagenten.no, use r58-api.itagenten.no as backend
-  if (host === 'app.itagenten.no') {
-    return `wss://r58-api.itagenten.no${path}`
-  }
-  
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  
+  // Same-domain proxy: WebSocket also goes through nginx
+  if (host === 'app.itagenten.no') {
+    return `wss://${host}${path}` // Same-origin WebSocket
+  }
   
   // If on standard ports, use same host
   if (!currentPort || currentPort === '80' || currentPort === '443') {

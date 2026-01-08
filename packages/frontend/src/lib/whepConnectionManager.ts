@@ -92,10 +92,10 @@ async function buildWhepUrl(cameraId: string): Promise<string> {
     }
   }
   
-  // Browser fallback: If accessed from app.itagenten.no, use MediaMTX proxy
+  // Same-domain proxy: app.itagenten.no proxies /cam*/whep directly to MediaMTX
   if (typeof window !== 'undefined' && window.location.hostname === 'app.itagenten.no') {
-    console.log(`[WHEP Manager] Browser access from app.itagenten.no, using MediaMTX proxy`)
-    return `https://r58-mediamtx.itagenten.no/${cameraId}/whep`
+    console.log(`[WHEP Manager] Browser access from app.itagenten.no, using same-domain proxy`)
+    return `https://app.itagenten.no/${cameraId}/whep`  // Same-origin - no CORS needed!
   }
   
   // FRP fallback - get from device config
