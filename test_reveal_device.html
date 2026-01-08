@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reveal.js Device Test</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #e0e0e0;
+        }
+        .test-section {
+            background: #2a2a2a;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .test-section h2 {
+            margin-top: 0;
+            color: #4CAF50;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .status.success {
+            background: #2d5a2d;
+            color: #4CAF50;
+        }
+        .status.error {
+            background: #5a2d2d;
+            color: #f44336;
+        }
+        .status.info {
+            background: #2d3a5a;
+            color: #64B5F6;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        input {
+            background: #333;
+            color: #e0e0e0;
+            border: 1px solid #555;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 14px;
+            width: 400px;
+        }
+        #reveal-container {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎬 Reveal.js Device Test</h1>
+    
+    <div class="test-section">
+        <h2>Device Configuration</h2>
+        <label>
+            Device URL (e.g., http://100.98.37.53:8000 or http://linaro-alip.tailab6fd7.ts.net:8000):
+            <br>
+            <input type="text" id="deviceUrl" value="http://100.65.219.117:8000" placeholder="http://device-ip:8000">
+        </label>
+        <br><br>
+        <button onclick="testConnection()">Test Connection</button>
+        <button onclick="testRevealFiles()">Test Reveal.js Files</button>
+        <button onclick="loadRevealPresentation()">Load Reveal.js Presentation</button>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test Results</h2>
+        <div id="results"></div>
+    </div>
+    
+    <div class="test-section" id="reveal-container" style="display: none;">
+        <h2>Reveal.js Presentation</h2>
+        <div class="reveal">
+            <div class="slides">
+                <section>
+                    <h1>Reveal.js Test</h1>
+                    <p>If you can see this styled correctly, reveal.js is working!</p>
+                    <p class="fragment">This is a fragment that should animate in.</p>
+                </section>
+                <section>
+                    <h2>Slide 2</h2>
+                    <p>Navigation should work with arrow keys</p>
+                    <p>Or use the space bar to advance</p>
+                </section>
+                <section>
+                    <h2>Slide 3</h2>
+                    <p>Test complete! ✓</p>
+                </section>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function addResult(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            div.textContent = message;
+            results.appendChild(div);
+        }
+        
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+        
+        function getDeviceUrl() {
+            return document.getElementById('deviceUrl').value.trim();
+        }
+        
+        async function testConnection() {
+            clearResults();
+            const url = getDeviceUrl();
+            addResult(`Testing connection to ${url}...`, 'info');
+            
+            try {
+                const response = await fetch(`${url}/health`, { method: 'GET' });
+                if (response.ok) {
+                    const data = await response.text();
+                    addResult(`✓ Connection successful! Health check: ${data}`, 'success');
+                } else {
+                    addResult(`✗ Connection failed: HTTP ${response.status}`, 'error');
+                }
+            } catch (error) {
+                addResult(`✗ Connection error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testRevealFiles() {
+            clearResults();
+            const baseUrl = getDeviceUrl();
+            addResult(`Testing reveal.js files from ${baseUrl}...`, 'info');
+            
+            const files = [
+                '/reveal.js/reveal.js',
+                '/reveal.js/reveal.css',
+                '/reveal.js/theme/black.css'
+            ];
+            
+            let allOk = true;
+            for (const file of files) {
+                try {
+                    const response = await fetch(`${baseUrl}${file}`, { method: 'HEAD' });
+                    if (response.ok) {
+                        const size = response.headers.get('content-length') || 'unknown';
+                        addResult(`✓ ${file} - ${size} bytes`, 'success');
+                    } else {
+                        addResult(`✗ ${file} - HTTP ${response.status}`, 'error');
+                        allOk = false;
+                    }
+                } catch (error) {
+                    addResult(`✗ ${file} - Error: ${error.message}`, 'error');
+                    allOk = false;
+                }
+            }
+            
+            if (allOk) {
+                addResult('✓ All reveal.js files are accessible!', 'success');
+            } else {
+                addResult('✗ Some files failed to load', 'error');
+            }
+        }
+        
+        async function loadRevealPresentation() {
+            clearResults();
+            const baseUrl = getDeviceUrl();
+            addResult(`Loading reveal.js presentation from ${baseUrl}...`, 'info');
+            
+            // Load reveal.js CSS
+            const cssLink = document.createElement('link');
+            cssLink.rel = 'stylesheet';
+            cssLink.href = `${baseUrl}/reveal.js/reveal.css`;
+            document.head.appendChild(cssLink);
+            
+            const themeLink = document.createElement('link');
+            themeLink.rel = 'stylesheet';
+            themeLink.href = `${baseUrl}/reveal.js/theme/black.css`;
+            document.head.appendChild(themeLink);
+            
+            // Load reveal.js script
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = `${baseUrl}/reveal.js/reveal.js`;
+                script.onload = () => {
+                    addResult('✓ reveal.js loaded successfully!', 'success');
+                    
+                    // Initialize Reveal.js
+                    if (typeof Reveal !== 'undefined') {
+                        Reveal.initialize({
+                            hash: true,
+                            controls: true,
+                            progress: true,
+                            center: true,
+                            transition: 'slide'
+                        }).then(() => {
+                            addResult('✓ Reveal.js initialized successfully!', 'success');
+                            document.getElementById('reveal-container').style.display = 'block';
+                            resolve();
+                        }).catch(error => {
+                            addResult(`✗ Reveal.js initialization failed: ${error.message}`, 'error');
+                            reject(error);
+                        });
+                    } else {
+                        addResult('✗ Reveal object not found after loading script', 'error');
+                        reject(new Error('Reveal not found'));
+                    }
+                };
+                script.onerror = () => {
+                    addResult('✗ Failed to load reveal.js script', 'error');
+                    reject(new Error('Script load failed'));
+                };
+                document.head.appendChild(script);
+            });
+        }
+    </script>
+</body>
+</html>

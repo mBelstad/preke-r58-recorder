@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reveal.js Presentation Test</title>
+    <!-- Load reveal.js from device -->
+    <link rel="stylesheet" href="http://100.65.219.117:8000/reveal.js/reveal.css">
+    <link rel="stylesheet" href="http://100.65.219.117:8000/reveal.js/theme/black.css" id="theme">
+    <style>
+        .reveal .slides section {
+            text-align: left;
+        }
+        .reveal h1, .reveal h2, .reveal h3 {
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+            <section>
+                <h1>Reveal.js Test</h1>
+                <p>If you can see this styled correctly, reveal.js is working!</p>
+                <p class="fragment">This is a fragment that should animate in.</p>
+                <p class="fragment">Use arrow keys or space to navigate.</p>
+            </section>
+            <section>
+                <h2>Slide 2</h2>
+                <p>Navigation should work with arrow keys</p>
+                <p>Or use the space bar to advance</p>
+                <ul>
+                    <li class="fragment">Fragment 1</li>
+                    <li class="fragment">Fragment 2</li>
+                    <li class="fragment">Fragment 3</li>
+                </ul>
+            </section>
+            <section>
+                <h2>Slide 3</h2>
+                <p>Test complete! ✓</p>
+                <p>reveal.js is working correctly on the R58 device.</p>
+            </section>
+        </div>
+    </div>
+    
+    <script src="http://100.65.219.117:8000/reveal.js/reveal.js"></script>
+    <script>
+        Reveal.initialize({
+            hash: true,
+            controls: true,
+            progress: true,
+            center: true,
+            transition: 'slide'
+        });
+    </script>
+</body>
+</html>
