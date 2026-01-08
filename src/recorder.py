@@ -65,23 +65,14 @@ class Recorder:
         return False
     
     def _check_disk_space(self, min_gb: float = 10.0) -> tuple[bool, float]:
-        """Check if sufficient disk space is available.
-        
-        Checks /data (NVMe SSD) first, then /mnt/sdcard, then root.
-        """
-        import os
-        for disk_path in ["/data", "/mnt/sdcard", "/"]:
-            try:
-                if os.path.exists(disk_path):
-                    disk = shutil.disk_usage(disk_path)
-                    if disk.total > 0:
-                        free_gb = disk.free / (1024**3)
-                        return free_gb >= min_gb, free_gb
-            except Exception:
-                continue
-        
-        logger.error("Failed to check disk space at any path")
-        return False, 0.0
+        """Check if sufficient disk space is available."""
+        try:
+            disk = shutil.disk_usage("/mnt/sdcard")
+            free_gb = disk.free / (1024**3)
+            return free_gb >= min_gb, free_gb
+        except Exception as e:
+            logger.error(f"Failed to check disk space: {e}")
+            return False, 0.0
     
     def _check_mediamtx_alive(self) -> bool:
         """Check if MediaMTX is responding."""
