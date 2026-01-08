@@ -6,6 +6,7 @@ import json
 import os
 import time
 import threading
+import asyncio
 from datetime import datetime
 from typing import Dict, Optional, Any
 from pathlib import Path
@@ -15,6 +16,7 @@ import httpx
 from .config import AppConfig, CameraConfig
 from .pipelines import build_recording_subscriber_pipeline
 from .gst_utils import ensure_gst_initialized, get_gst, get_glib
+from .webhooks import WebhookManager
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +47,12 @@ class Recorder:
         self._recording_active = False
         self._disk_monitor_thread: Optional[threading.Thread] = None
         self._watchdog_thread: Optional[threading.Thread] = None
+        
+        # Webhook manager for DaVinci automation
+        if config.davinci_automation.enabled and config.davinci_automation.webhook_urls:
+            self.webhook_manager = WebhookManager(config.davinci_automation.webhook_urls)
+        else:
+            self.webhook_manager = None
 
         # Initialize states (don't init GStreamer yet - lazy load)
         for cam_id in config.cameras.keys():
@@ -490,11 +498,46 @@ class Recorder:
         self._watchdog_thread = threading.Thread(target=self._recording_watchdog, daemon=True)
         self._watchdog_thread.start()
         
+        # Trigger DaVinci automation webhook (non-blocking)
+        if self.webhook_manager:
+            try:
+                session_status = self.get_session_status()
+                file_paths = {
+                    cam_id: info.get("file", "")
+                    for cam_id, info in session_status.get("cameras", {}).items()
+                }
+                
+                # Send webhook in background thread (fire-and-forget)
+                def send_webhook():
+                    try:
+                        # Create new event loop for this thread
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                        loop.run_until_complete(self.webhook_manager.send_session_start(
+                            session_id=session_status.get("session_id", ""),
+                            start_time=session_status.get("start_time", ""),
+                            cameras=session_status.get("cameras", {}),
+                            file_paths=file_paths
+                        ))
+                        loop.close()
+                    except Exception as e:
+                        logger.warning(f"Webhook thread error: {e}")
+                
+                webhook_thread = threading.Thread(target=send_webhook, daemon=True)
+                webhook_thread.start()
+                logger.info("Triggered DaVinci automation webhook")
+            except Exception as e:
+                logger.warning(f"Failed to trigger DaVinci webhook: {e}")
+        
         return results
 
     def stop_all_recordings(self) -> Dict[str, bool]:
         """Stop recording for all cameras and finalize session."""
         logger.info(f"Stopping recording session: {self.current_session_id}")
+        
+        # Get session info before stopping
+        session_status = self.get_session_status()
+        session_id = session_status.get("session_id")
         
         # Stop monitoring threads
         self._recording_active = False
@@ -506,6 +549,28 @@ class Recorder:
         
         # Finalize session metadata
         self._finalize_session_metadata()
+        
+        # Trigger DaVinci automation webhook for session stop
+        if self.webhook_manager and session_id:
+            try:
+                def send_webhook():
+                    try:
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                        loop.run_until_complete(self.webhook_manager.send_session_stop(
+                            session_id=session_id,
+                            end_time=datetime.now().isoformat(),
+                            cameras=session_status.get("cameras", {})
+                        ))
+                        loop.close()
+                    except Exception as e:
+                        logger.warning(f"Webhook thread error: {e}")
+                
+                webhook_thread = threading.Thread(target=send_webhook, daemon=True)
+                webhook_thread.start()
+                logger.info("Triggered DaVinci automation webhook for session stop")
+            except Exception as e:
+                logger.warning(f"Failed to trigger DaVinci webhook for stop: {e}")
         
         # Clear session info
         self.current_session_id = None

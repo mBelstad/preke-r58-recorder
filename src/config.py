@@ -1,6 +1,6 @@
 """Configuration management for the R58 recorder."""
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List, Dict
 import yaml
 from dataclasses import dataclass, field
 
@@ -101,6 +101,21 @@ class RevealConfig:
 
 
 @dataclass
+class DavinciAutomationConfig:
+    """DaVinci Resolve automation configuration."""
+    enabled: bool = False
+    webhook_urls: List[str] = field(default_factory=list)
+    project_templates: Dict[str, str] = field(default_factory=lambda: {
+        "default": "standard_template",
+        "multicam": "multicam_template"
+    })
+    auto_import: bool = True
+    create_multicam_timeline: bool = True
+    auto_sync: bool = True
+    sync_method: str = "timecode"  # timecode, audio, manual
+
+
+@dataclass
 class AppConfig:
     """Main application configuration."""
     platform: str  # 'macos' or 'r58'
@@ -113,6 +128,7 @@ class AppConfig:
     preview: PreviewConfig = field(default_factory=PreviewConfig)
     recording: RecordingConfig = field(default_factory=RecordingConfig)
     reveal: RevealConfig = field(default_factory=RevealConfig)
+    davinci_automation: DavinciAutomationConfig = field(default_factory=DavinciAutomationConfig)
     external_cameras: list = field(default_factory=list)
     log_level: str = "INFO"
 
@@ -226,6 +242,21 @@ class AppConfig:
         
         # Load external cameras
         external_cameras = data.get("external_cameras", [])
+        
+        # Load DaVinci automation config
+        davinci_data = data.get("davinci_automation", {})
+        davinci_automation = DavinciAutomationConfig(
+            enabled=davinci_data.get("enabled", False),
+            webhook_urls=davinci_data.get("webhook_urls", []),
+            project_templates=davinci_data.get("project_templates", {
+                "default": "standard_template",
+                "multicam": "multicam_template"
+            }),
+            auto_import=davinci_data.get("auto_import", True),
+            create_multicam_timeline=davinci_data.get("create_multicam_timeline", True),
+            auto_sync=davinci_data.get("auto_sync", True),
+            sync_method=davinci_data.get("sync_method", "timecode"),
+        )
 
         return cls(
             platform=platform_name,
@@ -238,6 +269,7 @@ class AppConfig:
             preview=preview,
             recording=recording,
             reveal=reveal,
+            davinci_automation=davinci_automation,
             external_cameras=external_cameras,
             log_level=data.get("log_level", "INFO"),
         )
