@@ -28,10 +28,14 @@ if [ "$NODE_VERSION" -lt 18 ]; then
     echo "WARNING: Node.js version is less than 18.0.0"
     echo "Current version: $(node --version)"
     echo "Reveal.js requires Node.js 18.0.0 or higher"
-    read -p "Continue anyway? (y/n) " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        exit 1
+    if [ "${NON_INTERACTIVE:-false}" != "true" ]; then
+        read -p "Continue anyway? (y/n) " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            exit 1
+        fi
+    else
+        echo "NON_INTERACTIVE=true, continuing anyway..."
     fi
 fi
 
@@ -57,21 +61,27 @@ echo ""
 
 # Check if reveal.js already exists
 if [ -d "reveal.js" ]; then
-    echo "Reveal.js directory already exists."
-    read -p "Remove existing installation and reinstall? (y/n) " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        echo "Removing existing reveal.js directory..."
-        rm -rf reveal.js
+    # Check if it's a valid reveal.js installation (has dist/ directory)
+    if [ -d "reveal.js/dist" ]; then
+        echo "Reveal.js already installed and built."
+        if [ "${FORCE_REINSTALL:-false}" != "true" ]; then
+            echo "Skipping installation. Using existing reveal.js directory."
+            echo ""
+            echo "To update Reveal.js:"
+            echo "  cd reveal.js"
+            echo "  git pull"
+            echo "  npm install"
+            echo "  npm run build"
+            echo ""
+            echo "To force reinstall, set FORCE_REINSTALL=true"
+            exit 0
+        else
+            echo "FORCE_REINSTALL=true, removing existing installation..."
+            rm -rf reveal.js
+        fi
     else
-        echo "Skipping installation. Using existing reveal.js directory."
-        echo ""
-        echo "To update Reveal.js:"
-        echo "  cd reveal.js"
-        echo "  git pull"
-        echo "  npm install"
-        echo "  npm run build"
-        exit 0
+        echo "Reveal.js directory exists but appears incomplete. Reinstalling..."
+        rm -rf reveal.js
     fi
 fi
 

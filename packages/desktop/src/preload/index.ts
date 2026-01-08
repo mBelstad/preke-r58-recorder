@@ -325,6 +325,98 @@ const electronAPI = {
   },
 
   // ============================================
+  // Auto-Updates
+  // ============================================
+
+  /**
+   * Check for app updates
+   */
+  checkForUpdates: (): Promise<{
+    updateAvailable: boolean
+    version?: string
+    releaseDate?: Date
+    releaseNotes?: string
+    error?: string
+  }> => {
+    return ipcRenderer.invoke('check-for-updates')
+  },
+
+  /**
+   * Download the available update
+   */
+  downloadUpdate: (): Promise<{ success: boolean; error?: string }> => {
+    return ipcRenderer.invoke('download-update')
+  },
+
+  /**
+   * Install the downloaded update and restart
+   */
+  installUpdate: (): void => {
+    ipcRenderer.invoke('install-update')
+  },
+
+  /**
+   * Get current app version
+   */
+  getCurrentVersion: (): Promise<string> => {
+    return ipcRenderer.invoke('get-current-version')
+  },
+
+  /**
+   * Listen for update checking
+   */
+  onUpdateChecking: (callback: () => void): (() => void) => {
+    const handler = () => callback()
+    ipcRenderer.on('update-checking', handler)
+    return () => ipcRenderer.removeListener('update-checking', handler)
+  },
+
+  /**
+   * Listen for update available
+   */
+  onUpdateAvailable: (callback: (info: { version: string; releaseDate?: Date; releaseNotes?: string }) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, info: { version: string; releaseDate?: Date; releaseNotes?: string }) => callback(info)
+    ipcRenderer.on('update-available', handler)
+    return () => ipcRenderer.removeListener('update-available', handler)
+  },
+
+  /**
+   * Listen for update not available
+   */
+  onUpdateNotAvailable: (callback: (info: { version: string }) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, info: { version: string }) => callback(info)
+    ipcRenderer.on('update-not-available', handler)
+    return () => ipcRenderer.removeListener('update-not-available', handler)
+  },
+
+  /**
+   * Listen for update error
+   */
+  onUpdateError: (callback: (error: { message: string }) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, error: { message: string }) => callback(error)
+    ipcRenderer.on('update-error', handler)
+    return () => ipcRenderer.removeListener('update-error', handler)
+  },
+
+  /**
+   * Listen for download progress
+   */
+  onUpdateDownloadProgress: (callback: (progress: { percent: number; transferred: number; total: number }) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, progress: { percent: number; transferred: number; total: number }) => callback(progress)
+    ipcRenderer.on('update-download-progress', handler)
+    return () => ipcRenderer.removeListener('update-download-progress', handler)
+  },
+
+  /**
+   * Listen for update downloaded
+   */
+  onUpdateDownloaded: (callback: (info: { version: string; releaseDate?: Date; releaseNotes?: string }) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, info: { version: string; releaseDate?: Date; releaseNotes?: string }) => callback(info)
+    ipcRenderer.on('update-downloaded', handler)
+    return () => ipcRenderer.removeListener('update-downloaded', handler)
+  },
+
+  // ============================================
   // Platform Info
   // ============================================
 
