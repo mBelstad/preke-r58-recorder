@@ -51,7 +51,7 @@ interface DaVinciConfig {
 
 let davinciConfig: DaVinciConfig = {
   enabled: false,
-  pollIntervalMs: 2000,
+  pollIntervalMs: 5000, // Poll every 5 seconds (was 2)
   projectNamePrefix: 'Preke',
   autoCreateProject: true,
   autoImportMedia: true,
@@ -62,6 +62,8 @@ let pollInterval: NodeJS.Timeout | null = null
 let lastSessionId: string | null = null
 let isResolveConnected = false
 let mainWindow: (() => BrowserWindow | null) | null = null
+let lastResolveCheck = 0
+const RESOLVE_CHECK_INTERVAL = 30000 // Only check Resolve connection every 30 seconds
 
 // ============================================
 // DaVinci Resolve Detection
@@ -104,20 +106,26 @@ function getResolveScriptPath(): string | null {
 
 /**
  * Check if we can connect to DaVinci Resolve
+ * Uses a simple process check for regular polling, only does full Python check when explicitly requested
  */
-async function checkResolveConnection(): Promise<boolean> {
+async function checkResolveConnection(forceFullCheck = false): Promise<boolean> {
+  // Simple check: is Resolve running?
+  if (!isResolveRunning()) {
+    return false
+  }
+  
+  // For regular polling, just check if process is running (no Python spawn)
+  if (!forceFullCheck) {
+    return true
+  }
+  
+  // Full check: actually connect via Python (only do this on explicit request)
   const scriptPath = getResolveScriptPath()
   if (!scriptPath) {
     log.debug('DaVinci Resolve scripting path not found')
     return false
   }
   
-  if (!isResolveRunning()) {
-    log.debug('DaVinci Resolve is not running')
-    return false
-  }
-  
-  // Try to connect via Python script
   return new Promise((resolve) => {
     const pythonScript = `
 import sys
@@ -139,20 +147,32 @@ except Exception as e:
     
     const python = spawn('python3', ['-c', pythonScript], {
       stdio: ['pipe', 'pipe', 'pipe'],
-      timeout: 5000,
+      env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1' },
     })
     
     let output = ''
+    let timedOut = false
+    
+    const timeout = setTimeout(() => {
+      timedOut = true
+      python.kill('SIGTERM')
+      resolve(false)
+    }, 5000)
+    
     python.stdout.on('data', (data) => { output += data.toString() })
     python.stderr.on('data', (data) => { output += data.toString() })
     
     python.on('close', (code) => {
+      clearTimeout(timeout)
+      if (timedOut) return
       const connected = code === 0 && output.includes('CONNECTED')
       log.debug(`DaVinci Resolve connection check: ${connected ? 'OK' : 'Failed'} (${output.trim()})`)
       resolve(connected)
     })
     
-    python.on('error', () => {
+    python.on('error', (err) => {
+      clearTimeout(timeout)
+      log.debug(`DaVinci Python error: ${err.message}`)
       resolve(false)
     })
   })
@@ -411,13 +431,18 @@ async function handleSessionChange(session: RecordingSession): Promise<void> {
  * Poll R58 for recording status
  */
 async function pollRecordingStatus(): Promise<void> {
-  // Check Resolve connection periodically
-  const wasConnected = isResolveConnected
-  isResolveConnected = await checkResolveConnection()
-  
-  if (wasConnected !== isResolveConnected) {
-    log.info(`DaVinci Resolve connection: ${isResolveConnected ? 'Connected' : 'Disconnected'}`)
-    notifyRenderer('davinci-connection-changed', { connected: isResolveConnected })
+  // Only check Resolve connection periodically (every 30 seconds), not every poll
+  const now = Date.now()
+  if (now - lastResolveCheck > RESOLVE_CHECK_INTERVAL) {
+    lastResolveCheck = now
+    const wasConnected = isResolveConnected
+    // Use simple process check, not full Python check
+    isResolveConnected = await checkResolveConnection(false)
+    
+    if (wasConnected !== isResolveConnected) {
+      log.info(`DaVinci Resolve connection: ${isResolveConnected ? 'Connected' : 'Disconnected'}`)
+      notifyRenderer('davinci-connection-changed', { connected: isResolveConnected })
+    }
   }
   
   // Fetch recording status from R58
@@ -526,8 +551,10 @@ export function setupDaVinciHandlers(getWindow: () => BrowserWindow | null): voi
   })
   
   ipcMain.handle('davinci-check-resolve', async () => {
-    const connected = await checkResolveConnection()
+    // Do a full Python check when explicitly requested
+    const connected = await checkResolveConnection(true)
     isResolveConnected = connected
+    lastResolveCheck = Date.now()
     return { connected, scriptPath: getResolveScriptPath() }
   })
   
