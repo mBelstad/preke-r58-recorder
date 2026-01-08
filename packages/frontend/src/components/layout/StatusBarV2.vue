@@ -65,11 +65,11 @@ const cameraSlots = computed(() => {
 // Storage info from capabilities
 const storageInfo = computed(() => {
   const caps = capabilitiesStore.capabilities
-  if (!caps) return { percent: 0, freeGB: 0, isLow: false, isCritical: false }
+  if (!caps || !caps.storage_total_gb) return { percent: 0, freeGB: 0, isLow: false, isCritical: false }
   
-  const usedGB = caps.storage_used_gb || 0
-  const totalGB = caps.storage_total_gb || 1
-  const freeGB = totalGB - usedGB
+  const totalGB = caps.storage_total_gb
+  const freeGB = caps.storage_available_gb || 0
+  const usedGB = totalGB - freeGB
   const percent = Math.round((usedGB / totalGB) * 100)
   
   return {

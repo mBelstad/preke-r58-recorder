@@ -108,15 +108,17 @@ export const useCapabilitiesStore = defineStore('capabilities', () => {
       }
 
       // Fetch from multiple endpoints and combine
-      const [healthRes, modeRes, ingestRes] = await Promise.all([
+      const [healthRes, modeRes, ingestRes, triggerRes] = await Promise.all([
         fetch(await buildApiUrl('/health')),
         fetch(await buildApiUrl('/api/mode/status')),
         fetch(await buildApiUrl('/api/ingest/status')),
+        fetch(await buildApiUrl('/api/trigger/status')), // Includes disk info
       ])
 
       const health = healthRes.ok ? await healthRes.json() : {}
       const mode = modeRes.ok ? await modeRes.json() : {}
       const ingest = ingestRes.ok ? await ingestRes.json() : { cameras: {} }
+      const trigger = triggerRes.ok ? await triggerRes.json() : { disk: null }
 
       // Build inputs from ingest status
       const inputs: InputCapability[] = Object.entries(ingest.cameras || {}).map(([id, cam]: [string, any]) => ({
@@ -140,6 +142,11 @@ export const useCapabilitiesStore = defineStore('capabilities', () => {
         }
       } else {
         // Construct capabilities from available data (fallback)
+        // Get storage info from trigger status (disk field)
+        const diskInfo = trigger.disk || {}
+        const storageTotalGb = diskInfo.total_gb || 0
+        const storageAvailableGb = diskInfo.free_gb || 0
+        
         capabilities.value = {
           device_id: 'r58-device',
           device_name: 'Preke R58',
@@ -165,8 +172,8 @@ export const useCapabilitiesStore = defineStore('capabilities', () => {
           mediamtx_base_url: 'rtsp://127.0.0.1:8554',
           max_simultaneous_recordings: 4,
           max_output_resolution: '4K',
-          storage_total_gb: 0, // Not available from API
-          storage_available_gb: 0, // Not available from API
+          storage_total_gb: storageTotalGb,
+          storage_available_gb: storageAvailableGb,
           current_mode: mode.current_mode || 'recorder',
           reveal_js: health.reveal_js || { available: false },
         }
