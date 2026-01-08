@@ -172,19 +172,47 @@ export const embedProfiles = {
 }
 
 /**
- * Get the CSS URL for VDO.ninja minimal theme
+ * Get base64-encoded CSS for VDO.ninja minimal theme
  * 
- * Uses a minimal CSS that only applies colors without layout changes.
- * Per docs/MIXER_STYLING_ATTEMPT.md: "Minimal Styling Only" approach.
+ * Uses inline base64 CSS via &b64css= parameter for cross-origin compatibility.
+ * Per docs/MIXER_STYLING_ATTEMPT.md: "Minimal Styling Only" approach - colors only, no layout changes.
  */
 export function getVdoCssUrl(): string {
-  // In Electron, window.location.origin is file:// which won't work
-  const origin = window.location.origin
-  if (origin.startsWith('file://')) {
-    return ''  // Skip in Electron
+  // Minimal CSS - colors only, no layout changes (per docs/MIXER_STYLING_ATTEMPT.md)
+  const css = `
+/* R58 VDO.ninja Theme - Colors Only */
+:root {
+  --r58-bg: #0f172a;
+  --r58-bg2: #1e293b;
+  --r58-bg3: #334155;
+  --r58-text: #f8fafc;
+  --r58-muted: #94a3b8;
+  --r58-blue: #3b82f6;
+  --r58-green: #22c55e;
+  --r58-gold: #f59e0b;
+  --r58-border: #475569;
+}
+body { background: var(--r58-bg); color: var(--r58-text); }
+#mainmenu, .controlButtons, #guestFeatures { background: var(--r58-bg2); }
+button, .button { background: var(--r58-bg3); color: var(--r58-text); border-color: var(--r58-border); }
+button:hover { background: var(--r58-blue); }
+input, select, textarea { background: var(--r58-bg3); color: var(--r58-text); border-color: var(--r58-border); }
+a { color: var(--r58-blue); }
+.vidcon { background: var(--r58-bg2); border-color: var(--r58-border); border-radius: 8px; }
+video { border-radius: 6px; }
+`
+  
+  // Return empty in Electron (file:// origin)
+  if (typeof window !== 'undefined' && window.location?.origin?.startsWith('file://')) {
+    return ''
   }
-  // Use minimal CSS (colors only, no layout changes)
-  return `${origin}/css/vdo-minimal.css`
+  
+  // Base64 encode for &b64css= parameter
+  try {
+    return 'b64:' + btoa(unescape(encodeURIComponent(css)))
+  } catch {
+    return ''
+  }
 }
 
 /**
