@@ -43,22 +43,18 @@ const activeCameras = computed(() =>
   recorderStore.inputs.filter(i => i.hasSignal)
 )
 
-// Build the VDO.ninja scene URL
-// Scene view shows just the camera feeds in a clean grid layout
+// Build the VDO.ninja mixer URL
+// Uses our self-hosted VDO.ninja mixer.html which auto-connects to local signaling
 const mixerUrl = computed(() => {
-  const VDO_HOST = getVdoHost()
-  const VDO_PROTOCOL = getVdoProtocol()
+  const VDO_HOST = getVdoHost()  // r58-vdo.itagenten.no
+  const VDO_PROTOCOL = getVdoProtocol()  // https
   
-  // Use scene view which shows camera feeds in a clean grid
-  // This is what viewers see, not the director controls
-  const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/`)
-  url.searchParams.set('scene', '0')  // Scene view mode
+  // Use self-hosted mixer.html - connects to local signaling automatically
+  // mixer.html has full director interface with scene controls
+  const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/mixer.html`)
   url.searchParams.set('room', VDO_ROOM)
   url.searchParams.set('password', VDO_DIRECTOR_PASSWORD)
-  url.searchParams.set('layout', '')  // Enable layout
-  url.searchParams.set('remote', '')  // Allow remote control
-  url.searchParams.set('showlabels', '')  // Show camera labels
-  url.searchParams.set('darkmode', '')  // Dark mode
+  url.searchParams.set('darkmode', '')  // VDO.ninja's built-in dark mode
   
   return url.toString()
 })
