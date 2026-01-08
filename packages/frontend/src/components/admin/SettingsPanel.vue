@@ -4,7 +4,7 @@
  * 
  * Settings are stored locally (localStorage for web, Electron store for desktop)
  */
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, onUnmounted } from 'vue'
 import { isElectron } from '@/lib/api'
 import { useToast } from '@/composables/useToast'
 import { getVdoHost, VDO_ROOM } from '@/lib/vdoninja'
@@ -33,6 +33,13 @@ const vdoHost = ref(getVdoHost())
 const recordingPath = ref('/opt/r58/recordings')
 const autoCleanup = ref(false)
 const cleanupDays = ref(30)
+
+// DaVinci Resolve Integration
+const davinciEnabled = ref(false)
+const davinciResolveConnected = ref(false)
+const davinciCurrentSession = ref<string | null>(null)
+const davinciChecking = ref(false)
+const davinciProjectPrefix = ref('Preke')
 
 // Computed
 const inElectron = computed(() => isElectron())
@@ -103,9 +110,111 @@ async function removeDevice(deviceId: string) {
   }
 }
 
+// DaVinci functions
+async function checkDaVinciResolve() {
+  if (!window.electronAPI?.davinciCheckResolve) return
+  davinciChecking.value = true
+  try {
+    const result = await window.electronAPI.davinciCheckResolve()
+    davinciResolveConnected.value = result.connected
+    if (result.connected) {
+      toast.success('DaVinci Resolve is connected!')
+    } else {
+      toast.warning('DaVinci Resolve is not running or not accessible')
+    }
+  } catch (error) {
+    console.error('Failed to check DaVinci:', error)
+    toast.error('Failed to check DaVinci Resolve')
+  } finally {
+    davinciChecking.value = false
+  }
+}
+
+async function toggleDaVinciIntegration() {
+  if (!window.electronAPI) return
+  
+  try {
+    if (davinciEnabled.value) {
+      // Disable
+      await window.electronAPI.davinciStop()
+      davinciEnabled.value = false
+      toast.info('DaVinci integration stopped')
+    } else {
+      // Enable - first check if Resolve is running
+      const check = await window.electronAPI.davinciCheckResolve()
+      if (!check.connected) {
+        toast.error('Please start DaVinci Resolve Studio first')
+        return
+      }
+      
+      // Update config with project prefix
+      await window.electronAPI.davinciConfig({
+        projectNamePrefix: davinciProjectPrefix.value
+      })
+      
+      // Start
+      await window.electronAPI.davinciStart()
+      davinciEnabled.value = true
+      davinciResolveConnected.value = true
+      toast.success('DaVinci integration started! Recording sessions will auto-create projects.')
+    }
+  } catch (error) {
+    console.error('Failed to toggle DaVinci:', error)
+    toast.error('Failed to toggle DaVinci integration')
+  }
+}
+
+async function loadDaVinciStatus() {
+  if (!window.electronAPI?.davinciStatus) return
+  try {
+    const status = await window.electronAPI.davinciStatus()
+    davinciEnabled.value = status.enabled
+    davinciResolveConnected.value = status.resolveConnected
+    davinciCurrentSession.value = status.currentSession
+  } catch (error) {
+    console.error('Failed to load DaVinci status:', error)
+  }
+}
+
+// Event listeners cleanup
+let cleanupSessionStart: (() => void) | null = null
+let cleanupSessionStop: (() => void) | null = null
+let cleanupConnectionChanged: (() => void) | null = null
+
 onMounted(() => {
   loadSettings()
   loadDevices()
+  loadDaVinciStatus()
+  
+  // Setup DaVinci event listeners
+  if (window.electronAPI?.onDavinciSessionStart) {
+    cleanupSessionStart = window.electronAPI.onDavinciSessionStart((data) => {
+      davinciCurrentSession.value = data.sessionId
+      toast.success(`Recording started: ${data.sessionId}`)
+    })
+  }
+  
+  if (window.electronAPI?.onDavinciSessionStop) {
+    cleanupSessionStop = window.electronAPI.onDavinciSessionStop((data) => {
+      davinciCurrentSession.value = null
+      toast.info(`Recording stopped, ${data.filePaths.length} files imported`)
+    })
+  }
+  
+  if (window.electronAPI?.onDavinciConnectionChanged) {
+    cleanupConnectionChanged = window.electronAPI.onDavinciConnectionChanged((data) => {
+      davinciResolveConnected.value = data.connected
+      if (!data.connected && davinciEnabled.value) {
+        toast.warning('DaVinci Resolve disconnected')
+      }
+    })
+  }
+})
+
+onUnmounted(() => {
+  cleanupSessionStart?.()
+  cleanupSessionStop?.()
+  cleanupConnectionChanged?.()
 })
 </script>
 
@@ -188,6 +297,82 @@ onMounted(() => {
             disabled
           />
           <p class="text-xs text-preke-text-muted mt-1">VDO.ninja server (read-only)</p>
+        </div>
+      </div>
+    </div>
+    
+    <!-- DaVinci Resolve Integration (Electron only) -->
+    <div v-if="inElectron" class="glass-card p-4 rounded-xl">
+      <h3 class="text-xs font-semibold text-preke-text-muted uppercase tracking-wide mb-4">
+        DaVinci Resolve Integration
+      </h3>
+      
+      <div class="space-y-4">
+        <!-- Status indicator -->
+        <div class="flex items-center justify-between p-3 rounded-lg bg-preke-surface/50 border border-preke-surface-border">
+          <div class="flex items-center gap-3">
+            <div 
+              class="w-3 h-3 rounded-full"
+              :class="davinciResolveConnected ? 'bg-green-500' : 'bg-zinc-500'"
+            />
+            <div>
+              <p class="text-sm font-medium text-preke-text">
+                {{ davinciResolveConnected ? 'DaVinci Resolve Connected' : 'DaVinci Resolve Not Connected' }}
+              </p>
+              <p v-if="davinciCurrentSession" class="text-xs text-preke-gold">
+                Recording: {{ davinciCurrentSession }}
+              </p>
+            </div>
+          </div>
+          <button
+            @click="checkDaVinciResolve"
+            :disabled="davinciChecking"
+            class="px-3 py-1.5 text-xs rounded-lg bg-preke-surface hover:bg-preke-surface-elevated border border-preke-surface-border text-preke-text transition-colors disabled:opacity-50"
+          >
+            {{ davinciChecking ? 'Checking...' : 'Check Connection' }}
+          </button>
+        </div>
+        
+        <!-- Enable toggle -->
+        <div class="flex items-center justify-between">
+          <div>
+            <label class="block text-sm font-medium text-preke-text">Auto-sync with DaVinci Resolve</label>
+            <p class="text-xs text-preke-text-muted">
+              Automatically create projects and import media when recording
+            </p>
+          </div>
+          <button
+            @click="toggleDaVinciIntegration"
+            class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
+            :class="davinciEnabled ? 'bg-preke-gold' : 'bg-preke-surface-elevated'"
+          >
+            <span
+              class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
+              :class="davinciEnabled ? 'translate-x-6' : 'translate-x-1'"
+            />
+          </button>
+        </div>
+        
+        <!-- Project prefix -->
+        <div v-if="davinciEnabled">
+          <label class="block text-sm font-medium text-preke-text mb-2">Project Name Prefix</label>
+          <input 
+            v-model="davinciProjectPrefix"
+            type="text"
+            class="input w-full"
+            placeholder="Preke"
+          />
+          <p class="text-xs text-preke-text-muted mt-1">
+            Projects will be named: {{ davinciProjectPrefix }}_session-id
+          </p>
+        </div>
+        
+        <!-- Info box -->
+        <div class="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+          <p class="text-xs text-blue-300">
+            <strong>How it works:</strong> When you start a recording on the R58, a new DaVinci project 
+            is automatically created. When recording stops, the files are imported into the project's media pool.
+          </p>
         </div>
       </div>
     </div>
