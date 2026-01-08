@@ -19,7 +19,7 @@ hlsAlwaysRemux: yes
 hlsSegmentCount: 10         # 20-second buffer (10 x 2s) - prevents segment expiry under load
 hlsSegmentDuration: 2s      # Longer segments reduce generation frequency and CPU load
 hlsPartDuration: 400ms      # Balanced LL-HLS - still fast but more stable
-hlsAllowOrigin:
+hlsAllowOrigins:
   - "https://preke.no"
   - "https://*.preke.no"
   - "https://itagenten.no"
@@ -44,17 +44,17 @@ webrtcAllowOrigins:
   - "http://192.168.*.*:*"
   - "http://100.*.*.*:*"
 
-# TLS encryption for HTTPS compatibility (fixes "Mixed Content" errors)
-# When serving frontend over HTTPS, WebRTC/WHEP must also use TLS
-# Certificates are set up by scripts/setup-mediamtx-tls.sh
-webrtcEncryption: yes
+# TLS encryption - DISABLED because nginx/Traefik handles SSL termination
+# The FRP tunnel carries plain HTTP from VPS to R58
+# webrtcEncryption: yes  # Enable only for direct HTTPS connections
+webrtcEncryption: no
 webrtcServerKey: /etc/ssl/r58/privkey.pem
 webrtcServerCert: /etc/ssl/r58/fullchain.pem
 
 # ICE configuration for NAT traversal via FRP
-# webrtcICEHostNAT1To1IPs advertises this IP as a host candidate
+# webrtcAdditionalHosts advertises this IP as a host candidate (v1.15.6+)
 # This is necessary for remote clients to connect through FRP
-webrtcICEHostNAT1To1IPs: ["65.109.32.111"]
+webrtcAdditionalHosts: ["65.109.32.111"]
 
 # UDP port for WebRTC media (mapped via FRP to 18189 on VPS)
 webrtcLocalUDPAddress: :8189
