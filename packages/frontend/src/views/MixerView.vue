@@ -48,13 +48,12 @@ const activeCameras = computed(() =>
 // Uses public VDO.ninja alpha mixer but connects to our self-hosted signaling
 const mixerUrl = computed(() => {
   const VDO_HOST = getVdoHost()
-  const VDO_PROTOCOL = getVdoProtocol()
   
   // Use public VDO.ninja alpha mixer with our signaling server
   const url = new URL('https://vdo.ninja/alpha/mixer')
   url.searchParams.set('room', VDO_ROOM)
   url.searchParams.set('password', VDO_DIRECTOR_PASSWORD)
-  url.searchParams.set('wss', `wss://${VDO_HOST}`)  // Our signaling server
+  url.searchParams.set('wss', `wss://${VDO_HOST}/wss`)  // Our signaling server via /wss path
   url.searchParams.set('darkmode', '')  // VDO.ninja's dark mode
   
   return url.toString()
