@@ -20,16 +20,25 @@
 
 ### Access Web Interface
 
-**Via Tailscale (P2P - Preferred):**
+**Preke Studio Web App (Vue Frontend):**
+- **Main App**: https://app.itagenten.no/vue/#/
+- **Recorder View**: https://app.itagenten.no/vue/#/recorder
+- **Mixer View**: https://app.itagenten.no/vue/#/mixer
+- **Library View**: https://app.itagenten.no/vue/#/library
+- **Admin View**: https://app.itagenten.no/vue/#/admin
+
+**VDO.ninja (Self-Hosted):**
+- **Mixer**: https://r58-vdo.itagenten.no/mixer.html?room=studio&password=preke-r58-2024
+- **Director**: https://r58-vdo.itagenten.no/?director=studio&password=preke-r58-2024
+
+**Via Tailscale (P2P - Preferred for WHEP):**
 - **WHEP cam0**: https://linaro-alip.tailab6fd7.ts.net/cam0/whep
 - **WHEP cam2**: https://linaro-alip.tailab6fd7.ts.net/cam2/whep
 - **WHEP cam3**: https://linaro-alip.tailab6fd7.ts.net/cam3/whep
 
-**Via FRP/VPS (Backup):**
-- **Main App**: https://r58-api.itagenten.no/static/app.html
-- **Studio Control**: https://r58-api.itagenten.no/static/studio-control.html
-- **Studio (Multiview)**: https://r58-api.itagenten.no/static/studio.html
-- **Dev Tools**: https://r58-api.itagenten.no/static/dev.html
+**Legacy/Direct API Access:**
+- **Backend API**: https://r58-api.itagenten.no
+- **Legacy App**: https://r58-api.itagenten.no/static/app.html
 
 ---
 
@@ -339,6 +348,15 @@ bind_port = 10022
 ---
 
 ## 🎯 Summary
+
+### Domain Architecture
+| Domain | Purpose |
+|--------|---------|
+| `app.itagenten.no` | Vue web frontend (Preke Studio) |
+| `r58-api.itagenten.no` | Backend API (proxied to R58) |
+| `r58-vdo.itagenten.no` | Self-hosted VDO.ninja |
+
+**Note**: The web frontend at `app.itagenten.no` makes cross-origin API calls to `r58-api.itagenten.no`. CORS is configured in the VPS nginx proxy.
 
 ### Video Streaming
 | Priority | Method | URL Example |
