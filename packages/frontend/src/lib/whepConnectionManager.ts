@@ -92,6 +92,12 @@ async function buildWhepUrl(cameraId: string): Promise<string> {
     }
   }
   
+  // Browser fallback: If accessed from app.itagenten.no, use MediaMTX proxy
+  if (typeof window !== 'undefined' && window.location.hostname === 'app.itagenten.no') {
+    console.log(`[WHEP Manager] Browser access from app.itagenten.no, using MediaMTX proxy`)
+    return `https://r58-mediamtx.itagenten.no/${cameraId}/whep`
+  }
+  
   // FRP fallback - get from device config
   const { getFrpUrl } = await import('./api')
   const frpUrl = await getFrpUrl()
@@ -264,21 +270,28 @@ async function createConnection(cameraId: string): Promise<WHEPConnection> {
   }
   
   // Wait for device URL to be set (handles race condition on startup)
-  // Reduced wait time for faster loading
+  // Skip waiting in browser mode at app.itagenten.no (no device URL available)
+  const isBrowserMode = typeof window !== 'undefined' && window.location.hostname === 'app.itagenten.no'
   let deviceUrl = getDeviceUrl()
-  let attempts = 0
-  while (!deviceUrl && attempts < 5) {
-    console.log(`[WHEP Manager ${cameraId}] No device URL yet, waiting... (attempt ${attempts + 1})`)
-    await new Promise(resolve => setTimeout(resolve, 100))
-    deviceUrl = getDeviceUrl()
-    attempts++
+  
+  if (!isBrowserMode) {
+    // Electron mode: wait for device URL
+    let attempts = 0
+    while (!deviceUrl && attempts < 5) {
+      console.log(`[WHEP Manager ${cameraId}] No device URL yet, waiting... (attempt ${attempts + 1})`)
+      await new Promise(resolve => setTimeout(resolve, 100))
+      deviceUrl = getDeviceUrl()
+      attempts++
+    }
+  } else {
+    console.log(`[WHEP Manager ${cameraId}] Browser mode - using MediaMTX proxy`)
   }
   
   const startTime = performance.now()
   const whepUrl = await buildWhepUrl(cameraId)
   networkDebugLog('WHEP', `Camera ${cameraId}: Creating connection to ${whepUrl}`)
   console.log(`[WHEP Manager ${cameraId}] Creating connection to: ${whepUrl}`)
-  console.log(`[WHEP Manager ${cameraId}] Device URL was: ${deviceUrl}`)
+  console.log(`[WHEP Manager ${cameraId}] Device URL was: ${deviceUrl || 'none (browser mode)'}`)
   
   // Clean up old connection if exists
   if (conn?.peerConnection) {
