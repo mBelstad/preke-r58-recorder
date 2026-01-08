@@ -908,8 +908,9 @@ export function setupDaVinciHandlers(getWindow: () => BrowserWindow | null): voi
   
   ipcMain.handle('davinci-status', async () => {
     const status = getDaVinciStatus()
-    // Also do a fresh connection check
-    status.resolveConnected = await checkResolveConnection()
+    // Do a full Python scripting API check (not just process check)
+    status.resolveConnected = await checkResolveConnection(true)
+    lastResolveCheck = Date.now()
     return status
   })
   
