@@ -66,8 +66,8 @@ We have HDMI cameras connected to an R58 device. These cameras are captured via 
 - No P2P negotiation required
 
 **URLs**:
-- View camera: `https://r58-mediamtx.itagenten.no/cam2/whep`
-- Publish speaker: `https://r58-mediamtx.itagenten.no/speaker0/whip`
+- View camera: `https://app.itagenten.no/cam2/whep`
+- Publish speaker: `https://app.itagenten.no/speaker0/whip`
 
 ### 2. VDO.ninja `&whepplay=` Parameter ⭐ RECOMMENDED
 
@@ -75,7 +75,7 @@ We have HDMI cameras connected to an R58 device. These cameras are captured via 
 
 **URL Pattern**:
 ```
-https://r58-vdo.itagenten.no/?whepplay=https://r58-mediamtx.itagenten.no/cam3/whep
+https://r58-vdo.itagenten.no/?whepplay=https://app.itagenten.no/cam3/whep
 ```
 
 **What it does**:
@@ -92,9 +92,9 @@ https://r58-vdo.itagenten.no/?whepplay=https://r58-mediamtx.itagenten.no/cam3/wh
 **Example URLs**:
 | Camera | URL |
 |--------|-----|
-| cam0 | `https://r58-vdo.itagenten.no/?whepplay=https://r58-mediamtx.itagenten.no/cam0/whep` |
-| cam2 | `https://r58-vdo.itagenten.no/?whepplay=https://r58-mediamtx.itagenten.no/cam2/whep` |
-| cam3 | `https://r58-vdo.itagenten.no/?whepplay=https://r58-mediamtx.itagenten.no/cam3/whep` |
+| cam0 | `https://r58-vdo.itagenten.no/?whepplay=https://app.itagenten.no/cam0/whep` |
+| cam2 | `https://r58-vdo.itagenten.no/?whepplay=https://app.itagenten.no/cam2/whep` |
+| cam3 | `https://r58-vdo.itagenten.no/?whepplay=https://app.itagenten.no/cam3/whep` |
 
 **Limitations**:
 - Views the stream but doesn't automatically inject it into a VDO.ninja room
@@ -189,7 +189,7 @@ The camera bridge is a web page (`camera-bridge.html`) that:
 
 **Bridge URL Pattern** (per camera):
 ```
-https://r58-vdo.itagenten.no/?whepplay=https://r58-mediamtx.itagenten.no/cam2/whep&push=cam2&room=r58studio&label=Camera2&autostart
+https://r58-vdo.itagenten.no/?whepplay=https://app.itagenten.no/cam2/whep&push=cam2&room=r58studio&label=Camera2&autostart
 ```
 
 ### Files
@@ -209,7 +209,7 @@ https://r58-vdo.itagenten.no/?whepplay=https://r58-mediamtx.itagenten.no/cam2/wh
 | Mixer | `https://r58-vdo.itagenten.no/mixer.html?room=r58studio&mediamtx=r58-mediamtx.itagenten.no` |
 | Director | `https://r58-vdo.itagenten.no/?director=r58studio&mediamtx=r58-mediamtx.itagenten.no` |
 | Scene View | `https://r58-vdo.itagenten.no/?scene&room=r58studio&mediamtx=r58-mediamtx.itagenten.no` |
-| Single Camera | `https://r58-vdo.itagenten.no/?whepplay=https://r58-mediamtx.itagenten.no/cam2/whep` |
+| Single Camera | `https://r58-vdo.itagenten.no/?whepplay=https://app.itagenten.no/cam2/whep` |
 | Guest Join | `https://r58-vdo.itagenten.no/?room=r58studio&push=guest1&mediamtx=r58-mediamtx.itagenten.no` |
 
 ### For Local Access
@@ -265,13 +265,13 @@ https://r58-vdo.itagenten.no/?whepplay=https://r58-mediamtx.itagenten.no/cam2/wh
 ### Camera not showing in VDO.ninja
 
 1. **Check MediaMTX is running**: `curl http://localhost:9997/v3/paths/list`
-2. **Check WHEP endpoint**: `curl -I https://r58-mediamtx.itagenten.no/cam2/whep`
+2. **Check WHEP endpoint**: `curl -I https://app.itagenten.no/cam2/whep`
 3. **Check bridge service**: `sudo systemctl status r58-camera-bridge`
 4. **View logs**: `sudo journalctl -u r58-camera-bridge -f`
 
 ### Remote access not working
 
-1. **Check FRP tunnel**: `curl -I https://r58-mediamtx.itagenten.no/`
+1. **Check FRP tunnel**: `curl -I https://app.itagenten.no/`
 2. **Check VDO.ninja is accessible**: `curl -I https://r58-vdo.itagenten.no/`
 3. **Use `&mediamtx=` parameter**: Ensure URL includes `&mediamtx=r58-mediamtx.itagenten.no`
 
@@ -291,13 +291,13 @@ Use `&whepplay=` URLs directly in your production software:
 
 **In OBS Studio**:
 1. Add Browser Source
-2. URL: `https://r58-vdo.itagenten.no/?whepplay=https://r58-mediamtx.itagenten.no/cam3/whep`
+2. URL: `https://r58-vdo.itagenten.no/?whepplay=https://app.itagenten.no/cam3/whep`
 3. Width: 1920, Height: 1080
 
 **In VDO.ninja WHIP/WHEP Tool**:
 1. Navigate to `https://r58-vdo.itagenten.no/whip.html`
 2. Scroll to "Play a remote video stream available via WHEP"
-3. Enter: `https://r58-mediamtx.itagenten.no/cam3/whep`
+3. Enter: `https://app.itagenten.no/cam3/whep`
 4. Click GO
 
 ### For Remote Human Guests (via VDO.ninja with MediaMTX)

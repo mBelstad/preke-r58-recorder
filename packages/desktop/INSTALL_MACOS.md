@@ -56,7 +56,7 @@ This guide will help you install Preke Studio on your Mac.
 
 2. **Add your first R58 device**
    - Click "Add Device" or "Device Setup"
-   - Enter your device URL (e.g., `https://r58-api.itagenten.no`)
+   - Enter your device URL (e.g., `https://app.itagenten.no`)
    - Click "Connect" to test the connection
 
 ## Troubleshooting

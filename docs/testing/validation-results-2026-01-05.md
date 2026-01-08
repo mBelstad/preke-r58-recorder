@@ -68,7 +68,7 @@ cd packages/frontend
 npm run test:e2e
 
 # Option 2: Run against R58
-VITE_API_URL=https://r58-api.itagenten.no npm run test:e2e
+VITE_API_URL=https://app.itagenten.no npm run test:e2e
 ```
 
 ---
@@ -148,7 +148,7 @@ All documentation deliverables are complete:
 3. Re-run smoke test to verify: `./scripts/smoke-test.sh --with-recording`
 
 ### Optional:
-1. Run Playwright E2E against running R58: `VITE_API_URL=https://r58-api.itagenten.no npm run test:e2e`
+1. Run Playwright E2E against running R58: `VITE_API_URL=https://app.itagenten.no npm run test:e2e`
 2. Run full manual smoke checklist per `docs/SMOKE_TEST_CHECKLIST.md`
 3. Consider a 2-hour soak test per test matrix P2.4.1
 

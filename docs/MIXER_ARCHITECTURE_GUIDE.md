@@ -142,7 +142,7 @@ The R58 Mixer provides live video mixing of HDMI camera inputs using a self-host
 **What it does**: Receives camera streams from GStreamer and serves them via multiple protocols.
 
 **Local Port**: 8889  
-**Public URL**: https://r58-mediamtx.itagenten.no
+**Public URL**: https://app.itagenten.no
 
 **Protocols**:
 - **WHEP** (WebRTC-HTTP Egress Protocol): For viewing streams - this is what VDO.ninja uses
@@ -256,7 +256,7 @@ This is the key to making it work! Without it, the browser would try to stream v
 
 | Purpose | URL |
 |---------|-----|
-| **Mixer Interface** | `https://r58-api.itagenten.no/mixer` |
+| **Mixer Interface** | `https://app.itagenten.no/mixer` |
 | **Director View** | `https://r58-vdo.itagenten.no/?director=studio&password=preke-r58-2024` |
 | **Scene Output (OBS)** | `https://r58-vdo.itagenten.no/?scene&room=studio` |
 
@@ -264,8 +264,8 @@ This is the key to making it work! Without it, the browser would try to stream v
 
 | Purpose | URL |
 |---------|-----|
-| **Direct WHEP Playback (cam0)** | `https://r58-vdo.itagenten.no/?whepplay=https://r58-mediamtx.itagenten.no/cam0/whep` |
-| **MediaMTX API** | `https://r58-mediamtx.itagenten.no/v3/paths/list` |
+| **Direct WHEP Playback (cam0)** | `https://r58-vdo.itagenten.no/?whepplay=https://app.itagenten.no/cam0/whep` |
+| **MediaMTX API** | `https://app.itagenten.no/v3/paths/list` |
 | **VDO.ninja WHIP/WHEP Tool** | `https://r58-vdo.itagenten.no/whip.html` |
 
 ### For Remote Guests
@@ -335,7 +335,7 @@ curl -s http://localhost:9997/v3/paths/list | jq
 
 3. **Check MediaMTX streams**:
    ```bash
-   curl -s https://r58-mediamtx.itagenten.no/v3/paths/list | jq
+   curl -s https://app.itagenten.no/v3/paths/list | jq
    ```
 
 4. **Restart the bridge**:

@@ -261,12 +261,12 @@ These tests verify system stability under various conditions.
 ./connect-r58-frp.sh "cd /opt/preke-r58-recorder && ./scripts/smoke-test.sh"
 
 # 3. Quick manual check
-# Open https://r58-api.itagenten.no/static/studio.html
+# Open https://app.itagenten.no/static/studio.html
 # - Video preview visible?
 # - Start/stop recording works?
 
 # 4. Check alerts
-curl https://r58-api.itagenten.no/api/v1/alerts | jq '.critical_count'
+curl https://app.itagenten.no/api/v1/alerts | jq '.critical_count'
 ```
 
 ### Full Release Test (30 minutes)

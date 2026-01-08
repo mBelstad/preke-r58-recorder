@@ -108,7 +108,7 @@ const whepUrl = 'http://100.98.37.53:8889/cam0/whep'
 
 ```javascript
 // Example WHEP URL for remote access
-const whepUrl = 'https://r58-mediamtx.itagenten.no/cam0/whep'
+const whepUrl = 'https://app.itagenten.no/cam0/whep'
 ```
 
 ---

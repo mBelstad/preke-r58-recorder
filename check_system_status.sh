@@ -23,7 +23,7 @@ echo ""
 
 # Test 2: Remote Mixer Dashboard
 echo "2. Testing Remote Mixer Dashboard..."
-MIXER_STATUS=$(curl -sI https://r58-api.itagenten.no/static/r58_remote_mixer.html 2>/dev/null | grep "HTTP" | awk '{print $2}')
+MIXER_STATUS=$(curl -sI https://app.itagenten.no/static/r58_remote_mixer.html 2>/dev/null | grep "HTTP" | awk '{print $2}')
 if [ "$MIXER_STATUS" = "200" ]; then
     echo -e "   ${GREEN}✅ PASS${NC} - Dashboard accessible (HTTP $MIXER_STATUS)"
 else
@@ -80,7 +80,7 @@ echo ""
 echo "🔗 Quick Links:"
 echo ""
 echo "Remote Mixer:"
-echo "https://r58-api.itagenten.no/static/r58_remote_mixer.html"
+echo "https://app.itagenten.no/static/r58_remote_mixer.html"
 echo ""
 echo "VDO.ninja Mixer:"
 echo "https://vdo.ninja/mixer?room=r58studio&slots=3&automixer&whep=https://r58-mediamtx.itagenten.no/cam0/whep&label=CAM0&whep=https://r58-mediamtx.itagenten.no/cam2/whep&label=CAM2&whep=https://r58-mediamtx.itagenten.no/cam3/whep&label=CAM3"

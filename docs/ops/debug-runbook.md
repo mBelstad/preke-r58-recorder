@@ -325,7 +325,7 @@ nc -zv 65.109.32.111 10022
 nc -zv 65.109.32.111 7000
 
 # Test public endpoint
-curl -v https://r58-api.itagenten.no/api/v1/health
+curl -v https://app.itagenten.no/api/v1/health
 
 # On VPS (if accessible)
 ./connect-coolify-vps.sh "docker ps | grep frp"

@@ -7,7 +7,7 @@
 
 ## 📚 Quick Links
 
-- **[Interactive Wiki](https://r58-api.itagenten.no/static/wiki.html)** - Searchable documentation with diagrams
+- **[Interactive Wiki](https://app.itagenten.no/static/wiki.html)** - Searchable documentation with diagrams
 - **[Quick Start](operations/QUICK_START.md)** - Get started in 5 minutes
 - **[Remote Access](operations/REMOTE_ACCESS.md)** - SSH and web access
 - **[API Reference](development/API_REFERENCE.md)** - Complete API documentation
@@ -48,7 +48,7 @@
 
 The best way to explore this documentation is through the **interactive wiki**:
 
-**URL**: https://r58-api.itagenten.no/static/wiki.html
+**URL**: https://app.itagenten.no/static/wiki.html
 
 **Features**:
 - 🔍 Full-text search
@@ -78,7 +78,7 @@ See [VERIFIED_SYSTEM_INFO.md](../VERIFIED_SYSTEM_INFO.md) for complete verificat
 ### I'm a Client/Stakeholder
 Start with:
 1. [Product Overview](product/PRODUCT_OVERVIEW.md)
-2. [Interactive Wiki](https://r58-api.itagenten.no/static/wiki.html) - "What is R58?" section
+2. [Interactive Wiki](https://app.itagenten.no/static/wiki.html) - "What is R58?" section
 
 ### I'm a New Developer
 Start with:
@@ -95,7 +95,7 @@ Start with:
 ### I'm Integrating with the API
 Start with:
 1. [API Reference](development/API_REFERENCE.md)
-2. [Interactive API Docs](https://r58-api.itagenten.no/docs)
+2. [Interactive API Docs](https://app.itagenten.no/docs)
 3. [Configuration](development/CONFIGURATION.md)
 
 ---
@@ -176,5 +176,5 @@ Start with:
 
 **The R58 documentation is comprehensive, verified, and actively maintained.**
 
-For the best experience, visit the **[Interactive Wiki](https://r58-api.itagenten.no/static/wiki.html)** 🚀
+For the best experience, visit the **[Interactive Wiki](https://app.itagenten.no/static/wiki.html)** 🚀
 

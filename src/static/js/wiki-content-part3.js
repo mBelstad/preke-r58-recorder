@@ -81,7 +81,7 @@ which sshpass
 **Diagnostics**:
 \`\`\`bash
 # Test API
-curl -I https://r58-api.itagenten.no/health
+curl -I https://app.itagenten.no/health
 
 # Check service
 ./connect-r58-frp.sh "systemctl status preke-recorder"
@@ -172,7 +172,7 @@ curl -I https://r58-api.itagenten.no/health
 **Diagnostics**:
 \`\`\`bash
 # Check mixer status
-curl https://r58-api.itagenten.no/api/mixer/status
+curl https://app.itagenten.no/api/mixer/status
 
 # Check logs
 ./connect-r58-frp.sh "sudo journalctl -u preke-recorder -n 100 | grep mixer"
@@ -410,7 +410,7 @@ If video isn't showing:
 
 2. **Verify camera is streaming**:
    \`\`\`bash
-   curl https://r58-api.itagenten.no/status
+   curl https://app.itagenten.no/status
    \`\`\`
 
 3. **Restart MediaMTX**:
@@ -451,7 +451,7 @@ curl http://localhost:9997/v3/paths/list
 ss -tlnp | grep 18889
 
 # 5. Test WHEP endpoint
-curl -I https://r58-mediamtx.itagenten.no/cam1/whep
+curl -I https://app.itagenten.no/cam1/whep
 \`\`\`
         `,
         content: `
@@ -465,7 +465,7 @@ curl -I https://r58-mediamtx.itagenten.no/cam1/whep
 **Diagnostics**:
 \`\`\`bash
 # Check if stream exists
-curl https://r58-api.itagenten.no/status
+curl https://app.itagenten.no/status
 
 # Check MediaMTX
 ./connect-r58-frp.sh "curl http://localhost:9997/v3/paths/list | grep cam1"
@@ -490,7 +490,7 @@ curl https://r58-api.itagenten.no/status
 ./connect-r58-frp.sh "ss -tlnp | grep 8889"
 
 # Test WHEP endpoint
-curl -X POST https://r58-mediamtx.itagenten.no/cam1/whep \\
+curl -X POST https://app.itagenten.no/cam1/whep \\
   -H "Content-Type: application/sdp"
 \`\`\`
 
@@ -535,7 +535,7 @@ ping -c 10 65.109.32.111
 **Diagnostics**:
 \`\`\`bash
 # Check CORS headers
-curl -I -X OPTIONS https://r58-mediamtx.itagenten.no/cam1/whep \\
+curl -I -X OPTIONS https://app.itagenten.no/cam1/whep \\
   -H "Origin: https://example.com"
 
 # Should see: Access-Control-Allow-Origin: *
@@ -587,7 +587,7 @@ Audio capture not yet implemented. Video-only for now.
 **Diagnostics**:
 \`\`\`bash
 # Check HLS endpoint
-curl -I https://r58-mediamtx.itagenten.no/cam1/index.m3u8
+curl -I https://app.itagenten.no/cam1/index.m3u8
 
 # Check MediaMTX HLS settings
 ./connect-r58-frp.sh "cat /opt/preke-r58-recorder/mediamtx.yml | grep -A 5 hls"
@@ -1020,8 +1020,8 @@ Combined with FRP's UDP tunneling for the media path, we get full WebRTC support
 - WebRTC UDP: port 18189
 
 **Public Access**:
-- https://r58-api.itagenten.no (API)
-- https://r58-mediamtx.itagenten.no (MediaMTX)
+- https://app.itagenten.no (API)
+- https://app.itagenten.no (MediaMTX)
 - Valid Let's Encrypt SSL certificates
 
 **Result**: Full remote access with WebRTC streaming! ✅

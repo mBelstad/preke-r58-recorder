@@ -32,11 +32,11 @@ This document provides the **essential information** you need to work with the R
 
 ## 🌐 Web Access
 
-- **Studio Multiview**: https://r58-api.itagenten.no/static/studio.html
-- **Main App**: https://r58-api.itagenten.no/static/app.html
-- **Guest Portal**: https://r58-api.itagenten.no/static/guest.html
-- **Dev Tools**: https://r58-api.itagenten.no/static/dev.html
-- **API Status**: https://r58-api.itagenten.no/status
+- **Studio Multiview**: https://app.itagenten.no/static/studio.html
+- **Main App**: https://app.itagenten.no/static/app.html
+- **Guest Portal**: https://app.itagenten.no/static/guest.html
+- **Dev Tools**: https://app.itagenten.no/static/dev.html
+- **API Status**: https://app.itagenten.no/status
 
 ---
 
@@ -136,7 +136,7 @@ git push
 
 ### Web Interface Not Loading?
 1. Check if service is running
-2. Check API: https://r58-api.itagenten.no/status
+2. Check API: https://app.itagenten.no/status
 3. Check nginx logs on VPS (if you have access)
 
 ---
@@ -208,7 +208,7 @@ When helping with this project:
 1. Read [REMOTE_ACCESS.md](REMOTE_ACCESS.md) for complete guide
 2. Test SSH: `./connect-r58-frp.sh "hostname"`
 3. Deploy if needed: `./deploy-simple.sh`
-4. Access web: https://r58-api.itagenten.no/static/studio.html
+4. Access web: https://app.itagenten.no/static/studio.html
 
 ---
 

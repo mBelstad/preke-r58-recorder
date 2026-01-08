@@ -191,7 +191,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# NOTE: CORS is handled by nginx proxy at VPS level (r58-api.itagenten.no)
+# NOTE: CORS is handled by nginx proxy at VPS level (app.itagenten.no)
 # Do not add CORSMiddleware here to avoid duplicate Access-Control-Allow-Origin headers
 
 # Mount Vue frontend assets (js, css) at /assets
@@ -3947,7 +3947,7 @@ async def clear_queue() -> Dict[str, str]:
 # Use local instance via FRP tunnel for remote access
 VDONINJA_LOCAL_HOST = "localhost:8443"
 VDONINJA_REMOTE_HOST = "r58-vdo.itagenten.no"
-MEDIAMTX_REMOTE_HOST = "r58-mediamtx.itagenten.no"
+MEDIAMTX_REMOTE_HOST = "app.itagenten.no"  # Same-domain proxy
 
 
 async def _check_mediamtx_stream_ready(stream_id: str) -> bool:

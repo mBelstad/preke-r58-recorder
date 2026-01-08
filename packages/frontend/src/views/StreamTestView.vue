@@ -10,8 +10,10 @@
  */
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 
-// MediaMTX API base URL
-const MEDIAMTX_API = 'https://r58-mediamtx.itagenten.no'
+// MediaMTX API base URL (same-domain proxy)
+// When accessed from app.itagenten.no, requests go through nginx proxy
+const isProduction = typeof window !== 'undefined' && window.location.hostname === 'app.itagenten.no'
+const MEDIAMTX_API = isProduction ? '' : 'https://r58-mediamtx.itagenten.no'
 const MEDIAMTX_LOCAL = 'http://localhost:9997'
 
 // Available streams

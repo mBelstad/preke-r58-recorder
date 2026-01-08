@@ -187,7 +187,7 @@ Camera → MediaMTX (R58) → FRP Tunnel → nginx → Traefik → Browser
                                                     (WebRTC/TCP)
 ```
 
-**URL**: `https://r58-mediamtx.itagenten.no/cam0`
+**URL**: `https://app.itagenten.no/cam0`
 
 ### Remote Speaker Publishing
 
@@ -197,7 +197,7 @@ Browser → WHIP (HTTPS) → Traefik → nginx → FRP → MediaMTX (R58)
                                                   speaker0 path
 ```
 
-**URL**: `https://r58-api.itagenten.no/guest_join`
+**URL**: `https://app.itagenten.no/guest_join`
 
 ### VDO.ninja Mixer
 
@@ -248,7 +248,7 @@ The R58 supports two operational modes:
 - **Services**: MediaMTX, VDO.ninja, FastAPI
 - **Cameras**: Available via WHEP for mixer
 
-**Switching**: Via web UI at `https://r58-api.itagenten.no/static/mode_control.html`
+**Switching**: Via web UI at `https://app.itagenten.no/static/mode_control.html`
 
 ---
 
@@ -323,7 +323,7 @@ The R58 supports two operational modes:
 
 **4. VDO.ninja Mixer No Video**
 - Verify cameras streaming: `curl http://localhost:9997/v3/paths/list`
-- Check WHEP endpoints: `curl -I https://r58-mediamtx.itagenten.no/cam0/whep`
+- Check WHEP endpoints: `curl -I https://app.itagenten.no/cam0/whep`
 - Check browser console for errors
 
 ---
@@ -339,7 +339,7 @@ curl http://localhost:9997/v3/paths/list
 
 **FRP Tunnel**:
 ```bash
-curl -I https://r58-mediamtx.itagenten.no/cam0
+curl -I https://app.itagenten.no/cam0
 ```
 
 **VDO.ninja**:

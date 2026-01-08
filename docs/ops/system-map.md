@@ -197,7 +197,7 @@ R58:frpc → VPS:frps → VPS:nginx → VPS:traefik → Internet
 **If FRP fails:** Remote access lost, but local operation continues.
 
 **Health indicators:**
-- `curl https://r58-api.itagenten.no/api/v1/health` from internet
+- `curl https://app.itagenten.no/api/v1/health` from internet
 - SSH via `./connect-r58-frp.sh`
 
 ---

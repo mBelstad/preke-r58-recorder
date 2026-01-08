@@ -30,7 +30,7 @@ The R58 is a professional multi-camera recording and streaming system built on:
 **Current Status** (Verified Dec 26, 2025):
 - ✅ 4 cameras configured (cam0-cam3)
 - ✅ Hardware H.264 encoding (mpph264enc)
-- ✅ Remote access via https://r58-api.itagenten.no
+- ✅ Remote access via https://app.itagenten.no
 - ✅ WebRTC streaming with <1s latency
         `,
         content: `
@@ -126,10 +126,10 @@ All URLs use valid Let's Encrypt SSL certificates.
 
 Test the API:
 \`\`\`bash
-curl https://r58-api.itagenten.no/health
+curl https://app.itagenten.no/health
 # Expected: {"status":"healthy","platform":"auto","gstreamer":"initialized"}
 
-curl https://r58-api.itagenten.no/status
+curl https://app.itagenten.no/status
 # Shows all camera statuses
 \`\`\`
 
@@ -137,7 +137,7 @@ curl https://r58-api.itagenten.no/status
 
 Via API:
 \`\`\`bash
-curl -X POST https://r58-api.itagenten.no/record/start/cam1
+curl -X POST https://app.itagenten.no/record/start/cam1
 # Response: {"status":"started","camera":"cam1"}
 \`\`\`
 
@@ -359,9 +359,10 @@ The system uses a two-stage approach:
 - 18889: MediaMTX WebRTC (proxied)
 - 19997: MediaMTX API (proxied)
 
-### Public URLs
-- https://r58-api.itagenten.no → FastAPI
-- https://r58-mediamtx.itagenten.no → MediaMTX
+### Public URLs (Same-Domain Proxy)
+- https://app.itagenten.no → Vue frontend + API proxy
+- https://app.itagenten.no/api/* → FastAPI (proxied)
+- https://app.itagenten.no/cam*/whep → MediaMTX (proxied)
         `,
         keyPoints: [
             'FRP tunnel connects R58 to VPS without port forwarding',
@@ -416,7 +417,7 @@ v4l2src device=/dev/video60
 - UDP: 8189 → 18189 (WebRTC media)
 
 **Browser**:
-- Connects to https://r58-mediamtx.itagenten.no/cam1/whep
+- Connects to https://app.itagenten.no/cam1/whep
 - WebRTC negotiation via WHEP protocol
 - Direct RTP stream to browser
         `,

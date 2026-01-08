@@ -21,8 +21,10 @@ const iframeSrc = ref('')
 
 // MediaMTX WHIP endpoint for program output
 function getWhipUrl(): string {
-  // MediaMTX WHIP format: https://host/{stream_name}/whip
-  return `https://r58-mediamtx.itagenten.no/mixer_program/whip`
+  // Use same-domain proxy when accessed from app.itagenten.no
+  const isProduction = typeof window !== 'undefined' && window.location.hostname === 'app.itagenten.no'
+  const baseUrl = isProduction ? 'https://app.itagenten.no' : 'https://r58-mediamtx.itagenten.no'
+  return `${baseUrl}/mixer_program/whip`
 }
 
 function startProgramOutput() {

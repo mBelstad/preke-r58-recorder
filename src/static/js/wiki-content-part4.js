@@ -276,8 +276,8 @@ Think of it as having both a virtual TV studio AND a hardware switcher!
 - Works remotely through FRP tunnel
 
 **Remote Access**:
-- Mixer: https://r58-vdo.itagenten.no/mixer.html?mediamtx=r58-mediamtx.itagenten.no
-- Director: https://r58-vdo.itagenten.no/?director=r58studio&mediamtx=r58-mediamtx.itagenten.no
+- Mixer: https://r58-vdo.itagenten.no/mixer.html?mediamtx=app.itagenten.no
+- Director: https://r58-vdo.itagenten.no/?director=r58studio&mediamtx=app.itagenten.no
 
 **Note**: This is SEPARATE from the GStreamer mixer (MixerCore) in preke-recorder!
 
@@ -358,8 +358,8 @@ flowchart TB
 
 **WHEP Integration**:
 Add WHEP URLs to mixer:
-- &whep=https://r58-mediamtx.itagenten.no/cam0/whep
-- &whep=https://r58-mediamtx.itagenten.no/cam1/whep
+- &whep=https://app.itagenten.no/cam0/whep
+- &whep=https://app.itagenten.no/cam1/whep
 - etc.
 
 ## Why VDO.ninja?
@@ -639,8 +639,8 @@ Flow: Camera → GStreamer Ingest → MediaMTX → WHEP endpoint → VDO.ninja m
 **MediaMTX WHEP Mode** (Recommended for both local and remote):
 
 URLs with &mediamtx= parameter:
-- Mixer: https://r58-vdo.itagenten.no/mixer.html?mediamtx=r58-mediamtx.itagenten.no
-- Director: https://r58-vdo.itagenten.no/?director=r58studio&mediamtx=r58-mediamtx.itagenten.no
+- Mixer: https://r58-vdo.itagenten.no/mixer.html?mediamtx=app.itagenten.no
+- Director: https://r58-vdo.itagenten.no/?director=r58studio&mediamtx=app.itagenten.no
 
 **Local Access**:
 - Mixer: https://localhost:8443/mixer.html?mediamtx=localhost:8889

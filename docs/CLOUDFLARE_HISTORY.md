@@ -213,9 +213,9 @@ Guest Browser → Cloudflare Calls SFU → Relay → MediaMTX → Mixer
 ```
 
 ### Key URLs
-- **MediaMTX**: `https://r58-mediamtx.itagenten.no`
+- **MediaMTX**: `https://app.itagenten.no`
 - **VDO.ninja**: `https://r58-vdo.itagenten.no`
-- **API**: `https://r58-api.itagenten.no`
+- **API**: `https://app.itagenten.no`
 
 ### How It Works
 1. **Cameras**: Stream to local MediaMTX on R58

@@ -169,7 +169,7 @@ The Playwright config (`playwright.config.ts`) specifies:
 npm run test:e2e
 
 # Against staging
-VITE_API_URL=https://r58-api.itagenten.no npm run test:e2e
+VITE_API_URL=https://app.itagenten.no npm run test:e2e
 
 # Against production R58
 VITE_API_URL=http://192.168.1.24:8000 npm run test:e2e
@@ -361,7 +361,7 @@ npm run test:logs  # Check for errors
 ./connect-r58-frp.sh "cd /opt/preke-r58-recorder && ./scripts/smoke-test.sh --with-recording"
 
 # 5. Manual verification
-# Open https://r58-api.itagenten.no/static/studio.html
+# Open https://app.itagenten.no/static/studio.html
 # Test recording manually
 ```
 

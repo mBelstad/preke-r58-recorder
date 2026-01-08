@@ -25,9 +25,9 @@ Get HDMI cameras connected to an R58 (RK3588 ARM device) visible in VDO.ninja mi
 ### FRP Tunnels (via VPS 65.109.32.111)
 | Service | Public URL |
 |---------|-----------|
-| MediaMTX WebRTC | `https://r58-mediamtx.itagenten.no` |
+| MediaMTX WebRTC | `https://app.itagenten.no` |
 | VDO.ninja | `https://r58-vdo.itagenten.no` |
-| FastAPI | `https://r58-api.itagenten.no` |
+| FastAPI | `https://app.itagenten.no` |
 
 ### Camera Pipeline
 ```
@@ -42,14 +42,14 @@ Working cameras: cam2, cam3 (cam0, cam1 have hardware issues)
 
 ### 1. MediaMTX WHEP Through FRP
 ```
-https://r58-mediamtx.itagenten.no/cam3/whep
+https://app.itagenten.no/cam3/whep
 ```
 - HTTP-based protocol works through FRP TCP tunnels
 - Confirmed working December 27, 2025
 
 ### 2. VDO.ninja `&whepplay=` Parameter
 ```
-https://r58-vdo.itagenten.no/?whepplay=https://r58-mediamtx.itagenten.no/cam3/whep
+https://r58-vdo.itagenten.no/?whepplay=https://app.itagenten.no/cam3/whep
 ```
 - Pulls WHEP stream directly into VDO.ninja player
 - Works remotely through FRP
@@ -203,13 +203,13 @@ sshpass -p 'linaro' ssh -o StrictHostKeyChecking=no -p 10022 linaro@65.109.32.11
 
 ### Direct Camera View (Working)
 ```
-https://r58-vdo.itagenten.no/?whepplay=https://r58-mediamtx.itagenten.no/cam3/whep
+https://r58-vdo.itagenten.no/?whepplay=https://app.itagenten.no/cam3/whep
 ```
 
 ### WHEP Test Page (Working)
 ```
 https://r58-vdo.itagenten.no/whip.html
-# Enter: https://r58-mediamtx.itagenten.no/cam3/whep
+# Enter: https://app.itagenten.no/cam3/whep
 ```
 
 ### Director Room (Signaling works, video doesn't)
@@ -219,7 +219,7 @@ https://r58-vdo.itagenten.no/?director=r58studio&wss=wss://r58-vdo.itagenten.no
 
 ### MediaMTX API
 ```
-curl https://r58-mediamtx.itagenten.no/v3/paths/list
+curl https://app.itagenten.no/v3/paths/list
 ```
 
 ---

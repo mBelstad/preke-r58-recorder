@@ -100,7 +100,7 @@ echo "Deployment Successful!"
 echo "======================================${NC}"
 echo ""
 echo "Next steps:"
-echo "  1. Test: https://r58-api.itagenten.no/static/app.html"
+echo "  1. Test: https://app.itagenten.no/static/app.html"
 echo "  2. Check logs: ./connect-r58-frp.sh 'sudo journalctl -u preke-recorder -f'"
 echo ""
 

@@ -107,8 +107,8 @@ sshpass -p linaro ssh -p 10022 linaro@65.109.32.111
 - **Admin**: https://app.itagenten.no/#/admin
 
 **API & Documentation**:
-- **API Docs**: https://r58-api.itagenten.no/docs
-- **This Wiki**: https://r58-api.itagenten.no/static/wiki.html
+- **API Docs**: https://app.itagenten.no/docs
+- **This Wiki**: https://app.itagenten.no/static/wiki.html
 
 **VDO.ninja**:
 - **Mixer**: https://r58-vdo.itagenten.no/mixer.html?room=studio
@@ -304,7 +304,7 @@ The R58 has several web pages you can open in your browser:
 All pages work on phones, tablets, and computers.
         `,
         technical: `
-**Base URL**: https://r58-api.itagenten.no
+**Base URL**: https://app.itagenten.no
 
 **Static Files Served by FastAPI**:
 - Location: /opt/preke-r58-recorder/src/static/
@@ -355,7 +355,7 @@ All pages work on phones, tablets, and computers.
 **Use case**: Live production, remote guests
 
 ### API Documentation
-**URL**: https://r58-api.itagenten.no/docs
+**URL**: https://app.itagenten.no/docs
 
 **Features**:
 - Interactive API explorer (Swagger UI)
@@ -366,7 +366,7 @@ All pages work on phones, tablets, and computers.
 **Use case**: API integration, development
 
 ### This Wiki
-**URL**: https://r58-api.itagenten.no/static/wiki.html
+**URL**: https://app.itagenten.no/static/wiki.html
 
 **Features**:
 - Full-text search
@@ -612,8 +612,8 @@ You can test the API using your web browser or command-line tools like curl.
         `,
         technical: `
 **Framework**: FastAPI (Python)  
-**Base URL**: https://r58-api.itagenten.no  
-**Documentation**: https://r58-api.itagenten.no/docs (Swagger UI)
+**Base URL**: https://app.itagenten.no  
+**Documentation**: https://app.itagenten.no/docs (Swagger UI)
 
 **Features**:
 - RESTful design
@@ -635,14 +635,14 @@ You can test the API using your web browser or command-line tools like curl.
         content: `
 ## API Base URL
 
-**Production**: https://r58-api.itagenten.no  
+**Production**: https://app.itagenten.no  
 **Local**: http://localhost:8000 (when on R58)
 
 ## Common Patterns
 
 ### Request Format
 \`\`\`bash
-curl -X POST https://r58-api.itagenten.no/endpoint \\
+curl -X POST https://app.itagenten.no/endpoint \\
   -H "Content-Type: application/json" \\
   -d '{"key": "value"}'
 \`\`\`
@@ -675,7 +675,7 @@ curl -X POST https://r58-api.itagenten.no/endpoint \\
 
 ## Interactive Documentation
 
-Visit https://r58-api.itagenten.no/docs to:
+Visit https://app.itagenten.no/docs to:
 - See all endpoints
 - Try requests directly
 - View request/response schemas
@@ -693,7 +693,7 @@ Visit https://r58-api.itagenten.no/docs to:
 
 \`\`\`bash
 # Start recording on camera 1
-curl -X POST https://r58-api.itagenten.no/record/start/cam1
+curl -X POST https://app.itagenten.no/record/start/cam1
 
 # Response
 {
@@ -706,7 +706,7 @@ curl -X POST https://r58-api.itagenten.no/record/start/cam1
 
 \`\`\`bash
 # Get all camera statuses
-curl https://r58-api.itagenten.no/status
+curl https://app.itagenten.no/status
 
 # Response
 {
@@ -735,12 +735,12 @@ Control camera recording with simple web requests:
 
 **Start recording**:
 \`\`\`bash
-curl -X POST https://r58-api.itagenten.no/record/start/cam1
+curl -X POST https://app.itagenten.no/record/start/cam1
 \`\`\`
 
 **Stop recording**:
 \`\`\`bash
-curl -X POST https://r58-api.itagenten.no/record/stop/cam1
+curl -X POST https://app.itagenten.no/record/stop/cam1
 \`\`\`
 
 That's it! The R58 handles everything else automatically.
@@ -771,7 +771,7 @@ GET  /record/status/{cam_id} - Get recording status
 
 **Verified Working** (Dec 26, 2025):
 \`\`\`bash
-curl -X POST https://r58-api.itagenten.no/record/start/cam1
+curl -X POST https://app.itagenten.no/record/start/cam1
 # Response: {"status":"started","camera":"cam1"}
 \`\`\`
         `,
@@ -785,7 +785,7 @@ curl -X POST https://r58-api.itagenten.no/record/start/cam1
 
 **Request**:
 \`\`\`bash
-curl -X POST https://r58-api.itagenten.no/record/start/cam1
+curl -X POST https://app.itagenten.no/record/start/cam1
 \`\`\`
 
 **Response** (200 OK):
@@ -808,7 +808,7 @@ curl -X POST https://r58-api.itagenten.no/record/start/cam1
 
 **Request**:
 \`\`\`bash
-curl -X POST https://r58-api.itagenten.no/record/stop/cam1
+curl -X POST https://app.itagenten.no/record/stop/cam1
 \`\`\`
 
 **Response** (200 OK):
@@ -827,7 +827,7 @@ curl -X POST https://r58-api.itagenten.no/record/stop/cam1
 
 **Request**:
 \`\`\`bash
-curl https://r58-api.itagenten.no/record/status/cam1
+curl https://app.itagenten.no/record/status/cam1
 \`\`\`
 
 **Response** (200 OK):
@@ -891,12 +891,12 @@ Control the video mixer (combining multiple cameras) via API:
 
 **Start mixer**:
 \`\`\`bash
-curl -X POST https://r58-api.itagenten.no/api/mixer/start
+curl -X POST https://app.itagenten.no/api/mixer/start
 \`\`\`
 
 **Change scene**:
 \`\`\`bash
-curl -X POST https://r58-api.itagenten.no/api/mixer/set_scene \\
+curl -X POST https://app.itagenten.no/api/mixer/set_scene \\
   -H "Content-Type: application/json" \\
   -d '{"id": "quad"}'
 \`\`\`
@@ -938,7 +938,7 @@ GET  /api/mixer/status     - Get mixer status
 
 **Request**:
 \`\`\`bash
-curl -X POST https://r58-api.itagenten.no/api/mixer/start
+curl -X POST https://app.itagenten.no/api/mixer/start
 \`\`\`
 
 **Response** (200 OK):
@@ -962,7 +962,7 @@ curl -X POST https://r58-api.itagenten.no/api/mixer/start
 
 **Request**:
 \`\`\`bash
-curl -X POST https://r58-api.itagenten.no/api/mixer/stop
+curl -X POST https://app.itagenten.no/api/mixer/stop
 \`\`\`
 
 **Response** (200 OK):
@@ -978,7 +978,7 @@ curl -X POST https://r58-api.itagenten.no/api/mixer/stop
 
 **Request**:
 \`\`\`bash
-curl -X POST https://r58-api.itagenten.no/api/mixer/set_scene \\
+curl -X POST https://app.itagenten.no/api/mixer/set_scene \\
   -H "Content-Type: application/json" \\
   -d '{"id": "quad"}'
 \`\`\`
@@ -1006,7 +1006,7 @@ curl -X POST https://r58-api.itagenten.no/api/mixer/set_scene \\
 
 **Request**:
 \`\`\`bash
-curl https://r58-api.itagenten.no/api/mixer/status
+curl https://app.itagenten.no/api/mixer/status
 \`\`\`
 
 **Response** (200 OK):
@@ -1055,12 +1055,12 @@ mixer:
 
 **WHEP URL**:
 \`\`\`
-https://r58-mediamtx.itagenten.no/mixer_program/whep
+https://app.itagenten.no/mixer_program/whep
 \`\`\`
 
 **HLS URL**:
 \`\`\`
-https://r58-mediamtx.itagenten.no/mixer_program/index.m3u8
+https://app.itagenten.no/mixer_program/index.m3u8
 \`\`\`
         `,
         keyPoints: [
@@ -1079,12 +1079,12 @@ Scenes define how cameras are arranged in the mixer. You can:
 
 **List all scenes**:
 \`\`\`bash
-curl https://r58-api.itagenten.no/api/scenes
+curl https://app.itagenten.no/api/scenes
 \`\`\`
 
 **Get scene details**:
 \`\`\`bash
-curl https://r58-api.itagenten.no/api/scenes/quad
+curl https://app.itagenten.no/api/scenes/quad
 \`\`\`
 
 Scenes are stored as JSON files in the \`scenes/\` directory.
@@ -1131,7 +1131,7 @@ GET /api/scenes/{id}  - Get scene definition
 
 **Request**:
 \`\`\`bash
-curl https://r58-api.itagenten.no/api/scenes
+curl https://app.itagenten.no/api/scenes
 \`\`\`
 
 **Response** (200 OK):
@@ -1160,7 +1160,7 @@ curl https://r58-api.itagenten.no/api/scenes
 
 **Request**:
 \`\`\`bash
-curl https://r58-api.itagenten.no/api/scenes/quad
+curl https://app.itagenten.no/api/scenes/quad
 \`\`\`
 
 **Response** (200 OK):
@@ -1263,7 +1263,7 @@ curl https://r58-api.itagenten.no/api/scenes/quad
 
 2. Apply scene:
 \`\`\`bash
-curl -X POST https://r58-api.itagenten.no/api/mixer/set_scene \\
+curl -X POST https://app.itagenten.no/api/mixer/set_scene \\
   -H "Content-Type: application/json" \\
   -d '{"id": "my_scene"}'
 \`\`\`
