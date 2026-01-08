@@ -79,6 +79,10 @@ DEPLOY_COMMANDS="cd /opt/preke-r58-recorder && \
     echo 'Switching to $DEPLOY_BRANCH...' && \
     git fetch origin && \
     git checkout $DEPLOY_BRANCH && \
+    echo 'Stashing local changes (build artifacts)...' && \
+    git stash push -m 'Deploy: stashing local changes' || true && \
+    echo 'Cleaning untracked build artifacts...' && \
+    git clean -fd packages/frontend/dist/ || true && \
     git pull origin $DEPLOY_BRANCH && \
     echo 'Latest commit:' && git log -1 --oneline && \
     echo 'Setting up VDO.ninja if needed...' && \
