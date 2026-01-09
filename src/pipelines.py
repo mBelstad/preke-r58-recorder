@@ -545,14 +545,18 @@ def build_recording_subscriber_pipeline(
     # Use H.264 depay because ingest now streams H.264 via RTP
     source_str = f"rtspsrc location={source_url} latency=100 protocols=tcp ! rtph264depay"
     
-    # Use H.264 parser and fragmented MP4 muxer for DaVinci Resolve growing file support
-    # Fragmented MP4 writes metadata incrementally, enabling true edit-while-record
-    # fragment-duration=1000 creates 1-second fragments for minimal latency
+    # Use H.264 parser and QuickTime muxer for DaVinci Resolve growing file support
+    # ATEM-style approach: reserve moov atom space at start, periodically update
+    # reserved-max-duration: pre-allocate moov atom space (in nanoseconds, 4 hours max)
+    # reserved-moov-update-period: update moov atom every N nanoseconds (1 second)
     parse_str = "h264parse"
-    mux_str = "mp4mux fragment-duration=1000 streamable=true"
+    # Use qtmux for MOV format (like ATEM Mini ISO) with reserved moov atom
+    # 14400000000000 ns = 4 hours max recording
+    # 1000000000 ns = 1 second update period
+    mux_str = "qtmux reserved-max-duration=14400000000000 reserved-moov-update-period=1000000000"
     
-    # Fragmented MP4 files can be imported into DaVinci Resolve while recording
-    # and will show as "growing files" with live updates
+    # MOV files with reserved moov atom can be read by DaVinci Resolve while recording
+    # and will show as "growing files" with live indicator
     pipeline_str = (
         f"{source_str} ! "
         f"queue max-size-buffers=0 max-size-time=0 max-size-bytes=0 ! "
