@@ -1702,15 +1702,27 @@ class StartStreamingRequest(BaseModel):
 
 
 def build_ffmpeg_relay_command(destinations: List[RTMPDestination]) -> str:
-    """Build FFmpeg command to relay to multiple RTMP destinations."""
+    """
+    Build FFmpeg command to relay to multiple RTMP destinations.
+    
+    Note: VDO.ninja uses Opus audio which can't be copied to FLV container.
+    We must transcode audio to AAC for RTMP compatibility.
+    """
     if not destinations:
         return ""
+    
+    # FFmpeg options:
+    # -c:v copy = copy H.264 video (no re-encode)
+    # -c:a aac = transcode Opus to AAC (required for FLV/RTMP)
+    # -ar 44100 = standard sample rate
+    # -b:a 128k = good quality audio bitrate
+    audio_opts = "-c:v copy -c:a aac -ar 44100 -b:a 128k"
     
     # For single destination, simple command
     if len(destinations) == 1:
         dest = destinations[0]
         rtmp_url = f"{dest.rtmp_url}{dest.stream_key}"
-        return f"ffmpeg -i rtsp://localhost:8554/mixer_program -c copy -f flv '{rtmp_url}'"
+        return f"ffmpeg -i rtsp://localhost:8554/mixer_program {audio_opts} -f flv '{rtmp_url}'"
     
     # For multiple destinations, use tee muxer
     outputs = []
@@ -1719,7 +1731,7 @@ def build_ffmpeg_relay_command(destinations: List[RTMPDestination]) -> str:
         outputs.append(f"[f=flv]{rtmp_url}")
     
     tee_output = "|".join(outputs)
-    return f"ffmpeg -i rtsp://localhost:8554/mixer_program -c copy -f tee '{tee_output}'"
+    return f"ffmpeg -i rtsp://localhost:8554/mixer_program {audio_opts} -f tee '{tee_output}'"
 
 
 @app.post("/api/streaming/rtmp/start")

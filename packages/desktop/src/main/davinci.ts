@@ -257,7 +257,11 @@ async function fetchRecordingStatus(): Promise<RecordingSession | null> {
       res.on('data', (chunk: Buffer) => { data += chunk.toString() })
       res.on('end', () => {
         try {
-          resolve(JSON.parse(data))
+          const parsed = JSON.parse(data)
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/1c530d06-93f3-4719-9f2a-db5838c77d56',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'davinci.ts:fetchRecordingStatus',message:'R58 status response',data:{active:parsed.active,cameras:Object.keys(parsed.cameras||{}),sessionId:parsed.session_id},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
+          // #endregion
+          resolve(parsed)
         } catch {
           resolve(null)
         }
@@ -1554,6 +1558,9 @@ export function setupDaVinciHandlers(getWindow: () => BrowserWindow | null): voi
   })
   
   ipcMain.handle('davinci-refresh-clips', async () => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/1c530d06-93f3-4719-9f2a-db5838c77d56',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'davinci.ts:IPC:refresh-clips',message:'Manual refresh button clicked',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1,H3'})}).catch(()=>{});
+    // #endregion
     return await refreshGrowingClips()
   })
   
