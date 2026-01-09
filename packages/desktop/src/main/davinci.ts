@@ -1180,6 +1180,9 @@ sys.exit(0)
  * Forces DaVinci to re-read file metadata (duration, etc.)
  */
 async function refreshGrowingClips(): Promise<{ success: boolean; error?: string; clipsRefreshed?: number }> {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/1c530d06-93f3-4719-9f2a-db5838c77d56',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'davinci.ts:refreshGrowingClips',message:'refreshGrowingClips called',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2,H3'})}).catch(()=>{});
+  // #endregion
   const scriptPath = getResolveScriptPath()
   if (!scriptPath) {
     return { success: false, error: 'DaVinci Resolve scripting path not found' }
