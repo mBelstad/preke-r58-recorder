@@ -15,7 +15,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useRecorderStore } from '@/stores/recorder'
 import { useCapabilitiesStore } from '@/stores/capabilities'
-import { getVdoHost, getVdoProtocol, VDO_ROOM, VDO_DIRECTOR_PASSWORD } from '@/lib/vdoninja'
+import { getVdoHost, getVdoProtocol, VDO_ROOM, VDO_DIRECTOR_PASSWORD, buildMixerUrl, getMediaMtxHost } from '@/lib/vdoninja'
 import { buildApiUrl, hasDeviceConfigured } from '@/lib/api'
 import { toast } from '@/composables/useToast'
 
@@ -56,18 +56,27 @@ const mixerUrl = ref<string>('')
 
 // Initialize mixer URL on mount (getVdoHost is async)
 async function initializeMixerUrl() {
-  const VDO_HOST = await getVdoHost() || 'r58-vdo.itagenten.no'  // Fallback to default
-  const VDO_PROTOCOL = getVdoProtocol()  // https
+  // Use buildMixerUrl() which includes API key and all necessary parameters
+  const mediamtxHost = await getMediaMtxHost()
+  const url = await buildMixerUrl({
+    mediamtxHost: mediamtxHost || undefined,
+    room: VDO_ROOM
+  })
   
-  // Use mixer.html for full mixer interface
-  const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/mixer.html`)
-  url.searchParams.set('room', VDO_ROOM)
-  url.searchParams.set('password', VDO_DIRECTOR_PASSWORD)
-  
-  // Add custom CSS via URL parameter (more reliable than <link> tag)
-  url.searchParams.set('css', `${VDO_PROTOCOL}://${VDO_HOST}/css/preke-colors.css`)
-  
-  mixerUrl.value = url.toString()
+  if (url) {
+    mixerUrl.value = url
+    console.log('[Mixer] Mixer URL initialized with API key')
+  } else {
+    // Fallback if buildMixerUrl fails
+    const VDO_HOST = await getVdoHost() || 'r58-vdo.itagenten.no'
+    const VDO_PROTOCOL = getVdoProtocol()
+    const fallbackUrl = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/mixer.html`)
+    fallbackUrl.searchParams.set('room', VDO_ROOM)
+    fallbackUrl.searchParams.set('password', VDO_DIRECTOR_PASSWORD)
+    fallbackUrl.searchParams.set('css', `${VDO_PROTOCOL}://${VDO_HOST}/css/preke-colors.css`)
+    mixerUrl.value = fallbackUrl.toString()
+    console.warn('[Mixer] Using fallback URL without API key')
+  }
 }
 
 function handleIframeLoad() {
