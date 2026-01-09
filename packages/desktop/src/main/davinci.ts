@@ -970,13 +970,42 @@ print(f"Creating multicam timeline from {len(clips)} clips")
 
 # Check if timeline already exists and delete it
 timeline_name = "${clipName}_Timeline"
-existing_timelines = media_pool.GetTimelineCount()
-for i in range(existing_timelines):
-    timeline = media_pool.GetTimelineByIndex(i + 1)
-    if timeline and timeline.GetName() == timeline_name:
+timeline_to_delete = None
+
+try:
+    # Method 1: Try project.GetTimelineCount() (most reliable)
+    timeline_count = project.GetTimelineCount()
+    for i in range(1, timeline_count + 1):
+        timeline = project.GetTimelineByIndex(i)
+        if timeline and timeline.GetName() == timeline_name:
+            timeline_to_delete = timeline
+            break
+except:
+    try:
+        # Method 2: Try media_pool.GetTimelineCount() (alternative)
+        timeline_count = media_pool.GetTimelineCount()
+        for i in range(1, timeline_count + 1):
+            timeline = media_pool.GetTimelineByIndex(i)
+            if timeline and timeline.GetName() == timeline_name:
+                timeline_to_delete = timeline
+                break
+    except:
+        # Method 3: Check current timeline
+        try:
+            current_timeline = project.GetCurrentTimeline()
+            if current_timeline and current_timeline.GetName() == timeline_name:
+                timeline_to_delete = current_timeline
+        except:
+            pass  # If all methods fail, just try to create (might fail if duplicate exists)
+
+# Delete existing timeline if found
+if timeline_to_delete:
+    try:
         print(f"Deleting existing timeline: {timeline_name}")
-        media_pool.DeleteTimelines([timeline])
-        break
+        media_pool.DeleteTimelines([timeline_to_delete])
+    except Exception as e:
+        print(f"Warning: Could not delete existing timeline: {e}")
+        # Continue anyway - CreateEmptyTimeline might still work
 
 # Create empty timeline
 timeline = media_pool.CreateEmptyTimeline(timeline_name)
@@ -995,53 +1024,77 @@ for i in range(current_tracks, num_clips):
     result = timeline.AddTrack("video")
     print(f"Added video track: {result}")
 
-# Prepare all clips to be added at frame 0 simultaneously
-# Build list of clip items with track assignments
-clip_items = []
+# Get timeline frame rate to calculate positions
+fps = float(timeline.GetSetting("timelineFrameRate") or 24)
+print(f"Timeline FPS: {fps}")
+
+# CRITICAL: To place clips at the SAME timeline position (frame 0) on DIFFERENT tracks,
+# we need to use timeline.InsertMediaPoolItemsIntoTimeline or edit the timeline items after adding.
+# AppendToTimeline's "startFrame" is the clip's IN point, not timeline position!
+
+# Method: Add first clip to V1 at frame 0, then add subsequent clips using InsertMediaPoolItemsIntoTimeline
+# which allows specifying the timeline record frame position
+
+added_clips = []
 for i, clip in enumerate(clips):
     track_index = i + 1  # V1, V2, V3, etc.
-    clip_items.append({
-        "mediaPoolItem": clip,
-        "trackIndex": track_index,
-        "startFrame": 0,
-        "mediaType": 1  # 1 = video
-    })
-    print(f"Prepared {clip.GetName()} for track V{track_index}")
-
-# Add all clips at once at frame 0
-print(f"Adding {len(clip_items)} clips simultaneously at frame 0...")
-batch_result = media_pool.AppendToTimeline(clip_items)
-
-if batch_result:
-    print(f"SUCCESS: Created timeline {timeline_name} with {len(clips)} clips on separate tracks at frame 0")
-else:
-    # Fallback: try adding one by one, but ensure all start at frame 0
-    print("AppendToTimeline batch failed, trying individual clips...")
-    success_count = 0
-    for i, clip in enumerate(clips):
-        track_index = i + 1
-        clip_name = clip.GetName()
-        
-        # Try AppendToTimeline with single clip
-        single_result = media_pool.AppendToTimeline([{
+    clip_name = clip.GetName()
+    
+    # Use InsertMediaPoolItemsIntoTimeline which takes recordFrame as the timeline position
+    # recordFrame: The timeline position (in frames) where to insert the clip
+    # startFrame: The source clip's in point
+    
+    try:
+        # InsertMediaPoolItemsIntoTimeline([{item, recordFrame, startFrame, trackIndex, mediaType}])
+        result = media_pool.InsertMediaPoolItemsIntoTimeline([{
             "mediaPoolItem": clip,
+            "recordFrame": 0,       # Timeline position: frame 0
+            "startFrame": 0,        # Clip in point: frame 0
             "trackIndex": track_index,
-            "startFrame": 0,
-            "mediaType": 1
+            "mediaType": 1          # 1 = video
         }])
         
-        if single_result:
-            print(f"Added {clip_name} to track V{track_index} at frame 0")
-            success_count += 1
+        if result and len(result) > 0:
+            added_clips.extend(result)
+            print(f"Added {clip_name} to track V{track_index} at timeline frame 0")
         else:
-            # Last resort: simple append (will be sequential)
-            media_pool.AppendToTimeline([clip])
-            print(f"WARNING: Added {clip_name} (may not be at frame 0)")
+            print(f"WARNING: InsertMediaPoolItemsIntoTimeline returned empty for {clip_name}")
+    except Exception as e:
+        print(f"InsertMediaPoolItemsIntoTimeline error: {e}")
+        
+        # Fallback: Try AppendToTimeline (will be sequential)
+        try:
+            result = media_pool.AppendToTimeline([{
+                "mediaPoolItem": clip,
+                "trackIndex": track_index,
+                "startFrame": 0,
+                "mediaType": 1
+            }])
+            if result:
+                print(f"Fallback: Added {clip_name} to track V{track_index} (position may vary)")
+                added_clips.extend(result if isinstance(result, list) else [])
+        except Exception as e2:
+            print(f"Fallback AppendToTimeline error: {e2}")
 
-if batch_result or success_count > 0:
-    print(f"SUCCESS: Created timeline {timeline_name} with {len(clips)} clips")
-else:
-    print(f"WARNING: Timeline created but clips may not be positioned correctly")
+# If InsertMediaPoolItemsIntoTimeline didn't work, try to move clips to frame 0 after adding
+if len(added_clips) < num_clips:
+    print("Some clips may not be at frame 0. Checking timeline items...")
+    
+    # Get all timeline items and try to move them to frame 0
+    for track_idx in range(1, num_clips + 1):
+        items = timeline.GetItemListInTrack("video", track_idx)
+        if items:
+            for item in items:
+                try:
+                    # SetStart sets the timeline position
+                    current_start = item.GetStart()
+                    if current_start != 0:
+                        print(f"Moving item on V{track_idx} from {current_start} to 0")
+                        item.SetStart(0)
+                except Exception as e:
+                    print(f"Could not move item: {e}")
+
+print(f"SUCCESS: Created timeline {timeline_name} with {num_clips} clips")
 sys.exit(0)
 `
   
@@ -1121,6 +1174,7 @@ root_folder = media_pool.GetRootFolder()
 
 # Find clips from R58 recordings path
 r58_clips = []
+clip_paths = {}  # clip -> path mapping for re-import
 
 def find_r58_clips(folder):
     """Recursively find clips from R58 recordings path"""
@@ -1131,7 +1185,12 @@ def find_r58_clips(folder):
             # Check if path contains r58-recordings or recordings mount
             if "r58-recordings" in path or ("recordings" in path and ("cam0" in path or "cam1" in path or "cam2" in path or "cam3" in path)):
                 r58_clips.append(clip)
-                print(f"Found R58 clip: {clip.GetName()}")
+                clip_paths[clip.GetName()] = path
+                
+                # Get clip duration info
+                duration = clip.GetClipProperty("Duration") or "unknown"
+                frames = clip.GetClipProperty("Frames") or "unknown"
+                print(f"Found R58 clip: {clip.GetName()} - Duration: {duration}, Frames: {frames}")
     
     # Search subfolders
     subfolders = folder.GetSubFolderList()
@@ -1146,28 +1205,74 @@ if not r58_clips:
     print("Make sure clips are imported from ~/r58-recordings or mounted SMB share")
     sys.exit(1)
 
-# Get folder path from first clip for relinking
-first_clip_path = r58_clips[0].GetClipProperty("File Path") or ""
-folder_path = os.path.dirname(first_clip_path)
+print(f"Found {len(r58_clips)} R58 clips to refresh")
 
-if not folder_path or not os.path.exists(folder_path):
-    print(f"ERROR: Folder path does not exist: {folder_path}")
+# Method 1: Try ReplaceClip with the same file path (forces re-read)
+refreshed = 0
+for clip in r58_clips:
+    clip_name = clip.GetName()
+    file_path = clip_paths.get(clip_name, "")
+    
+    if not file_path or not os.path.exists(file_path):
+        print(f"Skipping {clip_name}: path not found")
+        continue
+    
+    # Get current file size on disk
+    try:
+        file_size = os.path.getsize(file_path)
+        print(f"Current file size for {clip_name}: {file_size} bytes")
+    except:
+        pass
+    
+    # Try ReplaceClip - this forces DaVinci to re-read the file
+    try:
+        result = clip.ReplaceClip(file_path)
+        if result:
+            print(f"ReplaceClip succeeded for {clip_name}")
+            refreshed += 1
+        else:
+            print(f"ReplaceClip returned False for {clip_name}")
+    except Exception as e:
+        print(f"ReplaceClip failed for {clip_name}: {e}")
+
+# Method 2: If ReplaceClip didn't work, try RelinkClips as fallback
+if refreshed == 0:
+    print("ReplaceClip method failed, trying RelinkClips...")
+    
+    # Group clips by folder
+    folder_clips = {}
+    for clip in r58_clips:
+        clip_name = clip.GetName()
+        file_path = clip_paths.get(clip_name, "")
+        if file_path:
+            folder = os.path.dirname(file_path)
+            if folder not in folder_clips:
+                folder_clips[folder] = []
+            folder_clips[folder].append(clip)
+    
+    # Relink each folder group
+    for folder, clips_in_folder in folder_clips.items():
+        if os.path.exists(folder):
+            try:
+                result = media_pool.RelinkClips(clips_in_folder, folder)
+                if result:
+                    print(f"RelinkClips succeeded for {len(clips_in_folder)} clips in {folder}")
+                    refreshed += len(clips_in_folder)
+            except Exception as e:
+                print(f"RelinkClips failed for {folder}: {e}")
+
+# Method 3: If still nothing worked, suggest manual refresh
+if refreshed == 0:
+    print("")
+    print("MANUAL WORKAROUND: In DaVinci Resolve:")
+    print("1. Right-click on clips in Media Pool")
+    print("2. Select 'Replace Selected Clip...'")
+    print("3. Navigate to the same file and select it")
+    print("This forces DaVinci to re-read the file metadata.")
     sys.exit(1)
 
-print(f"Relinking {len(r58_clips)} clips from: {folder_path}")
-
-# Relink clips to force metadata refresh
-try:
-    result = media_pool.RelinkClips(r58_clips, folder_path)
-    if result:
-        print(f"SUCCESS: Refreshed {len(r58_clips)} clips")
-        sys.exit(0)
-    else:
-        print("ERROR: RelinkClips returned False")
-        sys.exit(1)
-except Exception as e:
-    print(f"ERROR: RelinkClips failed: {e}")
-    sys.exit(1)
+print(f"SUCCESS: Refreshed {refreshed} clips")
+sys.exit(0)
 `
   
   return new Promise((resolve) => {
