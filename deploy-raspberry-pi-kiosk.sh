@@ -77,7 +77,7 @@ echo ""
 echo -e "${YELLOW}Step 2: Installing required packages on Pi...${NC}"
 
 INSTALL_CMD="sudo apt-get update && \
-sudo apt-get install -y nginx chromium-browser unclutter x11-xserver-utils xdotool && \
+sudo apt-get install -y nginx chromium unclutter x11-xserver-utils xdotool && \
 echo 'Packages installed successfully'"
 
 sshpass -p "$PI_PASSWORD" ssh -o ConnectTimeout=15 \
@@ -251,7 +251,7 @@ User=$PI_USER
 Environment=DISPLAY=:0
 Environment=XAUTHORITY=/home/$PI_USER/.Xauthority
 ExecStartPre=/bin/sleep 5
-ExecStart=/usr/bin/chromium-browser \\
+ExecStart=/usr/bin/chromium \\
     --kiosk \\
     --noerrdialogs \\
     --disable-infobars \\

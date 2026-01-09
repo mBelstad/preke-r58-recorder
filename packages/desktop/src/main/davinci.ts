@@ -58,8 +58,8 @@ let davinciConfig: DaVinciConfig = {
   autoCreateProject: true,
   autoImportMedia: true,
   createMulticamTimeline: true,
-  autoRefreshClips: true, // Auto-refresh growing clips during recording
-  refreshIntervalMs: 10000, // Refresh every 10 seconds
+  autoRefreshClips: false, // DISABLED by default - causes Resolve freezes. Use manual refresh.
+  refreshIntervalMs: 30000, // Refresh every 30 seconds (was 20, increased for stability)
 }
 
 let pollInterval: NodeJS.Timeout | null = null
@@ -69,7 +69,25 @@ let isResolveConnected = false
 let mainWindow: (() => BrowserWindow | null) | null = null
 let lastResolveCheck = 0
 let lastRefreshTime = 0
+let isRefreshing = false // Prevent overlapping refresh operations
+let lastErrorTime = 0 // Track last error for cooldown
+let clipsImported = false // Track if Create Multicam has been used (clips exist in Resolve)
+let consecutiveTimeouts = 0 // Track consecutive timeouts to detect Resolve issues
 const RESOLVE_CHECK_INTERVAL = 30000 // Only check Resolve connection every 30 seconds
+const ERROR_COOLDOWN_MS = 60000 // Wait 60 seconds after a serious error (was 30)
+const MAX_CONSECUTIVE_TIMEOUTS = 2 // After 2 timeouts, assume Resolve is having issues
+
+// Reset state when module loads (app starts)
+function resetRefreshState() {
+  clipsImported = false
+  consecutiveTimeouts = 0
+  lastErrorTime = 0
+  isRefreshing = false
+  log.info('Refresh state reset')
+}
+
+// Call immediately on module load
+resetRefreshState()
 
 // R58 recordings mount path - where SMB share is mounted on Mac
 const R58_MOUNT_PATHS = [
@@ -445,6 +463,11 @@ async function handleSessionChange(session: RecordingSession): Promise<void> {
     log.info(`New recording session detected: ${currentSessionId}`)
     lastSessionId = currentSessionId
     
+    // Reset auto-refresh state for new session
+    clipsImported = false // Will be set to true after Create Multicam
+    consecutiveTimeouts = 0
+    lastErrorTime = 0
+    
     // Notify renderer
     notifyRenderer('davinci-session-start', {
       sessionId: currentSessionId,
@@ -507,12 +530,29 @@ async function pollRecordingStatus(): Promise<void> {
     await handleSessionChange(status)
     
     // Auto-refresh growing clips if enabled and recording is active
+    // IMPORTANT: Only auto-refresh if clips have been imported via Create Multicam
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/1c530d06-93f3-4719-9f2a-db5838c77d56',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'davinci.ts:506',message:'Auto-refresh check',data:{autoRefreshEnabled:davinciConfig.autoRefreshClips,statusActive:status.active,resolveConnected:isResolveConnected,timeSinceLastRefresh:now-lastRefreshTime,refreshInterval:davinciConfig.refreshIntervalMs},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
+    fetch('http://127.0.0.1:7242/ingest/1c530d06-93f3-4719-9f2a-db5838c77d56',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'davinci.ts:506',message:'Auto-refresh check',data:{autoRefreshEnabled:davinciConfig.autoRefreshClips,statusActive:status.active,resolveConnected:isResolveConnected,clipsImported,timeSinceLastRefresh:now-lastRefreshTime,refreshInterval:davinciConfig.refreshIntervalMs,isRefreshing,timeSinceLastError:now-lastErrorTime,consecutiveTimeouts},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
     // #endregion
-    if (davinciConfig.autoRefreshClips && status.active && isResolveConnected) {
+    if (davinciConfig.autoRefreshClips && status.active && isResolveConnected && clipsImported) {
+      // Skip if already refreshing (prevent overlapping operations that crash Resolve)
+      if (isRefreshing) {
+        log.debug('Skipping auto-refresh: previous refresh still in progress')
+        return
+      }
+      // Skip if too many consecutive timeouts (Resolve is probably frozen)
+      if (consecutiveTimeouts >= MAX_CONSECUTIVE_TIMEOUTS) {
+        log.debug(`Skipping auto-refresh: too many timeouts (${consecutiveTimeouts}), Resolve may be frozen`)
+        return
+      }
+      // Skip if in error cooldown period
+      if (now - lastErrorTime < ERROR_COOLDOWN_MS) {
+        log.debug(`Skipping auto-refresh: in cooldown (${Math.round((ERROR_COOLDOWN_MS - (now - lastErrorTime)) / 1000)}s remaining)`)
+        return
+      }
       if (now - lastRefreshTime > davinciConfig.refreshIntervalMs) {
         lastRefreshTime = now
+        isRefreshing = true
         log.debug('Auto-refreshing growing clips...')
         // #region agent log
         fetch('http://127.0.0.1:7242/ingest/1c530d06-93f3-4719-9f2a-db5838c77d56',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'davinci.ts:512',message:'Auto-refresh triggered',data:{lastRefreshTime,now},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
@@ -524,9 +564,29 @@ async function pollRecordingStatus(): Promise<void> {
           // #endregion
           if (result.success && result.clipsRefreshed) {
             log.debug(`Auto-refreshed ${result.clipsRefreshed} clip(s)`)
+            consecutiveTimeouts = 0 // Reset on success
+          } else if (!result.success) {
+            const isTimeout = result.error?.includes('Timeout')
+            const isNoClipsError = result.error?.includes('No R58 clips found') || 
+                                   result.error?.includes('found 0 clips')
+            
+            if (isTimeout) {
+              consecutiveTimeouts++
+              lastErrorTime = now
+              log.warn(`Auto-refresh timeout (${consecutiveTimeouts}/${MAX_CONSECUTIVE_TIMEOUTS}), entering cooldown`)
+            } else if (!isNoClipsError) {
+              lastErrorTime = now
+              log.warn(`Auto-refresh failed, entering cooldown: ${result.error}`)
+            } else {
+              log.debug('No clips found yet, will retry')
+            }
           }
         } catch (err) {
+          lastErrorTime = now
+          consecutiveTimeouts++
           log.debug('Auto-refresh failed (non-critical):', err)
+        } finally {
+          isRefreshing = false
         }
       }
     }
@@ -1060,27 +1120,35 @@ for i in range(current_tracks, num_clips):
 fps = float(timeline.GetSetting("timelineFrameRate") or 24)
 print(f"Timeline FPS: {fps}")
 
-# CRITICAL: To place clips at the SAME timeline position (frame 0) on DIFFERENT tracks,
-# we need to use timeline.InsertMediaPoolItemsIntoTimeline or edit the timeline items after adding.
-# AppendToTimeline's "startFrame" is the clip's IN point, not timeline position!
+# NEW APPROACH: Set playhead to frame 0, then use AppendToTimeline for each track
+# This should place all clips at the current playhead position
 
-# Method: Add first clip to V1 at frame 0, then add subsequent clips using InsertMediaPoolItemsIntoTimeline
-# which allows specifying the timeline record frame position
+# First, set the playhead/current timecode to the start
+try:
+    timeline.SetCurrentTimecode("00:00:00:00")
+    print("Set playhead to 00:00:00:00")
+except Exception as e:
+    print(f"Could not set playhead: {e}")
 
 added_clips = []
 for i, clip in enumerate(clips):
     track_index = i + 1  # V1, V2, V3, etc.
     clip_name = clip.GetName()
     
-    # Use InsertMediaPoolItemsIntoTimeline which takes recordFrame as the timeline position
-    # recordFrame: The timeline position (in frames) where to insert the clip
-    # startFrame: The source clip's in point
+    print(f"Adding {clip_name} to track V{track_index}...")
     
+    # CRITICAL: Reset playhead to frame 0 BEFORE each clip insertion
+    # This ensures all clips start at the same position
     try:
-        # InsertMediaPoolItemsIntoTimeline([{item, recordFrame, startFrame, trackIndex, mediaType}])
+        timeline.SetCurrentTimecode("00:00:00:00")
+    except:
+        pass
+    
+    # Method 1: Try InsertMediaPoolItemsIntoTimeline with explicit recordFrame
+    try:
         result = media_pool.InsertMediaPoolItemsIntoTimeline([{
             "mediaPoolItem": clip,
-            "recordFrame": 0,       # Timeline position: frame 0
+            "recordFrame": 0,       # Timeline position: frame 0 (absolute)
             "startFrame": 0,        # Clip in point: frame 0
             "trackIndex": track_index,
             "mediaType": 1          # 1 = video
@@ -1088,54 +1156,62 @@ for i, clip in enumerate(clips):
         
         if result and len(result) > 0:
             added_clips.extend(result)
-            print(f"Added {clip_name} to track V{track_index} at timeline frame 0")
-        else:
-            print(f"WARNING: InsertMediaPoolItemsIntoTimeline returned empty for {clip_name}")
+            print(f"  InsertMediaPoolItemsIntoTimeline: Added to V{track_index}")
+            continue  # Success, move to next clip
     except Exception as e:
-        print(f"InsertMediaPoolItemsIntoTimeline error: {e}")
-        
-        # Fallback: Try AppendToTimeline (will be sequential)
-        try:
-            result = media_pool.AppendToTimeline([{
-                "mediaPoolItem": clip,
-                "trackIndex": track_index,
-                "startFrame": 0,
-                "mediaType": 1
-            }])
-            if result:
-                print(f"Fallback: Added {clip_name} to track V{track_index} (position may vary)")
-                added_clips.extend(result if isinstance(result, list) else [])
-        except Exception as e2:
-            print(f"Fallback AppendToTimeline error: {e2}")
+        print(f"  InsertMediaPoolItemsIntoTimeline error: {e}")
+    
+    # Method 2: Fallback to AppendToTimeline
+    try:
+        result = media_pool.AppendToTimeline([{
+            "mediaPoolItem": clip,
+            "trackIndex": track_index,
+            "startFrame": 0,
+            "mediaType": 1
+        }])
+        if result:
+            added_clips.extend(result if isinstance(result, list) else [])
+            print(f"  AppendToTimeline: Added to V{track_index}")
+    except Exception as e2:
+        print(f"  AppendToTimeline error: {e2}")
 
-# ALWAYS verify and fix clip positions - InsertMediaPoolItemsIntoTimeline may not position correctly
+# ALWAYS verify and fix clip positions - DaVinci API often doesn't place clips correctly
 print("Verifying and fixing clip positions on timeline...")
 
-# Get all timeline items and ensure they're all at frame 0
+# Get all timeline items and FORCE them to frame 0
+clips_fixed = 0
 for track_idx in range(1, num_clips + 1):
     items = timeline.GetItemListInTrack("video", track_idx)
     if items:
         for item in items:
             try:
                 current_start = item.GetStart()
+                item_name = item.GetName() if hasattr(item, 'GetName') else f"item_{track_idx}"
+                
                 if current_start != 0:
-                    print(f"Moving item on V{track_idx} from frame {current_start} to frame 0")
-                    # SetStart sets the timeline position
-                    item.SetStart(0)
-                    # Also try SetEnd to ensure clip duration is correct
-                    # Get the clip's duration from the media pool item
-                    media_pool_item = item.GetMediaPoolItem()
-                    if media_pool_item:
-                        clip_duration = media_pool_item.GetClipProperty("Duration")
-                        if clip_duration:
-                            # Duration is in format "HH:MM:SS:FF" or frames
-                            print(f"Clip duration: {clip_duration}")
+                    print(f"V{track_idx}: Moving '{item_name}' from frame {current_start} to frame 0")
+                    
+                    # Try multiple methods to move the clip
+                    # Method 1: SetStart
+                    try:
+                        item.SetStart(0)
+                        clips_fixed += 1
+                    except:
+                        pass
+                    
+                    # Verify it moved
+                    new_start = item.GetStart()
+                    if new_start != 0:
+                        print(f"  WARNING: Clip still at frame {new_start} after SetStart(0)")
                 else:
-                    print(f"Item on V{track_idx} already at frame 0")
+                    print(f"V{track_idx}: '{item_name}' already at frame 0 ✓")
             except Exception as e:
-                print(f"Could not adjust item on V{track_idx}: {e}")
+                print(f"V{track_idx}: Error checking/moving item: {e}")
     else:
-        print(f"WARNING: No items found on track V{track_idx}")
+        print(f"V{track_idx}: No items found on this track")
+
+if clips_fixed > 0:
+    print(f"Fixed position of {clips_fixed} clip(s)")
 
 print(f"SUCCESS: Created timeline {timeline_name} with {num_clips} clips")
 sys.exit(0)
@@ -1220,8 +1296,8 @@ root_folder = media_pool.GetRootFolder()
 
 # Find clips from R58 recordings path
 r58_clips = []
-clip_paths = {}  # clip -> path mapping for re-import
-seen_clip_ids = set()  # Track clip IDs to prevent duplicates
+clip_original_paths = {}  # Store original (resolved) paths by clip index
+seen_paths = set()  # Track unique file paths to prevent duplicates
 
 def find_r58_clips(folder, folder_name="root"):
     """Recursively find clips from R58 recordings path"""
@@ -1231,15 +1307,9 @@ def find_r58_clips(folder, folder_name="root"):
         for clip in folder_clips:
             path = clip.GetClipProperty("File Path") or ""
             clip_name = clip.GetName()
-            clip_id = id(clip)  # Unique Python object ID
             
-            # Skip if we've already seen this clip
-            if clip_id in seen_clip_ids:
-                print(f"DEBUG: Skipping duplicate clip (by id): {clip_name}")
-                continue
-            
-            # Also check by path to catch duplicates imported from different sources
-            if path in [clip_paths.get(n) for n in clip_paths]:
+            # Skip if we've already seen this exact path
+            if path in seen_paths:
                 print(f"DEBUG: Skipping duplicate clip (by path): {clip_name} -> {path}")
                 continue
             
@@ -1254,7 +1324,7 @@ def find_r58_clips(folder, folder_name="root"):
             if "r58-recordings" in path or ("recordings" in path and ("cam0" in path or "cam1" in path or "cam2" in path or "cam3" in path)):
                 is_r58_clip = True
                 match_reason = "direct_path"
-            elif "R58_Import/links" in path or "R58_Import\\links" in path:
+            elif "R58_Import/links" in path or "R58_Import\\\\links" in path:
                 # This is a symlink - try to resolve it to get original path
                 is_r58_clip = True
                 match_reason = "symlink_path"
@@ -1278,15 +1348,18 @@ def find_r58_clips(folder, folder_name="root"):
                     pass
             
             if is_r58_clip:
-                seen_clip_ids.add(clip_id)
+                # Use PATH as the unique key, not clip name (clips can have same name from different cameras)
+                seen_paths.add(path)
+                clip_index = len(r58_clips)  # Index before appending
                 r58_clips.append(clip)
-                # Store original path (not symlink) for refresh
-                clip_paths[clip.GetName()] = original_path
+                
+                # Store original path by clip index (can't set attributes on Resolve clip objects!)
+                clip_original_paths[clip_index] = original_path
                 
                 # Get clip duration info
                 duration = clip.GetClipProperty("Duration") or "unknown"
                 frames = clip.GetClipProperty("Frames") or "unknown"
-                print(f"Found R58 clip #{len(r58_clips)}: {clip_name} (match: {match_reason}) - Path: {path}, Original: {original_path}, Duration: {duration}, Frames: {frames}")
+                print(f"Found R58 clip #{clip_index + 1}: {clip_name} (match: {match_reason}) - Path: {path}, Original: {original_path}, Duration: {duration}, Frames: {frames}")
     
     # Search subfolders
     subfolders = folder.GetSubFolderList()
@@ -1305,69 +1378,51 @@ if not r58_clips:
 
 print(f"Found {len(r58_clips)} R58 clips to refresh")
 
-# Method 1: Try RelinkClips first (gentler, less visual disruption)
+# ALWAYS use ReplaceClip - RelinkClips reports success but doesn't actually update duration!
+# ReplaceClip forces DaVinci to completely re-read the file metadata
 refreshed = 0
 
-# Group clips by folder for RelinkClips
-folder_clips = {}
-for clip in r58_clips:
+print(f"Refreshing {len(r58_clips)} clips using ReplaceClip...")
+
+for idx, clip in enumerate(r58_clips):
     clip_name = clip.GetName()
-    file_path = clip_paths.get(clip_name, "")
-    if file_path:
-        folder = os.path.dirname(file_path)
-        if folder not in folder_clips:
-            folder_clips[folder] = []
-        folder_clips[folder].append(clip)
-
-# Try RelinkClips for each folder group
-for folder, clips_in_folder in folder_clips.items():
-    if os.path.exists(folder):
-        try:
-            result = media_pool.RelinkClips(clips_in_folder, folder)
-            if result:
-                print(f"RelinkClips succeeded for {len(clips_in_folder)} clips in {folder}")
-                refreshed += len(clips_in_folder)
-        except Exception as e:
-            print(f"RelinkClips failed for {folder}: {e}")
-
-# Method 2: If RelinkClips didn't work or didn't refresh all clips, try ReplaceClip as fallback
-if refreshed < len(r58_clips):
-    print(f"RelinkClips refreshed {refreshed}/{len(r58_clips)} clips, trying ReplaceClip for remaining...")
     
-    for clip in r58_clips:
-        clip_name = clip.GetName()
-        file_path = clip_paths.get(clip_name, "")
-        
-        # If file_path is a symlink, resolve it to get the original path
+    # Get the original file path from our dictionary
+    file_path = clip_original_paths.get(idx, "")
+    
+    if not file_path:
+        # Fallback: try to get from clip property
+        file_path = clip.GetClipProperty("File Path") or ""
+        # If it's a symlink, resolve it
         if file_path and os.path.islink(file_path):
             try:
                 file_path = os.readlink(file_path)
                 print(f"Resolved symlink for {clip_name}: {file_path}")
             except:
                 pass
-        
-        if not file_path or not os.path.exists(file_path):
-            print(f"Skipping {clip_name}: path not found ({file_path})")
-            continue
-        
-        # Get current file size on disk
-        try:
-            file_size = os.path.getsize(file_path)
-            print(f"Current file size for {clip_name}: {file_size} bytes")
-        except:
-            pass
-        
-        # Try ReplaceClip - this forces DaVinci to re-read the file (may cause brief red blink)
-        # Use the original path (not symlink) for ReplaceClip
-        try:
-            result = clip.ReplaceClip(file_path)
-            if result:
-                print(f"ReplaceClip succeeded for {clip_name}")
-                refreshed += 1
-            else:
-                print(f"ReplaceClip returned False for {clip_name}")
-        except Exception as e:
-            print(f"ReplaceClip failed for {clip_name}: {e}")
+    
+    if not file_path or not os.path.exists(file_path):
+        print(f"Skipping {clip_name}: path not found ({file_path})")
+        continue
+    
+    # Get current file info
+    try:
+        file_size = os.path.getsize(file_path)
+        print(f"Refreshing {clip_name}: {file_size} bytes at {file_path}")
+    except:
+        print(f"Refreshing {clip_name} at {file_path}")
+    
+    # Use ReplaceClip - this ACTUALLY forces DaVinci to re-read the file
+    # It may cause a brief red blink but it's the only reliable way
+    try:
+        result = clip.ReplaceClip(file_path)
+        if result:
+            print(f"ReplaceClip succeeded for {clip_name}")
+            refreshed += 1
+        else:
+            print(f"ReplaceClip returned False for {clip_name}")
+    except Exception as e:
+        print(f"ReplaceClip failed for {clip_name}: {e}")
 
 # Method 3: If still nothing worked, suggest manual refresh
 if refreshed == 0:
@@ -1392,11 +1447,20 @@ sys.exit(0)
     let output = ''
     let timedOut = false
     
+    // Shorter timeout (15s) to detect stuck operations faster
     const timeout = setTimeout(() => {
       timedOut = true
+      log.warn('Refresh script timeout - killing Python process')
       python.kill('SIGTERM')
+      // Force kill after 2 seconds if SIGTERM doesn't work
+      setTimeout(() => {
+        if (!python.killed) {
+          log.warn('SIGTERM failed, sending SIGKILL')
+          python.kill('SIGKILL')
+        }
+      }, 2000)
       resolve({ success: false, error: 'Timeout refreshing clips' })
-    }, 30000)
+    }, 15000) // Reduced from 30s to 15s
     
     python.stdout.on('data', (data) => { output += data.toString() })
     python.stderr.on('data', (data) => { output += data.toString() })
@@ -1486,6 +1550,16 @@ export function getDaVinciStatus(): {
  * Update DaVinci config
  */
 export function updateDaVinciConfig(config: Partial<DaVinciConfig>): void {
+  // When enabling DaVinci integration, also enable auto-refresh by default
+  if (config.enabled === true && davinciConfig.enabled === false) {
+    config.autoRefreshClips = true
+    log.info('DaVinci integration enabled - auto-refresh also enabled')
+  }
+  // When disabling DaVinci integration, also disable auto-refresh
+  if (config.enabled === false) {
+    config.autoRefreshClips = false
+  }
+  
   Object.assign(davinciConfig, config)
   log.info('DaVinci config updated:', davinciConfig)
 }
@@ -1541,7 +1615,14 @@ export function setupDaVinciHandlers(getWindow: () => BrowserWindow | null): voi
     syncMethod?: string
     sessionId?: string
   }) => {
-    return await createMulticamTimeline(options)
+    const result = await createMulticamTimeline(options)
+    // Enable auto-refresh now that clips are imported
+    if (result.success && result.filesImported && result.filesImported > 0) {
+      clipsImported = true
+      consecutiveTimeouts = 0 // Reset timeout counter for fresh start
+      log.info('Clips imported successfully, auto-refresh enabled')
+    }
+    return result
   })
   
   ipcMain.handle('davinci-check-mount', () => {
@@ -1561,7 +1642,9 @@ export function setupDaVinciHandlers(getWindow: () => BrowserWindow | null): voi
     // #region agent log
     fetch('http://127.0.0.1:7242/ingest/1c530d06-93f3-4719-9f2a-db5838c77d56',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'davinci.ts:IPC:refresh-clips',message:'Manual refresh button clicked',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1,H3'})}).catch(()=>{});
     // #endregion
-    return await refreshGrowingClips()
+    const result = await refreshGrowingClips()
+    log.info('Manual refresh result:', result)
+    return result
   })
   
   log.info('DaVinci IPC handlers registered')
