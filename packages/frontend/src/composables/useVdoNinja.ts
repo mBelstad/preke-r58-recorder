@@ -615,6 +615,7 @@ export function useVdoNinja(iframeRef: Ref<HTMLIFrameElement | null>) {
     
     switch (messageType) {
       case 'director-ready':
+      case 'mixer-ready':     // mixer.html sends this when ready
       case 'loaded':
       case 'ready':
       case 'started':
@@ -624,6 +625,7 @@ export function useVdoNinja(iframeRef: Ref<HTMLIFrameElement | null>) {
         isReady.value = true
         connectionState.value = 'connected'
         lastError.value = null
+        console.log('[VDO.ninja] Ready event received:', messageType)
         break
         
       case 'stream-id-detected': {

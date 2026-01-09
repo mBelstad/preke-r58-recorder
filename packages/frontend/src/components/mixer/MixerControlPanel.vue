@@ -76,18 +76,25 @@ function switchScene(sceneNumber: number) {
   }
   
   if (!vdo.isReady.value) {
-    console.warn('[MixerControlPanel] VDO.ninja not ready yet, waiting...')
-    // Try anyway - VDO.ninja might queue the command
+    console.warn('[MixerControlPanel] VDO.ninja not ready yet (isReady:', vdo.isReady.value, 'connectionState:', vdo.connectionState.value, ')')
+    console.warn('[MixerControlPanel] Attempting anyway - VDO.ninja might queue the command')
   }
   
-  // VDO.ninja mixer uses layout numbers 0-8
-  // Scene 0 = auto grid, scenes 1-8 = custom layouts
+  // Check if iframe is actually available
+  if (!props.iframeRef?.value?.contentWindow) {
+    console.error('[MixerControlPanel] Iframe contentWindow not available!')
+    return
+  }
+  
+  // VDO.ninja mixer uses layout numbers 0-8 for preset layouts
+  // Layout 0 = auto grid, 1 = solo, 2 = side-by-side, etc.
   // For user-friendly UI, we map 1-9 to 0-8
-  const vdoSceneNumber = sceneNumber - 1
-  console.log('[MixerControlPanel] Calling setLayout with', vdoSceneNumber, 'for scene', sceneNumber)
+  const vdoLayoutNumber = sceneNumber - 1
+  console.log('[MixerControlPanel] Calling setLayout with layout number', vdoLayoutNumber, 'for scene', sceneNumber)
+  console.log('[MixerControlPanel] Iframe:', props.iframeRef.value, 'ContentWindow:', props.iframeRef.value.contentWindow)
   
   try {
-    setLayout(vdoSceneNumber)
+    setLayout(vdoLayoutNumber)
     currentScene.value = sceneNumber
     console.log('[MixerControlPanel] setLayout called successfully')
   } catch (error) {
