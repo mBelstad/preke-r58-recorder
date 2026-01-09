@@ -1095,23 +1095,34 @@ for i, clip in enumerate(clips):
         except Exception as e2:
             print(f"Fallback AppendToTimeline error: {e2}")
 
-# If InsertMediaPoolItemsIntoTimeline didn't work, try to move clips to frame 0 after adding
-if len(added_clips) < num_clips:
-    print("Some clips may not be at frame 0. Checking timeline items...")
-    
-    # Get all timeline items and try to move them to frame 0
-    for track_idx in range(1, num_clips + 1):
-        items = timeline.GetItemListInTrack("video", track_idx)
-        if items:
-            for item in items:
-                try:
+# ALWAYS verify and fix clip positions - InsertMediaPoolItemsIntoTimeline may not position correctly
+print("Verifying and fixing clip positions on timeline...")
+
+# Get all timeline items and ensure they're all at frame 0
+for track_idx in range(1, num_clips + 1):
+    items = timeline.GetItemListInTrack("video", track_idx)
+    if items:
+        for item in items:
+            try:
+                current_start = item.GetStart()
+                if current_start != 0:
+                    print(f"Moving item on V{track_idx} from frame {current_start} to frame 0")
                     # SetStart sets the timeline position
-                    current_start = item.GetStart()
-                    if current_start != 0:
-                        print(f"Moving item on V{track_idx} from {current_start} to 0")
-                        item.SetStart(0)
-                except Exception as e:
-                    print(f"Could not move item: {e}")
+                    item.SetStart(0)
+                    # Also try SetEnd to ensure clip duration is correct
+                    # Get the clip's duration from the media pool item
+                    media_pool_item = item.GetMediaPoolItem()
+                    if media_pool_item:
+                        clip_duration = media_pool_item.GetClipProperty("Duration")
+                        if clip_duration:
+                            # Duration is in format "HH:MM:SS:FF" or frames
+                            print(f"Clip duration: {clip_duration}")
+                else:
+                    print(f"Item on V{track_idx} already at frame 0")
+            except Exception as e:
+                print(f"Could not adjust item on V{track_idx}: {e}")
+    else:
+        print(f"WARNING: No items found on track V{track_idx}")
 
 print(f"SUCCESS: Created timeline {timeline_name} with {num_clips} clips")
 sys.exit(0)
@@ -1201,15 +1212,47 @@ def find_r58_clips(folder):
     if folder_clips:
         for clip in folder_clips:
             path = clip.GetClipProperty("File Path") or ""
-            # Check if path contains r58-recordings or recordings mount
+            clip_name = clip.GetName()
+            
+            # Check multiple conditions:
+            # 1. Direct path contains r58-recordings or recordings mount
+            # 2. Path is in symlink directory (R58_Import/links)
+            # 3. Clip name matches symlink pattern (cam0_recording_..., cam2_recording_..., etc.)
+            is_r58_clip = False
+            original_path = path
+            
             if "r58-recordings" in path or ("recordings" in path and ("cam0" in path or "cam1" in path or "cam2" in path or "cam3" in path)):
+                is_r58_clip = True
+            elif "R58_Import/links" in path or "R58_Import\\links" in path:
+                # This is a symlink - try to resolve it to get original path
+                is_r58_clip = True
+                try:
+                    if os.path.islink(path):
+                        original_path = os.readlink(path)
+                        print(f"Resolved symlink: {path} -> {original_path}")
+                except:
+                    pass
+            elif clip_name.startswith("cam0_") or clip_name.startswith("cam1_") or clip_name.startswith("cam2_") or clip_name.startswith("cam3_"):
+                # Clip name matches symlink pattern - likely an R58 clip
+                is_r58_clip = True
+                # Try to find original path by checking if symlink exists
+                try:
+                    symlink_path = os.path.expanduser("~/Movies/R58_Import/links/" + clip_name)
+                    if os.path.islink(symlink_path):
+                        original_path = os.readlink(symlink_path)
+                        print(f"Found symlink for {clip_name}: {symlink_path} -> {original_path}")
+                except:
+                    pass
+            
+            if is_r58_clip:
                 r58_clips.append(clip)
-                clip_paths[clip.GetName()] = path
+                # Store original path (not symlink) for refresh
+                clip_paths[clip.GetName()] = original_path
                 
                 # Get clip duration info
                 duration = clip.GetClipProperty("Duration") or "unknown"
                 frames = clip.GetClipProperty("Frames") or "unknown"
-                print(f"Found R58 clip: {clip.GetName()} - Duration: {duration}, Frames: {frames}")
+                print(f"Found R58 clip: {clip_name} - Path: {path}, Original: {original_path}, Duration: {duration}, Frames: {frames}")
     
     # Search subfolders
     subfolders = folder.GetSubFolderList()
@@ -1259,8 +1302,16 @@ if refreshed < len(r58_clips):
         clip_name = clip.GetName()
         file_path = clip_paths.get(clip_name, "")
         
+        # If file_path is a symlink, resolve it to get the original path
+        if file_path and os.path.islink(file_path):
+            try:
+                file_path = os.readlink(file_path)
+                print(f"Resolved symlink for {clip_name}: {file_path}")
+            except:
+                pass
+        
         if not file_path or not os.path.exists(file_path):
-            print(f"Skipping {clip_name}: path not found")
+            print(f"Skipping {clip_name}: path not found ({file_path})")
             continue
         
         # Get current file size on disk
@@ -1271,6 +1322,7 @@ if refreshed < len(r58_clips):
             pass
         
         # Try ReplaceClip - this forces DaVinci to re-read the file (may cause brief red blink)
+        # Use the original path (not symlink) for ReplaceClip
         try:
             result = clip.ReplaceClip(file_path)
             if result:

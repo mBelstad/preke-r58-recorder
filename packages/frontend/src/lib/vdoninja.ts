@@ -520,7 +520,9 @@ export async function buildProgramOutputUrl(whipUrl: string): Promise<string | n
   url.searchParams.set('scene', '')
   url.searchParams.set('room', VDO_ROOM)
   url.searchParams.set('cover', '')
-  url.searchParams.set('quality', '2')
+  url.searchParams.set('quality', '0')  // 0=auto matches canvas resolution (720p)
+  url.searchParams.set('width', '1280')  // Force 720p output
+  url.searchParams.set('height', '720')
   url.searchParams.set('cleanoutput', '')
   url.searchParams.set('hideheader', '')
   url.searchParams.set('nologo', '')
