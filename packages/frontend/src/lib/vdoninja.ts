@@ -548,6 +548,41 @@ export async function buildProgramOutputUrl(whipUrl: string): Promise<string | n
  * WHEP/WHIP transport instead of P2P WebRTC, which is required
  * for working through FRP tunnels.
  */
+/**
+ * Get VDO.ninja API key from config
+ * Falls back to default if not configured
+ */
+async function getVdoApiKey(): Promise<string | null> {
+  try {
+    const { getDeviceUrl } = await import('./api')
+    const deviceUrl = getDeviceUrl()
+    if (deviceUrl) {
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 3000)
+      
+      const response = await fetch(`${deviceUrl}/api/config`, {
+        signal: controller.signal,
+        mode: 'cors',
+        cache: 'no-cache'
+      })
+      clearTimeout(timeout)
+      
+      if (response.ok) {
+        const config = await response.json()
+        if (config.vdo_ninja?.api_key) {
+          return config.vdo_ninja.api_key
+        }
+      }
+    }
+  } catch (e) {
+    // Device doesn't support /api/config or not reachable
+    console.log('[VDO.ninja] Could not fetch API key from config')
+  }
+  
+  // Default fallback (matches config.yml default)
+  return 'preke-r58-2024-secure-key'
+}
+
 export async function buildMixerUrl(options: {
   mediamtxHost?: string
   room?: string
@@ -566,6 +601,12 @@ export async function buildMixerUrl(options: {
   
   // Room password for authentication
   url.searchParams.set('password', VDO_DIRECTOR_PASSWORD)
+  
+  // API key for HTTP API control (Companion/Stream Deck integration)
+  const apiKey = await getVdoApiKey()
+  if (apiKey) {
+    url.searchParams.set('api', apiKey)
+  }
   
   // MediaMTX integration - enables WHEP/WHIP transport instead of P2P
   // This is critical for working through FRP tunnels

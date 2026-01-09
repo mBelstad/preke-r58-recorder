@@ -21,6 +21,7 @@ from .control.lan_discovery.discovery import router as lan_discovery_router
 from .control.sessions.router import router as sessions_router
 from .control.streaming import router as streaming_router
 from .control.vdoninja import router as vdoninja_router
+from .control.vdo_ninja.router import router as vdo_ninja_api_router
 from .db.database import init_db
 from .degradation import router as degradation_router
 from .logging import setup_logging
@@ -200,6 +201,7 @@ def create_app() -> FastAPI:
     app.include_router(ptz_controller_router)
     app.include_router(lan_discovery_router)
     app.include_router(vdoninja_router)
+    app.include_router(vdo_ninja_api_router)
     app.include_router(sessions_router)
     app.include_router(streaming_router)
     app.include_router(health_router)

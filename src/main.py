@@ -5277,6 +5277,137 @@ async def ptz_controller_websocket(websocket: WebSocket):
             pass
 
 
+# ============================================================================
+# VDO.ninja API (Companion/Stream Deck integration)
+# ============================================================================
+
+@app.post("/api/v1/vdo-ninja/scene/{scene_id}")
+async def vdo_ninja_switch_scene(scene_id: int) -> Dict[str, Any]:
+    """Switch to scene (0-8 or custom scene name)"""
+    try:
+        from src.vdo_ninja.api_client import get_vdo_ninja_client_from_config
+        client = get_vdo_ninja_client_from_config()
+        if not client:
+            raise HTTPException(status_code=503, detail="VDO.ninja API not configured")
+        
+        success = await client.switch_scene(scene_id)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to switch scene")
+        
+        return {"success": True, "scene_id": scene_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"VDO.ninja switch scene error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/v1/vdo-ninja/guest/{guest_id}/mute")
+async def vdo_ninja_toggle_mute(guest_id: str) -> Dict[str, Any]:
+    """Toggle microphone mute for a guest"""
+    try:
+        from src.vdo_ninja.api_client import get_vdo_ninja_client_from_config
+        client = get_vdo_ninja_client_from_config()
+        if not client:
+            raise HTTPException(status_code=503, detail="VDO.ninja API not configured")
+        
+        muted = await client.toggle_mute(guest_id)
+        if muted is None:
+            raise HTTPException(status_code=500, detail="Failed to toggle mute")
+        
+        return {"success": True, "guest_id": guest_id, "muted": muted}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"VDO.ninja toggle mute error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class VolumeRequest(BaseModel):
+    volume: int  # 0-200
+
+
+@app.post("/api/v1/vdo-ninja/guest/{guest_id}/volume")
+async def vdo_ninja_set_volume(guest_id: str, request: VolumeRequest = Body(...)) -> Dict[str, Any]:
+    """Set volume for a guest (0-200)"""
+    try:
+        from src.vdo_ninja.api_client import get_vdo_ninja_client_from_config
+        client = get_vdo_ninja_client_from_config()
+        if not client:
+            raise HTTPException(status_code=503, detail="VDO.ninja API not configured")
+        
+        success = await client.set_volume(guest_id, request.volume)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to set volume")
+        
+        return {"success": True, "guest_id": guest_id, "volume": request.volume}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"VDO.ninja set volume error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/v1/vdo-ninja/recording/start")
+async def vdo_ninja_start_recording() -> Dict[str, Any]:
+    """Start recording"""
+    try:
+        from src.vdo_ninja.api_client import get_vdo_ninja_client_from_config
+        client = get_vdo_ninja_client_from_config()
+        if not client:
+            raise HTTPException(status_code=503, detail="VDO.ninja API not configured")
+        
+        success = await client.start_recording()
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to start recording")
+        
+        return {"success": True, "recording": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"VDO.ninja start recording error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/v1/vdo-ninja/recording/stop")
+async def vdo_ninja_stop_recording() -> Dict[str, Any]:
+    """Stop recording"""
+    try:
+        from src.vdo_ninja.api_client import get_vdo_ninja_client_from_config
+        client = get_vdo_ninja_client_from_config()
+        if not client:
+            raise HTTPException(status_code=503, detail="VDO.ninja API not configured")
+        
+        success = await client.stop_recording()
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to stop recording")
+        
+        return {"success": True, "recording": False}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"VDO.ninja stop recording error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/v1/vdo-ninja/guests")
+async def vdo_ninja_list_guests() -> List[Dict[str, Any]]:
+    """List connected guests (for Companion feedback)"""
+    try:
+        from src.vdo_ninja.api_client import get_vdo_ninja_client_from_config
+        client = get_vdo_ninja_client_from_config()
+        if not client:
+            raise HTTPException(status_code=503, detail="VDO.ninja API not configured")
+        
+        guests = await client.get_guests()
+        return guests
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"VDO.ninja list guests error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 if __name__ == "__main__":
     import uvicorn
 

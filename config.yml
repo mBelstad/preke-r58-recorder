@@ -80,7 +80,7 @@ cameras:
     recording_bitrate: 18000  # 18 Mbps for high-quality recording
     preview_bitrate: 4000  # 4 Mbps for 720p preview streaming
     codec: h264  # Hardware encoding via mpph264enc (VPU)
-    output_path: /mnt/sdcard/recordings/cam0/recording_%Y%m%d_%H%M%S.mov
+    output_path: /mnt/sdcard/recordings/cam0/recording_%Y%m%d_%H%M%S.mkv
     mediamtx_enabled: true
     mediamtx_path: null  # Auto-generated if null: rtsp://localhost:8554/cam0
     enabled: true  # Re-enabled: rkcif device initialization now properly sets format via subdev
@@ -91,7 +91,7 @@ cameras:
     recording_bitrate: 18000  # 18 Mbps for high-quality recording
     preview_bitrate: 4000  # 4 Mbps for 720p preview streaming
     codec: h264  # Hardware encoding via mpph264enc (VPU)
-    output_path: /mnt/sdcard/recordings/cam1/recording_%Y%m%d_%H%M%S.mov
+    output_path: /mnt/sdcard/recordings/cam1/recording_%Y%m%d_%H%M%S.mkv
     mediamtx_enabled: true
     mediamtx_path: null
     enabled: false  # DISABLED: No camera connected to IN60
@@ -102,7 +102,7 @@ cameras:
     recording_bitrate: 18000  # 18 Mbps for high-quality recording
     preview_bitrate: 4000  # 4 Mbps for 720p preview streaming
     codec: h264  # Hardware encoding via mpph264enc (VPU)
-    output_path: /mnt/sdcard/recordings/cam2/recording_%Y%m%d_%H%M%S.mov
+    output_path: /mnt/sdcard/recordings/cam2/recording_%Y%m%d_%H%M%S.mkv
     mediamtx_enabled: true
     mediamtx_path: null
     enabled: true  # HDMI 2 - signal auto-detected at runtime
@@ -113,20 +113,19 @@ cameras:
     recording_bitrate: 18000  # 18 Mbps for high-quality recording
     preview_bitrate: 4000  # 4 Mbps for 720p preview streaming
     codec: h264  # Hardware encoding via mpph264enc (VPU)
-    output_path: /mnt/sdcard/recordings/cam3/recording_%Y%m%d_%H%M%S.mov
+    output_path: /mnt/sdcard/recordings/cam3/recording_%Y%m%d_%H%M%S.mkv
     mediamtx_enabled: true
     mediamtx_path: null
     enabled: true  # HDMI 3 - 4K camera connected
 
 # Recording configuration
-# Recording configuration
-# Using fragmented MP4 for DaVinci Resolve growing file support (edit-while-record)
+# Using MKV container for edit-while-record capability (DaVinci Resolve compatible)
 recording:
   enabled: true
   gop: 30  # Keyframe interval (frames) - 1 second at 30fps
-  container: mov  # QuickTime MOV (ATEM-style) for DaVinci Resolve growing file support
-  reserved_moov: true  # Reserve moov atom at start like ATEM
-  filename_pattern: "{cam_id}_{timestamp}.mov"
+  container: mkv  # MKV for edit-while-record, MP4 for final delivery
+  streamable: true  # Enable streamable MKV (matroskamux streamable=true)
+  filename_pattern: "{cam_id}_{timestamp}.mkv"
   min_disk_space_gb: 10  # Minimum disk space to start recording
   warning_disk_space_gb: 5  # Warning threshold during recording
 
@@ -178,3 +177,25 @@ external_cameras:
     port: 52381  # Optional, defaults to 52381 for Obsbot
     enabled: false
 
+# VDO.ninja configuration
+# API key is required for HTTP API control (Companion/Stream Deck integration)
+vdo_ninja:
+  api_key: "preke-r58-2024-secure-key"  # API key for VDO.ninja HTTP API (must match &api= in URL)
+  api_url: "https://r58-vdo.itagenten.no"  # VDO.ninja host for API calls
+  room: "r58studio"  # Default room name
+  password: "preke-r58-2024"  # Room password
+
+# DaVinci Resolve automation configuration
+# Enables automatic project creation and media import when recording sessions start
+davinci_automation:
+  enabled: false  # Set to true to enable automation
+  webhook_urls:
+    # - "http://mac-editing-pc:8080/webhook/session-start"
+    # - "http://windows-editing-pc:8080/webhook/session-start"
+  project_templates:
+    default: "standard_template"
+    multicam: "multicam_template"
+  auto_import: true  # Automatically import new files as they appear
+  create_multicam_timeline: true  # Create multi-camera timeline automatically
+  auto_sync: true  # Automatically sync cameras
+  sync_method: "timecode"  # timecode, audio, or manual
