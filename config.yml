@@ -80,7 +80,7 @@ cameras:
     recording_bitrate: 18000  # 18 Mbps for high-quality recording
     preview_bitrate: 4000  # 4 Mbps for 720p preview streaming
     codec: h264  # Hardware encoding via mpph264enc (VPU)
-    output_path: /mnt/sdcard/recordings/cam0/recording_%Y%m%d_%H%M%S.mkv
+    output_path: /mnt/sdcard/recordings/cam0/recording_%Y%m%d_%H%M%S.mp4
     mediamtx_enabled: true
     mediamtx_path: null  # Auto-generated if null: rtsp://localhost:8554/cam0
     enabled: true  # Re-enabled: rkcif device initialization now properly sets format via subdev
@@ -91,7 +91,7 @@ cameras:
     recording_bitrate: 18000  # 18 Mbps for high-quality recording
     preview_bitrate: 4000  # 4 Mbps for 720p preview streaming
     codec: h264  # Hardware encoding via mpph264enc (VPU)
-    output_path: /mnt/sdcard/recordings/cam1/recording_%Y%m%d_%H%M%S.mkv
+    output_path: /mnt/sdcard/recordings/cam1/recording_%Y%m%d_%H%M%S.mp4
     mediamtx_enabled: true
     mediamtx_path: null
     enabled: false  # DISABLED: No camera connected to IN60
@@ -102,7 +102,7 @@ cameras:
     recording_bitrate: 18000  # 18 Mbps for high-quality recording
     preview_bitrate: 4000  # 4 Mbps for 720p preview streaming
     codec: h264  # Hardware encoding via mpph264enc (VPU)
-    output_path: /mnt/sdcard/recordings/cam2/recording_%Y%m%d_%H%M%S.mkv
+    output_path: /mnt/sdcard/recordings/cam2/recording_%Y%m%d_%H%M%S.mp4
     mediamtx_enabled: true
     mediamtx_path: null
     enabled: true  # HDMI 2 - signal auto-detected at runtime
@@ -113,19 +113,20 @@ cameras:
     recording_bitrate: 18000  # 18 Mbps for high-quality recording
     preview_bitrate: 4000  # 4 Mbps for 720p preview streaming
     codec: h264  # Hardware encoding via mpph264enc (VPU)
-    output_path: /mnt/sdcard/recordings/cam3/recording_%Y%m%d_%H%M%S.mkv
+    output_path: /mnt/sdcard/recordings/cam3/recording_%Y%m%d_%H%M%S.mp4
     mediamtx_enabled: true
     mediamtx_path: null
     enabled: true  # HDMI 3 - 4K camera connected
 
 # Recording configuration
-# Using MKV container for edit-while-record capability (DaVinci Resolve compatible)
+# Recording configuration
+# Using fragmented MP4 for DaVinci Resolve growing file support (edit-while-record)
 recording:
   enabled: true
   gop: 30  # Keyframe interval (frames) - 1 second at 30fps
-  container: mkv  # MKV for edit-while-record, MP4 for final delivery
-  streamable: true  # Enable streamable MKV (matroskamux streamable=true)
-  filename_pattern: "{cam_id}_{timestamp}.mkv"
+  container: fmp4  # Fragmented MP4 for DaVinci Resolve growing file support
+  fragment_duration: 1000  # Fragment every 1 second (milliseconds)
+  filename_pattern: "{cam_id}_{timestamp}.mp4"
   min_disk_space_gb: 10  # Minimum disk space to start recording
   warning_disk_space_gb: 5  # Warning threshold during recording
 

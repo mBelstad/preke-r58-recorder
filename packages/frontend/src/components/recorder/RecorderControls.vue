@@ -147,7 +147,7 @@ async function stopRecording() {
     playRecordStop()
     vibrate(100) // Single vibration for stop
     
-    toast.success('Recording stopped', `Duration: ${duration.value}`)
+    toast.success('Recording stopped')
   } catch (error: any) {
     playError()
     vibrate(200)

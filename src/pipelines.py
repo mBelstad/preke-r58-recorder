@@ -545,13 +545,14 @@ def build_recording_subscriber_pipeline(
     # Use H.264 depay because ingest now streams H.264 via RTP
     source_str = f"rtspsrc location={source_url} latency=100 protocols=tcp ! rtph264depay"
     
-    # Use H.264 parser and Matroska muxer for edit-while-record (DaVinci Resolve compatible)
-    # matroskamux streamable=true enables writing seekable MKV files that can be opened while recording
+    # Use H.264 parser and fragmented MP4 muxer for DaVinci Resolve growing file support
+    # Fragmented MP4 writes metadata incrementally, enabling true edit-while-record
+    # fragment-duration=1000 creates 1-second fragments for minimal latency
     parse_str = "h264parse"
-    mux_str = "matroskamux streamable=true"
+    mux_str = "mp4mux fragment-duration=1000 streamable=true"
     
-    # Single file recording (no splitting)
-    # MKV files can be opened in DaVinci Resolve while recording is in progress
+    # Fragmented MP4 files can be imported into DaVinci Resolve while recording
+    # and will show as "growing files" with live updates
     pipeline_str = (
         f"{source_str} ! "
         f"queue max-size-buffers=0 max-size-time=0 max-size-bytes=0 ! "

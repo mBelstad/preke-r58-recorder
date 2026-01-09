@@ -626,8 +626,8 @@ sys.exit(0)
 }
 
 /**
- * Get the most recent recording files from each camera
- * Returns local paths from the mounted SMB share
+ * Get recording files from the most recent session
+ * Only returns files with matching timestamps (same recording session)
  */
 function getRecentRecordings(sessionPattern?: string): string[] {
   const mountPath = findR58MountPath()
@@ -636,7 +636,8 @@ function getRecentRecordings(sessionPattern?: string): string[] {
     return []
   }
   
-  const files: { path: string; mtime: number }[] = []
+  // Collect all files with their timestamps
+  const files: { path: string; mtime: number; timestamp: string; cam: string }[] = []
   
   for (const camDir of ['cam0', 'cam1', 'cam2', 'cam3']) {
     const camPath = path.join(mountPath, camDir)
@@ -653,7 +654,10 @@ function getRecentRecordings(sessionPattern?: string): string[] {
         
         // Only include files > 1MB (skip empty/failed recordings)
         if (stat.size > 1024 * 1024) {
-          files.push({ path: filePath, mtime: stat.mtimeMs })
+          // Extract timestamp from filename: recording_YYYYMMDD_HHMMSS.mkv
+          const match = entry.match(/recording_(\d{8}_\d{6})/)
+          const timestamp = match ? match[1] : ''
+          files.push({ path: filePath, mtime: stat.mtimeMs, timestamp, cam: camDir })
         }
       }
     } catch (err) {
@@ -661,18 +665,27 @@ function getRecentRecordings(sessionPattern?: string): string[] {
     }
   }
   
-  // Sort by modification time (newest first) and take most recent from each camera
+  if (files.length === 0) return []
+  
+  // Sort by modification time (newest first)
   files.sort((a, b) => b.mtime - a.mtime)
   
-  // Get the most recent file per camera
+  // Find the most recent timestamp
+  const newestTimestamp = files[0].timestamp
+  log.info(`Most recent recording session: ${newestTimestamp}`)
+  
+  // Get all files with matching timestamp (same session)
+  const sessionFiles = files.filter(f => f.timestamp === newestTimestamp)
+  
+  // Deduplicate by camera
   const byCamera = new Map<string, string>()
-  for (const file of files) {
-    const cam = path.basename(path.dirname(file.path))
-    if (!byCamera.has(cam)) {
-      byCamera.set(cam, file.path)
+  for (const file of sessionFiles) {
+    if (!byCamera.has(file.cam)) {
+      byCamera.set(file.cam, file.path)
     }
   }
   
+  log.info(`Found ${byCamera.size} camera(s) for session ${newestTimestamp}`)
   return Array.from(byCamera.values())
 }
 
@@ -741,56 +754,201 @@ media_pool = project.GetMediaPool()
 root_folder = media_pool.GetRootFolder()
 
 # Import files if provided
+import os
 files = json.loads('${filesJson.replace(/'/g, "\\'")}')
 clips = []
 
-if files:
-    # Import the files first
-    imported = media_pool.ImportMedia(files)
-    if imported:
-        clips = imported
-        print(f"Imported {len(imported)} files")
-    else:
-        print("WARNING: No files imported (may already exist)")
-        # Try to find clips in media pool
-        all_clips = root_folder.GetClipList()
-        for f in files:
-            import os
-            fname = os.path.basename(f)
-            for clip in all_clips:
-                if clip.GetName() == fname:
-                    clips.append(clip)
+print(f"Files to import: {files}")
+
+# Helper function to find clips recursively in all bins
+def find_clips_in_folder(folder, target_names):
+    found = []
+    folder_clips = folder.GetClipList()
+    if folder_clips:
+        for clip in folder_clips:
+            clip_name = clip.GetName()
+            clip_path = clip.GetClipProperty("File Path") or ""
+            for target in target_names:
+                if target in clip_name or target in clip_path or os.path.basename(target) in clip_name:
+                    found.append(clip)
+                    print(f"Found existing clip: {clip_name}")
                     break
+    # Search subfolders
+    subfolders = folder.GetSubFolderList()
+    if subfolders:
+        for subfolder in subfolders:
+            found.extend(find_clips_in_folder(subfolder, target_names))
+    return found
+
+if files:
+    import shutil
+    import tempfile
+    
+    # Check if files exist on disk
+    valid_files = []
+    for f in files:
+        if os.path.exists(f):
+            size = os.path.getsize(f)
+            print(f"File exists: {f} ({size} bytes)")
+            if size > 1000:  # Skip empty/tiny files
+                valid_files.append(f)
+        else:
+            print(f"File NOT found: {f}")
+    
+    if not valid_files:
+        print("ERROR: No valid files to import")
+        sys.exit(1)
+    
+    # Copy files locally for import
+    # Fragmented MP4 files don't need remuxing - they have proper metadata
+    # MKV files need remuxing to fix missing duration
+    import subprocess
+    local_dir = os.path.expanduser("~/Movies/R58_Import")
+    os.makedirs(local_dir, exist_ok=True)
+    local_files = []
+    
+    for i, f in enumerate(valid_files):
+        # Extract camera ID from path (e.g., cam0, cam2, cam3)
+        parts = f.split('/')
+        cam_id = next((p for p in parts if p.startswith('cam')), f"cam{i}")
+        base_name = os.path.basename(f)
+        # Include camera ID in filename to avoid conflicts
+        local_name = f"{cam_id}_{base_name}"
+        local_path = os.path.join(local_dir, local_name)
+        
+        # Check if we need to process
+        source_size = os.path.getsize(f)
+        needs_copy = not os.path.exists(local_path) or abs(os.path.getsize(local_path) - source_size) > 10000
+        
+        is_mp4 = f.lower().endswith('.mp4')
+        is_mkv = f.lower().endswith('.mkv')
+        
+        if needs_copy:
+            if is_mkv:
+                # MKV files need remuxing to fix missing duration metadata
+                print(f"Remuxing MKV {base_name} ({cam_id})...")
+                try:
+                    result = subprocess.run([
+                        'ffmpeg', '-y', '-i', f, '-c', 'copy', local_path
+                    ], capture_output=True, text=True, timeout=60)
+                    if result.returncode != 0:
+                        print(f"ffmpeg error: {result.stderr[:200]}")
+                        shutil.copy(f, local_path)
+                except Exception as e:
+                    print(f"Remux error: {e}, falling back to copy")
+                    shutil.copy(f, local_path)
+            else:
+                # Fragmented MP4 files just need copying (have proper metadata)
+                print(f"Copying {base_name} ({cam_id})...")
+                shutil.copy(f, local_path)
+        else:
+            print(f"Using cached: {local_name}")
+        
+        local_files.append(local_path)
+    
+    print(f"Files ready in {local_dir}")
+    
+    # Method 1: Try MediaStorage.AddItemListToMediaPool (more reliable)
+    print(f"Attempting to import {len(local_files)} files via MediaStorage...")
+    try:
+        media_storage = resolve.GetMediaStorage()
+        if media_storage:
+            imported = media_storage.AddItemListToMediaPool(local_files)
+            if imported and len(imported) > 0:
+                clips = list(imported)
+                print(f"MediaStorage import succeeded: {len(clips)} clips")
+        else:
+            print("MediaStorage not available")
+    except Exception as e:
+        print(f"MediaStorage error: {e}")
+    
+    # Method 2: Fallback to media_pool.ImportMedia
+    if not clips:
+        print("Trying media_pool.ImportMedia...")
+        try:
+            imported = media_pool.ImportMedia(local_files)
+            if imported and len(imported) > 0:
+                clips = list(imported)
+                print(f"MediaPool import succeeded: {len(clips)} clips")
+        except Exception as e:
+            print(f"MediaPool error: {e}")
+    
+    # Method 3: Search existing clips in media pool (may already be imported)
+    if not clips:
+        print("Searching media pool for existing clips...")
+        clips = find_clips_in_folder(root_folder, local_files + valid_files)
+        if clips:
+            print(f"Found {len(clips)} existing clips in media pool")
 
 if not clips:
-    # Use selected clips in media pool
-    clips = media_pool.GetSelectedClips()
+    # Last resort: use selected clips
+    print("No clips found via import, checking for selected clips...")
+    try:
+        selected = media_pool.GetSelectedClips()
+        if selected and len(selected) > 0:
+            clips = list(selected)
+            print(f"Using {len(clips)} selected clips")
+    except Exception as e:
+        print(f"GetSelectedClips error: {e}")
+    
     if not clips:
-        print("ERROR: No clips to create multicam from")
+        # Get ALL clips from media pool as last resort
+        try:
+            all_clips = root_folder.GetClipList()
+            if all_clips and len(all_clips) > 0:
+                clips = list(all_clips)
+                print(f"Using all {len(clips)} clips from root folder")
+        except Exception as e:
+            print(f"GetClipList error: {e}")
+    
+    if not clips:
+        print("ERROR: Could not import files into DaVinci Resolve.")
+        print("Files were copied to: ~/Movies/R58_Import/")
+        print("WORKAROUND: Manually drag these files into DaVinci's Media Pool:")
+        for f in local_files:
+            print(f"  - {f}")
         sys.exit(1)
 
-print(f"Creating multicam from {len(clips)} clips")
+print(f"Creating multicam timeline from {len(clips)} clips")
 
-# Create multicam clip
-# Sync method: 0=Timecode, 1=Sound, 2=In Point, 3=Out Point
-sync_map = {'timecode': 0, 'audio': 1, 'in_point': 2, 'out_point': 3}
-sync_value = sync_map.get('${syncMethod}', 0)
-
-# Create a new timeline first
+# Create empty timeline first
 timeline = media_pool.CreateEmptyTimeline("${clipName}_Timeline")
 if not timeline:
     print("ERROR: Could not create timeline")
     sys.exit(1)
 
-# Add clips to timeline
-for i, clip in enumerate(clips):
-    # Add each clip to a separate video track
-    media_pool.AppendToTimeline([clip])
-
-# Set as current timeline
 project.SetCurrentTimeline(timeline)
 
-print(f"SUCCESS: Created timeline ${clipName}_Timeline with {len(clips)} clips")
+# Add video tracks (we need one per camera)
+num_clips = len(clips)
+current_tracks = timeline.GetTrackCount("video")
+print(f"Current video tracks: {current_tracks}, need: {num_clips}")
+
+for i in range(current_tracks, num_clips):
+    result = timeline.AddTrack("video")
+    print(f"Added video track: {result}")
+
+# Add each clip to a separate video track, all starting at frame 0
+for i, clip in enumerate(clips):
+    track_index = i + 1  # V1, V2, V3, etc.
+    clip_name = clip.GetName()
+    
+    # Use AppendToTimeline with clip info to specify track
+    result = media_pool.AppendToTimeline([{
+        "mediaPoolItem": clip,
+        "trackIndex": track_index,
+        "startFrame": 0,
+        "mediaType": 1  # 1 = video
+    }])
+    
+    if result:
+        print(f"Added {clip_name} to track V{track_index}")
+    else:
+        # Fallback: simple append (will be on V1)
+        media_pool.AppendToTimeline([clip])
+        print(f"Fallback: Added {clip_name} (may be on wrong track)")
+
+print(f"SUCCESS: Created timeline ${clipName}_Timeline with {len(clips)} clips on separate tracks")
 sys.exit(0)
 `
   
