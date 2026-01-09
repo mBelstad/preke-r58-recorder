@@ -705,6 +705,137 @@ async def reboot_device() -> Dict[str, Any]:
         return {"success": False, "message": f"Error: {str(e)}"}
 
 
+# VDO.ninja Bridge Control Endpoints
+@app.get("/api/services/vdoninja-bridge/status")
+async def get_vdoninja_bridge_status() -> Dict[str, Any]:
+    """Get the status of the VDO.ninja bridge service."""
+    import subprocess
+    
+    try:
+        # Check if service is active
+        result = subprocess.run(
+            ["systemctl", "is-active", "vdoninja-bridge"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        is_active = result.stdout.strip() == "active"
+        
+        # Get more detailed status
+        status_result = subprocess.run(
+            ["systemctl", "show", "vdoninja-bridge", "--property=ActiveState,SubState,MainPID"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        
+        # Parse status output
+        status_info = {}
+        for line in status_result.stdout.strip().split('\n'):
+            if '=' in line:
+                key, value = line.split('=', 1)
+                status_info[key] = value
+        
+        # Check if chromium processes are running (the bridge spawns chromium tabs)
+        ps_result = subprocess.run(
+            ["pgrep", "-c", "-f", "chromium.*whepshare"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        chromium_count = int(ps_result.stdout.strip()) if ps_result.returncode == 0 else 0
+        
+        return {
+            "service": "vdoninja-bridge",
+            "active": is_active,
+            "state": status_info.get("ActiveState", "unknown"),
+            "subState": status_info.get("SubState", "unknown"),
+            "mainPid": int(status_info.get("MainPID", 0)),
+            "chromiumTabs": chromium_count,
+            "description": "VDO.ninja WHEP Bridge - Shares HDMI cameras to VDO.ninja room"
+        }
+    except Exception as e:
+        logger.error(f"Error getting vdoninja-bridge status: {e}")
+        return {
+            "service": "vdoninja-bridge",
+            "active": False,
+            "state": "error",
+            "subState": str(e),
+            "mainPid": 0,
+            "chromiumTabs": 0,
+            "description": "VDO.ninja WHEP Bridge"
+        }
+
+
+@app.post("/api/services/vdoninja-bridge/start")
+async def start_vdoninja_bridge() -> Dict[str, Any]:
+    """Start the VDO.ninja bridge service."""
+    import subprocess
+    
+    try:
+        result = subprocess.run(
+            ["sudo", "systemctl", "start", "vdoninja-bridge"],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        
+        if result.returncode == 0:
+            return {"success": True, "message": "VDO.ninja bridge started successfully"}
+        else:
+            return {"success": False, "message": f"Failed to start: {result.stderr}"}
+    except subprocess.TimeoutExpired:
+        return {"success": False, "message": "Timeout starting service"}
+    except Exception as e:
+        return {"success": False, "message": f"Error: {str(e)}"}
+
+
+@app.post("/api/services/vdoninja-bridge/stop")
+async def stop_vdoninja_bridge() -> Dict[str, Any]:
+    """Stop the VDO.ninja bridge service."""
+    import subprocess
+    
+    try:
+        result = subprocess.run(
+            ["sudo", "systemctl", "stop", "vdoninja-bridge"],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        
+        if result.returncode == 0:
+            return {"success": True, "message": "VDO.ninja bridge stopped successfully"}
+        else:
+            return {"success": False, "message": f"Failed to stop: {result.stderr}"}
+    except subprocess.TimeoutExpired:
+        return {"success": False, "message": "Timeout stopping service"}
+    except Exception as e:
+        return {"success": False, "message": f"Error: {str(e)}"}
+
+
+@app.post("/api/services/vdoninja-bridge/restart")
+async def restart_vdoninja_bridge() -> Dict[str, Any]:
+    """Restart the VDO.ninja bridge service."""
+    import subprocess
+    
+    try:
+        result = subprocess.run(
+            ["sudo", "systemctl", "restart", "vdoninja-bridge"],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        
+        if result.returncode == 0:
+            return {"success": True, "message": "VDO.ninja bridge restarted successfully"}
+        else:
+            return {"success": False, "message": f"Failed to restart: {result.stderr}"}
+    except subprocess.TimeoutExpired:
+        return {"success": False, "message": "Timeout restarting service"}
+    except Exception as e:
+        return {"success": False, "message": f"Error: {str(e)}"}
+
+
 @app.post("/record/start/{cam_id}")
 async def start_recording(cam_id: str) -> Dict[str, str]:
     """Start recording for a specific camera."""

@@ -11,6 +11,21 @@ const error = ref<string | null>(null)
 const systemStatus = ref<any>(null)
 const refreshInterval = ref<number | null>(null)
 
+// VDO.ninja Bridge state
+const bridgeStatus = ref<{
+  active: boolean
+  state: string
+  subState: string
+  chromiumTabs: number
+  loading: boolean
+}>({
+  active: false,
+  state: 'unknown',
+  subState: 'unknown',
+  chromiumTabs: 0,
+  loading: false
+})
+
 // Computed
 const cpuPercent = computed(() => {
   const load = systemStatus.value?.info?.load_average?.[0] ?? 0
@@ -52,16 +67,29 @@ async function fetchStatus() {
   try {
     const { buildApiUrl } = await import('@/lib/api')
     
-    // Fetch all data in parallel
-    const [healthRes, ingestRes, systemInfoRes] = await Promise.all([
+    // Fetch all data in parallel (including bridge status)
+    const [healthRes, ingestRes, systemInfoRes, bridgeRes] = await Promise.all([
       fetch(await buildApiUrl('/health')),
       fetch(await buildApiUrl('/api/ingest/status')),
-      fetch(await buildApiUrl('/api/system/info'))
+      fetch(await buildApiUrl('/api/system/info')),
+      fetch(await buildApiUrl('/api/services/vdoninja-bridge/status'))
     ])
     
     const health = healthRes.ok ? await healthRes.json() : { status: 'unknown' }
     const ingest = ingestRes.ok ? await ingestRes.json() : { cameras: {} }
     const systemInfo = systemInfoRes.ok ? await systemInfoRes.json() : null
+    const bridge = bridgeRes.ok ? await bridgeRes.json() : null
+    
+    // Update bridge status
+    if (bridge) {
+      bridgeStatus.value = {
+        active: bridge.active,
+        state: bridge.state,
+        subState: bridge.subState,
+        chromiumTabs: bridge.chromiumTabs,
+        loading: false
+      }
+    }
     
     // Build a compatible systemStatus object
     systemStatus.value = {
@@ -94,6 +122,75 @@ async function fetchStatus() {
     console.error('Failed to fetch system status:', e)
   } finally {
     loading.value = false
+  }
+}
+
+async function startBridge() {
+  bridgeStatus.value.loading = true
+  try {
+    const { buildApiUrl } = await import('@/lib/api')
+    const response = await fetch(await buildApiUrl('/api/services/vdoninja-bridge/start'), {
+      method: 'POST'
+    })
+    const data = await response.json()
+    
+    if (data.success) {
+      toast.success(data.message || 'VDO.ninja bridge started')
+      // Refresh status after a short delay
+      setTimeout(fetchStatus, 3000)
+    } else {
+      toast.error(data.message || 'Failed to start bridge')
+    }
+  } catch (e: any) {
+    toast.error(`Start failed: ${e.message}`)
+  } finally {
+    bridgeStatus.value.loading = false
+  }
+}
+
+async function stopBridge() {
+  bridgeStatus.value.loading = true
+  try {
+    const { buildApiUrl } = await import('@/lib/api')
+    const response = await fetch(await buildApiUrl('/api/services/vdoninja-bridge/stop'), {
+      method: 'POST'
+    })
+    const data = await response.json()
+    
+    if (data.success) {
+      toast.success(data.message || 'VDO.ninja bridge stopped')
+      // Refresh status after a short delay
+      setTimeout(fetchStatus, 2000)
+    } else {
+      toast.error(data.message || 'Failed to stop bridge')
+    }
+  } catch (e: any) {
+    toast.error(`Stop failed: ${e.message}`)
+  } finally {
+    bridgeStatus.value.loading = false
+  }
+}
+
+async function restartBridge() {
+  bridgeStatus.value.loading = true
+  try {
+    const { buildApiUrl } = await import('@/lib/api')
+    const response = await fetch(await buildApiUrl('/api/services/vdoninja-bridge/restart'), {
+      method: 'POST'
+    })
+    const data = await response.json()
+    
+    if (data.success) {
+      toast.success(data.message || 'VDO.ninja bridge restarted')
+      // Refresh status after a short delay
+      setTimeout(fetchStatus, 3000)
+    } else {
+      toast.error(data.message || 'Failed to restart bridge')
+    }
+  } catch (e: any) {
+    toast.error(`Restart failed: ${e.message}`)
+  } finally {
+    bridgeStatus.value.loading = false
   }
 }
 
@@ -287,6 +384,80 @@ onUnmounted(() => {
           <p class="text-center text-xs text-preke-text-muted">
             {{ systemStatus?.info?.hostname || 'R58 Device' }}
           </p>
+        </div>
+      </div>
+      
+      <!-- VDO.ninja Bridge -->
+      <div class="glass-card p-4 rounded-xl">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-3">
+            <h3 class="text-xs font-semibold text-preke-text-muted uppercase tracking-wide">VDO.ninja Bridge</h3>
+            <span 
+              class="px-2 py-0.5 rounded-full text-xs font-medium"
+              :class="bridgeStatus.active 
+                ? 'bg-preke-green/20 text-preke-green' 
+                : 'bg-preke-text-muted/20 text-preke-text-muted'"
+            >
+              {{ bridgeStatus.active ? 'Running' : 'Stopped' }}
+            </span>
+          </div>
+          <div class="flex gap-2">
+            <button 
+              v-if="!bridgeStatus.active"
+              @click="startBridge"
+              :disabled="bridgeStatus.loading"
+              class="btn-v2 btn-v2--primary text-sm"
+              title="Start the VDO.ninja bridge"
+            >
+              <span v-if="bridgeStatus.loading" class="animate-spin inline-block w-3 h-3 border border-current border-t-transparent rounded-full mr-1"></span>
+              Start Bridge
+            </button>
+            <button 
+              v-else
+              @click="stopBridge"
+              :disabled="bridgeStatus.loading"
+              class="btn-v2 btn-v2--danger text-sm"
+              title="Stop the VDO.ninja bridge"
+            >
+              <span v-if="bridgeStatus.loading" class="animate-spin inline-block w-3 h-3 border border-current border-t-transparent rounded-full mr-1"></span>
+              Stop Bridge
+            </button>
+            <button 
+              @click="restartBridge"
+              :disabled="bridgeStatus.loading"
+              class="btn-v2 btn-v2--secondary text-sm"
+              title="Restart the VDO.ninja bridge"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        
+        <div class="p-3 rounded-lg bg-preke-surface border border-preke-surface-border">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <span 
+                class="w-2.5 h-2.5 rounded-full"
+                :class="bridgeStatus.active ? 'bg-preke-green' : 'bg-preke-text-muted'"
+              ></span>
+              <div>
+                <p class="font-medium text-preke-text">vdoninja-bridge</p>
+                <p class="text-xs text-preke-text-muted">
+                  {{ bridgeStatus.state }}{{ bridgeStatus.subState !== bridgeStatus.state ? ` (${bridgeStatus.subState})` : '' }}
+                </p>
+              </div>
+            </div>
+            <div class="text-right">
+              <p v-if="bridgeStatus.active && bridgeStatus.chromiumTabs > 0" class="text-sm text-preke-text">
+                {{ bridgeStatus.chromiumTabs }} camera{{ bridgeStatus.chromiumTabs !== 1 ? 's' : '' }} streaming
+              </p>
+              <p class="text-xs text-preke-text-muted">
+                Pushes HDMI cameras to VDO.ninja room
+              </p>
+            </div>
+          </div>
         </div>
       </div>
       

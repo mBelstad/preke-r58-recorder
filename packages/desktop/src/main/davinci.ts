@@ -1217,14 +1217,27 @@ root_folder = media_pool.GetRootFolder()
 # Find clips from R58 recordings path
 r58_clips = []
 clip_paths = {}  # clip -> path mapping for re-import
+seen_clip_ids = set()  # Track clip IDs to prevent duplicates
 
-def find_r58_clips(folder):
+def find_r58_clips(folder, folder_name="root"):
     """Recursively find clips from R58 recordings path"""
     folder_clips = folder.GetClipList()
+    print(f"DEBUG: Searching folder '{folder_name}', found {len(folder_clips) if folder_clips else 0} clips")
     if folder_clips:
         for clip in folder_clips:
             path = clip.GetClipProperty("File Path") or ""
             clip_name = clip.GetName()
+            clip_id = id(clip)  # Unique Python object ID
+            
+            # Skip if we've already seen this clip
+            if clip_id in seen_clip_ids:
+                print(f"DEBUG: Skipping duplicate clip (by id): {clip_name}")
+                continue
+            
+            # Also check by path to catch duplicates imported from different sources
+            if path in [clip_paths.get(n) for n in clip_paths]:
+                print(f"DEBUG: Skipping duplicate clip (by path): {clip_name} -> {path}")
+                continue
             
             # Check multiple conditions:
             # 1. Direct path contains r58-recordings or recordings mount
@@ -1232,12 +1245,15 @@ def find_r58_clips(folder):
             # 3. Clip name matches symlink pattern (cam0_recording_..., cam2_recording_..., etc.)
             is_r58_clip = False
             original_path = path
+            match_reason = ""
             
             if "r58-recordings" in path or ("recordings" in path and ("cam0" in path or "cam1" in path or "cam2" in path or "cam3" in path)):
                 is_r58_clip = True
+                match_reason = "direct_path"
             elif "R58_Import/links" in path or "R58_Import\\links" in path:
                 # This is a symlink - try to resolve it to get original path
                 is_r58_clip = True
+                match_reason = "symlink_path"
                 try:
                     if os.path.islink(path):
                         original_path = os.readlink(path)
@@ -1247,6 +1263,7 @@ def find_r58_clips(folder):
             elif clip_name.startswith("cam0_") or clip_name.startswith("cam1_") or clip_name.startswith("cam2_") or clip_name.startswith("cam3_"):
                 # Clip name matches symlink pattern - likely an R58 clip
                 is_r58_clip = True
+                match_reason = "symlink_name"
                 # Try to find original path by checking if symlink exists
                 try:
                     symlink_path = os.path.expanduser("~/Movies/R58_Import/links/" + clip_name)
@@ -1257,6 +1274,7 @@ def find_r58_clips(folder):
                     pass
             
             if is_r58_clip:
+                seen_clip_ids.add(clip_id)
                 r58_clips.append(clip)
                 # Store original path (not symlink) for refresh
                 clip_paths[clip.GetName()] = original_path
@@ -1264,13 +1282,15 @@ def find_r58_clips(folder):
                 # Get clip duration info
                 duration = clip.GetClipProperty("Duration") or "unknown"
                 frames = clip.GetClipProperty("Frames") or "unknown"
-                print(f"Found R58 clip: {clip_name} - Path: {path}, Original: {original_path}, Duration: {duration}, Frames: {frames}")
+                print(f"Found R58 clip #{len(r58_clips)}: {clip_name} (match: {match_reason}) - Path: {path}, Original: {original_path}, Duration: {duration}, Frames: {frames}")
     
     # Search subfolders
     subfolders = folder.GetSubFolderList()
     if subfolders:
+        print(f"DEBUG: Found {len(subfolders)} subfolders in '{folder_name}'")
         for subfolder in subfolders:
-            find_r58_clips(subfolder)
+            subfolder_name = subfolder.GetName() if hasattr(subfolder, 'GetName') else 'unknown'
+            find_r58_clips(subfolder, subfolder_name)
 
 find_r58_clips(root_folder)
 
