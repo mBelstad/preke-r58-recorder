@@ -366,11 +366,22 @@ async function takeScreenshot() {
 async function buildAndRestart() {
   logHeader('Build & Restart');
   
-  log('Building main process...', 'cyan');
+  log('Building main process, preload, and renderer...', 'cyan');
   
   try {
+    // Build main process
+    log('Building main process...', 'cyan');
     execSync('npm run build:main', { cwd: DESKTOP_DIR, stdio: 'inherit' });
-    log('\n✅ Build complete', 'green');
+    
+    // Build preload
+    log('Building preload...', 'cyan');
+    execSync('npm run build:preload', { cwd: DESKTOP_DIR, stdio: 'inherit' });
+    
+    // Build renderer
+    log('Building renderer...', 'cyan');
+    execSync('npm run build:renderer', { cwd: DESKTOP_DIR, stdio: 'inherit' });
+    
+    log('\n✅ All builds complete', 'green');
   } catch (e) {
     log('\n❌ Build failed', 'red');
     return;

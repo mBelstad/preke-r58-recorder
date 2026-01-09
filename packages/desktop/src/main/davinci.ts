@@ -659,7 +659,7 @@ function getRecentRecordings(sessionPattern?: string): string[] {
   }
   
   // Collect all files with their timestamps
-  const files: { path: string; mtime: number; timestamp: string; cam: string }[] = []
+  let files: { path: string; mtime: number; timestamp: string; cam: string }[] = []
   
   for (const camDir of ['cam0', 'cam1', 'cam2', 'cam3']) {
     const camPath = path.join(mountPath, camDir)
