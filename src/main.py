@@ -1492,6 +1492,71 @@ async def get_mediamtx_status() -> Dict[str, Any]:
     return status
 
 
+# Streaming API endpoints (compatible with new backend API)
+MEDIAMTX_API = "http://localhost:9997"
+
+
+@app.get("/api/streaming/status")
+async def get_streaming_status() -> Dict[str, Any]:
+    """
+    Get current streaming status from MediaMTX.
+    
+    Returns:
+    - Whether mixer_program stream is active
+    - Current runOnReady configuration (if any)
+    - Stream statistics
+    """
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            # Get path list
+            paths_response = await client.get(f"{MEDIAMTX_API}/v3/paths/list")
+            paths_response.raise_for_status()
+            paths_data = paths_response.json()
+            
+            # Find mixer_program path
+            mixer_active = False
+            mixer_info = None
+            
+            for path in paths_data.get("items", []):
+                if path.get("name") == "mixer_program":
+                    mixer_active = path.get("ready", False)
+                    mixer_info = path
+                    break
+            
+            # Get config to check runOnReady
+            run_on_ready = None
+            try:
+                config_response = await client.get(
+                    f"{MEDIAMTX_API}/v3/config/paths/get/mixer_program"
+                )
+                if config_response.status_code == 200:
+                    config_data = config_response.json()
+                    run_on_ready = config_data.get("runOnReady", "")
+            except:
+                pass
+            
+            return {
+                "active": mixer_active,
+                "mixer_program_active": mixer_active,
+                "rtmp_relay_configured": bool(run_on_ready),
+                "run_on_ready": run_on_ready or None,
+                "stream_info": mixer_info
+            }
+            
+    except httpx.HTTPError as e:
+        logger.error(f"MediaMTX API error: {e}")
+        return {
+            "active": False,
+            "mixer_program_active": False,
+            "rtmp_relay_configured": False,
+            "run_on_ready": None,
+            "error": "MediaMTX API not available"
+        }
+    except Exception as e:
+        logger.error(f"Failed to get streaming status: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/api/fps")
 async def get_fps_stats() -> Dict[str, Any]:
     """Get real-time framerate statistics for all cameras.
