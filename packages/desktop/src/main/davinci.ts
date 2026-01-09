@@ -646,7 +646,7 @@ function getRecentRecordings(sessionPattern?: string): string[] {
     try {
       const entries = fs.readdirSync(camPath)
       for (const entry of entries) {
-        if (!entry.endsWith('.mkv') && !entry.endsWith('.mp4')) continue
+        if (!entry.endsWith('.mkv') && !entry.endsWith('.mp4') && !entry.endsWith('.mov')) continue
         if (sessionPattern && !entry.includes(sessionPattern)) continue
         
         const filePath = path.join(camPath, entry)
@@ -821,6 +821,7 @@ if files:
         needs_copy = not os.path.exists(local_path) or abs(os.path.getsize(local_path) - source_size) > 10000
         
         is_mp4 = f.lower().endswith('.mp4')
+        is_mov = f.lower().endswith('.mov')
         is_mkv = f.lower().endswith('.mkv')
         
         if needs_copy:
@@ -838,7 +839,7 @@ if files:
                     print(f"Remux error: {e}, falling back to copy")
                     shutil.copy(f, local_path)
             else:
-                # Fragmented MP4 files just need copying (have proper metadata)
+                # MOV and MP4 files just need copying (have proper metadata)
                 print(f"Copying {base_name} ({cam_id})...")
                 shutil.copy(f, local_path)
         else:
