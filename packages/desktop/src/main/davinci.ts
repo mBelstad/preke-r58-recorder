@@ -43,6 +43,8 @@ interface DaVinciConfig {
   autoCreateProject: boolean
   autoImportMedia: boolean
   createMulticamTimeline: boolean
+  autoRefreshClips: boolean
+  refreshIntervalMs: number
 }
 
 // ============================================
@@ -56,13 +58,17 @@ let davinciConfig: DaVinciConfig = {
   autoCreateProject: true,
   autoImportMedia: true,
   createMulticamTimeline: true,
+  autoRefreshClips: true, // Auto-refresh growing clips during recording
+  refreshIntervalMs: 10000, // Refresh every 10 seconds
 }
 
 let pollInterval: NodeJS.Timeout | null = null
+let refreshInterval: NodeJS.Timeout | null = null
 let lastSessionId: string | null = null
 let isResolveConnected = false
 let mainWindow: (() => BrowserWindow | null) | null = null
 let lastResolveCheck = 0
+let lastRefreshTime = 0
 const RESOLVE_CHECK_INTERVAL = 30000 // Only check Resolve connection every 30 seconds
 
 // R58 recordings mount path - where SMB share is mounted on Mac
@@ -495,6 +501,22 @@ async function pollRecordingStatus(): Promise<void> {
   const status = await fetchRecordingStatus()
   if (status) {
     await handleSessionChange(status)
+    
+    // Auto-refresh growing clips if enabled and recording is active
+    if (davinciConfig.autoRefreshClips && status.active && isResolveConnected) {
+      if (now - lastRefreshTime > davinciConfig.refreshIntervalMs) {
+        lastRefreshTime = now
+        log.debug('Auto-refreshing growing clips...')
+        try {
+          const result = await refreshGrowingClips()
+          if (result.success && result.clipsRefreshed) {
+            log.debug(`Auto-refreshed ${result.clipsRefreshed} clip(s)`)
+          }
+        } catch (err) {
+          log.debug('Auto-refresh failed (non-critical):', err)
+        }
+      }
+    }
   }
 }
 
@@ -670,22 +692,57 @@ function getRecentRecordings(sessionPattern?: string): string[] {
   // Sort by modification time (newest first)
   files.sort((a, b) => b.mtime - a.mtime)
   
-  // Find the most recent timestamp
-  const newestTimestamp = files[0].timestamp
-  log.info(`Most recent recording session: ${newestTimestamp}`)
-  
-  // Get all files with matching timestamp (same session)
-  const sessionFiles = files.filter(f => f.timestamp === newestTimestamp)
-  
-  // Deduplicate by camera
-  const byCamera = new Map<string, string>()
-  for (const file of sessionFiles) {
-    if (!byCamera.has(file.cam)) {
-      byCamera.set(file.cam, file.path)
+  // Strategy 1: If sessionPattern provided, filter by it first
+  if (sessionPattern) {
+    const patternFiles = files.filter(f => f.timestamp && f.timestamp.includes(sessionPattern.replace(/[^0-9_]/g, '')))
+    if (patternFiles.length > 0) {
+      log.info(`Found ${patternFiles.length} files matching session pattern: ${sessionPattern}`)
+      files = patternFiles
     }
   }
   
-  log.info(`Found ${byCamera.size} camera(s) for session ${newestTimestamp}`)
+  // Strategy 2: Try to find files with matching timestamp (same session)
+  const newestTimestamp = files[0].timestamp
+  if (newestTimestamp) {
+    log.info(`Most recent recording session: ${newestTimestamp}`)
+    const sessionFiles = files.filter(f => f.timestamp === newestTimestamp)
+    
+    if (sessionFiles.length > 0) {
+      // Deduplicate by camera, keeping newest file per camera
+      const byCamera = new Map<string, string>()
+      for (const file of sessionFiles) {
+        if (!byCamera.has(file.cam)) {
+          byCamera.set(file.cam, file.path)
+        } else {
+          // If we already have a file for this camera, keep the newer one
+          const existing = files.find(f => f.path === byCamera.get(file.cam))
+          if (existing && file.mtime > existing.mtime) {
+            byCamera.set(file.cam, file.path)
+          }
+        }
+      }
+      
+      log.info(`Found ${byCamera.size} camera(s) for session ${newestTimestamp}`)
+      return Array.from(byCamera.values())
+    }
+  }
+  
+  // Strategy 3: Fallback - get most recent file from each camera
+  log.info('No matching timestamp found, using most recent file from each camera')
+  const byCamera = new Map<string, string>()
+  for (const file of files) {
+    if (!byCamera.has(file.cam)) {
+      byCamera.set(file.cam, file.path)
+    } else {
+      // Keep the newer file
+      const existing = files.find(f => f.path === byCamera.get(file.cam))
+      if (existing && file.mtime > existing.mtime) {
+        byCamera.set(file.cam, file.path)
+      }
+    }
+  }
+  
+  log.info(`Found ${byCamera.size} camera(s) using most recent files`)
   return Array.from(byCamera.values())
 }
 
@@ -911,8 +968,18 @@ if not clips:
 
 print(f"Creating multicam timeline from {len(clips)} clips")
 
-# Create empty timeline first
-timeline = media_pool.CreateEmptyTimeline("${clipName}_Timeline")
+# Check if timeline already exists and delete it
+timeline_name = "${clipName}_Timeline"
+existing_timelines = media_pool.GetTimelineCount()
+for i in range(existing_timelines):
+    timeline = media_pool.GetTimelineByIndex(i + 1)
+    if timeline and timeline.GetName() == timeline_name:
+        print(f"Deleting existing timeline: {timeline_name}")
+        media_pool.DeleteTimelines([timeline])
+        break
+
+# Create empty timeline
+timeline = media_pool.CreateEmptyTimeline(timeline_name)
 if not timeline:
     print("ERROR: Could not create timeline")
     sys.exit(1)
@@ -928,27 +995,53 @@ for i in range(current_tracks, num_clips):
     result = timeline.AddTrack("video")
     print(f"Added video track: {result}")
 
-# Add each clip to a separate video track, all starting at frame 0
+# Prepare all clips to be added at frame 0 simultaneously
+# Build list of clip items with track assignments
+clip_items = []
 for i, clip in enumerate(clips):
     track_index = i + 1  # V1, V2, V3, etc.
-    clip_name = clip.GetName()
-    
-    # Use AppendToTimeline with clip info to specify track
-    result = media_pool.AppendToTimeline([{
+    clip_items.append({
         "mediaPoolItem": clip,
         "trackIndex": track_index,
         "startFrame": 0,
         "mediaType": 1  # 1 = video
-    }])
-    
-    if result:
-        print(f"Added {clip_name} to track V{track_index}")
-    else:
-        # Fallback: simple append (will be on V1)
-        media_pool.AppendToTimeline([clip])
-        print(f"Fallback: Added {clip_name} (may be on wrong track)")
+    })
+    print(f"Prepared {clip.GetName()} for track V{track_index}")
 
-print(f"SUCCESS: Created timeline ${clipName}_Timeline with {len(clips)} clips on separate tracks")
+# Add all clips at once at frame 0
+print(f"Adding {len(clip_items)} clips simultaneously at frame 0...")
+batch_result = media_pool.AppendToTimeline(clip_items)
+
+if batch_result:
+    print(f"SUCCESS: Created timeline {timeline_name} with {len(clips)} clips on separate tracks at frame 0")
+else:
+    # Fallback: try adding one by one, but ensure all start at frame 0
+    print("AppendToTimeline batch failed, trying individual clips...")
+    success_count = 0
+    for i, clip in enumerate(clips):
+        track_index = i + 1
+        clip_name = clip.GetName()
+        
+        # Try AppendToTimeline with single clip
+        single_result = media_pool.AppendToTimeline([{
+            "mediaPoolItem": clip,
+            "trackIndex": track_index,
+            "startFrame": 0,
+            "mediaType": 1
+        }])
+        
+        if single_result:
+            print(f"Added {clip_name} to track V{track_index} at frame 0")
+            success_count += 1
+        else:
+            # Last resort: simple append (will be sequential)
+            media_pool.AppendToTimeline([clip])
+            print(f"WARNING: Added {clip_name} (may not be at frame 0)")
+
+if batch_result or success_count > 0:
+    print(f"SUCCESS: Created timeline {timeline_name} with {len(clips)} clips")
+else:
+    print(f"WARNING: Timeline created but clips may not be positioned correctly")
 sys.exit(0)
 `
   
@@ -990,6 +1083,134 @@ sys.exit(0)
   })
 }
 
+/**
+ * Refresh growing clips in DaVinci Resolve by relinking them
+ * Forces DaVinci to re-read file metadata (duration, etc.)
+ */
+async function refreshGrowingClips(): Promise<{ success: boolean; error?: string; clipsRefreshed?: number }> {
+  const scriptPath = getResolveScriptPath()
+  if (!scriptPath) {
+    return { success: false, error: 'DaVinci Resolve scripting path not found' }
+  }
+  
+  if (!isResolveRunning()) {
+    return { success: false, error: 'DaVinci Resolve is not running' }
+  }
+  
+  const pythonScript = `
+import sys
+import os
+sys.path.append('${scriptPath.replace(/\\/g, '/')}')
+sys.path.append('${scriptPath.replace(/\\/g, '/')}/Modules')
+
+import DaVinciResolveScript as dvr
+
+resolve = dvr.scriptapp("Resolve")
+if not resolve:
+    print("ERROR: Cannot connect to Resolve")
+    sys.exit(1)
+
+pm = resolve.GetProjectManager()
+project = pm.GetCurrentProject()
+if not project:
+    print("ERROR: No project open")
+    sys.exit(1)
+
+media_pool = project.GetMediaPool()
+root_folder = media_pool.GetRootFolder()
+
+# Find clips from R58 recordings path
+r58_clips = []
+
+def find_r58_clips(folder):
+    """Recursively find clips from R58 recordings path"""
+    folder_clips = folder.GetClipList()
+    if folder_clips:
+        for clip in folder_clips:
+            path = clip.GetClipProperty("File Path") or ""
+            # Check if path contains r58-recordings or recordings mount
+            if "r58-recordings" in path or ("recordings" in path and ("cam0" in path or "cam1" in path or "cam2" in path or "cam3" in path)):
+                r58_clips.append(clip)
+                print(f"Found R58 clip: {clip.GetName()}")
+    
+    # Search subfolders
+    subfolders = folder.GetSubFolderList()
+    if subfolders:
+        for subfolder in subfolders:
+            find_r58_clips(subfolder)
+
+find_r58_clips(root_folder)
+
+if not r58_clips:
+    print("WARNING: No R58 clips found in media pool")
+    print("Make sure clips are imported from ~/r58-recordings or mounted SMB share")
+    sys.exit(1)
+
+# Get folder path from first clip for relinking
+first_clip_path = r58_clips[0].GetClipProperty("File Path") or ""
+folder_path = os.path.dirname(first_clip_path)
+
+if not folder_path or not os.path.exists(folder_path):
+    print(f"ERROR: Folder path does not exist: {folder_path}")
+    sys.exit(1)
+
+print(f"Relinking {len(r58_clips)} clips from: {folder_path}")
+
+# Relink clips to force metadata refresh
+try:
+    result = media_pool.RelinkClips(r58_clips, folder_path)
+    if result:
+        print(f"SUCCESS: Refreshed {len(r58_clips)} clips")
+        sys.exit(0)
+    else:
+        print("ERROR: RelinkClips returned False")
+        sys.exit(1)
+except Exception as e:
+    print(f"ERROR: RelinkClips failed: {e}")
+    sys.exit(1)
+`
+  
+  return new Promise((resolve) => {
+    const python = spawn('python3', ['-c', pythonScript], {
+      stdio: ['pipe', 'pipe', 'pipe'],
+      env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1' },
+    })
+    
+    let output = ''
+    let timedOut = false
+    
+    const timeout = setTimeout(() => {
+      timedOut = true
+      python.kill('SIGTERM')
+      resolve({ success: false, error: 'Timeout refreshing clips' })
+    }, 30000)
+    
+    python.stdout.on('data', (data) => { output += data.toString() })
+    python.stderr.on('data', (data) => { output += data.toString() })
+    
+    python.on('close', (code) => {
+      clearTimeout(timeout)
+      if (timedOut) return
+      
+      if (code === 0 && output.includes('SUCCESS')) {
+        // Extract number of clips refreshed
+        const match = output.match(/Refreshed (\d+) clips/)
+        const clipsRefreshed = match ? parseInt(match[1], 10) : undefined
+        log.info(`Refreshed growing clips: ${output.trim()}`)
+        resolve({ success: true, clipsRefreshed })
+      } else {
+        log.error(`Refresh clips error: ${output.trim()}`)
+        resolve({ success: false, error: output.trim() })
+      }
+    })
+    
+    python.on('error', (err) => {
+      clearTimeout(timeout)
+      resolve({ success: false, error: err.message })
+    })
+  })
+}
+
 // ============================================
 // Public API
 // ============================================
@@ -1020,6 +1241,10 @@ export function stopDaVinciIntegration(): void {
   if (pollInterval) {
     clearInterval(pollInterval)
     pollInterval = null
+  }
+  if (refreshInterval) {
+    clearInterval(refreshInterval)
+    refreshInterval = null
   }
   davinciConfig.enabled = false
   log.info('Stopped DaVinci Resolve integration')
@@ -1113,6 +1338,10 @@ export function setupDaVinciHandlers(getWindow: () => BrowserWindow | null): voi
   
   ipcMain.handle('davinci-get-recordings', (_event, sessionPattern?: string) => {
     return getRecentRecordings(sessionPattern)
+  })
+  
+  ipcMain.handle('davinci-refresh-clips', async () => {
+    return await refreshGrowingClips()
   })
   
   log.info('DaVinci IPC handlers registered')

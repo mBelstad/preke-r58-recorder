@@ -578,6 +578,17 @@ const electronAPI = {
   davinciGetRecordings: (sessionPattern?: string): Promise<string[]> => {
     return ipcRenderer.invoke('davinci-get-recordings', sessionPattern)
   },
+
+  /**
+   * Refresh growing clips in DaVinci Resolve (forces metadata re-read)
+   */
+  davinciRefreshClips: (): Promise<{
+    success: boolean
+    error?: string
+    clipsRefreshed?: number
+  }> => {
+    return ipcRenderer.invoke('davinci-refresh-clips')
+  },
 }
 
 // Expose the API to the renderer

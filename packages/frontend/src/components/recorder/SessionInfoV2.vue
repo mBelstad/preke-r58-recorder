@@ -172,6 +172,7 @@ const davinciProjectName = computed(() => {
 const electronAPI = window.electronAPI as typeof window.electronAPI & {
   davinciOpenProject?: (name?: string) => Promise<{ success: boolean; error?: string; projectName?: string }>
   davinciCreateMulticam?: (opts: { projectName?: string; clipName?: string; filePaths?: string[]; syncMethod?: string }) => Promise<{ success: boolean; error?: string; timelineName?: string }>
+  davinciRefreshClips?: () => Promise<{ success: boolean; error?: string; clipsRefreshed?: number }>
 }
 
 async function openInDaVinci() {
@@ -219,6 +220,27 @@ async function createMulticamInDaVinci() {
   } catch (error) {
     console.error('DaVinci error:', error)
     toast.error('Failed to create multicam timeline')
+  } finally {
+    davinciLoading.value = false
+  }
+}
+
+async function refreshGrowingClips() {
+  if (!electronAPI?.davinciRefreshClips) return
+  
+  davinciLoading.value = true
+  toast.info('Refreshing growing clips...')
+  try {
+    const result = await electronAPI.davinciRefreshClips()
+    if (result.success) {
+      const count = result.clipsRefreshed || 0
+      toast.success(`Refreshed ${count} clip${count !== 1 ? 's' : ''}`)
+    } else {
+      toast.error(result.error || 'Failed to refresh clips')
+    }
+  } catch (error) {
+    console.error('DaVinci refresh error:', error)
+    toast.error('Failed to refresh clips')
   } finally {
     davinciLoading.value = false
   }
@@ -305,6 +327,14 @@ async function createMulticamInDaVinci() {
             class="davinci__btn davinci__btn--secondary"
           >
             Create Multicam
+          </button>
+          <button 
+            @click="refreshGrowingClips" 
+            :disabled="davinciLoading"
+            class="davinci__btn davinci__btn--secondary"
+            title="Refresh growing clips to update duration"
+          >
+            {{ davinciLoading ? 'Refreshing...' : 'Refresh Clips' }}
           </button>
         </div>
       </div>
