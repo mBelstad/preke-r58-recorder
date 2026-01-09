@@ -638,12 +638,13 @@ export async function getMediaMtxHost(): Promise<string | null> {
         const url = new URL(frpUrl)
         // Use same-domain architecture: app.itagenten.no for all services
         // The WHEP/WHIP endpoints are proxied through app.itagenten.no
+        // VDO.ninja's &mediamtx= parameter expects just the hostname (no protocol)
         if (url.hostname.includes('itagenten.no')) {
-          return 'https://app.itagenten.no'
+          return 'app.itagenten.no'
         }
         // Fallback for other domains (legacy)
         const mediamtxHost = url.hostname.replace('api', 'mediamtx')
-        return `https://${mediamtxHost}`
+        return mediamtxHost
       } catch (e) {
         console.warn('[VDO.ninja] Failed to construct MediaMTX host from FRP URL')
       }
@@ -746,7 +747,12 @@ export async function buildSceneOutputUrl(
   // Use &scene for OBS-style output - shows sources added via director API addToScene command
   // Scene 1 = program output, Scene 2 = preview, etc.
   // The director iframe uses addToScene API to populate scenes
-  url.searchParams.set('scene', sceneNumber.toString())
+  // &scene (no value) or &scene=0 auto-adds all room guests to the scene
+  if (sceneNumber === 0) {
+    url.searchParams.set('scene', '')  // Empty value auto-adds all guests
+  } else {
+    url.searchParams.set('scene', sceneNumber.toString())
+  }
   url.searchParams.set('room', options.room || VDO_ROOM)
   url.searchParams.set('password', VDO_DIRECTOR_PASSWORD)  // Required for room access
   
