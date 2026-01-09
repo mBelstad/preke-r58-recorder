@@ -27,14 +27,23 @@ function getWhipUrl(): string {
   return `${baseUrl}/mixer_program/whip`
 }
 
-function startProgramOutput() {
+async function startProgramOutput() {
   if (isActive.value) return
   
   status.value = 'connecting'
-  iframeSrc.value = buildProgramOutputUrl(getWhipUrl())
+  
+  // buildProgramOutputUrl is async - must await it!
+  const url = await buildProgramOutputUrl(getWhipUrl())
+  if (!url) {
+    status.value = 'error'
+    console.error('[ProgramOutput] Failed to build VDO.ninja URL - VDO.ninja not configured')
+    return
+  }
+  
+  iframeSrc.value = url
   isActive.value = true
   
-  console.log('[ProgramOutput] Starting WHIP push to MediaMTX')
+  console.log('[ProgramOutput] Starting WHIP push to MediaMTX:', url)
 }
 
 function stopProgramOutput() {
@@ -59,15 +68,16 @@ function handleIframeError() {
   console.error('[ProgramOutput] WHIP push failed')
 }
 
-function retryConnection() {
+async function retryConnection() {
   stopProgramOutput()
-  setTimeout(() => startProgramOutput(), 500)
+  await new Promise(r => setTimeout(r, 500))
+  await startProgramOutput()
 }
 
 // Auto-start when mixer goes live
-watch(() => mixerStore.isLive, (live) => {
+watch(() => mixerStore.isLive, async (live) => {
   if (live) {
-    startProgramOutput()
+    await startProgramOutput()
   } else {
     stopProgramOutput()
   }
