@@ -818,23 +818,29 @@ clips = []
 print(f"Files to import: {files}")
 
 # Helper function to find clips recursively in all bins
-def find_clips_in_folder(folder, target_names):
+def find_clips_in_folder(folder, target_paths):
     found = []
+    # Build a set of full paths AND unique symlink names to match
+    target_set = set()
+    for p in target_paths:
+        target_set.add(p)  # Full path
+        target_set.add(os.path.basename(p))  # Symlink name (cam0_recording...)
+    
     folder_clips = folder.GetClipList()
     if folder_clips:
         for clip in folder_clips:
-            clip_name = clip.GetName()
             clip_path = clip.GetClipProperty("File Path") or ""
-            for target in target_names:
-                if target in clip_name or target in clip_path or os.path.basename(target) in clip_name:
-                    found.append(clip)
-                    print(f"Found existing clip: {clip_name}")
-                    break
+            clip_name = clip.GetName()
+            # Match by full path OR symlink name
+            if clip_path in target_set or clip_name in target_set:
+                found.append(clip)
+                print(f"Found clip: {clip_name} at {clip_path}")
+                # Don't break - might have multiple matches, but we deduplicate by checking if already in found
     # Search subfolders
     subfolders = folder.GetSubFolderList()
     if subfolders:
         for subfolder in subfolders:
-            found.extend(find_clips_in_folder(subfolder, target_names))
+            found.extend(find_clips_in_folder(subfolder, target_paths))
     return found
 
 if files:
@@ -856,11 +862,13 @@ if files:
         print("ERROR: No valid files to import")
         sys.exit(1)
     
-    # For growing file support, import directly from source (no copying!)
-    # MOV files with reserved moov atom can be read directly while recording
-    # MKV files need remuxing to local copy (they don't support growing)
+    # Create symlinks with unique names (cam_id prefix) to ensure DaVinci imports them as separate clips
+    # DaVinci Resolve identifies clips by filename, not full path, so same-named files from different cameras
+    # get deduplicated. Symlinks with unique names solve this while preserving growing file support.
     import subprocess
     import_files = []
+    symlink_dir = os.path.expanduser("~/Movies/R58_Import/links")
+    os.makedirs(symlink_dir, exist_ok=True)
     
     for i, f in enumerate(valid_files):
         parts = f.split('/')
@@ -870,16 +878,23 @@ if files:
         is_mov = f.lower().endswith('.mov')
         is_mkv = f.lower().endswith('.mkv')
         
+        # Create unique filename: cam0_recording_20260109.mov
+        unique_name = f"{cam_id}_{base_name}"
+        
         if is_mov:
-            # MOV files: import DIRECTLY from source for growing file support!
-            print(f"Using direct path for growing file: {base_name} ({cam_id})")
-            import_files.append(f)
+            # MOV files: Create symlink to source for growing file support!
+            # Symlink preserves growing file capability while giving unique name
+            symlink_path = os.path.join(symlink_dir, unique_name)
+            if os.path.islink(symlink_path) or os.path.exists(symlink_path):
+                os.unlink(symlink_path)
+            os.symlink(f, symlink_path)
+            import_files.append(symlink_path)
+            print(f"Created symlink for growing file: {unique_name} -> {f}")
         elif is_mkv:
             # MKV files: remux locally (no growing file support)
             local_dir = os.path.expanduser("~/Movies/R58_Import")
             os.makedirs(local_dir, exist_ok=True)
-            local_name = f"{cam_id}_{base_name}"
-            local_path = os.path.join(local_dir, local_name)
+            local_path = os.path.join(local_dir, unique_name)
             
             source_size = os.path.getsize(f)
             needs_remux = not os.path.exists(local_path) or abs(os.path.getsize(local_path) - source_size) > 10000
@@ -898,9 +913,13 @@ if files:
                     shutil.copy(f, local_path)
             import_files.append(local_path)
         else:
-            # MP4 or other: import directly
-            print(f"Using direct path: {base_name} ({cam_id})")
-            import_files.append(f)
+            # MP4 or other: Create symlink for unique naming
+            symlink_path = os.path.join(symlink_dir, unique_name)
+            if os.path.islink(symlink_path) or os.path.exists(symlink_path):
+                os.unlink(symlink_path)
+            os.symlink(f, symlink_path)
+            import_files.append(symlink_path)
+            print(f"Created symlink: {unique_name} -> {f}")
     
     local_files = import_files
     print(f"Files to import: {len(local_files)}")
@@ -1207,59 +1226,60 @@ if not r58_clips:
 
 print(f"Found {len(r58_clips)} R58 clips to refresh")
 
-# Method 1: Try ReplaceClip with the same file path (forces re-read)
+# Method 1: Try RelinkClips first (gentler, less visual disruption)
 refreshed = 0
+
+# Group clips by folder for RelinkClips
+folder_clips = {}
 for clip in r58_clips:
     clip_name = clip.GetName()
     file_path = clip_paths.get(clip_name, "")
-    
-    if not file_path or not os.path.exists(file_path):
-        print(f"Skipping {clip_name}: path not found")
-        continue
-    
-    # Get current file size on disk
-    try:
-        file_size = os.path.getsize(file_path)
-        print(f"Current file size for {clip_name}: {file_size} bytes")
-    except:
-        pass
-    
-    # Try ReplaceClip - this forces DaVinci to re-read the file
-    try:
-        result = clip.ReplaceClip(file_path)
-        if result:
-            print(f"ReplaceClip succeeded for {clip_name}")
-            refreshed += 1
-        else:
-            print(f"ReplaceClip returned False for {clip_name}")
-    except Exception as e:
-        print(f"ReplaceClip failed for {clip_name}: {e}")
+    if file_path:
+        folder = os.path.dirname(file_path)
+        if folder not in folder_clips:
+            folder_clips[folder] = []
+        folder_clips[folder].append(clip)
 
-# Method 2: If ReplaceClip didn't work, try RelinkClips as fallback
-if refreshed == 0:
-    print("ReplaceClip method failed, trying RelinkClips...")
+# Try RelinkClips for each folder group
+for folder, clips_in_folder in folder_clips.items():
+    if os.path.exists(folder):
+        try:
+            result = media_pool.RelinkClips(clips_in_folder, folder)
+            if result:
+                print(f"RelinkClips succeeded for {len(clips_in_folder)} clips in {folder}")
+                refreshed += len(clips_in_folder)
+        except Exception as e:
+            print(f"RelinkClips failed for {folder}: {e}")
+
+# Method 2: If RelinkClips didn't work or didn't refresh all clips, try ReplaceClip as fallback
+if refreshed < len(r58_clips):
+    print(f"RelinkClips refreshed {refreshed}/{len(r58_clips)} clips, trying ReplaceClip for remaining...")
     
-    # Group clips by folder
-    folder_clips = {}
     for clip in r58_clips:
         clip_name = clip.GetName()
         file_path = clip_paths.get(clip_name, "")
-        if file_path:
-            folder = os.path.dirname(file_path)
-            if folder not in folder_clips:
-                folder_clips[folder] = []
-            folder_clips[folder].append(clip)
-    
-    # Relink each folder group
-    for folder, clips_in_folder in folder_clips.items():
-        if os.path.exists(folder):
-            try:
-                result = media_pool.RelinkClips(clips_in_folder, folder)
-                if result:
-                    print(f"RelinkClips succeeded for {len(clips_in_folder)} clips in {folder}")
-                    refreshed += len(clips_in_folder)
-            except Exception as e:
-                print(f"RelinkClips failed for {folder}: {e}")
+        
+        if not file_path or not os.path.exists(file_path):
+            print(f"Skipping {clip_name}: path not found")
+            continue
+        
+        # Get current file size on disk
+        try:
+            file_size = os.path.getsize(file_path)
+            print(f"Current file size for {clip_name}: {file_size} bytes")
+        except:
+            pass
+        
+        # Try ReplaceClip - this forces DaVinci to re-read the file (may cause brief red blink)
+        try:
+            result = clip.ReplaceClip(file_path)
+            if result:
+                print(f"ReplaceClip succeeded for {clip_name}")
+                refreshed += 1
+            else:
+                print(f"ReplaceClip returned False for {clip_name}")
+        except Exception as e:
+            print(f"ReplaceClip failed for {clip_name}: {e}")
 
 # Method 3: If still nothing worked, suggest manual refresh
 if refreshed == 0:
