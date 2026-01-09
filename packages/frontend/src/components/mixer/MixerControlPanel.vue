@@ -48,15 +48,26 @@ const collapsed = ref(false)
 
 // Actions
 function switchScene(sceneNumber: number) {
+  console.log('[MixerControlPanel] Switching to scene', sceneNumber, 'setLayout:', setLayout, 'vdo:', vdo)
   if (setLayout) {
-    setLayout(sceneNumber)
+    // VDO.ninja uses 0-8 for scenes, but we display 1-9 to users
+    // Scene 0 = auto grid, scenes 1-8 = custom layouts
+    // For user-friendly UI, we map 1-9 to 0-8
+    const vdoSceneNumber = sceneNumber - 1
+    console.log('[MixerControlPanel] Calling setLayout with', vdoSceneNumber)
+    setLayout(vdoSceneNumber)
     currentScene.value = sceneNumber
+  } else {
+    console.warn('[MixerControlPanel] setLayout not available, vdo:', vdo, 'iframeRef:', props.iframeRef)
   }
 }
 
 function handleToggleMute(sourceId: string) {
+  console.log('[MixerControlPanel] Toggling mute for', sourceId, 'toggleMute:', toggleMute)
   if (toggleMute) {
     toggleMute(sourceId)
+  } else {
+    console.warn('[MixerControlPanel] toggleMute not available')
   }
 }
 
@@ -67,10 +78,19 @@ function handleSetVolume(sourceId: string, volume: number) {
 }
 
 function handleRecording() {
+  console.log('[MixerControlPanel] Recording toggle, current:', isRecording.value, 'startRecording:', startRecording, 'stopRecording:', stopRecording)
   if (isRecording.value) {
-    stopRecording?.()
+    if (stopRecording) {
+      stopRecording()
+    } else {
+      console.warn('[MixerControlPanel] stopRecording not available')
+    }
   } else {
-    startRecording?.()
+    if (startRecording) {
+      startRecording()
+    } else {
+      console.warn('[MixerControlPanel] startRecording not available')
+    }
   }
 }
 

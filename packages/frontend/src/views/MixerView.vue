@@ -218,6 +218,7 @@ onMounted(async () => {
       <MixerControlPanel
         v-if="showControls && iframeLoaded"
         :iframe-ref="iframeRef"
+        :key="iframeLoaded ? 'ready' : 'loading'"
       />
     </div>
     </div>
