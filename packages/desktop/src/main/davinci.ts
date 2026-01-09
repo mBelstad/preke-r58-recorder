@@ -799,34 +799,35 @@ if files:
         print("ERROR: No valid files to import")
         sys.exit(1)
     
-    # Copy files locally for import
-    # Fragmented MP4 files don't need remuxing - they have proper metadata
-    # MKV files need remuxing to fix missing duration
+    # For growing file support, import directly from source (no copying!)
+    # MOV files with reserved moov atom can be read directly while recording
+    # MKV files need remuxing to local copy (they don't support growing)
     import subprocess
-    local_dir = os.path.expanduser("~/Movies/R58_Import")
-    os.makedirs(local_dir, exist_ok=True)
-    local_files = []
+    import_files = []
     
     for i, f in enumerate(valid_files):
-        # Extract camera ID from path (e.g., cam0, cam2, cam3)
         parts = f.split('/')
         cam_id = next((p for p in parts if p.startswith('cam')), f"cam{i}")
         base_name = os.path.basename(f)
-        # Include camera ID in filename to avoid conflicts
-        local_name = f"{cam_id}_{base_name}"
-        local_path = os.path.join(local_dir, local_name)
         
-        # Check if we need to process
-        source_size = os.path.getsize(f)
-        needs_copy = not os.path.exists(local_path) or abs(os.path.getsize(local_path) - source_size) > 10000
-        
-        is_mp4 = f.lower().endswith('.mp4')
         is_mov = f.lower().endswith('.mov')
         is_mkv = f.lower().endswith('.mkv')
         
-        if needs_copy:
-            if is_mkv:
-                # MKV files need remuxing to fix missing duration metadata
+        if is_mov:
+            # MOV files: import DIRECTLY from source for growing file support!
+            print(f"Using direct path for growing file: {base_name} ({cam_id})")
+            import_files.append(f)
+        elif is_mkv:
+            # MKV files: remux locally (no growing file support)
+            local_dir = os.path.expanduser("~/Movies/R58_Import")
+            os.makedirs(local_dir, exist_ok=True)
+            local_name = f"{cam_id}_{base_name}"
+            local_path = os.path.join(local_dir, local_name)
+            
+            source_size = os.path.getsize(f)
+            needs_remux = not os.path.exists(local_path) or abs(os.path.getsize(local_path) - source_size) > 10000
+            
+            if needs_remux:
                 print(f"Remuxing MKV {base_name} ({cam_id})...")
                 try:
                     result = subprocess.run([
@@ -836,18 +837,16 @@ if files:
                         print(f"ffmpeg error: {result.stderr[:200]}")
                         shutil.copy(f, local_path)
                 except Exception as e:
-                    print(f"Remux error: {e}, falling back to copy")
+                    print(f"Remux error: {e}")
                     shutil.copy(f, local_path)
-            else:
-                # MOV and MP4 files just need copying (have proper metadata)
-                print(f"Copying {base_name} ({cam_id})...")
-                shutil.copy(f, local_path)
+            import_files.append(local_path)
         else:
-            print(f"Using cached: {local_name}")
-        
-        local_files.append(local_path)
+            # MP4 or other: import directly
+            print(f"Using direct path: {base_name} ({cam_id})")
+            import_files.append(f)
     
-    print(f"Files ready in {local_dir}")
+    local_files = import_files
+    print(f"Files to import: {len(local_files)}")
     
     # Method 1: Try MediaStorage.AddItemListToMediaPool (more reliable)
     print(f"Attempting to import {len(local_files)} files via MediaStorage...")
