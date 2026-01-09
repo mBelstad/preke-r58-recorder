@@ -10,7 +10,7 @@
  * 
  * Uses existing useVdoNinja composable (iframe postMessage API)
  */
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useVdoNinja } from '@/composables/useVdoNinja'
 import { useCameraControls } from '@/composables/useCameraControls'
 import CameraControlModal from '@/components/camera/CameraControlModal.vue'
@@ -24,25 +24,36 @@ const emit = defineEmits<{
   (e: 'close'): void
 }>()
 
-// VDO.ninja composable
-// Initialize on mount to ensure iframe ref is available
-const vdo = computed(() => {
-  if (props.iframeRef?.value) {
-    console.log('[MixerControlPanel] Initializing useVdoNinja with iframe:', props.iframeRef.value)
-    return useVdoNinja(props.iframeRef)
+// VDO.ninja composable - create a dummy ref first, then update when iframe is available
+const dummyIframeRef = ref<HTMLIFrameElement | null>(null)
+const vdo = useVdoNinja(dummyIframeRef)
+
+// Watch for iframe ref changes and update the dummy ref
+watch(() => props.iframeRef?.value, (newIframe) => {
+  if (newIframe) {
+    console.log('[MixerControlPanel] Iframe ref available, updating:', newIframe)
+    dummyIframeRef.value = newIframe
+  } else {
+    dummyIframeRef.value = null
   }
-  console.warn('[MixerControlPanel] No iframe ref available')
-  return null
+}, { immediate: true })
+
+// Also check on mount
+onMounted(() => {
+  if (props.iframeRef?.value) {
+    console.log('[MixerControlPanel] On mount, iframe ref:', props.iframeRef.value)
+    dummyIframeRef.value = props.iframeRef.value
+  }
 })
 
-const vdoSources = computed(() => vdo.value?.sources.value || new Map())
-const isRecording = computed(() => vdo.value?.isRecording.value || false)
-const setLayout = computed(() => vdo.value?.setLayout)
-const setMute = computed(() => vdo.value?.setMute)
-const toggleMute = computed(() => vdo.value?.toggleMute)
-const setVolume = computed(() => vdo.value?.setVolume)
-const startRecording = computed(() => vdo.value?.startRecording)
-const stopRecording = computed(() => vdo.value?.stopRecording)
+const vdoSources = computed(() => vdo.sources.value)
+const isRecording = computed(() => vdo.isRecording.value)
+const setLayout = vdo.setLayout
+const setMute = vdo.setMute
+const toggleMute = vdo.toggleMute
+const setVolume = vdo.setVolume
+const startRecording = vdo.startRecording
+const stopRecording = vdo.stopRecording
 
 // Camera controls
 const { cameras, getCamera } = useCameraControls()
@@ -57,51 +68,46 @@ const collapsed = ref(false)
 
 // Actions
 function switchScene(sceneNumber: number) {
-  const layoutFn = setLayout.value
-  console.log('[MixerControlPanel] Switching to scene', sceneNumber, 'setLayout:', layoutFn, 'vdo:', vdo.value, 'iframeRef:', props.iframeRef?.value)
-  if (layoutFn) {
+  console.log('[MixerControlPanel] Switching to scene', sceneNumber, 'setLayout:', setLayout, 'iframeRef:', props.iframeRef?.value, 'dummyRef:', dummyIframeRef.value)
+  if (setLayout) {
     // VDO.ninja uses 0-8 for scenes, but we display 1-9 to users
     // Scene 0 = auto grid, scenes 1-8 = custom layouts
     // For user-friendly UI, we map 1-9 to 0-8
     const vdoSceneNumber = sceneNumber - 1
     console.log('[MixerControlPanel] Calling setLayout with', vdoSceneNumber)
-    layoutFn(vdoSceneNumber)
+    setLayout(vdoSceneNumber)
     currentScene.value = sceneNumber
   } else {
-    console.warn('[MixerControlPanel] setLayout not available, vdo:', vdo.value, 'iframeRef:', props.iframeRef?.value)
+    console.warn('[MixerControlPanel] setLayout not available')
   }
 }
 
 function handleToggleMute(sourceId: string) {
-  const muteFn = toggleMute.value
-  console.log('[MixerControlPanel] Toggling mute for', sourceId, 'toggleMute:', muteFn)
-  if (muteFn) {
-    muteFn(sourceId)
+  console.log('[MixerControlPanel] Toggling mute for', sourceId, 'toggleMute:', toggleMute)
+  if (toggleMute) {
+    toggleMute(sourceId)
   } else {
     console.warn('[MixerControlPanel] toggleMute not available')
   }
 }
 
 function handleSetVolume(sourceId: string, volume: number) {
-  const volumeFn = setVolume.value
-  if (volumeFn) {
-    volumeFn(sourceId, volume)
+  if (setVolume) {
+    setVolume(sourceId, volume)
   }
 }
 
 function handleRecording() {
-  const startFn = startRecording.value
-  const stopFn = stopRecording.value
-  console.log('[MixerControlPanel] Recording toggle, current:', isRecording.value, 'startRecording:', startFn, 'stopRecording:', stopFn)
+  console.log('[MixerControlPanel] Recording toggle, current:', isRecording.value, 'startRecording:', startRecording, 'stopRecording:', stopRecording)
   if (isRecording.value) {
-    if (stopFn) {
-      stopFn()
+    if (stopRecording) {
+      stopRecording()
     } else {
       console.warn('[MixerControlPanel] stopRecording not available')
     }
   } else {
-    if (startFn) {
-      startFn()
+    if (startRecording) {
+      startRecording()
     } else {
       console.warn('[MixerControlPanel] startRecording not available')
     }
