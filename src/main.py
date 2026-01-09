@@ -1557,6 +1557,135 @@ async def get_streaming_status() -> Dict[str, Any]:
         raise HTTPException(status_code=500, detail=str(e))
 
 
+class RTMPDestination(BaseModel):
+    """RTMP streaming destination configuration"""
+    platform: str  # youtube, twitch, facebook, custom
+    rtmp_url: str
+    stream_key: str
+    enabled: bool = True
+
+
+class StartStreamingRequest(BaseModel):
+    """Request to start RTMP relay from MediaMTX to external platform"""
+    destinations: List[RTMPDestination]
+
+
+def build_ffmpeg_relay_command(destinations: List[RTMPDestination]) -> str:
+    """Build FFmpeg command to relay to multiple RTMP destinations."""
+    if not destinations:
+        return ""
+    
+    # For single destination, simple command
+    if len(destinations) == 1:
+        dest = destinations[0]
+        rtmp_url = f"{dest.rtmp_url}{dest.stream_key}"
+        return f"ffmpeg -i rtsp://localhost:8554/mixer_program -c copy -f flv '{rtmp_url}'"
+    
+    # For multiple destinations, use tee muxer
+    outputs = []
+    for dest in destinations:
+        rtmp_url = f"{dest.rtmp_url}{dest.stream_key}"
+        outputs.append(f"[f=flv]{rtmp_url}")
+    
+    tee_output = "|".join(outputs)
+    return f"ffmpeg -i rtsp://localhost:8554/mixer_program -c copy -f tee '{tee_output}'"
+
+
+@app.post("/api/streaming/rtmp/start")
+async def start_rtmp_streaming(request: StartStreamingRequest):
+    """
+    Start RTMP relay using MediaMTX's runOnReady hook.
+    
+    Configures MediaMTX to spawn FFmpeg when mixer_program stream is ready.
+    """
+    try:
+        enabled_destinations = [d for d in request.destinations if d.enabled]
+        
+        if not enabled_destinations:
+            return {
+                "status": "error",
+                "message": "No enabled destinations provided"
+            }
+        
+        # Build the FFmpeg relay command
+        ffmpeg_cmd = build_ffmpeg_relay_command(enabled_destinations)
+        
+        # Configure MediaMTX mixer_program path with runOnReady hook
+        config = {
+            "source": "publisher",
+            "runOnReady": ffmpeg_cmd,
+            "runOnReadyRestart": True
+        }
+        
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            # First, try to patch the existing path
+            response = await client.patch(
+                f"{MEDIAMTX_API}/v3/config/paths/patch/mixer_program",
+                json=config
+            )
+            
+            if response.status_code == 404:
+                # Path doesn't exist, add it
+                response = await client.post(
+                    f"{MEDIAMTX_API}/v3/config/paths/add/mixer_program",
+                    json=config
+                )
+            
+            response.raise_for_status()
+        
+        destination_names = [d.platform for d in enabled_destinations]
+        logger.info(f"Configured RTMP relay to: {destination_names}")
+        
+        return {
+            "status": "success",
+            "message": f"RTMP relay configured for {len(enabled_destinations)} destination(s)",
+            "destinations": destination_names,
+            "command": ffmpeg_cmd,
+            "note": "FFmpeg will start automatically when mixer_program stream is published"
+        }
+        
+    except httpx.HTTPError as e:
+        logger.error(f"MediaMTX API error: {e}")
+        raise HTTPException(status_code=502, detail=f"Failed to configure MediaMTX: {str(e)}")
+    except Exception as e:
+        logger.error(f"Failed to configure RTMP streaming: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/streaming/rtmp/stop")
+async def stop_rtmp_streaming():
+    """Stop RTMP relay by removing the runOnReady hook from MediaMTX."""
+    try:
+        config = {
+            "source": "publisher",
+            "runOnReady": "",
+            "runOnReadyRestart": False
+        }
+        
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.patch(
+                f"{MEDIAMTX_API}/v3/config/paths/patch/mixer_program",
+                json=config
+            )
+            
+            if response.status_code != 404:
+                response.raise_for_status()
+        
+        logger.info("RTMP relay stopped - runOnReady hook removed")
+        
+        return {
+            "status": "success",
+            "message": "RTMP relay stopped"
+        }
+        
+    except httpx.HTTPError as e:
+        logger.error(f"MediaMTX API error: {e}")
+        raise HTTPException(status_code=502, detail=f"Failed to stop RTMP relay: {str(e)}")
+    except Exception as e:
+        logger.error(f"Failed to stop RTMP streaming: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/api/fps")
 async def get_fps_stats() -> Dict[str, Any]:
     """Get real-time framerate statistics for all cameras.

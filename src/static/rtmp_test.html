@@ -295,6 +295,45 @@
             </div>
         </div>
         
+        <!-- RTMP Configuration -->
+        <div class="card">
+            <h2>📡 Configure RTMP Relay</h2>
+            <p style="color: #94a3b8; margin-bottom: 15px;">
+                Configure MediaMTX to relay the mixer output to external platforms like YouTube, Twitch, or Facebook.
+            </p>
+            
+            <div style="display: grid; gap: 15px;">
+                <div>
+                    <label style="display: block; color: #94a3b8; margin-bottom: 5px;">Platform</label>
+                    <select id="rtmpPlatform" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #f8fafc;">
+                        <option value="youtube">YouTube</option>
+                        <option value="twitch">Twitch</option>
+                        <option value="facebook">Facebook</option>
+                        <option value="custom">Custom RTMP</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label style="display: block; color: #94a3b8; margin-bottom: 5px;">RTMP Server URL</label>
+                    <input type="text" id="rtmpServerUrl" placeholder="rtmp://a.rtmp.youtube.com/live2/" 
+                           value="rtmp://a.rtmp.youtube.com/live2/"
+                           style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #f8fafc;">
+                </div>
+                
+                <div>
+                    <label style="display: block; color: #94a3b8; margin-bottom: 5px;">Stream Key</label>
+                    <input type="password" id="rtmpStreamKey" placeholder="Your stream key (keep secret!)"
+                           style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #f8fafc;">
+                    <small style="color: #64748b;">The stream key is stored temporarily and sent only to the server.</small>
+                </div>
+                
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <button class="button" onclick="startRtmpRelay()">🚀 Start RTMP Relay</button>
+                    <button class="button secondary" onclick="stopRtmpRelay()">⏹️ Stop RTMP Relay</button>
+                </div>
+            </div>
+        </div>
+        
         <!-- Log -->
         <div class="card">
             <h2>Event Log</h2>
@@ -654,6 +693,110 @@
             updateStreamStatus(false, 'Stopped');
             log('Stream stopped', 'info');
         }
+        
+        // RTMP Relay Functions
+        async function startRtmpRelay() {
+            const platform = document.getElementById('rtmpPlatform').value;
+            const rtmpUrl = document.getElementById('rtmpServerUrl').value.trim();
+            const streamKey = document.getElementById('rtmpStreamKey').value.trim();
+            
+            if (!rtmpUrl) {
+                log('Please enter an RTMP server URL', 'error');
+                return;
+            }
+            
+            if (!streamKey) {
+                log('Please enter a stream key', 'error');
+                return;
+            }
+            
+            log(`Starting RTMP relay to ${platform}...`, 'info');
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/streaming/rtmp/start`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        destinations: [{
+                            platform: platform,
+                            rtmp_url: rtmpUrl,
+                            stream_key: streamKey,
+                            enabled: true
+                        }]
+                    })
+                });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`RTMP relay failed: ${errorText}`);
+                }
+                
+                const data = await response.json();
+                log(`RTMP relay configured: ${data.message}`, 'success');
+                log(`FFmpeg command: ${data.command}`, 'info');
+                log(data.note, 'info');
+                
+                updateRTMPStatus(true, `Configured → ${platform}`);
+                
+                // Refresh status
+                setTimeout(checkStatus, 2000);
+                
+            } catch (error) {
+                log(`RTMP relay error: ${error.message}`, 'error');
+                updateRTMPStatus(false, 'Error');
+            }
+        }
+        
+        async function stopRtmpRelay() {
+            log('Stopping RTMP relay...', 'info');
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/streaming/rtmp/stop`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Failed to stop RTMP relay: ${errorText}`);
+                }
+                
+                const data = await response.json();
+                log(`RTMP relay stopped: ${data.message}`, 'success');
+                
+                updateRTMPStatus(false, 'Stopped');
+                
+                // Refresh status
+                setTimeout(checkStatus, 1000);
+                
+            } catch (error) {
+                log(`Error stopping RTMP relay: ${error.message}`, 'error');
+            }
+        }
+        
+        // Platform presets
+        document.getElementById('rtmpPlatform').addEventListener('change', function() {
+            const urlInput = document.getElementById('rtmpServerUrl');
+            switch(this.value) {
+                case 'youtube':
+                    urlInput.value = 'rtmp://a.rtmp.youtube.com/live2/';
+                    break;
+                case 'twitch':
+                    urlInput.value = 'rtmp://live.twitch.tv/app/';
+                    break;
+                case 'facebook':
+                    urlInput.value = 'rtmps://live-api-s.facebook.com:443/rtmp/';
+                    break;
+                case 'custom':
+                    urlInput.value = '';
+                    urlInput.placeholder = 'Enter your RTMP URL';
+                    break;
+            }
+        });
         
         // Initialize
         buildUrls();
