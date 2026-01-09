@@ -62,16 +62,16 @@ The Vue PWA from a previous session is cached in the browser. To view the camera
 2. Go to **Application** → **Service Workers**
 3. Click **Unregister** on any service workers
 4. Hard refresh (Ctrl+Shift+R or Cmd+Shift+R)
-5. Navigate to: `https://r58-api.itagenten.no/cameras`
+5. Navigate to: `https://app.itagenten.no/cameras`
 
 ### Option 2: Use Incognito Mode
-Open in incognito: `https://r58-api.itagenten.no/cameras`
+Open in incognito: `https://app.itagenten.no/cameras`
 
 ### Option 3: Use Direct WHEP
 For individual camera streams:
-- `https://r58-api.itagenten.no/cam0/whep`
-- `https://r58-api.itagenten.no/cam2/whep`
-- `https://r58-api.itagenten.no/cam3/whep`
+- `https://app.itagenten.no/cam0/whep`
+- `https://app.itagenten.no/cam2/whep`
+- `https://app.itagenten.no/cam3/whep`
 
 ---
 

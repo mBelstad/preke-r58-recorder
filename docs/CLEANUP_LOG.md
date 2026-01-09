@@ -6,7 +6,7 @@
 
 Updated the codebase to use the new domain architecture:
 - `app.itagenten.no` - Vue web frontend (Preke Studio)
-- `r58-api.itagenten.no` - Backend API (proxied to R58)
+- `app.itagenten.no` - Backend API (proxied to R58)
 - `r58-vdo.itagenten.no` - Self-hosted VDO.ninja
 
 ## Files Removed
@@ -21,8 +21,8 @@ Updated the codebase to use the new domain architecture:
 
 ### `packages/frontend/src/lib/api.ts`
 - Added domain detection for `app.itagenten.no`
-- API calls now route to `https://r58-api.itagenten.no`
-- WebSocket calls use `wss://r58-api.itagenten.no`
+- API calls now route to `https://app.itagenten.no`
+- WebSocket calls use `wss://app.itagenten.no`
 
 ### `src/static/js/wiki-content.js`
 - Updated web interface URLs from old static pages to new Vue URLs
@@ -62,7 +62,7 @@ These files still exist but have hardcoded URLs. They are kept for backward comp
 ### `scripts/vdoninja-bridge.service`
 - Systemd service with environment variable defaults
 - Uses `VDONINJA_HOST=r58-vdo.itagenten.no`
-- Uses `API_HOST=r58-api.itagenten.no`
+- Uses `API_HOST=app.itagenten.no`
 - **Status**: Keep - configurable via env vars
 
 ### `scripts/start-vdoninja-bridge.sh`
@@ -98,7 +98,7 @@ Updated nginx configuration on VPS (`/opt/r58-proxy/nginx/conf.d/r58-api.conf`):
 
 ## Cross-Origin Requests
 
-The frontend at `app.itagenten.no` makes cross-origin API calls to `r58-api.itagenten.no`.
+The frontend at `app.itagenten.no` makes cross-origin API calls to `app.itagenten.no`.
 CORS is configured in the nginx proxy on the VPS (not in FastAPI).
 
 Headers added:

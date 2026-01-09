@@ -9,7 +9,7 @@ import urllib.error
 import json
 import ssl
 
-MEDIAMTX_HOST = 'https://r58-mediamtx.itagenten.no'
+MEDIAMTX_HOST = 'https://app.itagenten.no'
 CAMERAS = ['cam0', 'cam2', 'cam3']
 
 # Minimal valid SDP offer for WHEP testing

@@ -16,10 +16,10 @@ ssh "$VPS_HOST" "docker exec $NGINX_CONTAINER cat /etc/nginx/conf.d/r58.conf > /
 echo "Step 2: Creating fixed nginx config..."
 ssh "$VPS_HOST" << 'EOF'
 cat > /tmp/r58-mediamtx-fixed.conf << 'NGINX_CONFIG'
-# r58-mediamtx.itagenten.no - MediaMTX WHEP/WebRTC
+# app.itagenten.no - MediaMTX WHEP/WebRTC
 server {
     listen 80;
-    server_name r58-mediamtx.itagenten.no;
+    server_name app.itagenten.no;
     
     location / {
         proxy_pass http://host.docker.internal:18889;
@@ -59,10 +59,10 @@ echo ""
 echo "✅ CORS fix applied!"
 echo ""
 echo "Testing CORS headers..."
-curl -s -I "https://r58-mediamtx.itagenten.no/cam0/whep" | grep -i "access-control"
+curl -s -I "https://app.itagenten.no/cam0/whep" | grep -i "access-control"
 
 echo ""
 echo "🧪 Test VDO.ninja mixer now:"
-echo "https://vdo.ninja/mixer?room=r58studio&slots=3&automixer&whep=https://r58-mediamtx.itagenten.no/cam0/whep&label=CAM0&whep=https://r58-mediamtx.itagenten.no/cam2/whep&label=CAM2&whep=https://r58-mediamtx.itagenten.no/cam3/whep&label=CAM3"
+echo "https://vdo.ninja/mixer?room=r58studio&slots=3&automixer&whep=https://app.itagenten.no/cam0/whep&label=CAM0&whep=https://app.itagenten.no/cam2/whep&label=CAM2&whep=https://app.itagenten.no/cam3/whep&label=CAM3"
 echo ""
 

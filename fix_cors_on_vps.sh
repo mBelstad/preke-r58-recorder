@@ -51,5 +51,5 @@ echo ""
 echo "   MediaMTX will now handle CORS headers without duplication."
 echo ""
 echo "🧪 Test the fix:"
-echo "   Open: https://vdo.ninja/mixer?room=r58studio&slots=3&automixer&whep=https://r58-mediamtx.itagenten.no/cam0/whep&label=CAM0&whep=https://r58-mediamtx.itagenten.no/cam2/whep&label=CAM2&whep=https://r58-mediamtx.itagenten.no/cam3/whep&label=CAM3"
+echo "   Open: https://vdo.ninja/mixer?room=r58studio&slots=3&automixer&whep=https://app.itagenten.no/cam0/whep&label=CAM0&whep=https://app.itagenten.no/cam2/whep&label=CAM2&whep=https://app.itagenten.no/cam3/whep&label=CAM3"
 

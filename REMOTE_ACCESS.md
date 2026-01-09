@@ -360,13 +360,13 @@ bind_port = 10022
 - All traffic goes through `app.itagenten.no`
 - nginx proxies `/api/*` and `/cam*/whep` to R58 backend
 - **No CORS needed** - everything is same-origin
-- `r58-api.itagenten.no` redirects to `app.itagenten.no`
+- `app.itagenten.no` redirects to `app.itagenten.no`
 
 ### Video Streaming
 | Priority | Method | URL Example |
 |----------|--------|-------------|
 | 1 | **Tailscale Funnel** | `https://linaro-alip.tailab6fd7.ts.net/cam0/whep` |
-| 2 | FRP/VPS | `https://r58-api.itagenten.no/cam0/whep` |
+| 2 | FRP/VPS | `https://app.itagenten.no/cam0/whep` |
 
 ### SSH Access
 | Priority | Method | Script |

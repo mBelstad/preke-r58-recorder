@@ -101,7 +101,7 @@ ERROR: Cannot handle answer in signaling state "stable"
 4. STUN/TURN can help but adds complexity
 
 ### The `&mediamtx=` Parameter Misconception
-- `&mediamtx=r58-mediamtx.itagenten.no` is for NEW guests publishing TO MediaMTX
+- `&mediamtx=app.itagenten.no` is for NEW guests publishing TO MediaMTX
 - Does NOT auto-import existing MediaMTX streams
 - Cameras are already in MediaMTX via GStreamer, not through VDO.ninja flow
 

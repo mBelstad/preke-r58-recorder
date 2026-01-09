@@ -15,7 +15,7 @@
 
 2. **WHEP Viewing**: Direct HDMI camera viewing via WHEP:
    ```
-   https://r58-vdo.itagenten.no/?whepplay=https://r58-api.itagenten.no/whep/cam2
+   https://r58-vdo.itagenten.no/?whepplay=https://app.itagenten.no/whep/cam2
    ```
 
 3. **MediaMTX Streaming**: Active cameras stream via WHEP/HLS
@@ -28,7 +28,7 @@
 
 Open the camera manager page:
 ```
-https://r58-api.itagenten.no/static/vdoninja-manager.html
+https://app.itagenten.no/static/vdoninja-manager.html
 ```
 
 This provides:
@@ -40,7 +40,7 @@ This provides:
 
 To add cam2 to room "r58studio":
 ```
-https://r58-vdo.itagenten.no/?push=hdmi1&room=r58studio&whepshare=https%3A%2F%2Fr58-api.itagenten.no%2Fwhep%2Fcam2&label=HDMI-Camera&webcam
+https://r58-vdo.itagenten.no/?push=hdmi1&room=r58studio&whepshare=https%3A%2F%2Fapp.itagenten.no%2Fwhep%2Fcam2&label=HDMI-Camera&webcam
 ```
 
 Then:
@@ -53,10 +53,10 @@ Then:
 Get ready-to-use URLs via API:
 ```bash
 # Get all URLs for a room
-curl https://r58-api.itagenten.no/api/vdoninja/room-urls?room=r58studio
+curl https://app.itagenten.no/api/vdoninja/room-urls?room=r58studio
 
 # Get URL for a specific camera
-curl https://r58-api.itagenten.no/api/vdoninja/whepshare-url/cam2?room=r58studio&label=Camera-1
+curl https://app.itagenten.no/api/vdoninja/whepshare-url/cam2?room=r58studio&label=Camera-1
 ```
 
 ## Auto-Start Service
@@ -95,11 +95,11 @@ tail -f /var/log/vdoninja-bridge.log
 
 | Purpose | URL |
 |---------|-----|
-| **Camera Manager** | `https://r58-api.itagenten.no/static/vdoninja-manager.html` |
+| **Camera Manager** | `https://app.itagenten.no/static/vdoninja-manager.html` |
 | Director | `https://r58-vdo.itagenten.no/?director=r58studio` |
 | Scene (OBS) | `https://r58-vdo.itagenten.no/?scene&room=r58studio` |
 | Guest Invite | `https://r58-vdo.itagenten.no/?room=r58studio` |
-| View cam2 (WHEP) | `https://r58-vdo.itagenten.no/?whepplay=https://r58-api.itagenten.no/whep/cam2` |
+| View cam2 (WHEP) | `https://r58-vdo.itagenten.no/?whepplay=https://app.itagenten.no/whep/cam2` |
 
 ## How `&whepshare` Works
 

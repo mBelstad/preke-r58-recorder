@@ -19,7 +19,7 @@
 3. Open DevTools: Cmd+Option+I (macOS) or Ctrl+Shift+I (Windows/Linux)
 4. Go to Network tab
 5. Check for any requests to:
-   - `r58-api.itagenten.no`
+   - `app.itagenten.no`
    - `192.168.1.24`
    - `100.98.37.53`
 6. Verify app shows "No device connected" or similar empty state

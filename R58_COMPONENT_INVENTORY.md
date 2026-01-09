@@ -72,12 +72,12 @@
 
 | Port | Service | Protocol | Exposed via FRP | Public URL |
 |------|---------|----------|-----------------|------------|
-| 8000 | preke-recorder | HTTP | ✅ → 18000 | r58-api.itagenten.no |
+| 8000 | preke-recorder | HTTP | ✅ → 18000 | app.itagenten.no |
 | 8088 | r58-admin-api | HTTP | ❌ | Local only |
 | 8443 | vdo-ninja | HTTPS/WSS | ✅ → 18443 | r58-vdo.itagenten.no |
 | 8444 | vdo-webapp | HTTP | ✅ → 18444 | - |
 | 8554 | MediaMTX RTSP | RTSP | ❌ | Local only |
-| 8889 | MediaMTX WebRTC | HTTP/WS | ✅ → 18889 | r58-mediamtx.itagenten.no |
+| 8889 | MediaMTX WebRTC | HTTP/WS | ✅ → 18889 | app.itagenten.no |
 | 8189 | MediaMTX WebRTC | UDP | ✅ → 18189 | - |
 | 8190 | MediaMTX WebRTC | TCP | ✅ → 8190 | - |
 | 9997 | MediaMTX API | HTTP | ✅ → 19997 | - |

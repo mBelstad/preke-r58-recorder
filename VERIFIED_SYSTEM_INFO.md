@@ -58,7 +58,7 @@
 
 ### Network
 - **IP Address**: 65.109.32.111
-- **SSL**: Let's Encrypt (CN=r58-api.itagenten.no) ✅
+- **SSL**: Let's Encrypt (CN=app.itagenten.no) ✅
 
 ### FRP Server Configuration
 **FRP Control Port**: 7000 (via SSH tunnel from R58)
@@ -73,8 +73,8 @@
 - **18444** - VDO.ninja Web App
 
 ### Domains
-- **r58-api.itagenten.no** - FastAPI application ✅
-- **r58-mediamtx.itagenten.no** - MediaMTX server ✅
+- **app.itagenten.no** - FastAPI application ✅
+- **app.itagenten.no** - MediaMTX server ✅
 - **r58-vdo.itagenten.no** - VDO.ninja (when enabled)
 
 ### nginx Configuration
@@ -202,10 +202,10 @@ auth.token = "a427a7cd0b08969699f2c91ed0a63c71f3c9b5c416b43955a14f0864602c5a23"
 ```
 
 ### Web Interfaces
-- **Studio**: https://r58-api.itagenten.no/static/studio.html ✅
-- **Main App**: https://r58-api.itagenten.no/static/app.html ✅
-- **Guest Portal**: https://r58-api.itagenten.no/static/guest.html ✅
-- **API Docs**: https://r58-api.itagenten.no/docs
+- **Studio**: https://app.itagenten.no/static/studio.html ✅
+- **Main App**: https://app.itagenten.no/static/app.html ✅
+- **Guest Portal**: https://app.itagenten.no/static/guest.html ✅
+- **API Docs**: https://app.itagenten.no/docs
 
 ### Deployment
 ```bash

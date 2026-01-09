@@ -367,7 +367,7 @@ This audit was performed in response to user feedback:
 ## Questions?
 
 All documentation is now in:
-- **Wiki**: https://r58-api.itagenten.no/static/wiki.html
+- **Wiki**: https://app.itagenten.no/static/wiki.html
 - **Component Inventory**: R58_COMPONENT_INVENTORY.md
 - **Gap Analysis**: DOCUMENTATION_GAP_ANALYSIS.md
 - **Cleanup Proposal**: CLEANUP_PROPOSAL.md

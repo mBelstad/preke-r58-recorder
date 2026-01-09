@@ -82,7 +82,7 @@
 
 ### Web App (R58 Device) ✅
 
-**URL:** https://r58-api.itagenten.no/
+**URL:** https://app.itagenten.no/
 
 **Tested Pages:**
 - [x] **Studio Home** - ✅ Mode selection cards with unified styling
@@ -226,7 +226,7 @@ Based on service logs, all camera ingests started successfully:
 - Scrollbar customization may need adjustment
 
 ### Browser (Tested) ✅
-- ✅ Web app loads at r58-api.itagenten.no
+- ✅ Web app loads at app.itagenten.no
 - ✅ All routes accessible
 - ✅ Style guide visible
 - ✅ Design system consistent

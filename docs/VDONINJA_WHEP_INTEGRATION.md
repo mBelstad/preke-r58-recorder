@@ -107,7 +107,7 @@ https://r58-vdo.itagenten.no/?whepplay=https://app.itagenten.no/cam3/whep
 
 **URL Pattern**:
 ```
-https://r58-vdo.itagenten.no/mixer.html?mediamtx=r58-mediamtx.itagenten.no&room=r58studio
+https://r58-vdo.itagenten.no/mixer.html?mediamtx=app.itagenten.no&room=r58studio
 ```
 
 **What it does**:
@@ -206,11 +206,11 @@ https://r58-vdo.itagenten.no/?whepplay=https://app.itagenten.no/cam2/whep&push=c
 
 | Purpose | URL |
 |---------|-----|
-| Mixer | `https://r58-vdo.itagenten.no/mixer.html?room=r58studio&mediamtx=r58-mediamtx.itagenten.no` |
-| Director | `https://r58-vdo.itagenten.no/?director=r58studio&mediamtx=r58-mediamtx.itagenten.no` |
-| Scene View | `https://r58-vdo.itagenten.no/?scene&room=r58studio&mediamtx=r58-mediamtx.itagenten.no` |
+| Mixer | `https://r58-vdo.itagenten.no/mixer.html?room=r58studio&mediamtx=app.itagenten.no` |
+| Director | `https://r58-vdo.itagenten.no/?director=r58studio&mediamtx=app.itagenten.no` |
+| Scene View | `https://r58-vdo.itagenten.no/?scene&room=r58studio&mediamtx=app.itagenten.no` |
 | Single Camera | `https://r58-vdo.itagenten.no/?whepplay=https://app.itagenten.no/cam2/whep` |
-| Guest Join | `https://r58-vdo.itagenten.no/?room=r58studio&push=guest1&mediamtx=r58-mediamtx.itagenten.no` |
+| Guest Join | `https://r58-vdo.itagenten.no/?room=r58studio&push=guest1&mediamtx=app.itagenten.no` |
 
 ### For Local Access
 
@@ -226,7 +226,7 @@ https://r58-vdo.itagenten.no/?whepplay=https://app.itagenten.no/cam2/whep&push=c
 
 | Parameter | Purpose | Example |
 |-----------|---------|---------|
-| `&mediamtx=HOST` | Use MediaMTX as SFU instead of P2P | `&mediamtx=r58-mediamtx.itagenten.no` |
+| `&mediamtx=HOST` | Use MediaMTX as SFU instead of P2P | `&mediamtx=app.itagenten.no` |
 | `&whepplay=URL` | Pull and play a WHEP stream | `&whepplay=https://host/cam2/whep` |
 | `&push=ID` | Stream ID for publishing | `&push=cam2` |
 | `&room=NAME` | Join a room | `&room=r58studio` |
@@ -273,7 +273,7 @@ https://r58-vdo.itagenten.no/?whepplay=https://app.itagenten.no/cam2/whep&push=c
 
 1. **Check FRP tunnel**: `curl -I https://app.itagenten.no/`
 2. **Check VDO.ninja is accessible**: `curl -I https://r58-vdo.itagenten.no/`
-3. **Use `&mediamtx=` parameter**: Ensure URL includes `&mediamtx=r58-mediamtx.itagenten.no`
+3. **Use `&mediamtx=` parameter**: Ensure URL includes `&mediamtx=app.itagenten.no`
 
 ### P2P connections failing
 
@@ -306,12 +306,12 @@ Use VDO.ninja room with `&mediamtx=` parameter:
 
 **Guest Invite Link**:
 ```
-https://r58-vdo.itagenten.no/?room=r58studio&wss=wss://r58-vdo.itagenten.no&mediamtx=r58-mediamtx.itagenten.no
+https://r58-vdo.itagenten.no/?room=r58studio&wss=wss://r58-vdo.itagenten.no&mediamtx=app.itagenten.no
 ```
 
 **Director View**:
 ```
-https://r58-vdo.itagenten.no/?director=r58studio&wss=wss://r58-vdo.itagenten.no&mediamtx=r58-mediamtx.itagenten.no
+https://r58-vdo.itagenten.no/?director=r58studio&wss=wss://r58-vdo.itagenten.no&mediamtx=app.itagenten.no
 ```
 
 ### Hybrid Workflow

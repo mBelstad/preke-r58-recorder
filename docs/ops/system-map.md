@@ -121,8 +121,8 @@ flowchart TB
 
 | Domain | Backend | Purpose |
 |--------|---------|---------|
-| `r58-api.itagenten.no` | VPS → FRP → R58:8000 | API and static files |
-| `r58-mediamtx.itagenten.no` | VPS → FRP → R58:8889 | WHEP streams |
+| `app.itagenten.no` | VPS → FRP → R58:8000 | API and static files |
+| `app.itagenten.no` | VPS → FRP → R58:8889 | WHEP streams |
 | `r58-vdo.itagenten.no` | VPS → FRP → R58:8443 | VDO.ninja |
 
 ---

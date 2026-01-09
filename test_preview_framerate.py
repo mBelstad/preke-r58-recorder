@@ -20,7 +20,7 @@ from typing import Dict, Any, Optional, List
 
 # Configuration
 LOCAL_MEDIAMTX_API = "http://127.0.0.1:9997"
-REMOTE_MEDIAMTX_API = "https://r58-mediamtx.itagenten.no"
+REMOTE_MEDIAMTX_API = "https://app.itagenten.no"
 LOCAL_API = "http://127.0.0.1:8000"
 
 # Expected framerates based on code analysis

@@ -19,7 +19,7 @@ HARDCODED_FOUND=0
 
 # Check for your specific R58 IPs and domain
 HARDCODED_PATTERNS=(
-  "r58-api.itagenten.no"
+  "app.itagenten.no"
   "192.168.1.24"
   "100.98.37.53"
 )

@@ -91,8 +91,8 @@ The R58 system is designed for:
 
 | Domain | Service | SSL | Authentication |
 |--------|---------|-----|----------------|
-| r58-api.itagenten.no | R58 API | Yes (Let's Encrypt) | None |
-| r58-mediamtx.itagenten.no | WHEP Streams | Yes | None |
+| app.itagenten.no | R58 API | Yes (Let's Encrypt) | None |
+| app.itagenten.no | WHEP Streams | Yes | None |
 | r58-vdo.itagenten.no | VDO.ninja | Yes | None |
 
 ---

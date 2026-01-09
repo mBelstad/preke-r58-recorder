@@ -893,8 +893,8 @@
         
         function getWebRTCUrl(streamPath) {
             if (IS_REMOTE) {
-                // Remote access: use WHEP via r58-mediamtx.itagenten.no
-                return `https://r58-mediamtx.itagenten.no/${streamPath}/whep`;
+                // Remote access: use WHEP via app.itagenten.no
+                return `https://app.itagenten.no/${streamPath}/whep`;
             } else {
                 // Local access: use proxied WHEP endpoint
                 return `${API_BASE}/whep/${streamPath}`;
@@ -902,7 +902,7 @@
         }
         
         // Log access mode for debugging
-        console.log(`Access mode: ${IS_REMOTE ? 'REMOTE (WHEP via r58-mediamtx.itagenten.no)' : 'LOCAL (WHEP via local MediaMTX)'}`);
+        console.log(`Access mode: ${IS_REMOTE ? 'REMOTE (WHEP via app.itagenten.no)' : 'LOCAL (WHEP via local MediaMTX)'}`);
         console.log(`WHEP URL example: ${getWebRTCUrl('cam0')}`);
         
         let recordingState = false;

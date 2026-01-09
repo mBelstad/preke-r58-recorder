@@ -8,7 +8,7 @@
 ## 🎉 What Was Accomplished
 
 ### 1. Interactive Wiki Created
-**URL**: https://r58-api.itagenten.no/static/wiki.html
+**URL**: https://app.itagenten.no/static/wiki.html
 
 **Features**:
 - ✅ Full-text search with Fuse.js
@@ -152,7 +152,7 @@ All diagrams render in both light and dark mode.
 - [x] All content sections written
 - [x] Mermaid diagrams render
 - [x] Deployed to R58
-- [x] Accessible at https://r58-api.itagenten.no/static/wiki.html
+- [x] Accessible at https://app.itagenten.no/static/wiki.html
 
 ### Documentation Verification
 - [x] docs/ structure created
@@ -204,7 +204,7 @@ From 331 scattered files to:
 ## 📚 How to Use
 
 ### For Clients
-Visit: https://r58-api.itagenten.no/static/wiki.html
+Visit: https://app.itagenten.no/static/wiki.html
 - Read "What is R58?" section
 - View system diagrams
 - Understand capabilities
@@ -223,7 +223,7 @@ Visit: https://r58-api.itagenten.no/static/wiki.html
 
 ### For Integrators
 1. Visit wiki "API Reference" section
-2. Test at https://r58-api.itagenten.no/docs
+2. Test at https://app.itagenten.no/docs
 3. Review `docs/development/API_REFERENCE.md`
 4. Check `VERIFIED_SYSTEM_INFO.md` for details
 
@@ -231,9 +231,9 @@ Visit: https://r58-api.itagenten.no/static/wiki.html
 
 ## 🔗 Important Links
 
-- **Wiki**: https://r58-api.itagenten.no/static/wiki.html
-- **API Docs**: https://r58-api.itagenten.no/docs
-- **Studio**: https://r58-api.itagenten.no/static/studio.html
+- **Wiki**: https://app.itagenten.no/static/wiki.html
+- **API Docs**: https://app.itagenten.no/docs
+- **Studio**: https://app.itagenten.no/static/studio.html
 - **Documentation Index**: [docs/README.md](docs/README.md)
 - **Verified Info**: [VERIFIED_SYSTEM_INFO.md](VERIFIED_SYSTEM_INFO.md)
 
@@ -292,5 +292,5 @@ Visit: https://r58-api.itagenten.no/static/wiki.html
 
 **Documentation is complete and ready for use!**
 
-Visit the wiki: https://r58-api.itagenten.no/static/wiki.html
+Visit the wiki: https://app.itagenten.no/static/wiki.html
 

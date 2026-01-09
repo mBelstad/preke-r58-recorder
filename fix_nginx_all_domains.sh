@@ -22,7 +22,7 @@ cat > /tmp/r58_complete.conf << 'EOF'
 # MediaMTX server block
 server {
     listen 80;
-    server_name vdo.itagenten.no mediamtx.vdo.itagenten.no r58-mediamtx.itagenten.no;
+    server_name vdo.itagenten.no mediamtx.vdo.itagenten.no app.itagenten.no;
 
     # Security headers (Traefik adds HSTS)
     add_header X-Frame-Options "SAMEORIGIN" always;
@@ -100,7 +100,7 @@ server {
 # FastAPI (R58 API) server block
 server {
     listen 80;
-    server_name r58-api.itagenten.no;
+    server_name app.itagenten.no;
 
     # Security headers
     add_header X-Frame-Options "SAMEORIGIN" always;
@@ -164,14 +164,14 @@ echo ""
 echo "✅ All server blocks configured!"
 echo ""
 echo "📝 What was added:"
-echo "   ✅ r58-mediamtx.itagenten.no → port 18889 (MediaMTX)"
+echo "   ✅ app.itagenten.no → port 18889 (MediaMTX)"
 echo "   ✅ r58-vdo.itagenten.no → port 18443 (VDO.ninja) [NEW]"
-echo "   ✅ r58-api.itagenten.no → port 18000 (FastAPI) [NEW]"
+echo "   ✅ app.itagenten.no → port 18000 (FastAPI) [NEW]"
 echo ""
 echo "🧪 Test the services:"
-echo "   MediaMTX: curl -I https://r58-mediamtx.itagenten.no/cam0"
+echo "   MediaMTX: curl -I https://app.itagenten.no/cam0"
 echo "   VDO.ninja: curl -I https://r58-vdo.itagenten.no/"
-echo "   API: curl -I https://r58-api.itagenten.no/static/r58_control.html"
+echo "   API: curl -I https://app.itagenten.no/static/r58_control.html"
 echo ""
 echo "🎉 Configuration complete!"
 

@@ -47,7 +47,7 @@ const programIframeSrc = computed(() => {
 // Line 23-26
 function getWhipUrl(): string {
   // MediaMTX WHIP format: https://host/{stream_name}/whip
-  return `https://r58-mediamtx.itagenten.no/mixer_program/whip`
+  return `https://app.itagenten.no/mixer_program/whip`
 }
 ```
 

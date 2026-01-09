@@ -207,7 +207,7 @@ remote_port = 10022
 [web]
 type = http
 local_port = 8000
-custom_domains = r58-api.itagenten.no
+custom_domains = app.itagenten.no
 ```
 
 **Logs:** `journalctl -u frpc -f`

@@ -235,7 +235,7 @@
 - 1af7a2f: Final code block cleanup
 
 **Deployed to R58**: ✅  
-**Accessible at**: https://r58-api.itagenten.no/static/wiki.html
+**Accessible at**: https://app.itagenten.no/static/wiki.html
 
 ---
 

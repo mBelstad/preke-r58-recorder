@@ -5,7 +5,7 @@
 set -e
 
 CERT_DIR="/etc/ssl/r58"
-DOMAIN="r58-api.itagenten.no"
+DOMAIN="app.itagenten.no"
 
 echo "=== Setting up MediaMTX TLS Certificates ==="
 

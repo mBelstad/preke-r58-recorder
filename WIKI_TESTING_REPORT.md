@@ -31,34 +31,34 @@
 
 ### Health Check ✅
 ```bash
-curl https://r58-api.itagenten.no/health
+curl https://app.itagenten.no/health
 ```
 **Result**: `{"status":"healthy","platform":"auto","gstreamer":"initialized"}`
 
 ### Camera Status ✅
 ```bash
-curl https://r58-api.itagenten.no/status
+curl https://app.itagenten.no/status
 ```
 **Result**: All 4 cameras in "preview" mode
 
 ### Recording Start/Stop ✅
 ```bash
-curl -X POST https://r58-api.itagenten.no/record/start/cam1
+curl -X POST https://app.itagenten.no/record/start/cam1
 # Result: {"status":"started","camera":"cam1"}
 
-curl -X POST https://r58-api.itagenten.no/record/stop/cam1
+curl -X POST https://app.itagenten.no/record/stop/cam1
 # Result: {"status":"stopped","camera":"cam1"}
 ```
 
 ### Mixer Status ✅
 ```bash
-curl https://r58-api.itagenten.no/api/mixer/status
+curl https://app.itagenten.no/api/mixer/status
 ```
 **Result**: State: NULL, Health: healthy
 
 ### Scenes API ✅
 ```bash
-curl https://r58-api.itagenten.no/api/scenes
+curl https://app.itagenten.no/api/scenes
 ```
 **Result**: Multiple scenes returned (quad, fullscreen layouts, etc.)
 
@@ -67,7 +67,7 @@ curl https://r58-api.itagenten.no/api/scenes
 ## Wiki Browser Testing
 
 ### Page Load ✅
-- **URL**: https://r58-api.itagenten.no/static/wiki.html
+- **URL**: https://app.itagenten.no/static/wiki.html
 - **Status**: Loads successfully
 - **Console Errors**: None after fixes
 - **CSS**: Responsive layout rendering correctly

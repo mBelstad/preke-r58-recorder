@@ -112,9 +112,9 @@ export const useStreamingStore = defineStore('streaming', () => {
     const mediaHost = isLocal ? 'localhost' : 'app.itagenten.no'
     
     return {
-      rtmp: isLocal ? 'rtmp://localhost:1935/mixer_program' : 'rtmp://r58-mediamtx.itagenten.no:1935/mixer_program',
-      rtsp: isLocal ? 'rtsp://localhost:8554/mixer_program' : 'rtsp://r58-mediamtx.itagenten.no:8554/mixer_program',
-      srt: isLocal ? 'srt://localhost:8890?streamid=read:mixer_program' : 'srt://r58-mediamtx.itagenten.no:8890?streamid=read:mixer_program',
+      rtmp: isLocal ? 'rtmp://localhost:1935/mixer_program' : 'rtmp://app.itagenten.no:1935/mixer_program',
+      rtsp: isLocal ? 'rtsp://localhost:8554/mixer_program' : 'rtsp://app.itagenten.no:8554/mixer_program',
+      srt: isLocal ? 'srt://localhost:8890?streamid=read:mixer_program' : 'srt://app.itagenten.no:8890?streamid=read:mixer_program',
       hls: `https://${mediaHost}/hls/mixer_program/index.m3u8`,
       whep: `https://${mediaHost}/mixer_program/whep`
     }
@@ -196,8 +196,8 @@ export const useStreamingStore = defineStore('streaming', () => {
   function getSrtOutputUrl(): string {
     const host = window.location.hostname
     const isLocal = host === 'localhost' || host === '127.0.0.1'
-    // SRT needs direct port access to MediaMTX, use r58-mediamtx.itagenten.no for remote
-    const srtHost = isLocal ? 'localhost' : 'r58-mediamtx.itagenten.no'
+    // SRT needs direct port access to MediaMTX via FRP tunnel
+    const srtHost = isLocal ? 'localhost' : 'app.itagenten.no'
     
     return `srt://${srtHost}:${srtOutput.value.port}?streamid=read:${srtOutput.value.streamId}`
   }

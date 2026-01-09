@@ -9,7 +9,7 @@
 
 ### 1. Mixer URL Configuration ✅
 - **Changed**: `MixerView.vue` now uses `mixer.html` instead of director view
-- **Added**: `&mediamtx=r58-mediamtx.itagenten.no` parameter for SFU transport
+- **Added**: `&mediamtx=app.itagenten.no` parameter for SFU transport
 - **Added**: `&password=preke-r58-2024` for room authentication
 - **Result**: VDO.ninja mixer loads correctly with MediaMTX SFU configuration
 
@@ -32,7 +32,7 @@
 - **Result**: Mixer looks native to R58 app
 
 ### 4. Remote Access ✅
-- **Tested**: Via FRP tunnels at `https://r58-api.itagenten.no/#/mixer`
+- **Tested**: Via FRP tunnels at `https://app.itagenten.no/#/mixer`
 - **Verified**: Mixer loads and displays correctly
 - **Verified**: Mode switching works (Recorder ↔ Mixer)
 - **Result**: Remote access functional through FRP
@@ -63,10 +63,10 @@
 │  │                                                       │  │
 │  │  ┌────────────────────────────────────────────────┐  │  │
 │  │  │      VDO.ninja mixer.html (iframe)             │  │  │
-│  │  │  &mediamtx=r58-mediamtx.itagenten.no          │  │  │
+│  │  │  &mediamtx=app.itagenten.no          │  │  │
 │  │  │  &room=studio                                  │  │  │
 │  │  │  &password=preke-r58-2024                      │  │  │
-│  │  │  &css=https://r58-api.itagenten.no/...        │  │  │
+│  │  │  &css=https://app.itagenten.no/...        │  │  │
 │  │  └────────────────────────────────────────────────┘  │  │
 │  │                                                       │  │
 │  │  Camera Sources Bar (CameraPushBar.vue)              │  │
@@ -100,7 +100,7 @@
 
 2. **CameraPushBar Approach** (doesn't work):
    ```
-   &whepplay=https://r58-api.itagenten.no/cam0/whep
+   &whepplay=https://app.itagenten.no/cam0/whep
    &push=cam0
    &room=studio
    ```
@@ -148,7 +148,7 @@
 
 **URL Pattern**:
 ```
-https://r58-vdo.itagenten.no/?whepplay=https://r58-mediamtx.itagenten.no/cam0/whep
+https://r58-vdo.itagenten.no/?whepplay=https://app.itagenten.no/cam0/whep
 ```
 
 **Use Case**:

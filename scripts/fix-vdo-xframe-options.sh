@@ -64,5 +64,5 @@ echo ""
 echo "🎉 Fix complete!"
 echo ""
 echo "The VDO.ninja iframe should now work in Preke Studio."
-echo "Test at: https://r58-api.itagenten.no/mixer"
+echo "Test at: https://app.itagenten.no/mixer"
 

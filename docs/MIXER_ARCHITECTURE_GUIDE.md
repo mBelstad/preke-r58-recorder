@@ -104,9 +104,9 @@ The R58 Mixer provides live video mixing of HDMI camera inputs using a self-host
 │  │                     Nginx Reverse Proxy                               │   │
 │  │                                                                       │   │
 │  │  Domain Routing:                                                       │   │
-│  │  r58-mediamtx.itagenten.no → localhost:18889 → R58 MediaMTX          │   │
+│  │  app.itagenten.no → localhost:18889 → R58 MediaMTX          │   │
 │  │  r58-vdo.itagenten.no      → localhost:18443 → R58 VDO.ninja         │   │
-│  │  r58-api.itagenten.no      → localhost:18000 → R58 FastAPI           │   │
+│  │  app.itagenten.no      → localhost:18000 → R58 FastAPI           │   │
 │  │                                                                       │   │
 │  │  CORS Headers: Access-Control-Allow-Origin: *                         │   │
 │  └──────────────────────────────────────────────────────────────────────┘   │
@@ -127,7 +127,7 @@ The R58 Mixer provides live video mixing of HDMI camera inputs using a self-host
 │  ┌─────────────────────┐  ┌─────────────────────┐  ┌─────────────────────┐  │
 │  │    Mixer Operator   │  │   Remote Speakers   │  │      Viewers        │  │
 │  │                     │  │                     │  │                     │  │
-│  │ r58-api.itagenten.no│  │ WHIP publish to     │  │ View via WHEP or    │  │
+│  │ app.itagenten.no│  │ WHIP publish to     │  │ View via WHEP or    │  │
 │  │ /mixer              │  │ MediaMTX            │  │ HLS                 │  │
 │  └─────────────────────┘  └─────────────────────┘  └─────────────────────┘  │
 └──────────────────────────────────────────────────────────────────────────────┘
@@ -195,7 +195,7 @@ The R58 Mixer provides live video mixing of HDMI camera inputs using a self-host
 This is the key to making it work! Without it, the browser would try to stream video via P2P WebRTC, which fails through FRP tunnels.
 
 ```
-?push=hdmi0&room=studio&whepshare=https%3A%2F%2Fr58-mediamtx.itagenten.no%2Fcam0%2Fwhep
+?push=hdmi0&room=studio&whepshare=https%3A%2F%2Fapp.itagenten.no%2Fcam0%2Fwhep
 ```
 
 **Result**: The camera appears as a "guest" in the VDO.ninja room, but video is fetched directly from MediaMTX.
@@ -346,7 +346,7 @@ curl -s http://localhost:9997/v3/paths/list | jq
 ### CORS Errors in Browser
 
 - Verify nginx CORS headers are configured on VPS
-- Use FRP-proxied URLs (`r58-mediamtx.itagenten.no`), not Tailscale Funnel
+- Use FRP-proxied URLs (`app.itagenten.no`), not Tailscale Funnel
 
 ### Director Conflict ("You are not the director")
 
@@ -372,7 +372,7 @@ sudo journalctl -u frpc -n 50
 | Room Name | `studio` |
 | Director Password | `preke-r58-2024` |
 | VDO.ninja Host | `r58-vdo.itagenten.no` |
-| MediaMTX Host | `r58-mediamtx.itagenten.no` |
+| MediaMTX Host | `app.itagenten.no` |
 
 These are configured in:
 - `packages/frontend/src/lib/vdoninja.ts` (frontend)

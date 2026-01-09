@@ -503,12 +503,21 @@ async function pollRecordingStatus(): Promise<void> {
     await handleSessionChange(status)
     
     // Auto-refresh growing clips if enabled and recording is active
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/1c530d06-93f3-4719-9f2a-db5838c77d56',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'davinci.ts:506',message:'Auto-refresh check',data:{autoRefreshEnabled:davinciConfig.autoRefreshClips,statusActive:status.active,resolveConnected:isResolveConnected,timeSinceLastRefresh:now-lastRefreshTime,refreshInterval:davinciConfig.refreshIntervalMs},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
+    // #endregion
     if (davinciConfig.autoRefreshClips && status.active && isResolveConnected) {
       if (now - lastRefreshTime > davinciConfig.refreshIntervalMs) {
         lastRefreshTime = now
         log.debug('Auto-refreshing growing clips...')
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/1c530d06-93f3-4719-9f2a-db5838c77d56',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'davinci.ts:512',message:'Auto-refresh triggered',data:{lastRefreshTime,now},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
+        // #endregion
         try {
           const result = await refreshGrowingClips()
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/1c530d06-93f3-4719-9f2a-db5838c77d56',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'davinci.ts:518',message:'Auto-refresh result',data:{result},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
+          // #endregion
           if (result.success && result.clipsRefreshed) {
             log.debug(`Auto-refreshed ${result.clipsRefreshed} clip(s)`)
           }
@@ -1368,6 +1377,10 @@ sys.exit(0)
     python.on('close', (code) => {
       clearTimeout(timeout)
       if (timedOut) return
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/1c530d06-93f3-4719-9f2a-db5838c77d56',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'davinci.ts:1382',message:'Refresh clips Python output',data:{code,outputLength:output.length,outputPreview:output.substring(0,2000),hasSuccess:output.includes('SUCCESS')},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1,H3,H4'})}).catch(()=>{});
+      // #endregion
       
       if (code === 0 && output.includes('SUCCESS')) {
         // Extract number of clips refreshed

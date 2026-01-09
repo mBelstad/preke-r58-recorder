@@ -13,7 +13,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 // MediaMTX API base URL (same-domain proxy)
 // When accessed from app.itagenten.no, requests go through nginx proxy
 const isProduction = typeof window !== 'undefined' && window.location.hostname === 'app.itagenten.no'
-const MEDIAMTX_API = isProduction ? '' : 'https://r58-mediamtx.itagenten.no'
+const MEDIAMTX_API = isProduction ? '' : 'https://app.itagenten.no'
 const MEDIAMTX_LOCAL = 'http://localhost:9997'
 
 // Available streams
@@ -76,8 +76,8 @@ async function fetchStreams() {
 
 // Stream URL generators
 const getWhepUrl = (streamName: string) => `${MEDIAMTX_API}/${streamName}/whep`
-const getRtspUrl = (streamName: string) => `rtsp://r58-mediamtx.itagenten.no:8554/${streamName}`
-const getSrtUrl = (streamName: string) => `srt://r58-mediamtx.itagenten.no:8890?streamid=read:${streamName}`
+const getRtspUrl = (streamName: string) => `rtsp://app.itagenten.no:8554/${streamName}`
+const getSrtUrl = (streamName: string) => `srt://app.itagenten.no:8890?streamid=read:${streamName}`
 const getHlsUrl = (streamName: string) => `${MEDIAMTX_API}/${streamName}/index.m3u8`
 const getWebRtcUrl = (streamName: string) => `${MEDIAMTX_API}/${streamName}/`
 
@@ -294,11 +294,11 @@ onUnmounted(() => {
             <div class="space-y-2 text-sm">
               <p class="text-slate-400">For RTSP:</p>
               <code class="block bg-slate-700 p-2 rounded text-xs">
-                vlc rtsp://r58-mediamtx.itagenten.no:8554/cam0
+                vlc rtsp://app.itagenten.no:8554/cam0
               </code>
               <p class="text-slate-400 mt-2">For SRT:</p>
               <code class="block bg-slate-700 p-2 rounded text-xs">
-                ffplay "srt://r58-mediamtx.itagenten.no:8890?streamid=read:cam0"
+                ffplay "srt://app.itagenten.no:8890?streamid=read:cam0"
               </code>
             </div>
           </div>

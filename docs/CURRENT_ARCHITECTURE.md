@@ -170,9 +170,9 @@ The R58 system is a professional multi-camera recording and streaming solution b
 - **Traefik**: SSL certificates and domain routing
 
 **Domains**:
-- `r58-mediamtx.itagenten.no` → MediaMTX
+- `app.itagenten.no` → MediaMTX
 - `r58-vdo.itagenten.no` → VDO.ninja
-- `r58-api.itagenten.no` → FastAPI
+- `app.itagenten.no` → FastAPI
 
 ---
 
@@ -202,7 +202,7 @@ Browser → WHIP (HTTPS) → Traefik → nginx → FRP → MediaMTX (R58)
 ### VDO.ninja Mixer
 
 ```
-Mixer (Browser) → WHEP requests → r58-mediamtx.itagenten.no
+Mixer (Browser) → WHEP requests → app.itagenten.no
                        ↓
               Pulls multiple streams:
               - cam0/whep
@@ -424,7 +424,7 @@ sudo journalctl -u preke-recorder -f
    - Works perfectly through FRP TCP tunnels
 
 2. **VDO.ninja with `&mediamtx=` parameter**
-   - URL pattern: `mixer.html?mediamtx=r58-mediamtx.itagenten.no`
+   - URL pattern: `mixer.html?mediamtx=app.itagenten.no`
    - VDO.ninja pulls streams via WHEP (HTTP-based, not P2P)
    - Works both locally AND remotely
 
@@ -441,12 +441,12 @@ sudo journalctl -u preke-recorder -f
 
 **Mixer**:
 ```
-https://r58-vdo.itagenten.no/mixer.html?mediamtx=r58-mediamtx.itagenten.no
+https://r58-vdo.itagenten.no/mixer.html?mediamtx=app.itagenten.no
 ```
 
 **Director**:
 ```
-https://r58-vdo.itagenten.no/?director=r58studio&mediamtx=r58-mediamtx.itagenten.no
+https://r58-vdo.itagenten.no/?director=r58studio&mediamtx=app.itagenten.no
 ```
 
 ---
