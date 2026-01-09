@@ -9,7 +9,7 @@ set -e
 # Must match VDO_ROOM in packages/frontend/src/lib/vdoninja.ts
 ROOM_NAME="${VDONINJA_ROOM:-studio}"
 VDONINJA_HOST="${VDONINJA_HOST:-r58-vdo.itagenten.no}"
-API_HOST="${API_HOST:-r58-api.itagenten.no}"
+API_HOST="${API_HOST:-app.itagenten.no}"
 LOG_FILE="${LOG_FILE:-/var/log/vdoninja-bridge.log}"
 
 # Camera configuration - each camera gets its own entry
