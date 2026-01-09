@@ -412,11 +412,17 @@
                 // Auto-load stream when it becomes active
                 if (streamActive && !streamWasActive && autoPlayEnabled) {
                     log('Stream became active, auto-loading...', 'info');
-                    // Try WHEP first (lower latency), fallback to HLS
-                    loadWHEP().catch(() => {
-                        log('WHEP failed, trying HLS...', 'warning');
-                        loadHLS();
-                    });
+                    // Wait a moment for stream to be fully ready
+                    setTimeout(() => {
+                        // Try WHEP first (lower latency), fallback to HLS
+                        loadWHEP().catch((err) => {
+                            log(`WHEP failed: ${err.message}, trying HLS...`, 'warning');
+                            // Wait a bit more for HLS segments to be generated
+                            setTimeout(() => {
+                                loadHLS();
+                            }, 2000);
+                        });
+                    }, 1000);
                 } else if (!streamActive && streamWasActive) {
                     log('Stream became inactive', 'warning');
                     stopStream();
@@ -495,8 +501,19 @@
                 
                 hlsPlayer.on(Hls.Events.ERROR, (event, data) => {
                     if (data.fatal) {
-                        log(`HLS error: ${data.type} - ${data.details}`, 'error');
+                        let errorMsg = `HLS error: ${data.type} - ${data.details}`;
+                        if (data.type === 'networkError' && data.details === 'manifestLoadError') {
+                            errorMsg += ' - Stream may not be ready yet. Wait for stream to become active.';
+                        }
+                        log(errorMsg, 'error');
                         updateStreamStatus(false, 'Error');
+                        
+                        // If manifest load error, don't retry immediately - wait for stream to be active
+                        if (data.type === 'networkError' && data.details === 'manifestLoadError') {
+                            log('Waiting for stream to become active before retrying...', 'info');
+                        }
+                    } else {
+                        log(`HLS warning: ${data.type} - ${data.details}`, 'warning');
                     }
                 });
             } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
