@@ -261,6 +261,10 @@
                     <button class="button" onclick="loadHLS()">Load HLS Stream</button>
                     <button class="button secondary" onclick="loadWHEP()">Load WHEP Stream</button>
                     <button class="button secondary" onclick="stopStream()">Stop</button>
+                    <label style="display: inline-flex; align-items: center; margin-left: 15px; cursor: pointer;">
+                        <input type="checkbox" id="autoPlayCheck" checked onchange="autoPlayEnabled = this.checked" style="margin-right: 8px;">
+                        <span style="color: #94a3b8; font-size: 0.9em;">Auto-play when stream active</span>
+                    </label>
                 </div>
             </div>
             
@@ -331,6 +335,8 @@
         
         let hlsPlayer = null;
         let whepConnection = null;
+        let autoPlayEnabled = true;
+        let streamWasActive = false;
         
         // Build stream URLs
         function buildUrls() {
@@ -392,8 +398,23 @@
                 log(`Status response: ${JSON.stringify(data)}`, 'info');
                 
                 // Update stream status
-                updateStreamStatus(data.mixer_program_active, 
-                    data.mixer_program_active ? 'Active' : 'Inactive');
+                const streamActive = data.mixer_program_active;
+                updateStreamStatus(streamActive, 
+                    streamActive ? 'Active' : 'Inactive');
+                
+                // Auto-load stream when it becomes active
+                if (streamActive && !streamWasActive && autoPlayEnabled) {
+                    log('Stream became active, auto-loading...', 'info');
+                    // Try WHEP first (lower latency), fallback to HLS
+                    loadWHEP().catch(() => {
+                        log('WHEP failed, trying HLS...', 'warning');
+                        loadHLS();
+                    });
+                } else if (!streamActive && streamWasActive) {
+                    log('Stream became inactive', 'warning');
+                    stopStream();
+                }
+                streamWasActive = streamActive;
                 
                 // Update RTMP status
                 const rtmpConfigured = data.rtmp_relay_configured;
@@ -434,7 +455,9 @@
         }
         
         function loadHLS() {
-            stopStream();
+            if (hlsPlayer || document.getElementById('videoPlayer').srcObject) {
+                stopStream();
+            }
             log('Loading HLS stream...', 'info');
             
             const video = document.getElementById('videoPlayer');
@@ -480,7 +503,9 @@
         }
         
         async function loadWHEP() {
-            stopStream();
+            if (hlsPlayer || document.getElementById('videoPlayer').srcObject) {
+                stopStream();
+            }
             log('Loading WHEP stream...', 'info');
             
             const video = document.getElementById('videoPlayer');
@@ -562,8 +587,12 @@
         // Auto-refresh status every 5 seconds
         setInterval(checkStatus, 5000);
         
+        // Initialize auto-play checkbox
+        document.getElementById('autoPlayCheck').checked = autoPlayEnabled;
+        
         log('RTMP test page loaded', 'success');
         log(`Access mode: ${IS_REMOTE ? 'REMOTE' : 'LOCAL'}`, 'info');
+        log('Auto-play enabled - stream will load automatically when active', 'info');
     </script>
     
     <!-- HLS.js for browsers that don't support native HLS -->
