@@ -104,12 +104,16 @@ async function buildWhepUrl(cameraId: string): Promise<string> {
   if (frpUrl) {
     try {
       const url = new URL(frpUrl)
+      // Use same-domain architecture: app.itagenten.no for all services
+      if (url.hostname.includes('itagenten.no')) {
+        return `https://app.itagenten.no/${cameraId}/whep`
+      }
       // Use MediaMTX subdomain pattern if FRP URL is available
       // Or construct from FRP base URL
       if (url.hostname.includes('mediamtx')) {
         return `${frpUrl}/${cameraId}/whep`
       } else {
-        // Try to construct MediaMTX URL from FRP base
+        // Try to construct MediaMTX URL from FRP base (legacy)
         const mediamtxHost = url.hostname.replace('api', 'mediamtx')
         return `https://${mediamtxHost}/${cameraId}/whep`
       }

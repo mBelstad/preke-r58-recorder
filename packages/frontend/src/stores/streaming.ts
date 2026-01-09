@@ -101,18 +101,22 @@ export const useStreamingStore = defineStore('streaming', () => {
 
   /**
    * Get the MediaMTX program output URLs
+   * Uses same-domain architecture with app.itagenten.no
    */
   const programOutputUrls = computed(() => {
     const host = window.location.hostname
     const isLocal = host === 'localhost' || host === '127.0.0.1'
-    const apiHost = isLocal ? 'localhost' : host.replace('r58-api', 'r58-mediamtx')
+    
+    // For remote access, use app.itagenten.no (same-domain architecture)
+    // RTMP/RTSP/SRT still need to go directly to MediaMTX ports on R58
+    const mediaHost = isLocal ? 'localhost' : 'app.itagenten.no'
     
     return {
-      rtmp: `rtmp://${apiHost}:1935/mixer_program`,
-      rtsp: `rtsp://${apiHost}:8554/mixer_program`,
-      srt: `srt://${apiHost}:8890?streamid=read:mixer_program`,
-      hls: `https://${host}/hls/mixer_program/index.m3u8`,
-      whep: `${window.location.origin}/api/v1/whep/mixer_program/whep`
+      rtmp: isLocal ? 'rtmp://localhost:1935/mixer_program' : 'rtmp://r58-mediamtx.itagenten.no:1935/mixer_program',
+      rtsp: isLocal ? 'rtsp://localhost:8554/mixer_program' : 'rtsp://r58-mediamtx.itagenten.no:8554/mixer_program',
+      srt: isLocal ? 'srt://localhost:8890?streamid=read:mixer_program' : 'srt://r58-mediamtx.itagenten.no:8890?streamid=read:mixer_program',
+      hls: `https://${mediaHost}/hls/mixer_program/index.m3u8`,
+      whep: `https://${mediaHost}/mixer_program/whep`
     }
   })
 
@@ -187,11 +191,13 @@ export const useStreamingStore = defineStore('streaming', () => {
 
   /**
    * Get SRT output URL for external consumption
+   * Note: SRT protocol requires direct connection to MediaMTX port
    */
   function getSrtOutputUrl(): string {
     const host = window.location.hostname
     const isLocal = host === 'localhost' || host === '127.0.0.1'
-    const srtHost = isLocal ? 'localhost' : host.replace('r58-api', 'r58-mediamtx')
+    // SRT needs direct port access to MediaMTX, use r58-mediamtx.itagenten.no for remote
+    const srtHost = isLocal ? 'localhost' : 'r58-mediamtx.itagenten.no'
     
     return `srt://${srtHost}:${srtOutput.value.port}?streamid=read:${srtOutput.value.streamId}`
   }

@@ -21,10 +21,9 @@ const iframeSrc = ref('')
 
 // MediaMTX WHIP endpoint for program output
 function getWhipUrl(): string {
-  // Always use r58-mediamtx.itagenten.no which has proper CORS headers
-  // The app.itagenten.no proxy doesn't have CORS configured for VDO.ninja origin
+  // Use app.itagenten.no (same-domain architecture) with CORS headers configured
   // VDO.ninja iframe (from r58-vdo.itagenten.no) needs to POST here
-  return 'https://r58-mediamtx.itagenten.no/mixer_program/whip'
+  return 'https://app.itagenten.no/mixer_program/whip'
 }
 
 async function startProgramOutput() {

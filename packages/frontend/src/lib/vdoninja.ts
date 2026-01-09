@@ -636,7 +636,12 @@ export async function getMediaMtxHost(): Promise<string | null> {
     if (frpUrl) {
       try {
         const url = new URL(frpUrl)
-        // Construct MediaMTX host from FRP base
+        // Use same-domain architecture: app.itagenten.no for all services
+        // The WHEP/WHIP endpoints are proxied through app.itagenten.no
+        if (url.hostname.includes('itagenten.no')) {
+          return 'https://app.itagenten.no'
+        }
+        // Fallback for other domains (legacy)
         const mediamtxHost = url.hostname.replace('api', 'mediamtx')
         return `https://${mediamtxHost}`
       } catch (e) {
@@ -691,6 +696,11 @@ export async function getPublicWhepUrl(cameraId: string): Promise<string | null>
   if (frpUrl) {
     try {
       const url = new URL(frpUrl)
+      // Use same-domain architecture: app.itagenten.no for all services
+      if (url.hostname.includes('itagenten.no')) {
+        return `https://app.itagenten.no/${cameraId}/whep`
+      }
+      // Fallback for other domains (legacy)
       const mediamtxHost = url.hostname.replace('api', 'mediamtx')
       return `https://${mediamtxHost}/${cameraId}/whep`
     } catch (e) {
