@@ -417,12 +417,12 @@
                         // Try WHEP first (lower latency), fallback to HLS
                         loadWHEP().catch((err) => {
                             log(`WHEP failed: ${err.message}, trying HLS...`, 'warning');
-                            // Wait a bit more for HLS segments to be generated
+                            // Wait longer for HLS segments to be generated (MediaMTX needs time)
                             setTimeout(() => {
-                                loadHLS();
-                            }, 2000);
+                                loadHLS(0); // Start with retry count 0
+                            }, 5000); // 5 second delay for HLS
                         });
-                    }, 1000);
+                    }, 2000); // 2 second delay for WHEP
                 } else if (!streamActive && streamWasActive) {
                     log('Stream became inactive', 'warning');
                     stopStream();
@@ -467,11 +467,11 @@
             }
         }
         
-        function loadHLS() {
+        function loadHLS(retryCount = 0) {
             if (hlsPlayer || document.getElementById('videoPlayer').srcObject) {
                 stopStream();
             }
-            log('Loading HLS stream...', 'info');
+            log(`Loading HLS stream${retryCount > 0 ? ` (retry ${retryCount})` : ''}...`, 'info');
             
             const video = document.getElementById('videoPlayer');
             // Use the same URL construction as buildUrls()
@@ -486,6 +486,9 @@
                 hlsPlayer = new Hls({
                     enableWorker: true,
                     lowLatencyMode: false,
+                    maxLoadingDelay: 4,
+                    maxBufferLength: 30,
+                    maxMaxBufferLength: 60,
                 });
                 
                 hlsPlayer.loadSource(hlsUrl);
@@ -503,15 +506,26 @@
                     if (data.fatal) {
                         let errorMsg = `HLS error: ${data.type} - ${data.details}`;
                         if (data.type === 'networkError' && data.details === 'manifestLoadError') {
-                            errorMsg += ' - Stream may not be ready yet. Wait for stream to become active.';
+                            errorMsg += ' - HLS manifest not ready yet. MediaMTX may need more time to generate segments.';
+                            
+                            // Retry up to 3 times with increasing delays
+                            if (retryCount < 3) {
+                                const delay = (retryCount + 1) * 3000; // 3s, 6s, 9s
+                                log(`Retrying HLS in ${delay/1000}s...`, 'info');
+                                setTimeout(() => {
+                                    if (hlsPlayer) {
+                                        hlsPlayer.destroy();
+                                        hlsPlayer = null;
+                                    }
+                                    loadHLS(retryCount + 1);
+                                }, delay);
+                                return; // Don't mark as error yet
+                            } else {
+                                errorMsg += ' - Max retries reached. HLS may not be available for this stream.';
+                            }
                         }
                         log(errorMsg, 'error');
                         updateStreamStatus(false, 'Error');
-                        
-                        // If manifest load error, don't retry immediately - wait for stream to be active
-                        if (data.type === 'networkError' && data.details === 'manifestLoadError') {
-                            log('Waiting for stream to become active before retrying...', 'info');
-                        }
                     } else {
                         log(`HLS warning: ${data.type} - ${data.details}`, 'warning');
                     }
