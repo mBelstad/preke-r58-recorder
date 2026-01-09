@@ -343,7 +343,8 @@
             const streamPath = 'mixer_program';
             
             if (IS_REMOTE) {
-                document.getElementById('hlsUrl').textContent = `https://${HOSTNAME}/hls/${streamPath}/index.m3u8`;
+                // Use API_BASE proxy for HLS (same as other pages)
+                document.getElementById('hlsUrl').textContent = `${API_BASE}/hls/${streamPath}/index.m3u8`;
                 document.getElementById('whepUrl').textContent = `https://r58-mediamtx.itagenten.no/${streamPath}/whep`;
                 document.getElementById('rtspUrl').textContent = `rtsp://r58-mediamtx.itagenten.no:8554/${streamPath}`;
                 document.getElementById('rtmpUrl').textContent = `rtmp://r58-mediamtx.itagenten.no:1935/${streamPath}`;
@@ -391,6 +392,12 @@
                 const response = await fetch(`${API_BASE}/api/streaming/status`);
                 
                 if (!response.ok) {
+                    if (response.status === 404) {
+                        log('Status endpoint not found - backend may not have streaming API', 'warning');
+                        updateStreamStatus(false, 'API unavailable');
+                        updateRTMPStatus(false, 'API unavailable');
+                        return;
+                    }
                     throw new Error(`HTTP ${response.status}`);
                 }
                 
@@ -461,7 +468,13 @@
             log('Loading HLS stream...', 'info');
             
             const video = document.getElementById('videoPlayer');
-            const hlsUrl = document.getElementById('hlsUrl').textContent;
+            // Use the same URL construction as buildUrls()
+            const streamPath = 'mixer_program';
+            const hlsUrl = IS_REMOTE 
+                ? `${API_BASE}/hls/${streamPath}/index.m3u8`
+                : `http://${HOSTNAME}:8888/${streamPath}/index.m3u8`;
+            
+            log(`HLS URL: ${hlsUrl}`, 'info');
             
             if (typeof Hls !== 'undefined') {
                 hlsPlayer = new Hls({
@@ -531,23 +544,54 @@
                 };
                 
                 // Create offer
-                const offer = await pc.createOffer();
+                const offer = await pc.createOffer({
+                    offerToReceiveAudio: true,
+                    offerToReceiveVideo: true
+                });
                 await pc.setLocalDescription(offer);
+                
+                // Wait for ICE gathering to complete (or timeout)
+                await new Promise((resolve) => {
+                    if (pc.iceGatheringState === 'complete') {
+                        resolve();
+                    } else {
+                        const checkState = () => {
+                            if (pc.iceGatheringState === 'complete') {
+                                resolve();
+                            }
+                        };
+                        pc.addEventListener('icegatheringstatechange', checkState);
+                        // Timeout after 2 seconds
+                        setTimeout(() => {
+                            pc.removeEventListener('icegatheringstatechange', checkState);
+                            resolve();
+                        }, 2000);
+                    }
+                });
+                
+                // Get updated SDP after ICE gathering
+                const updatedSdp = pc.localDescription.sdp;
                 
                 // POST to WHEP endpoint
                 const response = await fetch(whepUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/sdp',
+                        'Accept': 'application/sdp',
                     },
-                    body: offer.sdp
+                    body: updatedSdp
                 });
                 
                 if (!response.ok) {
-                    throw new Error(`WHEP POST failed: ${response.status}`);
+                    const errorText = await response.text();
+                    throw new Error(`WHEP POST failed: ${response.status} - ${errorText.substring(0, 100)}`);
                 }
                 
                 const answerSdp = await response.text();
+                if (!answerSdp || answerSdp.trim().length === 0) {
+                    throw new Error('Empty SDP answer from server');
+                }
+                
                 await pc.setRemoteDescription({
                     type: 'answer',
                     sdp: answerSdp
