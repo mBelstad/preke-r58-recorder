@@ -22,6 +22,7 @@ import { toast } from '@/composables/useToast'
 // Components
 import ModeLoadingScreen from '@/components/shared/ModeLoadingScreen.vue'
 import StreamingControlPanel from '@/components/mixer/StreamingControlPanel.vue'
+import MixerControlPanel from '@/components/mixer/MixerControlPanel.vue'
 
 const router = useRouter()
 const recorderStore = useRecorderStore()
@@ -37,6 +38,8 @@ const isLoading = ref(true)
 const iframeLoaded = ref(false)
 const bridgeReady = ref(false)
 const loadingStatus = ref('Starting mixer...')
+const iframeRef = ref<HTMLIFrameElement | null>(null)
+const showControls = ref(true)
 
 // Active cameras with signal
 const activeCameras = computed(() => 
@@ -179,6 +182,7 @@ onMounted(async () => {
     <!-- VDO.ninja Mixer (full height) -->
     <div class="flex-1 relative">
       <iframe
+        ref="iframeRef"
         :src="mixerUrl"
         @load="handleIframeLoad"
         class="absolute inset-0 w-full h-full border-0"
@@ -196,8 +200,26 @@ onMounted(async () => {
           <span class="text-preke-text-muted">Loading VDO.ninja mixer...</span>
           <span class="text-xs text-preke-text-subtle">Cameras will appear when bridge is running</span>
         </div>
-        </div>
-        </div>
+      </div>
+      
+      <!-- Control Panel Toggle Button -->
+      <button
+        v-if="iframeLoaded"
+        @click="showControls = !showControls"
+        class="absolute top-4 left-4 z-40 p-2 bg-preke-bg-surface border border-preke-border rounded-lg shadow-lg hover:bg-preke-bg-elevated transition-colors"
+        :title="showControls ? 'Hide Controls' : 'Show Controls'"
+      >
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+        </svg>
+      </button>
+      
+      <!-- Mixer Control Panel -->
+      <MixerControlPanel
+        v-if="showControls && iframeLoaded"
+        :iframe-ref="iframeRef"
+      />
+    </div>
     </div>
   </Transition>
 </template>
