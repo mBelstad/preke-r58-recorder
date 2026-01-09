@@ -12,7 +12,7 @@
 import { ref, computed } from 'vue'
 import { useMixerStore } from '@/stores/mixer'
 import { useStreamingStore, STREAMING_PLATFORMS } from '@/stores/streaming'
-import { openProgramPopup, buildProgramOutputUrl } from '@/lib/vdoninja'
+import { openProgramPopup, buildProgramOutputUrl, buildSceneOutputUrl, VDO_ROOM } from '@/lib/vdoninja'
 import { toast } from '@/composables/useToast'
 import StreamingSettings from './StreamingSettings.vue'
 import ProgramOutput from './ProgramOutput.vue'
@@ -115,6 +115,21 @@ async function openSceneOutput() {
   } else {
     toast.success('Scene output window opened - streaming to MediaMTX')
   }
+}
+
+async function copySceneViewLink() {
+  // Generate scene view URL for screen sharing workflow
+  // This is the URL that can be screen-shared to MediaMTX using native mixer's "Publishing setup"
+  // The native mixer workflow: Get Scene View Link → Open URL → Screen share that window → Push to MediaMTX
+  const url = await buildSceneOutputUrl(0, { room: props.roomName || VDO_ROOM })
+  
+  if (!url) {
+    toast.error('Failed to build scene view URL')
+    return
+  }
+  
+  await navigator.clipboard.writeText(url)
+  toast.success('Scene view link copied! Open this URL, then use "Publishing setup" in the mixer to screen-share it to MediaMTX')
 }
 
 function openStreamingSettings() {
@@ -265,12 +280,23 @@ function getStatusText(): string {
       <button
         @click="openSceneOutput"
         class="control-bar__btn control-bar__btn--secondary"
-        title="Open scene output window - pushes mixed scene to MediaMTX for streaming"
+        title="Open scene output window - pushes mixed scene to MediaMTX for streaming (uses &whipout parameter)"
       >
         <svg class="control-bar__btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8">
           <path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
         </svg>
         Scene Output
+      </button>
+      
+      <!-- Scene View Link Button (for screen sharing workflow) -->
+      <button
+        @click="copySceneViewLink"
+        class="control-bar__btn control-bar__btn--secondary control-bar__btn--icon-only"
+        title="Copy scene view link - open this URL, then use 'Publishing setup' to screen-share it to MediaMTX"
+      >
+        <svg class="control-bar__btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/>
+        </svg>
       </button>
       
       <!-- Streaming Settings Button -->
