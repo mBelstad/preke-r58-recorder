@@ -825,34 +825,47 @@
                 document.getElementById('loading').style.display = 'block';
                 
                 const page = await pdfDoc.getPage(pageNum);
-                const viewport = page.getViewport({ scale: currentZoom / 100 });
                 
+                // Render at high DPI for crisp quality (2x for retina displays)
+                const devicePixelRatio = window.devicePixelRatio || 1;
+                const renderScale = Math.max(devicePixelRatio, 2); // At least 2x for quality
+                const zoomScale = currentZoom / 100;
+                
+                // Get base viewport at zoom scale
+                const baseViewport = page.getViewport({ scale: zoomScale });
+                
+                // Create canvas at high DPI (renderScale times larger)
                 const canvas = document.createElement('canvas');
                 const context = canvas.getContext('2d');
-                canvas.height = viewport.height;
-                canvas.width = viewport.width;
+                canvas.width = baseViewport.width * renderScale;
+                canvas.height = baseViewport.height * renderScale;
+                
+                // Scale context for high DPI rendering
+                context.scale(renderScale, renderScale);
                 
                 // Single page display - fit to container while maintaining aspect ratio
                 const container = document.getElementById('viewer-container');
                 const containerWidth = container.clientWidth - 32; // Account for padding
                 const containerHeight = container.clientHeight - 32;
                 
-                // Calculate scale to fit container
-                const scaleX = containerWidth / viewport.width;
-                const scaleY = containerHeight / viewport.height;
-                const scale = Math.min(scaleX, scaleY, 1); // Don't scale up beyond 100%
+                // Calculate display scale to fit container (CSS scaling)
+                const scaleX = containerWidth / baseViewport.width;
+                const scaleY = containerHeight / baseViewport.height;
+                const displayScale = Math.min(scaleX, scaleY, 1); // Don't scale up beyond 100%
                 
-                canvas.style.width = `${viewport.width * scale}px`;
-                canvas.style.height = `${viewport.height * scale}px`;
+                // Set CSS size (smaller than canvas for crisp rendering)
+                canvas.style.width = `${baseViewport.width * displayScale}px`;
+                canvas.style.height = `${baseViewport.height * displayScale}px`;
                 canvas.style.maxWidth = '100%';
                 canvas.style.maxHeight = '100%';
                 canvas.style.display = 'block';
                 canvas.style.margin = 'auto';
                 canvas.style.objectFit = 'contain';
                 
+                // Render with base viewport (context is already scaled)
                 const renderContext = {
                     canvasContext: context,
-                    viewport: viewport
+                    viewport: baseViewport
                 };
                 
                 await page.render(renderContext).promise;
@@ -1096,10 +1109,8 @@
             
             if (isCurrentlyFullscreen) {
                 setupFullscreenControls();
-                // Show controls initially, then hide after 2 seconds
-                setTimeout(() => {
-                    hideControls();
-                }, 2000);
+                // Hide controls immediately in fullscreen (presentation mode)
+                hideControls();
             } else {
                 removeFullscreenControls();
                 // Always show controls when not in fullscreen
