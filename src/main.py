@@ -284,6 +284,24 @@ async def pdf_controller():
     raise HTTPException(status_code=404, detail="PDF controller not found")
 
 
+@app.get("/api/pdf-viewer", response_class=HTMLResponse)
+async def api_pdf_viewer():
+    """Serve the PDF viewer interface via /api/ path (service worker excluded)."""
+    pdf_path = Path(__file__).parent / "static" / "pdf_viewer.html"
+    if pdf_path.exists():
+        return pdf_path.read_text()
+    raise HTTPException(status_code=404, detail="PDF viewer not found")
+
+
+@app.get("/api/pdf-controller", response_class=HTMLResponse)
+async def api_pdf_controller():
+    """Serve the PDF remote controller interface via /api/ path (service worker excluded)."""
+    pdf_path = Path(__file__).parent / "static" / "pdf_controller.html"
+    if pdf_path.exists():
+        return pdf_path.read_text()
+    raise HTTPException(status_code=404, detail="PDF controller not found")
+
+
 @app.get("/static/r58_remote_mixer")
 async def remote_mixer_redirect():
     """Redirect /static/r58_remote_mixer to /static/r58_remote_mixer.html"""
