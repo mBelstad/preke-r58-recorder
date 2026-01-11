@@ -326,7 +326,7 @@
         .session-info {
             position: fixed;
             top: 1rem;
-            right: 1rem;
+            left: 1rem;
             background: rgba(30, 41, 59, 0.95);
             padding: 0.75rem 1rem;
             border-radius: 0.5rem;
@@ -336,6 +336,7 @@
             z-index: 1001;
             backdrop-filter: blur(10px);
             transition: opacity 0.3s ease, transform 0.3s ease;
+            max-width: 200px;
         }
 
         /* Hide session info in fullscreen */
@@ -371,8 +372,23 @@
         }
 
         .session-qr img {
-            max-width: 120px;
+            max-width: 100px;
             height: auto;
+        }
+        
+        /* On mobile, make session-info smaller and adjust position */
+        @media (max-width: 768px) {
+            .session-info {
+                top: 0.5rem;
+                left: 0.5rem;
+                padding: 0.5rem;
+                font-size: 0.7rem;
+                max-width: 150px;
+            }
+            
+            .session-qr img {
+                max-width: 80px;
+            }
         }
 
         @media (max-width: 768px) {
