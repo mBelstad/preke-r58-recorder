@@ -1112,8 +1112,9 @@
         });
 
         // Also show controls on touch/click in fullscreen (for mobile)
-        viewerContainer.addEventListener('click', (e) => {
-            if (isFullscreen && (e.target === viewerContainer || e.target.tagName === 'CANVAS' || e.target.id === 'pdf-viewer')) {
+        const viewerContainerElement = document.getElementById('viewer-container');
+        viewerContainerElement.addEventListener('click', (e) => {
+            if (isFullscreen && (e.target === viewerContainerElement || e.target.tagName === 'CANVAS' || e.target.id === 'pdf-viewer')) {
                 showControls();
             }
         }, { passive: true });
