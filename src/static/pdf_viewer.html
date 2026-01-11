@@ -503,7 +503,7 @@
     </div>
 
     <div class="viewer-container" id="viewer-container">
-        <div class="loading" id="loading">Loading PDF...</div>
+        <div class="loading" id="loading">Select a PDF file to view</div>
         <iframe id="pdf-viewer" class="pdf-viewer" style="display: none;"></iframe>
         <div id="error-message" class="error-message" style="display: none;"></div>
     </div>
@@ -663,9 +663,16 @@
                 script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
                 document.head.appendChild(script);
                 
-                await new Promise((resolve) => {
+                await new Promise((resolve, reject) => {
                     script.onload = resolve;
+                    script.onerror = () => reject(new Error('Failed to load PDF.js library'));
+                    // Timeout after 10 seconds
+                    setTimeout(() => reject(new Error('PDF.js library load timeout')), 10000);
                 });
+                
+                if (!window.pdfjsLib) {
+                    throw new Error('PDF.js library not available after loading');
+                }
                 
                 pdfjsLib = window.pdfjsLib;
                 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -693,22 +700,34 @@
                 totalPages = 1;
                 updatePageControls();
 
-                // Try using iframe first (simpler, works for most PDFs)
+                // Skip iframe for blob URLs (local files) - go straight to PDF.js for better control
+                if (url.startsWith('blob:') || url.startsWith('data:')) {
+                    console.log('Local file detected, using PDF.js directly...');
+                    loadPdfWithPdfJs(url);
+                    return;
+                }
+                
+                // Try using iframe first for remote URLs (simpler, works for most PDFs)
                 const iframe = document.getElementById('pdf-viewer');
                 iframe.style.transform = 'scale(1)';
                 iframe.src = url;
                 
+                let iframeLoaded = false;
+                
                 // Set a timeout to fallback to PDF.js if iframe doesn't load
                 const loadTimeout = setTimeout(() => {
-                    // If still loading after 3 seconds, try PDF.js
-                    if (document.getElementById('loading').style.display !== 'none') {
+                    if (!iframeLoaded && document.getElementById('loading').style.display !== 'none') {
                         console.log('Iframe load timeout, trying PDF.js...');
+                        iframeLoaded = true;
                         loadPdfWithPdfJs(url);
                     }
                 }, 3000);
                 
                 iframe.onload = () => {
+                    if (iframeLoaded) return;
                     clearTimeout(loadTimeout);
+                    iframeLoaded = true;
+                    
                     // Check if iframe actually loaded a PDF (not an error page)
                     try {
                         // Try to access iframe content to verify it's a PDF
@@ -719,6 +738,7 @@
                         // For iframe mode, disable page navigation
                         document.getElementById('prev-page').disabled = true;
                         document.getElementById('next-page').disabled = true;
+                        console.log('PDF loaded in iframe');
                     } catch (e) {
                         // CORS error is expected, but iframe likely loaded
                         document.getElementById('loading').style.display = 'none';
@@ -726,11 +746,14 @@
                         currentPdfUrl = url;
                         document.getElementById('prev-page').disabled = true;
                         document.getElementById('next-page').disabled = true;
+                        console.log('PDF loaded in iframe (CORS check failed, but likely OK)');
                     }
                 };
                 
                 iframe.onerror = () => {
+                    if (iframeLoaded) return;
                     clearTimeout(loadTimeout);
+                    iframeLoaded = true;
                     // Fallback to PDF.js if iframe fails
                     console.log('Iframe error, trying PDF.js...');
                     loadPdfWithPdfJs(url);
@@ -745,18 +768,25 @@
         // Load PDF using PDF.js (more reliable)
         async function loadPdfWithPdfJs(url) {
             try {
+                document.getElementById('loading').textContent = 'Loading PDF.js library...';
                 await loadPdfJs();
+                
+                document.getElementById('loading').textContent = 'Loading PDF document...';
                 
                 // Hide iframe
                 document.getElementById('pdf-viewer').style.display = 'none';
                 
                 const loadingTask = pdfjsLib.getDocument({
                     url: url,
-                    withCredentials: false
+                    withCredentials: false,
+                    httpHeaders: {}
                 });
+                
                 pdfDoc = await loadingTask.promise;
                 totalPages = pdfDoc.numPages;
                 currentPage = 1;
+                
+                document.getElementById('loading').textContent = 'Rendering page...';
                 
                 // Render first page
                 await renderPage(currentPage);
@@ -848,8 +878,9 @@
             document.getElementById('loading').style.display = 'none';
             document.getElementById('pdf-viewer').style.display = 'none';
             const errorDiv = document.getElementById('error-message');
-            errorDiv.textContent = message;
+            errorDiv.innerHTML = `<div style="margin-bottom: 1rem;">${message}</div><button class="btn" onclick="document.getElementById('file-input').click()">Try Another File</button>`;
             errorDiv.style.display = 'block';
+            console.error('PDF Viewer Error:', message);
         }
 
         // File input handler
@@ -857,13 +888,25 @@
             const file = e.target.files[0];
             if (!file) return;
             
-            if (file.type !== 'application/pdf') {
-                showError('Please select a PDF file');
+            // Check file type
+            if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+                showError('Please select a PDF file. Selected file type: ' + (file.type || 'unknown'));
+                e.target.value = ''; // Reset input
                 return;
             }
             
-            const fileUrl = URL.createObjectURL(file);
-            await loadPdfFromUrl(fileUrl);
+            // Hide error if showing
+            document.getElementById('error-message').style.display = 'none';
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('loading').textContent = 'Loading PDF...';
+            
+            try {
+                const fileUrl = URL.createObjectURL(file);
+                await loadPdfFromUrl(fileUrl);
+            } catch (error) {
+                console.error('Error loading file:', error);
+                showError('Failed to load file: ' + error.message);
+            }
         });
 
         // Zoom controls
@@ -1206,14 +1249,13 @@
 
         // Load PDF from URL parameter or default file
         if (pdfUrl) {
+            document.getElementById('loading').textContent = 'Loading PDF...';
             loadPdfFromUrl(pdfUrl);
         } else if (pdfFile) {
+            document.getElementById('loading').textContent = 'Loading PDF...';
             loadPdfFromUrl(pdfFile);
         } else {
-            // Try to load a default PDF if it exists
-            // You can modify this to point to your PDF file
-            const defaultPdf = '/uploads/Kurs i matsikkerhet.pdf';
-            // Don't auto-load, wait for user to select file
+            // Wait for user to select file
             document.getElementById('loading').textContent = 'Select a PDF file to view';
         }
     </script>
