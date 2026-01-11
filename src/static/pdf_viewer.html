@@ -62,14 +62,7 @@
             pointer-events: none;
         }
 
-        body:fullscreen .header.show-controls,
-        body:-webkit-full-screen .header.show-controls,
-        body:-moz-full-screen .header.show-controls,
-        body:-ms-fullscreen .header.show-controls {
-            opacity: 1;
-            transform: translateY(0);
-            pointer-events: all;
-        }
+        /* Controls permanently hidden in fullscreen - no show-controls class */
 
         .header h1 {
             font-size: 1.25rem;
@@ -349,14 +342,7 @@
             transform: translateY(-100%);
         }
 
-        body:fullscreen .session-info.show-controls,
-        body:-webkit-full-screen .session-info.show-controls,
-        body:-moz-full-screen .session-info.show-controls,
-        body:-ms-fullscreen .session-info.show-controls {
-            opacity: 1;
-            pointer-events: all;
-            transform: translateY(0);
-        }
+        /* Session info permanently hidden in fullscreen */
 
         .session-info.connected {
             border-color: #10b981;
@@ -433,13 +419,7 @@
             pointer-events: none;
         }
 
-        body:fullscreen .mobile-menu-toggle.show-controls,
-        body:-webkit-full-screen .mobile-menu-toggle.show-controls,
-        body:-moz-full-screen .mobile-menu-toggle.show-controls,
-        body:-ms-fullscreen .mobile-menu-toggle.show-controls {
-            opacity: 1;
-            pointer-events: all;
-        }
+        /* Mobile menu permanently hidden in fullscreen */
 
         @media (max-width: 480px) {
             .mobile-menu-toggle {
@@ -984,85 +964,8 @@
             }
         });
 
-        // Fullscreen with auto-hiding controls
-        let controlsTimeout = null;
+        // Fullscreen state tracking (controls permanently hidden in fullscreen via CSS)
         let isFullscreen = false;
-
-        function showControls() {
-            const header = document.getElementById('header');
-            const mobileToggle = document.getElementById('mobile-menu-toggle');
-            const sessionInfo = document.getElementById('session-info');
-            
-            header.classList.add('show-controls');
-            if (mobileToggle) {
-                mobileToggle.classList.add('show-controls');
-            }
-            if (sessionInfo) {
-                sessionInfo.classList.add('show-controls');
-            }
-
-            // Clear existing timeout
-            if (controlsTimeout) {
-                clearTimeout(controlsTimeout);
-            }
-
-            // Hide controls after 3 seconds of no movement
-            if (isFullscreen) {
-                controlsTimeout = setTimeout(() => {
-                    hideControls();
-                }, 3000);
-            }
-        }
-
-        function hideControls() {
-            const header = document.getElementById('header');
-            const mobileToggle = document.getElementById('mobile-menu-toggle');
-            const sessionInfo = document.getElementById('session-info');
-            
-            header.classList.remove('show-controls');
-            if (mobileToggle) {
-                mobileToggle.classList.remove('show-controls');
-            }
-            if (sessionInfo) {
-                sessionInfo.classList.remove('show-controls');
-            }
-        }
-
-        // Track mouse movement for fullscreen controls
-        let mouseMoveHandler = null;
-        let touchMoveHandler = null;
-
-        function setupFullscreenControls() {
-            // Mouse movement
-            mouseMoveHandler = () => {
-                if (isFullscreen) {
-                    showControls();
-                }
-            };
-
-            // Touch movement (for mobile)
-            touchMoveHandler = () => {
-                if (isFullscreen) {
-                    showControls();
-                }
-            };
-
-            document.addEventListener('mousemove', mouseMoveHandler);
-            document.addEventListener('touchmove', touchMoveHandler, { passive: true });
-        }
-
-        function removeFullscreenControls() {
-            if (mouseMoveHandler) {
-                document.removeEventListener('mousemove', mouseMoveHandler);
-            }
-            if (touchMoveHandler) {
-                document.removeEventListener('touchmove', touchMoveHandler);
-            }
-            if (controlsTimeout) {
-                clearTimeout(controlsTimeout);
-            }
-            hideControls();
-        }
 
         // Fullscreen button - use document.body for true fullscreen
         document.getElementById('fullscreen-btn').addEventListener('click', () => {
@@ -1107,44 +1010,9 @@
             
             isFullscreen = isCurrentlyFullscreen;
             
-            if (isCurrentlyFullscreen) {
-                setupFullscreenControls();
-                // Hide controls immediately in fullscreen (presentation mode)
-                hideControls();
-            } else {
-                removeFullscreenControls();
-                // Always show controls when not in fullscreen
-                const header = document.getElementById('header');
-                header.classList.add('show-controls');
-            }
+            // Controls are permanently hidden in fullscreen via CSS
+            // No JavaScript needed to show/hide them
         }
-
-        // Keep controls visible when hovering over header
-        const headerElement = document.getElementById('header');
-        headerElement.addEventListener('mouseenter', () => {
-            if (isFullscreen) {
-                showControls();
-            }
-        });
-
-        headerElement.addEventListener('mouseleave', () => {
-            if (isFullscreen) {
-                // Hide after a short delay when leaving header
-                setTimeout(() => {
-                    if (!headerElement.matches(':hover')) {
-                        hideControls();
-                    }
-                }, 500);
-            }
-        });
-
-        // Also show controls on touch/click in fullscreen (for mobile)
-        const viewerContainerElement = document.getElementById('viewer-container');
-        viewerContainerElement.addEventListener('click', (e) => {
-            if (isFullscreen && (e.target === viewerContainerElement || e.target.tagName === 'CANVAS' || e.target.id === 'pdf-viewer')) {
-                showControls();
-            }
-        }, { passive: true });
 
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
@@ -1197,6 +1065,21 @@
                     } else if (e.ctrlKey || e.metaKey) {
                         e.preventDefault();
                         document.getElementById('fullscreen-btn').click();
+                    }
+                    break;
+                case 'Escape':
+                    // ESC key exits fullscreen
+                    if (isFullscreen) {
+                        e.preventDefault();
+                        if (document.exitFullscreen) {
+                            document.exitFullscreen();
+                        } else if (document.webkitExitFullscreen) {
+                            document.webkitExitFullscreen();
+                        } else if (document.mozCancelFullScreen) {
+                            document.mozCancelFullScreen();
+                        } else if (document.msExitFullscreen) {
+                            document.msExitFullscreen();
+                        }
                     }
                     break;
             }
