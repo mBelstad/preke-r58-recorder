@@ -266,6 +266,24 @@ async def switcher():
     raise HTTPException(status_code=404, detail="Switcher interface not found")
 
 
+@app.get("/pdf", response_class=HTMLResponse)
+async def pdf_viewer():
+    """Serve the PDF viewer interface (bypasses service worker caching)."""
+    pdf_path = Path(__file__).parent / "static" / "pdf_viewer.html"
+    if pdf_path.exists():
+        return pdf_path.read_text()
+    raise HTTPException(status_code=404, detail="PDF viewer not found")
+
+
+@app.get("/pdf-control", response_class=HTMLResponse)
+async def pdf_controller():
+    """Serve the PDF remote controller interface (bypasses service worker caching)."""
+    pdf_path = Path(__file__).parent / "static" / "pdf_controller.html"
+    if pdf_path.exists():
+        return pdf_path.read_text()
+    raise HTTPException(status_code=404, detail="PDF controller not found")
+
+
 @app.get("/static/r58_remote_mixer")
 async def remote_mixer_redirect():
     """Redirect /static/r58_remote_mixer to /static/r58_remote_mixer.html"""
@@ -5720,7 +5738,7 @@ async def pdf_control_websocket(websocket: WebSocket, role: str = "controller"):
                         
                         # Broadcast state update to all controllers
                         for controller_ws in session["controllers"]:
-                            if controller_ws != websocket and controller_ws.readyState == 1:  # OPEN
+                            if controller_ws != websocket:
                                 try:
                                     await controller_ws.send_json({
                                         "type": "state_update",
@@ -5751,7 +5769,7 @@ async def pdf_control_websocket(websocket: WebSocket, role: str = "controller"):
                             pass
     
     except WebSocketDisconnect:
-        logger.info(f"PDF control WebSocket disconnected: session={session_id}, role={role}")
+        logger.info(f"PDF control WebSocket disconnected: role={role}")
         
         if role == "display":
             session["display_ws"] = None
