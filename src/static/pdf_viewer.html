@@ -841,8 +841,7 @@
                 
                 await page.render(renderContext).promise;
                 
-                // Replace viewer content
-                const container = document.getElementById('viewer-container');
+                // Replace viewer content (container already defined above)
                 const existingCanvas = container.querySelector('canvas');
                 if (existingCanvas) {
                     existingCanvas.remove();
