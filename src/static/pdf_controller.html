@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>PDF Remote Control</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #e2e8f0;
+            min-height: 100vh;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #f1f5f9;
+            margin-bottom: 0.5rem;
+        }
+
+        .session-input {
+            background: #1e293b;
+            border: 2px solid #334155;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            color: #e2e8f0;
+            font-size: 1rem;
+            width: 100%;
+            text-align: center;
+            font-family: monospace;
+        }
+
+        .session-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+
+        .status {
+            text-align: center;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .status.connected {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+            border: 1px solid #10b981;
+        }
+
+        .status.disconnected {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+            border: 1px solid #ef4444;
+        }
+
+        .status.connecting {
+            background: rgba(251, 191, 36, 0.2);
+            color: #fbbf24;
+            border: 1px solid #fbbf24;
+        }
+
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+        }
+
+        .control-btn {
+            background: #1e293b;
+            border: 2px solid #334155;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            color: #e2e8f0;
+            font-size: 1.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            min-height: 100px;
+        }
+
+        .control-btn:active {
+            transform: scale(0.95);
+            background: #334155;
+        }
+
+        .control-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .control-btn.primary {
+            background: #3b82f6;
+            border-color: #2563eb;
+        }
+
+        .control-btn.primary:active {
+            background: #2563eb;
+        }
+
+        .control-btn.danger {
+            background: #ef4444;
+            border-color: #dc2626;
+        }
+
+        .control-btn.danger:active {
+            background: #dc2626;
+        }
+
+        .control-label {
+            font-size: 0.75rem;
+            font-weight: 400;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .page-info {
+            text-align: center;
+            padding: 1rem;
+            background: #1e293b;
+            border-radius: 0.5rem;
+            border: 1px solid #334155;
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #f1f5f9;
+        }
+
+        .zoom-controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .zoom-btn {
+            background: #1e293b;
+            border: 2px solid #334155;
+            border-radius: 0.5rem;
+            padding: 1rem 1.5rem;
+            color: #e2e8f0;
+            font-size: 1.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            touch-action: manipulation;
+            min-width: 80px;
+            min-height: 60px;
+        }
+
+        .zoom-btn:active {
+            transform: scale(0.95);
+            background: #334155;
+        }
+
+        .zoom-value {
+            padding: 1rem 1.5rem;
+            background: #1e293b;
+            border: 2px solid #334155;
+            border-radius: 0.5rem;
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #3b82f6;
+            min-width: 100px;
+            text-align: center;
+        }
+
+        .connect-btn {
+            background: #10b981;
+            border: none;
+            border-radius: 0.5rem;
+            padding: 1rem 2rem;
+            color: white;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            touch-action: manipulation;
+            width: 100%;
+            transition: background 0.2s;
+        }
+
+        .connect-btn:active {
+            background: #059669;
+            transform: scale(0.98);
+        }
+
+        .connect-btn:disabled {
+            background: #475569;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📱 PDF Remote Control</h1>
+            <p style="color: #94a3b8; font-size: 0.875rem; margin-top: 0.5rem;">Auto-connecting to display...</p>
+            <button id="connect-btn" class="connect-btn" style="margin-top: 1rem; display: none;">Reconnect</button>
+        </div>
+
+        <div id="status" class="status disconnected">Disconnected</div>
+
+        <div id="controls" style="display: none;">
+            <div class="page-info" id="page-info">Page 1 / 1</div>
+
+            <div class="controls-grid">
+                <button class="control-btn" id="prev-btn">
+                    <div style="font-size: 2rem;">←</div>
+                    <div class="control-label">Previous</div>
+                </button>
+                <button class="control-btn primary" id="next-btn">
+                    <div style="font-size: 2rem;">→</div>
+                    <div class="control-label">Next</div>
+                </button>
+                <button class="control-btn" id="first-btn">
+                    <div style="font-size: 1.5rem;">⏮</div>
+                    <div class="control-label">First</div>
+                </button>
+                <button class="control-btn" id="last-btn">
+                    <div style="font-size: 1.5rem;">⏭</div>
+                    <div class="control-label">Last</div>
+                </button>
+                <button class="control-btn" id="fullscreen-btn">
+                    <div style="font-size: 1.5rem;">⛶</div>
+                    <div class="control-label">Fullscreen</div>
+                </button>
+                <button class="control-btn danger" id="disconnect-btn">
+                    <div style="font-size: 1.5rem;">✕</div>
+                    <div class="control-label">Disconnect</div>
+                </button>
+            </div>
+
+            <div class="zoom-controls">
+                <button class="zoom-btn" id="zoom-out">−</button>
+                <div class="zoom-value" id="zoom-value">100%</div>
+                <button class="zoom-btn" id="zoom-in">+</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let currentState = {
+            current_page: 1,
+            total_pages: 1,
+            zoom: 100
+        };
+
+        // Auto-connect on load (single session, no ID needed)
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                connect();
+            }, 500);
+        });
+
+        // Connect button (for manual reconnect)
+        document.getElementById('connect-btn').addEventListener('click', () => {
+            connect();
+        });
+
+        function connect() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws/pdf-control?role=controller`;
+
+            updateStatus('connecting', 'Connecting...');
+
+            try {
+                ws = new WebSocket(wsUrl);
+
+                ws.onopen = () => {
+                    console.log('Connected to display');
+                    updateStatus('connected', 'Connected to Display');
+                    document.getElementById('controls').style.display = 'block';
+                    document.getElementById('connect-btn').disabled = true;
+                };
+
+                ws.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        handleMessage(data);
+                    } catch (e) {
+                        console.error('Error parsing message:', e);
+                    }
+                };
+
+                ws.onclose = () => {
+                    console.log('Disconnected from display');
+                    updateStatus('disconnected', 'Disconnected');
+                    document.getElementById('controls').style.display = 'none';
+                    document.getElementById('connect-btn').disabled = false;
+                    // Auto-reconnect after 2 seconds
+                    setTimeout(() => {
+                        connect();
+                    }, 2000);
+                };
+
+                ws.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                    updateStatus('disconnected', 'Connection Error');
+                };
+            } catch (e) {
+                console.error('Failed to create WebSocket:', e);
+                updateStatus('disconnected', 'Connection Failed');
+            }
+        }
+
+        function handleMessage(data) {
+            switch(data.type) {
+                case 'state_sync':
+                case 'state_update':
+                    if (data.state) {
+                        currentState = { ...currentState, ...data.state };
+                        updateUI();
+                    }
+                    break;
+                case 'display_connected':
+                    if (data.connected) {
+                        updateStatus('connected', 'Connected to Display');
+                    } else {
+                        updateStatus('disconnected', 'Display Disconnected');
+                    }
+                    break;
+            }
+        }
+
+        function sendCommand(type, payload = {}) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: type,
+                    ...payload
+                }));
+            }
+        }
+
+        function updateStatus(status, message) {
+            const statusEl = document.getElementById('status');
+            statusEl.className = `status ${status}`;
+            statusEl.textContent = message;
+        }
+
+        function updateUI() {
+            document.getElementById('page-info').textContent = 
+                `Page ${currentState.current_page} / ${currentState.total_pages}`;
+            document.getElementById('zoom-value').textContent = `${currentState.zoom}%`;
+        }
+
+        // Control buttons
+        document.getElementById('prev-btn').addEventListener('click', () => {
+            sendCommand('prev_page');
+        });
+
+        document.getElementById('next-btn').addEventListener('click', () => {
+            sendCommand('next_page');
+        });
+
+        document.getElementById('first-btn').addEventListener('click', () => {
+            sendCommand('goto_page', { page: 1 });
+        });
+
+        document.getElementById('last-btn').addEventListener('click', () => {
+            sendCommand('goto_page', { page: currentState.total_pages });
+        });
+
+        document.getElementById('zoom-in').addEventListener('click', () => {
+            sendCommand('zoom_in');
+        });
+
+        document.getElementById('zoom-out').addEventListener('click', () => {
+            sendCommand('zoom_out');
+        });
+
+        document.getElementById('fullscreen-btn').addEventListener('click', () => {
+            sendCommand('fullscreen');
+        });
+
+        document.getElementById('disconnect-btn').addEventListener('click', () => {
+            if (ws) {
+                ws.close();
+            }
+            document.getElementById('controls').style.display = 'none';
+            updateStatus('disconnected', 'Disconnected');
+            // Auto-reconnect after 3 seconds
+            setTimeout(() => {
+                connect();
+            }, 3000);
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT') return;
+
+            switch(e.key) {
+                case 'ArrowLeft':
+                    e.preventDefault();
+                    sendCommand('prev_page');
+                    break;
+                case 'ArrowRight':
+                    e.preventDefault();
+                    sendCommand('next_page');
+                    break;
+                case '+':
+                case '=':
+                    e.preventDefault();
+                    sendCommand('zoom_in');
+                    break;
+                case '-':
+                    e.preventDefault();
+                    sendCommand('zoom_out');
+                    break;
+            }
+        });
+    </script>
+</body>
+</html>

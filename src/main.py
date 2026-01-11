@@ -5615,6 +5615,170 @@ async def ptz_controller_websocket(websocket: WebSocket):
 
 
 # ============================================================================
+# PDF Viewer Remote Control
+# ============================================================================
+
+# Single PDF session for simplicity
+pdf_session: Dict[str, Any] = {
+    "display_ws": None,
+    "controllers": [],
+    "state": {
+        "current_page": 1,
+        "total_pages": 1,
+        "zoom": 100
+    }
+}
+
+@app.websocket("/ws/pdf-control")
+async def pdf_control_websocket(websocket: WebSocket, role: str = "controller"):
+    """
+    WebSocket endpoint for PDF viewer remote control.
+    Single session for simplicity - one display, multiple controllers.
+    
+    Roles:
+    - "display": The computer showing the PDF (receives commands)
+    - "controller": Mobile device controlling the PDF (sends commands)
+    
+    Usage:
+    - Display: ws://host/ws/pdf-control?role=display
+    - Controller: ws://host/ws/pdf-control?role=controller
+    """
+    await websocket.accept()
+    logger.info(f"PDF control WebSocket connected: role={role}")
+    
+    session = pdf_session
+    
+    try:
+        if role == "display":
+            # Register as display
+            if session["display_ws"]:
+                # Close existing display connection
+                try:
+                    await session["display_ws"].close()
+                except:
+                    pass
+            session["display_ws"] = websocket
+            
+            # Send current state to display
+            await websocket.send_json({
+                "type": "state_sync",
+                "state": session["state"]
+            })
+            
+            # Notify all controllers that display is connected
+            for controller_ws in session["controllers"]:
+                try:
+                    await controller_ws.send_json({
+                        "type": "display_connected",
+                        "connected": True
+                    })
+                except:
+                    pass
+        
+        elif role == "controller":
+            # Register as controller
+            session["controllers"].append(websocket)
+            
+            # Send current state to controller
+            await websocket.send_json({
+                "type": "state_sync",
+                "state": session["state"],
+                "display_connected": session["display_ws"] is not None
+            })
+        
+        # Handle messages
+        while True:
+            data = await websocket.receive_json()
+            msg_type = data.get("type")
+            
+            if role == "controller":
+                # Controller sending commands - forward to display
+                if session["display_ws"] and session["display_ws"] != websocket:
+                    try:
+                        await session["display_ws"].send_json(data)
+                        
+                        # Update state based on command
+                        if msg_type == "next_page":
+                            session["state"]["current_page"] = min(
+                                session["state"]["current_page"] + 1,
+                                session["state"]["total_pages"]
+                            )
+                        elif msg_type == "prev_page":
+                            session["state"]["current_page"] = max(
+                                session["state"]["current_page"] - 1,
+                                1
+                            )
+                        elif msg_type == "goto_page":
+                            page = data.get("page", 1)
+                            session["state"]["current_page"] = max(1, min(page, session["state"]["total_pages"]))
+                        elif msg_type == "zoom_in":
+                            session["state"]["zoom"] = min(session["state"]["zoom"] + 25, 300)
+                        elif msg_type == "zoom_out":
+                            session["state"]["zoom"] = max(session["state"]["zoom"] - 25, 50)
+                        elif msg_type == "set_zoom":
+                            session["state"]["zoom"] = max(50, min(data.get("zoom", 100), 300))
+                        
+                        # Broadcast state update to all controllers
+                        for controller_ws in session["controllers"]:
+                            if controller_ws != websocket and controller_ws.readyState == 1:  # OPEN
+                                try:
+                                    await controller_ws.send_json({
+                                        "type": "state_update",
+                                        "state": session["state"]
+                                    })
+                                except:
+                                    pass
+                    except Exception as e:
+                        logger.error(f"Error forwarding command to display: {e}")
+                        await websocket.send_json({
+                            "type": "error",
+                            "message": "Display not connected"
+                        })
+            
+            elif role == "display":
+                # Display sending state updates
+                if msg_type == "state_update":
+                    session["state"].update(data.get("state", {}))
+                    
+                    # Broadcast to all controllers
+                    for controller_ws in session["controllers"]:
+                        try:
+                            await controller_ws.send_json({
+                                "type": "state_update",
+                                "state": session["state"]
+                            })
+                        except:
+                            pass
+    
+    except WebSocketDisconnect:
+        logger.info(f"PDF control WebSocket disconnected: session={session_id}, role={role}")
+        
+        if role == "display":
+            session["display_ws"] = None
+            # Notify controllers
+            for controller_ws in session["controllers"]:
+                try:
+                    await controller_ws.send_json({
+                        "type": "display_connected",
+                        "connected": False
+                    })
+                except:
+                    pass
+        elif role == "controller":
+            if websocket in session["controllers"]:
+                session["controllers"].remove(websocket)
+        
+        # Session cleanup handled automatically (single session)
+    
+    except Exception as e:
+        logger.error(f"PDF control WebSocket error: {e}")
+        try:
+            await websocket.close()
+        except:
+            pass
+
+
+# ============================================================================
 # VDO.ninja API (Companion/Stream Deck integration)
 # ============================================================================
 

@@ -199,17 +199,17 @@
             align-items: center;
             justify-content: center;
             padding: 1rem;
-            overflow: auto;
+            overflow: hidden; /* Prevent scrolling - single page only */
             background: #1e293b;
             -webkit-overflow-scrolling: touch;
             touch-action: pan-x pan-y pinch-zoom;
         }
 
         /* Fullscreen presentation mode - 100% screen */
-        body:fullscreen .viewer-container,
-        body:-webkit-full-screen .viewer-container,
-        body:-moz-full-screen .viewer-container,
-        body:-ms-fullscreen .viewer-container {
+        :fullscreen .viewer-container,
+        :-webkit-full-screen .viewer-container,
+        :-moz-full-screen .viewer-container,
+        :-ms-fullscreen .viewer-container {
             padding: 0;
             background: #000;
             width: 100vw;
@@ -217,6 +217,14 @@
             position: fixed;
             top: 0;
             left: 0;
+        }
+
+        html:fullscreen,
+        html:-webkit-full-screen,
+        html:-moz-full-screen,
+        html:-ms-fullscreen {
+            background: #000;
+            overflow: hidden;
         }
 
         @media (max-width: 768px) {
@@ -245,15 +253,25 @@
             height: 100vh;
         }
 
-        /* Fullscreen - canvas styling */
-        body:fullscreen canvas,
-        body:-webkit-full-screen canvas,
-        body:-moz-full-screen canvas,
-        body:-ms-fullscreen canvas {
+        /* Fullscreen - canvas styling for single page */
+        :fullscreen canvas,
+        :-webkit-full-screen canvas,
+        :-moz-full-screen canvas,
+        :-ms-fullscreen canvas {
             max-width: 100vw !important;
             max-height: 100vh !important;
             width: auto !important;
             height: auto !important;
+            object-fit: contain !important;
+            margin: auto !important;
+        }
+
+        /* Ensure container doesn't scroll in fullscreen */
+        :fullscreen .viewer-container,
+        :-webkit-full-screen .viewer-container,
+        :-moz-full-screen .viewer-container,
+        :-ms-fullscreen .viewer-container {
+            overflow: hidden !important;
         }
 
         .error-message {
@@ -303,6 +321,58 @@
             font-size: 0.875rem;
             color: #cbd5e1;
             padding: 0 0.25rem;
+        }
+
+        .session-info {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            background: rgba(30, 41, 59, 0.95);
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            border: 1px solid #334155;
+            font-size: 0.75rem;
+            color: #cbd5e1;
+            z-index: 1001;
+            backdrop-filter: blur(10px);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+
+        /* Hide session info in fullscreen */
+        body:fullscreen .session-info,
+        body:-webkit-full-screen .session-info,
+        body:-moz-full-screen .session-info,
+        body:-ms-fullscreen .session-info {
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(-100%);
+        }
+
+        body:fullscreen .session-info.show-controls,
+        body:-webkit-full-screen .session-info.show-controls,
+        body:-moz-full-screen .session-info.show-controls,
+        body:-ms-fullscreen .session-info.show-controls {
+            opacity: 1;
+            pointer-events: all;
+            transform: translateY(0);
+        }
+
+        .session-info.connected {
+            border-color: #10b981;
+        }
+
+        .session-info.disconnected {
+            border-color: #ef4444;
+        }
+
+        .session-qr {
+            margin-top: 0.5rem;
+            text-align: center;
+        }
+
+        .session-qr img {
+            max-width: 120px;
+            height: auto;
         }
 
         @media (max-width: 768px) {
@@ -405,6 +475,11 @@
 </head>
 <body>
     <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Toggle menu">☰</button>
+    <div class="session-info" id="session-info" style="display: none;">
+        <div>📱 Remote Control</div>
+        <div id="session-status" style="margin-top: 0.25rem; font-size: 0.7rem;">Disconnected</div>
+        <div class="session-qr" id="session-qr" style="display: none;"></div>
+    </div>
     <div class="header" id="header">
         <h1>PDF Viewer</h1>
         <div class="controls">
@@ -444,6 +519,139 @@
         const urlParams = new URLSearchParams(window.location.search);
         const pdfUrl = urlParams.get('url');
         const pdfFile = urlParams.get('file');
+        const role = urlParams.get('role') || 'display'; // 'display' or 'controller'
+        // Single session - no session ID needed
+
+        // WebSocket for remote control
+        let ws = null;
+        let wsReconnectTimeout = null;
+
+        // Initialize WebSocket connection
+        function initWebSocket() {
+            if (role !== 'display') return; // Only display mode needs WebSocket
+            
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws/pdf-control?role=display`;
+            
+            try {
+                ws = new WebSocket(wsUrl);
+                
+                ws.onopen = () => {
+                    console.log('WebSocket connected');
+                    updateSessionStatus(true);
+                };
+                
+                ws.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        handleRemoteCommand(data);
+                    } catch (e) {
+                        console.error('Error parsing WebSocket message:', e);
+                    }
+                };
+                
+                ws.onclose = () => {
+                    console.log('WebSocket disconnected');
+                    updateSessionStatus(false);
+                    // Reconnect after 3 seconds
+                    wsReconnectTimeout = setTimeout(initWebSocket, 3000);
+                };
+                
+                ws.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                    updateSessionStatus(false);
+                };
+            } catch (e) {
+                console.error('Failed to create WebSocket:', e);
+            }
+        }
+
+        function handleRemoteCommand(data) {
+            switch(data.type) {
+                case 'next_page':
+                    if (currentPage < totalPages && pdfDoc) {
+                        renderPage(currentPage + 1);
+                    }
+                    break;
+                case 'prev_page':
+                    if (currentPage > 1 && pdfDoc) {
+                        renderPage(currentPage - 1);
+                    }
+                    break;
+                case 'goto_page':
+                    const page = data.page || 1;
+                    if (pdfDoc && page >= 1 && page <= totalPages) {
+                        renderPage(page);
+                    }
+                    break;
+                case 'zoom_in':
+                    document.getElementById('zoom-in').click();
+                    break;
+                case 'zoom_out':
+                    document.getElementById('zoom-out').click();
+                    break;
+                case 'set_zoom':
+                    const zoom = data.zoom || 100;
+                    currentZoom = Math.max(50, Math.min(zoom, 300));
+                    document.getElementById('zoom-value').textContent = currentZoom + '%';
+                    if (pdfDoc) {
+                        renderPage(currentPage);
+                    }
+                    break;
+                case 'state_sync':
+                    if (data.state) {
+                        if (data.state.current_page) currentPage = data.state.current_page;
+                        if (data.state.total_pages) totalPages = data.state.total_pages;
+                        if (data.state.zoom) {
+                            currentZoom = data.state.zoom;
+                            document.getElementById('zoom-value').textContent = currentZoom + '%';
+                        }
+                        updatePageControls();
+                    }
+                    break;
+            }
+        }
+
+        function updateSessionStatus(connected) {
+            const sessionInfo = document.getElementById('session-info');
+            const sessionStatus = document.getElementById('session-status');
+            
+            if (role === 'display') {
+                sessionInfo.style.display = 'block';
+                sessionStatus.textContent = connected ? 'Controller Connected' : 'Waiting for controller...';
+                sessionInfo.className = connected ? 'session-info connected' : 'session-info disconnected';
+                
+                // Generate QR code for controller URL
+                const controllerUrl = `${window.location.origin}/static/pdf_controller.html`;
+                generateQRCode(controllerUrl);
+            }
+        }
+
+        function generateQRCode(url) {
+            // Use a simple QR code API (or you can use a library)
+            const qrContainer = document.getElementById('session-qr');
+            qrContainer.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(url)}" alt="QR Code">`;
+            qrContainer.style.display = 'block';
+        }
+
+        // Send state updates to server
+        function sendStateUpdate() {
+            if (ws && ws.readyState === WebSocket.OPEN && role === 'display') {
+                ws.send(JSON.stringify({
+                    type: 'state_update',
+                    state: {
+                        current_page: currentPage,
+                        total_pages: totalPages,
+                        zoom: currentZoom
+                    }
+                }));
+            }
+        }
+
+        // Initialize WebSocket on page load
+        if (role === 'display') {
+            initWebSocket();
+        }
 
         // Initialize PDF.js
         let pdfjsLib = null;
@@ -554,6 +762,7 @@
                 await renderPage(currentPage);
                 
                 updatePageControls();
+                sendStateUpdate(); // Notify remote controllers
                 
             } catch (error) {
                 console.error('Error loading PDF with PDF.js:', error);
@@ -576,10 +785,24 @@
                 const context = canvas.getContext('2d');
                 canvas.height = viewport.height;
                 canvas.width = viewport.width;
+                
+                // Single page display - fit to container while maintaining aspect ratio
+                const container = document.getElementById('viewer-container');
+                const containerWidth = container.clientWidth - 32; // Account for padding
+                const containerHeight = container.clientHeight - 32;
+                
+                // Calculate scale to fit container
+                const scaleX = containerWidth / viewport.width;
+                const scaleY = containerHeight / viewport.height;
+                const scale = Math.min(scaleX, scaleY, 1); // Don't scale up beyond 100%
+                
+                canvas.style.width = `${viewport.width * scale}px`;
+                canvas.style.height = `${viewport.height * scale}px`;
                 canvas.style.maxWidth = '100%';
-                canvas.style.height = 'auto';
+                canvas.style.maxHeight = '100%';
                 canvas.style.display = 'block';
-                canvas.style.margin = '0 auto';
+                canvas.style.margin = 'auto';
+                canvas.style.objectFit = 'contain';
                 
                 const renderContext = {
                     canvasContext: context,
@@ -600,17 +823,13 @@
                 document.getElementById('loading').style.display = 'none';
                 container.appendChild(canvas);
                 
-                // Scroll to top
+                // Ensure single page is centered
                 container.scrollTop = 0;
-                
-                // In fullscreen, center the canvas
-                if (isFullscreen) {
-                    canvas.style.margin = 'auto';
-                    canvas.style.display = 'block';
-                }
+                container.scrollLeft = 0;
                 
                 currentPage = pageNum;
                 updatePageControls();
+                sendStateUpdate(); // Notify remote controllers
                 
             } catch (error) {
                 console.error('Error rendering page:', error);
@@ -678,6 +897,7 @@
                     iframe.style.width = `${100 / (currentZoom / 100)}%`;
                 }
             }
+            sendStateUpdate();
         });
 
         // Page navigation
@@ -700,10 +920,14 @@
         function showControls() {
             const header = document.getElementById('header');
             const mobileToggle = document.getElementById('mobile-menu-toggle');
+            const sessionInfo = document.getElementById('session-info');
             
             header.classList.add('show-controls');
             if (mobileToggle) {
                 mobileToggle.classList.add('show-controls');
+            }
+            if (sessionInfo) {
+                sessionInfo.classList.add('show-controls');
             }
 
             // Clear existing timeout
@@ -722,10 +946,14 @@
         function hideControls() {
             const header = document.getElementById('header');
             const mobileToggle = document.getElementById('mobile-menu-toggle');
+            const sessionInfo = document.getElementById('session-info');
             
             header.classList.remove('show-controls');
             if (mobileToggle) {
                 mobileToggle.classList.remove('show-controls');
+            }
+            if (sessionInfo) {
+                sessionInfo.classList.remove('show-controls');
             }
         }
 
@@ -765,20 +993,20 @@
             hideControls();
         }
 
-        // Fullscreen button
+        // Fullscreen button - use document.body for true fullscreen
         document.getElementById('fullscreen-btn').addEventListener('click', () => {
-            const container = document.getElementById('viewer-container');
+            const element = document.documentElement; // Use html element for true fullscreen
             if (!document.fullscreenElement && !document.webkitFullscreenElement && 
                 !document.mozFullScreenElement && !document.msFullscreenElement) {
                 // Enter fullscreen
-                if (container.requestFullscreen) {
-                    container.requestFullscreen();
-                } else if (container.webkitRequestFullscreen) {
-                    container.webkitRequestFullscreen();
-                } else if (container.mozRequestFullScreen) {
-                    container.mozRequestFullScreen();
-                } else if (container.msRequestFullscreen) {
-                    container.msRequestFullscreen();
+                if (element.requestFullscreen) {
+                    element.requestFullscreen();
+                } else if (element.webkitRequestFullscreen) {
+                    element.webkitRequestFullscreen();
+                } else if (element.mozRequestFullScreen) {
+                    element.mozRequestFullScreen();
+                } else if (element.msRequestFullscreen) {
+                    element.msRequestFullscreen();
                 }
             } else {
                 // Exit fullscreen
