@@ -1093,17 +1093,18 @@
         }
 
         // Keep controls visible when hovering over header
-        header.addEventListener('mouseenter', () => {
+        const headerElement = document.getElementById('header');
+        headerElement.addEventListener('mouseenter', () => {
             if (isFullscreen) {
                 showControls();
             }
         });
 
-        header.addEventListener('mouseleave', () => {
+        headerElement.addEventListener('mouseleave', () => {
             if (isFullscreen) {
                 // Hide after a short delay when leaving header
                 setTimeout(() => {
-                    if (!header.matches(':hover')) {
+                    if (!headerElement.matches(':hover')) {
                         hideControls();
                     }
                 }, 500);
