@@ -594,15 +594,12 @@ export async function buildMixerUrl(options: {
     return null
   }
   const VDO_PROTOCOL = getVdoProtocol()
+  // Use standard mixer.html (alpha mixer lacks bundled dependencies)
+  const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/mixer.html`)
   
-  // Use director view instead of mixer.html
-  // mixer.html has JavaScript issues ("digest" error) that prevent cameras from showing
-  // Director view works correctly and shows all connected cameras
-  const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/`)
-  
-  // Room name - director mode
+  // Room name
   const room = options.room || VDO_ROOM
-  url.searchParams.set('director', room)
+  url.searchParams.set('room', room)
   
   // Room password for authentication
   url.searchParams.set('password', VDO_DIRECTOR_PASSWORD)
@@ -612,11 +609,6 @@ export async function buildMixerUrl(options: {
   if (apiKey) {
     url.searchParams.set('api', apiKey)
   }
-  
-  // UI preferences for cleaner look
-  url.searchParams.set('cleandirector', '')
-  url.searchParams.set('showlabels', '')
-  url.searchParams.set('darkmode', '')
   
   // MediaMTX integration - enables WHEP/WHIP transport instead of P2P
   // This is critical for working through FRP tunnels
