@@ -627,8 +627,30 @@ export async function buildMixerUrl(options: {
  * 
  * This host is used by VDO.ninja for MediaMTX SFU mode, which requires HTTPS.
  * Gets from device configuration or constructs from FRP URL.
+ * 
+ * For Pi kiosk: Uses app.itagenten.no since local MediaMTX isn't HTTPS-accessible.
  */
 export async function getMediaMtxHost(): Promise<string | null> {
+  // Check if running on Pi kiosk - always use FRP for VDO.ninja
+  // (VDO.ninja needs HTTPS MediaMTX, which only FRP provides)
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname
+    const port = window.location.port
+    
+    const isPiKiosk = (hostname === 'localhost' || 
+                       hostname === '127.0.0.1' || 
+                       hostname === '192.168.1.81' || 
+                       hostname === '192.168.68.53' || 
+                       hostname === '100.107.248.29') &&
+                       (!port || port === '80' || port === '')
+    
+    if (isPiKiosk) {
+      // Pi kiosk: VDO.ninja (HTTPS) needs HTTPS MediaMTX, so use FRP
+      console.log('[VDO.ninja] Pi kiosk detected - using app.itagenten.no for MediaMTX')
+      return 'app.itagenten.no'
+    }
+  }
+  
   // Try to get from device config
   try {
     const { getDeviceUrl, getFrpUrl } = await import('./api')
