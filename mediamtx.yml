@@ -37,6 +37,8 @@ webrtcAddress: :8889
 webrtcAllowOrigins:
   - "https://preke.no"
   - "https://*.preke.no"
+  - "https://app.itagenten.no"
+  - "https://r58-vdo.itagenten.no"
   - "https://itagenten.no"
   - "https://*.itagenten.no"
   - "http://localhost:*"
