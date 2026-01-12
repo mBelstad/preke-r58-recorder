@@ -101,7 +101,7 @@ start_chromium() {
         # &nopreview disables local video preview (saves CPU/memory on R58)
         # &autostart automatically starts streaming
         # &password is required to join the same authenticated room as the director
-        local vdo_url="https://$VDONINJA_HOST/?push=$push_id&room=$ROOM_NAME&password=preke-r58-2024&whepshare=$encoded_whep&label=$label&videodevice=0&audiodevice=0&nopreview&autostart"
+        local vdo_url="https://$VDONINJA_HOST/?push=$push_id&room=$ROOM_NAME&password=preke-r58-2024&whepshare=$encoded_whep&label=$label&videodevice=0&audiodevice=0&nopreview&cleanoutput&autostart"
         urls="$urls $vdo_url"
         
         log "Camera: $label -> $whep_url"
