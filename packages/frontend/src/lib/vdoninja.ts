@@ -611,9 +611,13 @@ export async function buildMixerUrl(options: {
   }
   
   // MediaMTX integration - enables WHEP/WHIP transport instead of P2P
-  // This is critical for working through FRP tunnels
+  // When mediamtxHost is provided, uses relay. Otherwise uses native VDO.ninja P2P.
+  // P2P is preferred when devices are on same network (lower latency).
   if (options.mediamtxHost) {
     url.searchParams.set('mediamtx', options.mediamtxHost)
+  } else {
+    // Enable native VDO.ninja P2P mode
+    url.searchParams.set('p2p', '')
   }
   
   // Custom CSS for R58 reskin
@@ -630,8 +634,40 @@ export async function buildMixerUrl(options: {
  * 
  * For Pi kiosk: Uses app.itagenten.no since local MediaMTX isn't HTTPS-accessible.
  */
+/**
+ * Check if P2P mode is preferred (via URL param or localStorage setting)
+ * P2P mode uses VDO.ninja's native WebRTC P2P instead of MediaMTX relay.
+ * This reduces latency when devices are on the same local network.
+ */
+function isP2PModeEnabled(): boolean {
+  if (typeof window === 'undefined') return false
+  
+  // Check URL parameter: ?p2p=true or ?p2p
+  const urlParams = new URLSearchParams(window.location.search)
+  if (urlParams.has('p2p')) {
+    return urlParams.get('p2p') !== 'false'
+  }
+  
+  // Check localStorage setting
+  try {
+    const settings = localStorage.getItem('preke-settings')
+    if (settings) {
+      const parsed = JSON.parse(settings)
+      if (parsed.mixerP2P === true) return true
+    }
+  } catch {}
+  
+  return false
+}
+
 export async function getMediaMtxHost(): Promise<string | null> {
-  // Check if running on Pi kiosk - always use FRP for VDO.ninja
+  // If P2P mode is enabled, return null to skip MediaMTX relay
+  if (isP2PModeEnabled()) {
+    console.log('[VDO.ninja] P2P mode enabled - skipping MediaMTX relay')
+    return null
+  }
+  
+  // Check if running on Pi kiosk - use FRP for VDO.ninja
   // (VDO.ninja needs HTTPS MediaMTX, which only FRP provides)
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname
