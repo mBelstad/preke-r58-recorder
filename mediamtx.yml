@@ -53,10 +53,14 @@ webrtcEncryption: no
 webrtcServerKey: /etc/ssl/r58/privkey.pem
 webrtcServerCert: /etc/ssl/r58/fullchain.pem
 
-# ICE configuration for NAT traversal via FRP
-# webrtcAdditionalHosts advertises this IP as a host candidate (v1.15.6+)
-# This is necessary for remote clients to connect through FRP
-webrtcAdditionalHosts: ["65.109.32.111"]
+# ICE configuration for NAT traversal
+# webrtcAdditionalHosts advertises these IPs as host candidates (v1.15.6+)
+# Priority order: Tailscale (P2P) > LAN (P2P) > VPS (relay fallback)
+# This enables direct P2P connections when possible, falling back to VPS relay only when necessary
+webrtcAdditionalHosts:
+  - "100.65.219.117"  # Tailscale IP - P2P priority (no bandwidth cost)
+  - "192.168.1.24"    # LAN IP - P2P priority (local network)
+  - "65.109.32.111"   # VPS IP - Relay fallback (for remote access)
 
 # UDP port for WebRTC media (mapped via FRP to 18189 on VPS)
 webrtcLocalUDPAddress: :8189
