@@ -72,9 +72,9 @@ export function useR58WebSocket() {
       return
     }
     
-    // Only log on first attempt
+    // Only log on first attempt (debug level to reduce console noise)
     if (reconnectAttempts.value === 0) {
-      console.log('[WebSocket] Connecting to', url)
+      console.debug('[WebSocket] Connecting to', url)
     }
     
     ws = new WebSocket(url)
@@ -113,16 +113,19 @@ export function useR58WebSocket() {
       
       // Check if this was a failed connection (not a graceful disconnect)
       // WebSocket close code 1006 = abnormal closure (connection never established)
+      // Note: We only log debug info, not warnings, since WebSocket is optional on R58
       if (event.code === 1006 && reconnectAttempts.value === 0) {
         // First connection failed - endpoint may not exist (404)
-        console.warn('[WebSocket] Connection failed - endpoint may not be available on this device')
+        // This is expected on R58 devices that don't have WebSocket support
+        console.debug('[WebSocket] Initial connection failed - WebSocket endpoint may not be configured')
       }
       
       scheduleReconnect()
     }
     
     ws.onerror = () => {
-      // Error is logged by onclose handler, avoid duplicate logs
+      // Errors are handled by onclose - suppress duplicate logging
+      // WebSocket errors on R58 are expected (endpoint doesn't exist)
     }
   }
   
@@ -136,7 +139,7 @@ export function useR58WebSocket() {
     const MAX_RECONNECT_ATTEMPTS = 3
     if (reconnectAttempts.value >= MAX_RECONNECT_ATTEMPTS) {
       endpointUnavailable.value = true
-      console.log('[WebSocket] Endpoint unavailable, real-time events disabled. This is normal if WebSocket is not configured on the backend.')
+      console.info('[WebSocket] Real-time events disabled (WebSocket not available on this device)')
       return
     }
     

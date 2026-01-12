@@ -1,15 +1,23 @@
 /**
  * useTheme - Theme management composable
  * Handles light/dark mode switching with localStorage persistence
+ * 
+ * Uses lazy initialization to avoid TDZ issues in minified builds.
  */
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, onMounted, type Ref } from 'vue'
 
 export type Theme = 'light' | 'dark'
 
 const THEME_STORAGE_KEY = 'preke-theme'
 
-// Reactive theme state
-const theme = ref<Theme>('dark')
+// Lazy singleton initialization to avoid TDZ issues
+let _theme: Ref<Theme> | null = null
+function getThemeRef(): Ref<Theme> {
+  if (!_theme) {
+    _theme = ref<Theme>('dark')
+  }
+  return _theme
+}
 
 /**
  * Apply theme to document
@@ -51,30 +59,33 @@ function saveTheme(newTheme: Theme) {
   }
 }
 
-/**
- * Initialize theme on mount
- */
-function initializeTheme() {
-  const savedTheme = loadTheme()
-  theme.value = savedTheme
-  applyTheme(savedTheme)
-}
-
-/**
- * Toggle between light and dark mode
- */
-function toggleTheme() {
-  theme.value = theme.value === 'light' ? 'dark' : 'light'
-}
-
-/**
- * Set theme explicitly
- */
-function setTheme(newTheme: Theme) {
-  theme.value = newTheme
-}
-
 export function useTheme() {
+  // Get singleton ref (lazy initialization)
+  const theme = getThemeRef()
+
+  /**
+   * Initialize theme on mount
+   */
+  function initializeTheme() {
+    const savedTheme = loadTheme()
+    theme.value = savedTheme
+    applyTheme(savedTheme)
+  }
+
+  /**
+   * Toggle between light and dark mode
+   */
+  function toggleTheme() {
+    theme.value = theme.value === 'light' ? 'dark' : 'light'
+  }
+
+  /**
+   * Set theme explicitly
+   */
+  function setTheme(newTheme: Theme) {
+    theme.value = newTheme
+  }
+
   // Watch for theme changes and apply them
   watch(theme, (newTheme) => {
     applyTheme(newTheme)

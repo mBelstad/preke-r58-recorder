@@ -3,8 +3,10 @@
  * 
  * Provides keyboard-driven workflows for professional operators.
  * Shortcuts are context-aware and can be customized.
+ * 
+ * Uses lazy initialization to avoid TDZ issues in minified builds.
  */
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed, type Ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 
 export interface Shortcut {
@@ -16,9 +18,25 @@ export interface Shortcut {
   enabled?: () => boolean
 }
 
-const registeredShortcuts = ref<Map<string, Shortcut>>(new Map())
-const isHelpModalOpen = ref(false)
-const currentContext = ref<string>('global')
+// Lazy singleton initialization to avoid TDZ issues
+interface ShortcutsState {
+  registeredShortcuts: Ref<Map<string, Shortcut>>
+  isHelpModalOpen: Ref<boolean>
+  currentContext: Ref<string>
+}
+
+let _singleton: ShortcutsState | null = null
+
+function getSingleton(): ShortcutsState {
+  if (!_singleton) {
+    _singleton = {
+      registeredShortcuts: ref<Map<string, Shortcut>>(new Map()),
+      isHelpModalOpen: ref(false),
+      currentContext: ref<string>('global'),
+    }
+  }
+  return _singleton
+}
 
 function getShortcutKey(key: string, modifiers?: string[]): string {
   const mods = modifiers?.sort().join('+') || ''
@@ -26,6 +44,9 @@ function getShortcutKey(key: string, modifiers?: string[]): string {
 }
 
 export function useKeyboardShortcuts() {
+  // Get singleton state (lazy initialization)
+  const { registeredShortcuts, isHelpModalOpen, currentContext } = getSingleton()
+  
   const router = useRouter()
   const route = useRoute()
 

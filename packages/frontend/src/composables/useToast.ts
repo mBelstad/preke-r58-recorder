@@ -3,8 +3,10 @@
  * 
  * Provides feedback for user actions and system events.
  * Follows the UX polish plan for professional operators.
+ * 
+ * Uses lazy initialization to avoid TDZ issues in minified builds.
  */
-import { ref, computed } from 'vue'
+import { ref, computed, type Ref } from 'vue'
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info'
 
@@ -21,13 +23,21 @@ export interface Toast {
   createdAt: number
 }
 
-const toasts = ref<Toast[]>([])
 const MAX_VISIBLE = 3
 
-let toastId = 0
+// Lazy singleton initialization to avoid TDZ issues
+let _toasts: Ref<Toast[]> | null = null
+let _toastId = 0
+
+function getToastsRef(): Ref<Toast[]> {
+  if (!_toasts) {
+    _toasts = ref<Toast[]>([])
+  }
+  return _toasts
+}
 
 function generateId(): string {
-  return `toast-${++toastId}-${Date.now()}`
+  return `toast-${++_toastId}-${Date.now()}`
 }
 
 function getDefaultDuration(type: ToastType): number {
@@ -46,6 +56,8 @@ function getDefaultDuration(type: ToastType): number {
 }
 
 export function useToast() {
+  // Get singleton ref (lazy initialization)
+  const toasts = getToastsRef()
   const visibleToasts = computed(() => toasts.value.slice(-MAX_VISIBLE))
 
   function addToast(options: {

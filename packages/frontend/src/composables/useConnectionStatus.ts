@@ -3,26 +3,50 @@
  * 
  * Monitors API connection health and latency.
  * Provides real-time feedback for operators.
+ * 
+ * SINGLETON PATTERN: Uses lazy initialization to avoid TDZ issues in minified builds.
+ * All module-level state is wrapped in getSingleton() to ensure refs are created
+ * only when first accessed, not at module load time.
  */
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, type Ref } from 'vue'
 import { r58Api, hasDeviceConfigured } from '@/lib/api'
 
 export type ConnectionState = 'connected' | 'connecting' | 'degraded' | 'disconnected'
 
-const state = ref<ConnectionState>('connecting')
-const latencyMs = ref<number | null>(null)
-const lastCheck = ref<Date | null>(null)
-const consecutiveFailures = ref(0)
-const reconnectAttempts = ref(0)
-const isChecking = ref(false)
-const lastError = ref<string | null>(null)
+// Lazy singleton initialization to avoid TDZ issues in minified builds
+interface ConnectionStatusState {
+  state: Ref<ConnectionState>
+  latencyMs: Ref<number | null>
+  lastCheck: Ref<Date | null>
+  consecutiveFailures: Ref<number>
+  reconnectAttempts: Ref<number>
+  isChecking: Ref<boolean>
+  lastError: Ref<string | null>
+  pingInterval: number | null
+}
+
+let _singleton: ConnectionStatusState | null = null
+
+function getSingleton(): ConnectionStatusState {
+  if (!_singleton) {
+    _singleton = {
+      state: ref<ConnectionState>('connecting'),
+      latencyMs: ref<number | null>(null),
+      lastCheck: ref<Date | null>(null),
+      consecutiveFailures: ref(0),
+      reconnectAttempts: ref(0),
+      isChecking: ref(false),
+      lastError: ref<string | null>(null),
+      pingInterval: null,
+    }
+  }
+  return _singleton
+}
 
 const PING_INTERVAL_CONNECTED = 10000 // 10 seconds when connected
 const PING_INTERVAL_DISCONNECTED = 30000 // 30 seconds when disconnected (slower to save bandwidth)
 const DEGRADED_THRESHOLD = 500 // 500ms
 const MAX_FAILURES_BEFORE_DISCONNECT = 3
-
-let pingInterval: number | null = null
 
 // Network debug logging
 const isNetworkDebugEnabled = (): boolean => {
@@ -60,6 +84,10 @@ function trackRequest(): void {
 }
 
 export function useConnectionStatus() {
+  // Get singleton state (lazy initialization)
+  const singleton = getSingleton()
+  const { state, latencyMs, lastCheck, consecutiveFailures, reconnectAttempts, isChecking, lastError } = singleton
+
   const statusLabel = computed(() => {
     switch (state.value) {
       case 'connected':
@@ -161,9 +189,9 @@ export function useConnectionStatus() {
 
   function updatePollingInterval() {
     // Clear existing interval
-    if (pingInterval) {
-      clearInterval(pingInterval)
-      pingInterval = null
+    if (singleton.pingInterval) {
+      clearInterval(singleton.pingInterval)
+      singleton.pingInterval = null
     }
     
     // Choose interval based on connection state
@@ -174,26 +202,26 @@ export function useConnectionStatus() {
     networkDebugLog('ConnectionStatus', `Setting polling interval to ${interval}ms (state: ${state.value})`)
     
     // Start new interval
-    pingInterval = window.setInterval(checkConnection, interval)
+    singleton.pingInterval = window.setInterval(checkConnection, interval)
   }
 
   function stopMonitoring() {
-    if (pingInterval) {
-      clearInterval(pingInterval)
-      pingInterval = null
+    if (singleton.pingInterval) {
+      clearInterval(singleton.pingInterval)
+      singleton.pingInterval = null
     }
   }
   
   // Watch state changes and update polling interval
   watch(state, () => {
-    if (pingInterval) {
+    if (singleton.pingInterval) {
       updatePollingInterval()
     }
   })
 
   // Auto-start on first use
   onMounted(() => {
-    if (!pingInterval) {
+    if (!singleton.pingInterval) {
       startMonitoring()
     }
   })
