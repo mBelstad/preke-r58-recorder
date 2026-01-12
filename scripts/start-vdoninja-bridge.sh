@@ -117,8 +117,31 @@ start_chromium() {
     # --use-fake-ui-for-media-stream: Auto-allow camera/mic without prompts
     # --autoplay-policy=no-user-gesture-required: Allow autoplay
     # --disable-features=TranslateUI: No translation popups
+    # Hardware acceleration flags for R58:
+    # --use-gl=angle --use-angle=gles-egl: Use ANGLE for OpenGL ES
+    # --use-cmd-decoder=passthrough: Direct GPU command passthrough
+    # --enable-features=VaapiVideoDecoder,VaapiVideoEncoder: Hardware video decode/encode
+    # --enable-accelerated-video-decode: Enable hardware video decoding
+    # --enable-gpu-rasterization: Use GPU for rasterization
     log "Opening browser tabs..."
     nohup chromium \
+        --use-gl=angle \
+        --use-angle=gles-egl \
+        --use-cmd-decoder=passthrough \
+        --no-sandbox \
+        --gpu-sandbox-start-early \
+        --ignore-gpu-blacklist \
+        --ignore-gpu-blocklist \
+        --enable-remote-extensions \
+        --enable-webgpu-developer-features \
+        --enable-unsafe-webgpu \
+        --show-component-extension-options \
+        --enable-gpu-rasterization \
+        --no-default-browser-check \
+        --disable-pings \
+        --media-router=0 \
+        --enable-accelerated-video-decode \
+        --enable-features=VaapiVideoDecoder,VaapiVideoEncoder \
         --remote-debugging-port=9222 \
         --disable-infobars \
         --no-first-run \

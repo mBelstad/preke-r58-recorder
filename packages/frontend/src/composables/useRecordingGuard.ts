@@ -3,16 +3,20 @@
  * 
  * Prevents accidental navigation away while recording is active.
  * Shows confirmation dialog before leaving.
+ * 
+ * FIXED: Moved module-level state inside function to avoid TDZ issues
+ * in minified builds. Each component instance gets its own state.
  */
 import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import { useRecorderStore } from '@/stores/recorder'
 
-const isGuardActive = ref(false)
-const showLeaveConfirmation = ref(false)
-let pendingNavigation: (() => void) | null = null
-
 export function useRecordingGuard() {
+  // State is now scoped to each component instance (no module-level refs)
+  const isGuardActive = ref(false)
+  const showLeaveConfirmation = ref(false)
+  let pendingNavigation: (() => void) | null = null
+  
   const recorderStore = useRecorderStore()
 
   // Watch recording status to toggle guard
