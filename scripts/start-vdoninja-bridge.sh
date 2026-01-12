@@ -97,13 +97,12 @@ start_chromium() {
         local encoded_whep=$(url_encode "$whep_url")
         
         # Build the VDO.ninja URL with &whepshare
-        # &novideo&noaudio disables local video/audio processing (critical for low CPU)
-        # &whepshare provides the video source - no local capture/processing needed
+        # &videodevice=0&audiodevice=0 disables local camera/mic but allows WHEP stream sharing
+        # &whepshare provides the video source from MediaMTX WHEP endpoint
         # &nopreview disables local video preview
-        # &cleanoutput removes UI clutter
         # &autostart automatically starts streaming
         # &password is required to join the same authenticated room as the director
-        local vdo_url="https://$VDONINJA_HOST/?push=$push_id&room=$ROOM_NAME&password=preke-r58-2024&whepshare=$encoded_whep&label=$label&novideo&noaudio&nopreview&cleanoutput&autostart"
+        local vdo_url="https://$VDONINJA_HOST/?push=$push_id&room=$ROOM_NAME&password=preke-r58-2024&whepshare=$encoded_whep&label=$label&videodevice=0&audiodevice=0&nopreview&autostart"
         urls="$urls $vdo_url"
         
         log "Camera: $label -> $whep_url"
