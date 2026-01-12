@@ -258,9 +258,9 @@ video { border-radius: 6px; }
     return ''
   }
   
-  // Base64 encode for &b64css= parameter
+  // Base64 encode for &b64css= parameter (no prefix needed)
   try {
-    return 'b64:' + btoa(unescape(encodeURIComponent(css)))
+    return btoa(unescape(encodeURIComponent(css)))
   } catch {
     return ''
   }
@@ -308,11 +308,11 @@ export function buildVdoThemeParams(options: {
     params.cleanoutput = true
   }
   
-  // Custom CSS injection
+  // Custom CSS injection (b64css for base64 inline CSS)
   if (options.customCss !== false) {
-    const cssUrl = getVdoCssUrl()
-    if (cssUrl) {
-      params.css = cssUrl
+    const cssBase64 = getVdoCssUrl()
+    if (cssBase64) {
+      params.b64css = cssBase64
     }
   }
   
@@ -382,10 +382,10 @@ export async function buildVdoUrl(
   
   const effectiveVars = { ...vars }
   
-  // Add custom CSS for reskin if available
-  const cssUrl = getVdoCssUrl()
-  if (cssUrl) {
-    url.searchParams.set('css', cssUrl)
+  // Add custom CSS for reskin if available (b64css for base64 inline CSS)
+  const cssBase64 = getVdoCssUrl()
+  if (cssBase64) {
+    url.searchParams.set('b64css', cssBase64)
   }
   
   // Add profile-specific params
@@ -491,9 +491,9 @@ export async function buildCameraContributionUrl(
   }
   
   // Add custom CSS only if available
-  const cssUrl = getVdoCssUrl()
-  if (cssUrl) {
-    url.searchParams.set('css', cssUrl)
+  const cssBase64 = getVdoCssUrl()
+  if (cssBase64) {
+    url.searchParams.set('b64css', cssBase64)
   }
   
   return url.toString()
@@ -536,8 +536,11 @@ export async function buildProgramOutputUrl(whipUrl: string): Promise<string | n
   url.searchParams.set('videodevice', '0')
   url.searchParams.set('audiodevice', '0')
   
-  // Custom CSS
-  url.searchParams.set('css', getVdoCssUrl())
+  // Custom CSS (b64css for base64 inline CSS)
+  const programCssBase64 = getVdoCssUrl()
+  if (programCssBase64) {
+    url.searchParams.set('b64css', programCssBase64)
+  }
   
   return url.toString()
 }
@@ -616,8 +619,11 @@ export async function buildMixerUrl(options: {
     url.searchParams.set('mediamtx', options.mediamtxHost)
   }
   
-  // Custom CSS for R58 reskin
-  url.searchParams.set('css', getVdoCssUrl())
+  // Custom CSS for R58 reskin (b64css for base64 inline CSS)
+  const mixerCssBase64 = getVdoCssUrl()
+  if (mixerCssBase64) {
+    url.searchParams.set('b64css', mixerCssBase64)
+  }
   
   return url.toString()
 }
@@ -770,10 +776,10 @@ export async function buildSceneOutputUrl(
     url.searchParams.set('muted', '')
   }
   
-  // Custom CSS
-  const cssUrl = getVdoCssUrl()
-  if (cssUrl) {
-    url.searchParams.set('css', cssUrl)
+  // Custom CSS (b64css for base64 inline CSS)
+  const sceneCssBase64 = getVdoCssUrl()
+  if (sceneCssBase64) {
+    url.searchParams.set('b64css', sceneCssBase64)
   }
   
   return url.toString()

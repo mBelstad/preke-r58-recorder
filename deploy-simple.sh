@@ -89,6 +89,9 @@ DEPLOY_COMMANDS="cd /opt/preke-r58-recorder && \
     sudo bash scripts/setup-vdoninja.sh && \
     echo 'Setting up Reveal.js if needed...' && \
     NON_INTERACTIVE=true sudo bash setup_revealjs.sh && \
+    echo 'Updating MediaMTX config...' && \
+    sudo cp /opt/preke-r58-recorder/mediamtx.yml /opt/mediamtx/mediamtx.yml && \
+    sudo systemctl restart mediamtx && \
     sudo systemctl restart preke-recorder && \
     echo 'Deployment complete!'"
 
