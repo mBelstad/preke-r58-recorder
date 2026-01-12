@@ -611,13 +611,9 @@ export async function buildMixerUrl(options: {
   }
   
   // MediaMTX integration - enables WHEP/WHIP transport instead of P2P
-  // When mediamtxHost is provided, uses relay. Otherwise uses native VDO.ninja P2P.
-  // P2P is preferred when devices are on same network (lower latency).
+  // This is critical for working through FRP tunnels
   if (options.mediamtxHost) {
     url.searchParams.set('mediamtx', options.mediamtxHost)
-  } else {
-    // Enable native VDO.ninja P2P mode
-    url.searchParams.set('p2p', '')
   }
   
   // Custom CSS for R58 reskin
