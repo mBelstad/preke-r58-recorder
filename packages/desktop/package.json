@@ -1,6 +1,6 @@
 {
   "name": "preke-studio",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Preke Studio Desktop - Remote control for R58 devices",
   "private": true,
   "main": "app/main/index.js",
