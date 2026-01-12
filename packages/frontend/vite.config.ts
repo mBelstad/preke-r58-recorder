@@ -64,6 +64,8 @@ export default defineConfig({
           // Force immediate activation of new service worker
           skipWaiting: true,
           clientsClaim: true,
+          // Cache busting - use timestamp for service worker version
+          cleanupOutdatedCaches: true,
           // Only cache static assets, not dynamic content
           globPatterns: ['**/*.{js,css,html,svg,woff,woff2}'],
           // Exclude API calls and video streams from caching

@@ -594,12 +594,15 @@ export async function buildMixerUrl(options: {
     return null
   }
   const VDO_PROTOCOL = getVdoProtocol()
-  // Use standard mixer.html (alpha mixer lacks bundled dependencies)
-  const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/mixer.html`)
   
-  // Room name
+  // Use director view instead of mixer.html
+  // mixer.html has JavaScript issues ("digest" error) that prevent cameras from showing
+  // Director view works correctly and shows all connected cameras
+  const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/`)
+  
+  // Room name - director mode
   const room = options.room || VDO_ROOM
-  url.searchParams.set('room', room)
+  url.searchParams.set('director', room)
   
   // Room password for authentication
   url.searchParams.set('password', VDO_DIRECTOR_PASSWORD)
@@ -609,6 +612,11 @@ export async function buildMixerUrl(options: {
   if (apiKey) {
     url.searchParams.set('api', apiKey)
   }
+  
+  // UI preferences for cleaner look
+  url.searchParams.set('cleandirector', '')
+  url.searchParams.set('showlabels', '')
+  url.searchParams.set('darkmode', '')
   
   // MediaMTX integration - enables WHEP/WHIP transport instead of P2P
   // This is critical for working through FRP tunnels
@@ -673,9 +681,31 @@ export async function getPublicR58Host(): Promise<string | null> {
  * load HTTP content (direct connection) for much better performance.
  * 
  * In Browser: Must use FRP-proxied HTTPS URL due to mixed content security.
+ * 
+ * On Pi Kiosk: Uses nginx proxy path (same as buildWhepUrl in whepConnectionManager)
  */
 export async function getPublicWhepUrl(cameraId: string): Promise<string | null> {
   const { getDeviceUrl, getFrpUrl } = await import('./api')
+  
+  // Check if running on Pi kiosk (nginx proxy setup)
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname
+    const port = window.location.port
+    const protocol = window.location.protocol
+    
+    const isPiKiosk = (hostname === 'localhost' || 
+                       hostname === '127.0.0.1' || 
+                       hostname === '192.168.1.81' || // Pi local IP
+                       hostname === '192.168.68.53' || // Pi alternate local IP
+                       hostname === '100.107.248.29') && // Pi Tailscale IP (when available)
+                       (!port || port === '80' || port === '')
+    
+    if (isPiKiosk) {
+      // Use nginx proxy path (nginx proxies /cam*/whep to R58)
+      console.log(`[VDO.ninja] Using nginx proxy WHEP for ${cameraId} (hostname: ${hostname})`)
+      return `${protocol}//${hostname}${port ? ':' + port : ''}/${cameraId}/whep`
+    }
+  }
   
   // In Electron, use direct connection when available (mixed content allowed)
   if (typeof window !== 'undefined' && (window as any).electronAPI) {

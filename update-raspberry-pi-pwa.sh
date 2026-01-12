@@ -9,7 +9,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Configuration
 PI_USER="${PI_USER:-marius}"
 PI_PASSWORD="${PI_PASSWORD:-Famalive94}"
-PI_IP="${PI_IP:-100.107.248.29}"
+PI_IP="${PI_IP:-192.168.1.81}"
 
 # Colors
 GREEN='\033[0;32m'
@@ -37,12 +37,14 @@ echo -e "${YELLOW}Step 2: Deploying to Raspberry Pi...${NC}"
 
 if command -v rsync &> /dev/null; then
     rsync -avz --delete \
-        -e "sshpass -p '$PI_PASSWORD' ssh -o StrictHostKeyChecking=no" \
+        -e "sshpass -p '$PI_PASSWORD' ssh -o StrictHostKeyChecking=no -o PubkeyAuthentication=no -o PreferredAuthentications=password" \
         "$SCRIPT_DIR/packages/frontend/dist/" \
         "$PI_USER@$PI_IP:/home/$PI_USER/preke-pwa/"
 else
     sshpass -p "$PI_PASSWORD" scp -r \
         -o StrictHostKeyChecking=no \
+        -o PubkeyAuthentication=no \
+        -o PreferredAuthentications=password \
         "$SCRIPT_DIR/packages/frontend/dist/"* \
         "$PI_USER@$PI_IP:/home/$PI_USER/preke-pwa/"
 fi
@@ -52,7 +54,10 @@ echo ""
 
 # Step 3: Restart nginx
 echo -e "${YELLOW}Step 3: Restarting nginx...${NC}"
-sshpass -p "$PI_PASSWORD" ssh -o StrictHostKeyChecking=no \
+sshpass -p "$PI_PASSWORD" ssh \
+    -o StrictHostKeyChecking=no \
+    -o PubkeyAuthentication=no \
+    -o PreferredAuthentications=password \
     "$PI_USER@$PI_IP" "sudo systemctl restart nginx"
 
 echo -e "${GREEN}✓ Nginx restarted${NC}"

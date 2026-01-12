@@ -92,6 +92,31 @@ async function buildWhepUrl(cameraId: string): Promise<string> {
     }
   }
   
+  // Check if running on localhost or Pi IP (nginx proxy setup)
+  // This handles the Raspberry Pi kiosk scenario where the app runs on localhost
+  // and nginx proxies WHEP requests to the R58 device
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname
+    const port = window.location.port
+    const protocol = window.location.protocol
+    
+    // Detect if we're on the Pi (localhost, Pi's local IP, or Pi's Tailscale IP)
+    // Pi runs nginx on port 80, so if we're on port 80 or no port (default), use proxy
+    const isPiKiosk = (hostname === 'localhost' || 
+                       hostname === '127.0.0.1' || 
+                       hostname === '192.168.1.81' || // Pi local IP
+                       hostname === '192.168.68.53' || // Pi alternate local IP
+                       hostname === '100.107.248.29') && // Pi Tailscale IP (when available)
+                       (!port || port === '80' || port === '')
+    
+    if (isPiKiosk) {
+      // Use nginx proxy path (nginx proxies /cam*/whep to R58)
+      // nginx config: location ~ ^/(cam[0-9]+)/whep$ { proxy_pass http://192.168.1.24:8889; }
+      console.log(`[WHEP Manager] Using nginx proxy for ${cameraId} (hostname: ${hostname})`)
+      return `${protocol}//${hostname}${port ? ':' + port : ''}/${cameraId}/whep`
+    }
+  }
+  
   // Same-domain proxy: app.itagenten.no proxies /cam*/whep directly to MediaMTX
   if (typeof window !== 'undefined' && window.location.hostname === 'app.itagenten.no') {
     console.log(`[WHEP Manager] Browser access from app.itagenten.no, using same-domain proxy`)
@@ -101,6 +126,7 @@ async function buildWhepUrl(cameraId: string): Promise<string> {
   // FRP fallback - get from device config
   const { getFrpUrl } = await import('./api')
   const frpUrl = await getFrpUrl()
+  
   if (frpUrl) {
     try {
       const url = new URL(frpUrl)
@@ -432,7 +458,8 @@ async function createConnection(cameraId: string): Promise<WHEPConnection> {
     })
     
     if (!response.ok) {
-      throw new Error(`WHEP request failed: ${response.status}`)
+      const errorText = await response.text().catch(() => '')
+      throw new Error(`WHEP request failed: ${response.status} ${errorText}`)
     }
     
     const answerSdp = await response.text()
