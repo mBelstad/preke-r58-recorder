@@ -253,22 +253,37 @@ if _frontend_dist:
     @app.get("/", response_class=HTMLResponse)
     async def serve_frontend():
         """Serve frontend SPA"""
-        return FileResponse(_frontend_dist / "index.html")
+        return FileResponse(
+            _frontend_dist / "index.html",
+            headers={"Cache-Control": "no-cache, no-store, must-revalidate"}
+        )
     
     @app.get("/sw.js")
     async def serve_sw():
-        """Serve service worker"""
-        return FileResponse(_frontend_dist / "sw.js", media_type="application/javascript")
+        """Serve service worker - always fresh"""
+        return FileResponse(
+            _frontend_dist / "sw.js", 
+            media_type="application/javascript",
+            headers={"Cache-Control": "no-cache, no-store, must-revalidate"}
+        )
     
     @app.get("/manifest.webmanifest")
     async def serve_manifest():
         """Serve PWA manifest"""
-        return FileResponse(_frontend_dist / "manifest.webmanifest", media_type="application/manifest+json")
+        return FileResponse(
+            _frontend_dist / "manifest.webmanifest", 
+            media_type="application/manifest+json",
+            headers={"Cache-Control": "no-cache, no-store, must-revalidate"}
+        )
     
     @app.get("/registerSW.js")
     async def serve_register_sw():
         """Serve SW registration script"""
-        return FileResponse(_frontend_dist / "registerSW.js", media_type="application/javascript")
+        return FileResponse(
+            _frontend_dist / "registerSW.js", 
+            media_type="application/javascript",
+            headers={"Cache-Control": "no-cache, no-store, must-revalidate"}
+        )
     
     @app.get("/{full_path:path}")
     async def serve_spa(request: Request, full_path: str):
@@ -283,7 +298,10 @@ if _frontend_dist:
             return FileResponse(file_path)
         
         # Fallback to index.html for SPA routing
-        return FileResponse(_frontend_dist / "index.html")
+        return FileResponse(
+            _frontend_dist / "index.html",
+            headers={"Cache-Control": "no-cache, no-store, must-revalidate"}
+        )
 else:
     @app.get("/")
     async def root():
