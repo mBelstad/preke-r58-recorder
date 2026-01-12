@@ -99,9 +99,12 @@ start_chromium() {
         # Build the VDO.ninja URL with &whepshare
         # &videodevice=0&audiodevice=0 disables local devices
         # &nopreview disables local video preview (saves CPU/memory on R58)
+        # &cleanoutput removes UI clutter
+        # &b64css hides video element completely to save GPU (CSS: video { display: none !important; })
         # &autostart automatically starts streaming
         # &password is required to join the same authenticated room as the director
-        local vdo_url="https://$VDONINJA_HOST/?push=$push_id&room=$ROOM_NAME&password=preke-r58-2024&whepshare=$encoded_whep&label=$label&videodevice=0&audiodevice=0&nopreview&cleanoutput&autostart"
+        local hide_video_css="b64:dmlkZW8geyBkaXNwbGF5OiBub25lICFpbXBvcnRhbnQ7IH0="
+        local vdo_url="https://$VDONINJA_HOST/?push=$push_id&room=$ROOM_NAME&password=preke-r58-2024&whepshare=$encoded_whep&label=$label&videodevice=0&audiodevice=0&nopreview&cleanoutput&css=$hide_video_css&autostart"
         urls="$urls $vdo_url"
         
         log "Camera: $label -> $whep_url"
