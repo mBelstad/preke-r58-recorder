@@ -217,3 +217,4 @@ The minor issues (optional API endpoints, WebSocket) are expected behavior due t
 
 *Generated: 2026-01-12 13:55:00 UTC*
 *Retest after bridge verification: 2026-01-12 13:54:00 UTC*
+T

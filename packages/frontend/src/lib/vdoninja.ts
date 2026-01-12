@@ -619,6 +619,12 @@ export async function buildMixerUrl(options: {
     url.searchParams.set('mediamtx', options.mediamtxHost)
   }
   
+  // Bandwidth limiting - prevent jamming the connection when opening mixer
+  // totalroombitrate: max total incoming bitrate from all sources (kbps)
+  // maxvideobitrate: max per-source video bitrate (kbps)
+  url.searchParams.set('totalroombitrate', '6000')  // 6 Mbps total for all cameras
+  url.searchParams.set('maxvideobitrate', '2000')   // 2 Mbps max per camera
+  
   // Custom CSS for R58 reskin (b64css for base64 inline CSS)
   const mixerCssBase64 = getVdoCssUrl()
   if (mixerCssBase64) {
