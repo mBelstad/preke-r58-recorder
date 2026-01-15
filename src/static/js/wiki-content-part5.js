@@ -1,8 +1,249 @@
 // R58 Documentation Wiki - Content Database (Part 5)
-// System Services, Directory Structure, Fleet Management, Legacy Components
+// System Services, Directory Structure, Fleet Management, Legacy Components, WordPress Integration
 
 // Extend the wikiContent object
 Object.assign(wikiContent, {
+    // ========================================
+    // WORDPRESS INTEGRATION
+    // ========================================
+    
+    'wordpress-integration': {
+        title: 'WordPress & JetAppointments Integration',
+        simple: `
+The R58 can connect to your WordPress website to manage bookings and client projects.
+
+**What it does**:
+- Fetches bookings from JetAppointments
+- Shows client list from WordPress
+- Creates recording folders based on client/project
+- Displays calendar for walk-in bookings
+
+This makes it easy to organize recordings by client and automatically set up folders.
+        `,
+        technical: `
+**Integration Status** (Verified Jan 15, 2026):
+- ✅ WordPress REST API connection active
+- ✅ JetAppointments booking sync working
+- ✅ Client CPT integration functional
+- ✅ Calendar kiosk view operational
+
+**Technical Stack**:
+- WordPress REST API with Application Passwords
+- JetEngine for Custom Post Types (CPT)
+- JetAppointments for booking management
+- Python httpx client with retry logic
+        `,
+        content: `
+## Configuration
+
+### WordPress Setup
+
+1. **Generate Application Password** in WordPress:
+   - Go to Users → Profile
+   - Scroll to "Application Passwords"
+   - Enter name: "R58 Device"
+   - Click "Add New Application Password"
+   - Copy the generated password
+
+2. **Add to config.yml** on R58:
+
+\`\`\`yaml
+wordpress:
+  enabled: true
+  url: 'https://preke.no'
+  username: 'your-username'
+  app_password: 'xxxx xxxx xxxx xxxx xxxx xxxx'
+\`\`\`
+
+3. **Restart Service**:
+
+\`\`\`bash
+sudo systemctl restart preke-recorder
+\`\`\`
+
+### Verify Connection
+
+Check WordPress status:
+\`\`\`bash
+curl http://localhost:8000/api/v1/wordpress/status | jq
+\`\`\`
+
+Should show:
+\`\`\`json
+{
+  "enabled": true,
+  "connected": true,
+  "wordpress_url": "https://preke.no"
+}
+\`\`\`
+
+## Features
+
+### Booking Management
+
+**List Today's Bookings**:
+\`\`\`bash
+curl http://localhost:8000/api/v1/wordpress/appointments/today
+\`\`\`
+
+**Activate a Booking**:
+\`\`\`bash
+curl -X POST http://localhost:8000/api/v1/wordpress/appointments/123/activate
+\`\`\`
+
+This creates:
+- Recording folder: \`/data/recordings/clients/{client-slug}/{project-slug}/{booking-id}/\`
+- Access token for customer portal
+- WordPress Recording CPT entry
+
+### Client & Project Management
+
+**List Clients**:
+\`\`\`bash
+curl http://localhost:8000/api/v1/wordpress/clients
+\`\`\`
+
+**Create Project**:
+\`\`\`bash
+curl -X POST http://localhost:8000/api/v1/wordpress/projects \\
+  -H "Content-Type: application/json" \\
+  -d '{"client_id": 5, "name": "Q1 Campaign", "type": "podcast"}'
+\`\`\`
+
+### Calendar Kiosk
+
+The calendar view shows today's schedule with 30-minute slots:
+
+**Get Today's Calendar**:
+\`\`\`bash
+curl http://localhost:8000/api/v1/wordpress/calendar/today
+\`\`\`
+
+**Create Walk-in Booking**:
+\`\`\`bash
+curl -X POST http://localhost:8000/api/v1/wordpress/calendar/book \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "slot_start": "14:00",
+    "slot_end": "15:00",
+    "customer_name": "Jane Smith",
+    "customer_email": "jane@example.com",
+    "recording_type": "podcast"
+  }'
+\`\`\`
+
+## Data Model
+
+### Hierarchy
+
+\`\`\`
+Client (CPT)
+  └─ Video Project (CPT)
+      └─ Recording (CPT)
+          └─ Recording Files (Media)
+\`\`\`
+
+### Custom Post Types
+
+1. **client** - Client companies
+   - Fields: name, slug, logo, contact info
+   - Has many: video_project
+
+2. **video_project** - Projects per client
+   - Fields: name, slug, client_id, description
+   - Has many: recordings
+
+3. **recordings** - Individual recordings
+   - Fields: title, project_id, booking_id, files
+   - Belongs to: video_project
+
+### JetAppointments
+
+Bookings link to Clients (not projects directly):
+- Booking → Client → Default Project → Recording
+
+## Folder Structure
+
+When a booking is activated, recordings are saved to:
+
+\`\`\`
+/data/recordings/clients/{client-slug}/{project-slug}/{booking-id}/
+\`\`\`
+
+Example:
+\`\`\`
+/data/recordings/clients/acme-corp/q1-campaign/123/
+  ├── cam0_20260115_140530.mov
+  ├── cam2_20260115_140530.mov
+  └── cam3_20260115_140530.mov
+\`\`\`
+
+## API Endpoints
+
+See full documentation: [docs/API.md](../docs/API.md)
+
+### WordPress Status
+- \`GET /api/v1/wordpress/status\` - Connection status
+
+### Appointments
+- \`GET /api/v1/wordpress/appointments\` - List bookings
+- \`GET /api/v1/wordpress/appointments/today\` - Today's bookings
+- \`GET /api/v1/wordpress/appointments/{id}\` - Get booking details
+- \`POST /api/v1/wordpress/appointments/{id}/activate\` - Activate booking
+- \`GET /api/v1/wordpress/booking/current\` - Get active booking
+
+### Clients & Projects
+- \`GET /api/v1/wordpress/clients\` - List all clients
+- \`GET /api/v1/wordpress/clients/{id}/projects\` - Client's projects
+- \`POST /api/v1/wordpress/projects\` - Create new project
+
+### Calendar
+- \`GET /api/v1/wordpress/calendar/today\` - Today's schedule
+- \`POST /api/v1/wordpress/calendar/book\` - Create walk-in booking
+
+### Customer Portal
+- \`GET /api/v1/wordpress/customer/{token}/status\` - Portal status
+- \`POST /api/v1/wordpress/customer/{token}/recording/start\` - Start recording
+- \`POST /api/v1/wordpress/customer/{token}/recording/stop\` - Stop recording
+
+## Troubleshooting
+
+### Connection Issues
+
+**403 Forbidden Error**:
+- Whitelist R58 IP in WordPress WAF
+- Check Application Password is valid
+- Verify username is correct
+
+**Authentication Failed**:
+- Regenerate Application Password
+- Update config.yml with new password
+- Restart preke-recorder service
+
+**No Bookings Showing**:
+- Check JetAppointments is installed
+- Verify bookings exist in WordPress
+- Check date range in API call
+
+### Testing Connection
+
+Test authentication directly:
+\`\`\`bash
+curl -u 'username:app-password' \\
+  https://preke.no/wp-json/wp/v2/users/me
+\`\`\`
+
+Should return user info, not 401/403 error.
+        `,
+        keyPoints: [
+            'WordPress integration uses Application Passwords for secure API access',
+            'Bookings automatically create organized folder structures',
+            'Calendar kiosk allows walk-in bookings without WordPress login',
+            'Full API documentation available in docs/API.md'
+        ],
+        tags: ['wordpress', 'integration', 'booking', 'jetappointments', 'api']
+    },
+    
     // ========================================
     // SYSTEM SERVICES
     // ========================================

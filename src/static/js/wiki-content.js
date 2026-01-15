@@ -27,11 +27,13 @@ The R58 is a professional multi-camera recording and streaming system built on:
 - **Streaming**: MediaMTX with WHIP/WHEP support
 - **Remote Access**: FRP tunnel through Coolify VPS
 
-**Current Status** (Verified Dec 26, 2025):
+**Current Status** (Verified Jan 15, 2026):
 - ✅ 4 cameras configured (cam0-cam3)
 - ✅ Hardware H.264 encoding (mpph264enc)
 - ✅ Remote access via https://app.itagenten.no
 - ✅ WebRTC streaming with <1s latency
+- ✅ WordPress integration with JetAppointments
+- ✅ Client & project management
         `,
         content: `
 ## Quick Links
@@ -57,7 +59,8 @@ This documentation is organized into sections:
         keyPoints: [
             'R58 can record 4 HDMI cameras simultaneously',
             'Remote access works via FRP tunnel (not Cloudflare)',
-            'All documentation verified on December 26, 2025',
+            'WordPress integration for booking management',
+            'All documentation verified on January 15, 2026',
             'Use the search box above to find specific topics'
         ],
         tags: ['welcome', 'introduction', 'overview']

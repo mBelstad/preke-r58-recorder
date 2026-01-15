@@ -625,18 +625,25 @@ You can test the API using your web browser or command-line tools like curl.
 **Authentication**: None (trusted network)  
 **Rate Limiting**: None
 
-**Verified Endpoints** (Dec 26, 2025):
+**Verified Endpoints** (Jan 15, 2026):
 - ✅ /health
 - ✅ /status
 - ✅ /record/start/{cam_id}
 - ✅ /api/mixer/status
 - ✅ /api/scenes
+- ✅ /api/v1/capabilities (NEW)
+- ✅ /api/v1/wordpress/* (NEW)
+- ✅ /api/v1/lan-devices/* (NEW)
         `,
         content: `
 ## API Base URL
 
 **Production**: https://app.itagenten.no  
 **Local**: http://localhost:8000 (when on R58)
+
+## Complete API Documentation
+
+For full endpoint reference with examples, see: [docs/API.md](../docs/API.md)
 
 ## Common Patterns
 
@@ -684,10 +691,13 @@ Visit https://app.itagenten.no/docs to:
 ## API Categories
 
 1. **Health & Status** - System monitoring
-2. **Recording** - Camera recording control
-3. **Mixer** - Video mixer control
-4. **Scenes** - Scene management
-5. **Preview** - Live preview control
+2. **Capabilities** - Device feature detection (NEW)
+3. **Recording** - Camera recording control
+4. **Mixer** - Video mixer control
+5. **Scenes** - Scene management
+6. **Preview** - Live preview control
+7. **WordPress** - Booking & client management (NEW)
+8. **LAN Discovery** - Network device discovery (NEW)
 
 ## Example: Start Recording
 
