@@ -371,6 +371,23 @@ async function createConnection(cameraId: string): Promise<WHEPConnection> {
     if (event.streams[0]) {
       conn!.mediaStream = event.streams[0]
       console.log(`[WHEP Manager ${cameraId}] Received media stream`)
+      
+      // Set low jitter buffer for reduced latency
+      // jitterBufferTarget is in milliseconds - lower = less latency but more sensitive to network jitter
+      try {
+        const receivers = pc.getReceivers()
+        for (const receiver of receivers) {
+          if (receiver.track.kind === 'video' && 'jitterBufferTarget' in receiver) {
+            // Set to 100ms for low latency (default is usually 1000ms+)
+            // This tells the browser we prefer lower latency over smoothness
+            ;(receiver as any).jitterBufferTarget = 100
+            console.log(`[WHEP Manager ${cameraId}] Set jitterBufferTarget to 100ms for low latency`)
+          }
+        }
+      } catch (e) {
+        console.warn(`[WHEP Manager ${cameraId}] Could not set jitterBufferTarget:`, e)
+      }
+      
       notifyListeners(cameraId)
     }
   }
