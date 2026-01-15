@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { buildApiUrl, isElectron } from '@/lib/api'
+import { getCameraLabel } from '@/lib/cameraLabels'
 
 // Local storage key for session names (since device API doesn't support renaming)
 const SESSION_NAMES_KEY = 'preke-session-names'
@@ -64,17 +65,7 @@ const editingName = ref<string | null>(null)
 const newName = ref('')
 const playingVideo = ref<{ url: string; label: string } | null>(null)
 
-// Camera ID to friendly name mapping
-const cameraLabels: Record<string, string> = {
-  'cam0': 'HDMI 1',
-  'cam1': 'HDMI 2',
-  'cam2': 'HDMI 3',
-  'cam3': 'HDMI 4',
-}
-
-function getCameraLabel(camId: string): string {
-  return cameraLabels[camId] || camId.toUpperCase()
-}
+// Camera labels imported from @/lib/cameraLabels
 
 function getCameraColor(camId: string): string {
   const colors: Record<string, string> = {

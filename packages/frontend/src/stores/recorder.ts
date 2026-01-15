@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { r58Api } from '@/lib/api'
+import { getCameraLabel } from '@/lib/cameraLabels'
 
 export interface RecordingSession {
   id: string
@@ -196,13 +197,7 @@ export const useRecorderStore = defineStore('recorder', () => {
         r58Api.getFps().catch(() => null) // FPS endpoint is optional
       ])
       
-      // Camera labels mapping
-      const cameraLabels: Record<string, string> = {
-        'cam0': 'HDMI IN0',
-        'cam1': 'HDMI RX',
-        'cam2': 'HDMI IN11',
-        'cam3': 'HDMI IN21'
-      }
+      // Use shared camera labels
       
       // Build FPS lookup from real data
       const fpsData: Record<string, number> = {}
@@ -224,7 +219,7 @@ export const useRecorderStore = defineStore('recorder', () => {
         
         return {
           id,
-          label: cameraLabels[id] || id,
+          label: getCameraLabel(id),
           hasSignal: cam.has_signal || cam.status === 'streaming' || cam.status === 'preview',
           isRecording: cam.status === 'recording',
         bytesWritten: 0,

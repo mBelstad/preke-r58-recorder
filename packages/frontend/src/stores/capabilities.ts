@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { buildApiUrl, hasDeviceConfigured, isUsingFrpFallback, tryDirectConnection } from '@/lib/api'
+import { getCameraLabel } from '@/lib/cameraLabels'
 
 export interface RevealJsInfo {
   available: boolean
@@ -62,13 +63,7 @@ export interface VdoNinjaCapability {
   room: string
 }
 
-// Camera ID to friendly label mapping
-const cameraLabels: Record<string, string> = {
-  'cam0': 'HDMI 1',
-  'cam1': 'HDMI 2', 
-  'cam2': 'HDMI 3',
-  'cam3': 'HDMI 4',
-}
+// Use shared camera labels from @/lib/cameraLabels
 
 export const useCapabilitiesStore = defineStore('capabilities', () => {
   const capabilities = ref<DeviceCapabilities | null>(null)
@@ -124,7 +119,7 @@ export const useCapabilitiesStore = defineStore('capabilities', () => {
       const inputs: InputCapability[] = Object.entries(ingest.cameras || {}).map(([id, cam]: [string, any]) => ({
         id,
         type: 'hdmi',
-        label: cameraLabels[id] || id,
+        label: getCameraLabel(id),
         max_resolution: cam.resolution?.formatted || '4K',
         supports_audio: true,
         device_path: cam.device || null,

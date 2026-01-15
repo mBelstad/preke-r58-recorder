@@ -8,6 +8,7 @@
 import { computed } from 'vue'
 import { useMixerStore, type MixerSource } from '@/stores/mixer'
 import { useRecorderStore } from '@/stores/recorder'
+import { getCameraLabel } from '@/lib/cameraLabels'
 import VdoNinjaEmbed from './VdoNinjaEmbed.vue'
 import type { MixerController } from '@/composables/useMixerController'
 
@@ -19,13 +20,7 @@ const props = defineProps<{
 const mixerStore = useMixerStore()
 const recorderStore = useRecorderStore()
 
-// Camera label mapping
-const cameraLabels: Record<string, string> = {
-  'cam0': 'HDMI 1',
-  'cam1': 'HDMI 2',
-  'cam2': 'HDMI 3',
-  'cam3': 'HDMI 4',
-}
+// Camera labels imported from @/lib/cameraLabels
 
 // HDMI sources from recorder (as audio sources)
 const hdmiAudioSources = computed((): MixerSource[] => {
@@ -33,7 +28,7 @@ const hdmiAudioSources = computed((): MixerSource[] => {
     .filter(input => input.hasSignal)
     .map(input => ({
       id: input.id,
-      label: cameraLabels[input.id] || input.label,
+      label: getCameraLabel(input.id),
       type: 'camera' as const,
       hasVideo: true,
       hasAudio: true,

@@ -2,6 +2,8 @@
  * API client with retry logic and error handling for R58
  */
 
+import { getCameraLabel } from '@/lib/cameraLabels'
+
 // ============================================
 // Electron Integration Types
 // ============================================
@@ -838,18 +840,12 @@ export const r58Api = {
   // Capabilities - construct from /status
   async getCapabilities() {
     const status = await this.getRecorderStatus()
-    const cameraLabels: Record<string, string> = {
-      'cam0': 'HDMI IN0',
-      'cam1': 'HDMI RX',
-      'cam2': 'HDMI IN11',
-      'cam3': 'HDMI IN21'
-    }
     
     return {
       device_id: 'r58-device',
       inputs: Object.entries(status.cameras).map(([id, info]) => ({
         id,
-        label: cameraLabels[id] || id,
+        label: getCameraLabel(id),
         type: 'hdmi',
         has_signal: info.status === 'streaming' || info.status === 'preview'
       })),

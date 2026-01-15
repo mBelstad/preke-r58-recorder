@@ -9,6 +9,7 @@ import { computed, ref } from 'vue'
 import { useMixerStore, type MixerSource } from '@/stores/mixer'
 import { useScenesStore } from '@/stores/scenes'
 import { useRecorderStore } from '@/stores/recorder'
+import { getCameraLabel, getCameraLabelWithInfo } from '@/lib/cameraLabels'
 import VdoNinjaEmbed from './VdoNinjaEmbed.vue'
 
 // Custom names stored in localStorage
@@ -48,13 +49,7 @@ const mixerStore = useMixerStore()
 const scenesStore = useScenesStore()
 const recorderStore = useRecorderStore()
 
-// Camera label mapping
-const cameraLabels: Record<string, { name: string; subtitle: string }> = {
-  'cam0': { name: 'HDMI 1', subtitle: 'Connected to device' },
-  'cam1': { name: 'HDMI 2', subtitle: 'Connected to device' },
-  'cam2': { name: 'HDMI 3', subtitle: 'Connected to device' },
-  'cam3': { name: 'HDMI 4', subtitle: 'Connected to device' },
-}
+// Camera labels imported from @/lib/cameraLabels
 
 // VDO.ninja sources from the mixer store with proper names
 const vdoSources = computed(() => {
@@ -85,7 +80,7 @@ const hdmiSources = computed((): (MixerSource & { subtitle?: string })[] => {
   return recorderStore.inputs
     .filter(input => input.hasSignal)
     .map(input => {
-      const labelInfo = cameraLabels[input.id] || { name: input.label, subtitle: 'HDMI Input' }
+      const labelInfo = getCameraLabelWithInfo(input.id)
       return {
         id: input.id,
         label: labelInfo.name,

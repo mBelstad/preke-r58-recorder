@@ -129,11 +129,16 @@ const storageInfo = computed(() => {
   const caps = capabilitiesStore.capabilities
   if (!caps) return null
   
-  const usedGB = caps.storage_used_gb || 0
   const totalGB = caps.storage_total_gb || 1
-  const freeGB = totalGB - usedGB
+  const freeGB = caps.storage_available_gb || 0
+  const usedGB = totalGB - freeGB
   const percent = Math.round((usedGB / totalGB) * 100)
-  const hoursRemaining = freeGB / 10
+  
+  // Estimate recording hours based on actual bitrate (~18Mbps per camera, ~8GB/hour per camera)
+  // With typical 3 cameras: ~24 GB/hour total
+  const activeCameras = activeInputs.value.length || 1
+  const gbPerHour = activeCameras * 8 // ~8 GB/hour per camera at 18Mbps
+  const hoursRemaining = freeGB / gbPerHour
   
   return {
     freeGB: Math.round(freeGB),
