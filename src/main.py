@@ -5962,9 +5962,9 @@ async def get_wordpress_status() -> Dict[str, Any]:
     
     if not wp_client or not wp_client.is_configured:
         return {
-            "enabled": False,
+            "enabled": hasattr(config, 'wordpress') and config.wordpress.enabled,
             "connected": False,
-            "wordpress_url": config.wordpress.get('url', '') if hasattr(config, 'wordpress') else '',
+            "wordpress_url": config.wordpress.url if hasattr(config, 'wordpress') else '',
             "error": "WordPress integration not configured"
         }
     

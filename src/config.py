@@ -116,6 +116,15 @@ class DavinciAutomationConfig:
 
 
 @dataclass
+class WordPressConfig:
+    """WordPress/JetAppointments integration configuration."""
+    enabled: bool = False
+    url: str = ""
+    username: str = ""
+    app_password: str = ""
+
+
+@dataclass
 class AppConfig:
     """Main application configuration."""
     platform: str  # 'macos' or 'r58'
@@ -129,6 +138,7 @@ class AppConfig:
     recording: RecordingConfig = field(default_factory=RecordingConfig)
     reveal: RevealConfig = field(default_factory=RevealConfig)
     davinci_automation: DavinciAutomationConfig = field(default_factory=DavinciAutomationConfig)
+    wordpress: WordPressConfig = field(default_factory=WordPressConfig)
     external_cameras: list = field(default_factory=list)
     log_level: str = "INFO"
 
@@ -257,6 +267,15 @@ class AppConfig:
             auto_sync=davinci_data.get("auto_sync", True),
             sync_method=davinci_data.get("sync_method", "timecode"),
         )
+        
+        # Load WordPress config
+        wordpress_data = data.get("wordpress", {})
+        wordpress = WordPressConfig(
+            enabled=wordpress_data.get("enabled", False),
+            url=wordpress_data.get("url", ""),
+            username=wordpress_data.get("username", ""),
+            app_password=wordpress_data.get("app_password", ""),
+        )
 
         return cls(
             platform=platform_name,
@@ -268,6 +287,7 @@ class AppConfig:
             mixer=mixer,
             preview=preview,
             recording=recording,
+            wordpress=wordpress,
             reveal=reveal,
             davinci_automation=davinci_automation,
             external_cameras=external_cameras,

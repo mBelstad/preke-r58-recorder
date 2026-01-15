@@ -341,15 +341,15 @@ def get_wordpress_client(config) -> Optional[WordPressClient]:
     global _wordpress_client
     
     # Check if WordPress is enabled in config
-    if not hasattr(config, 'wordpress') or not config.wordpress.get('enabled'):
+    if not hasattr(config, 'wordpress') or not config.wordpress.enabled:
         return None
     
     if _wordpress_client is None:
         wp_config = config.wordpress
         _wordpress_client = WordPressClient(
-            base_url=wp_config.get('url', ''),
-            username=wp_config.get('username', ''),
-            app_password=wp_config.get('app_password', '')
+            base_url=wp_config.url,
+            username=wp_config.username,
+            app_password=wp_config.app_password
         )
     
     return _wordpress_client
