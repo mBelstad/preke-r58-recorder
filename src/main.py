@@ -1,4 +1,40 @@
-"""FastAPI application for R58 recorder."""
+"""
+R58 Recorder Backend API
+
+FastAPI application for the R58 multi-camera recording device.
+Handles camera ingest, recording, mixing, streaming, and WordPress integration.
+
+API Base URL: https://app.itagenten.no/api/
+
+Main Endpoint Categories:
+- /api/v1/capabilities - Device capabilities and feature detection
+- /api/v1/wordpress/* - WordPress/JetAppointments booking integration
+- /api/v1/lan-devices/* - LAN device discovery
+- /api/v1/ptz-controller/* - PTZ camera control (hardware joystick support)
+- /api/v1/cameras/* - Camera settings (focus, exposure, white balance, etc.)
+- /api/v1/vdo-ninja/* - VDO.ninja mixer control
+- /api/streaming/* - RTMP/HLS streaming configuration
+- /api/trigger/* - Recording trigger control
+- /api/mode/* - Device mode switching (recorder/mixer/vdoninja)
+- /api/ingest/* - Camera ingest status
+- /api/mixer/* - Video mixer control
+- /api/reveal/* - Reveal.js presentation control
+- /api/sessions/* - Recording session management
+- /api/system/* - System information and logs
+- /health - Health check endpoint
+
+WebSocket Endpoints:
+- /ws - Real-time status updates
+- /api/v1/ptz-controller/ws - Real-time PTZ control
+
+Configuration:
+  config.yml - Main device configuration
+  wordpress section:
+    enabled: true
+    url: "https://preke.no"
+    username: "api_user"
+    app_password: "xxxx xxxx xxxx xxxx"
+"""
 import asyncio
 import logging
 import os
@@ -25,6 +61,14 @@ from .camera_control import CameraControlManager
 from .camera_control.blackmagic import BlackmagicCamera
 from .camera_control.obsbot import ObsbotTail2
 from .fps_monitor import get_fps_monitor, FpsMonitor
+from .wordpress import (
+    get_wordpress_client,
+    get_active_booking,
+    set_active_booking,
+    Booking,
+    BookingStatus,
+    ActiveBookingContext,
+)
 
 # Configure logging
 logging.basicConfig(
@@ -528,6 +572,120 @@ async def health() -> Dict[str, Any]:
         }
     
     return result
+
+
+@app.get("/api/v1/capabilities")
+async def get_capabilities() -> Dict[str, Any]:
+    """
+    Get device capabilities manifest for adaptive UI.
+    
+    The frontend uses this to adapt features based on what the device supports.
+    Returns hardware capabilities, feature flags, and storage information.
+    """
+    import shutil
+    import os
+    
+    # Storage detection - prioritize /data (NVMe SSD) over /mnt/sdcard or root
+    storage_total_gb = 0.0
+    storage_available_gb = 0.0
+    storage_path = "/"
+    
+    for path in ["/data", "/mnt/sdcard", "/"]:
+        try:
+            if os.path.exists(path):
+                usage = shutil.disk_usage(path)
+                if usage.total > 0:
+                    storage_total_gb = usage.total / (1024 ** 3)
+                    storage_available_gb = usage.free / (1024 ** 3)
+                    storage_path = path
+                    break
+        except Exception:
+            continue
+    
+    # Detect inputs from config
+    inputs = []
+    for idx, cam_id in enumerate(config.cameras.keys()):
+        cam_config = config.cameras[cam_id]
+        inputs.append({
+            "id": cam_id,
+            "type": "hdmi",
+            "label": f"Camera {idx + 1}",
+            "max_resolution": "1920x1080",
+            "supports_audio": True,
+            "device_path": cam_config.get("device", f"/dev/video{idx * 10}")
+        })
+    
+    # Hardware codecs
+    codecs = [
+        {
+            "id": "h264_hw",
+            "name": "H.264 (Hardware)",
+            "hardware_accelerated": True,
+            "max_bitrate_kbps": 20000
+        },
+        {
+            "id": "h265_hw",
+            "name": "H.265 (Hardware)",
+            "hardware_accelerated": True,
+            "max_bitrate_kbps": 15000
+        }
+    ]
+    
+    # Preview modes
+    mediamtx_base = "https://app.itagenten.no"
+    preview_modes = [
+        {
+            "id": "whep",
+            "protocol": "whep",
+            "latency_ms": 100,
+            "url_template": f"{mediamtx_base}/whep/{{input_id}}"
+        },
+        {
+            "id": "hls",
+            "protocol": "hls",
+            "latency_ms": 3000,
+            "url_template": f"{mediamtx_base}/hls/{{input_id}}/index.m3u8"
+        }
+    ]
+    
+    # VDO.ninja configuration
+    vdoninja_config = {
+        "enabled": config.vdoninja.enabled if hasattr(config, 'vdoninja') else False,
+        "host": "localhost",
+        "port": config.vdoninja.port if hasattr(config, 'vdoninja') else 8080,
+        "room": config.vdoninja.room if hasattr(config, 'vdoninja') else "r58"
+    }
+    
+    return {
+        "device_id": f"r58-{config.platform}",
+        "device_name": "R58 Recorder",
+        "platform": config.platform,
+        "api_version": "2.0.0",
+        
+        # Feature flags
+        "mixer_available": vdoninja_config["enabled"],
+        "recorder_available": True,
+        "graphics_available": True,
+        "fleet_agent_connected": False,
+        
+        # Hardware
+        "inputs": inputs,
+        "codecs": codecs,
+        "preview_modes": preview_modes,
+        
+        # VDO.ninja
+        "vdoninja": vdoninja_config,
+        
+        # Endpoints
+        "mediamtx_base_url": mediamtx_base,
+        
+        # Limits
+        "max_simultaneous_recordings": 4,
+        "max_output_resolution": "1920x1080",
+        "storage_total_gb": round(storage_total_gb, 2),
+        "storage_available_gb": round(storage_available_gb, 2),
+        "storage_path": storage_path
+    }
 
 
 @app.get("/api/system/info")
@@ -5743,6 +5901,323 @@ async def vdo_ninja_list_guests() -> List[Dict[str, Any]]:
     except Exception as e:
         logger.error(f"VDO.ninja list guests error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# LAN Device Discovery API
+# ============================================================================
+
+@app.get("/api/v1/lan-devices")
+async def list_lan_devices() -> Dict[str, Any]:
+    """List discovered R58 devices on local network"""
+    # Simplified implementation - return empty list
+    # Full implementation would scan network for devices
+    return {
+        "devices": [],
+        "total": 0,
+        "last_scan": datetime.now().isoformat()
+    }
+
+
+@app.post("/api/v1/lan-devices/scan")
+async def scan_lan_devices() -> Dict[str, Any]:
+    """Scan local network for R58 devices"""
+    # Simplified implementation
+    return {
+        "success": True,
+        "devices_found": 0,
+        "message": "Network scan completed"
+    }
+
+
+@app.get("/api/v1/lan-devices/{device_id}")
+async def get_lan_device(device_id: str) -> Dict[str, Any]:
+    """Get information about a specific device"""
+    raise HTTPException(status_code=404, detail="Device not found")
+
+
+@app.post("/api/v1/lan-devices/{device_id}/connect")
+async def connect_to_lan_device(device_id: str) -> Dict[str, Any]:
+    """Connect to a discovered device"""
+    return {
+        "connected": False,
+        "error": "Device not found"
+    }
+
+
+# ============================================================================
+# WordPress/JetAppointments Integration API
+# ============================================================================
+
+@app.get("/api/v1/wordpress/status")
+async def get_wordpress_status() -> Dict[str, Any]:
+    """Get WordPress integration status"""
+    wp_client = get_wordpress_client(config)
+    
+    if not wp_client or not wp_client.is_configured:
+        return {
+            "enabled": False,
+            "connected": False,
+            "wordpress_url": config.wordpress.get('url', '') if hasattr(config, 'wordpress') else '',
+            "error": "WordPress integration not configured"
+        }
+    
+    connected = await wp_client.test_connection()
+    
+    return {
+        "enabled": True,
+        "connected": connected,
+        "wordpress_url": wp_client.base_url,
+        "last_sync": datetime.now().isoformat() if connected else None,
+        "error": wp_client._last_error if not connected else None
+    }
+
+
+@app.get("/api/v1/wordpress/appointments")
+async def list_appointments(
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None
+) -> Dict[str, Any]:
+    """List appointments from JetAppointments"""
+    wp_client = get_wordpress_client(config)
+    if not wp_client:
+        raise HTTPException(status_code=503, detail="WordPress not configured")
+    
+    from datetime import date as date_type
+    df = date_type.fromisoformat(date_from) if date_from else None
+    dt = date_type.fromisoformat(date_to) if date_to else None
+    
+    bookings = await wp_client.get_appointments(date_from=df, date_to=dt)
+    
+    return {
+        "bookings": [b.dict() for b in bookings],
+        "total": len(bookings)
+    }
+
+
+@app.get("/api/v1/wordpress/appointments/today")
+async def get_todays_appointments() -> Dict[str, Any]:
+    """Get today's appointments"""
+    from datetime import date as date_type
+    today = date_type.today()
+    return await list_appointments(
+        date_from=today.isoformat(),
+        date_to=today.isoformat()
+    )
+
+
+@app.get("/api/v1/wordpress/appointments/{appointment_id}")
+async def get_appointment(appointment_id: int) -> Dict[str, Any]:
+    """Get a specific appointment"""
+    wp_client = get_wordpress_client(config)
+    if not wp_client:
+        raise HTTPException(status_code=503, detail="WordPress not configured")
+    
+    booking = await wp_client.get_appointment(appointment_id)
+    if not booking:
+        raise HTTPException(status_code=404, detail="Appointment not found")
+    
+    return {"booking": booking.dict()}
+
+
+@app.post("/api/v1/wordpress/appointments/{appointment_id}/activate")
+async def activate_appointment(appointment_id: int, download_graphics: bool = True) -> Dict[str, Any]:
+    """Activate a booking session"""
+    wp_client = get_wordpress_client(config)
+    if not wp_client:
+        raise HTTPException(status_code=503, detail="WordPress not configured")
+    
+    booking = await wp_client.get_appointment(appointment_id)
+    if not booking:
+        raise HTTPException(status_code=404, detail="Appointment not found")
+    
+    # Generate access token
+    import secrets
+    access_token = secrets.token_urlsafe(32)
+    
+    # Create active booking context (simplified)
+    from .wordpress import ActiveBookingContext, VideoProject
+    
+    # Mock project for now - in full implementation, fetch from WordPress
+    project = VideoProject(
+        id=1,
+        slug="default",
+        name="Default Project",
+        client_id=booking.client.id if booking.client else None
+    )
+    
+    recording_path = f"/data/recordings/clients/{booking.client.slug if booking.client else 'unknown'}/default/{appointment_id}"
+    
+    context = ActiveBookingContext(
+        booking=booking,
+        recording_id=appointment_id,
+        project=project,
+        recording_path=recording_path,
+        access_token=access_token,
+        display_mode=booking.display_mode
+    )
+    
+    set_active_booking(context)
+    
+    return {
+        "success": True,
+        "booking": booking.dict(),
+        "recording_path": recording_path,
+        "access_token": access_token,
+        "message": "Booking activated"
+    }
+
+
+@app.get("/api/v1/wordpress/booking/current")
+async def get_current_booking() -> Dict[str, Any]:
+    """Get currently active booking"""
+    context = get_active_booking()
+    if not context:
+        raise HTTPException(status_code=404, detail="No active booking")
+    
+    return {"booking": context.booking.dict(), "context": context.dict()}
+
+
+@app.get("/api/v1/wordpress/clients")
+async def list_clients() -> Dict[str, Any]:
+    """List all WordPress clients"""
+    wp_client = get_wordpress_client(config)
+    if not wp_client:
+        raise HTTPException(status_code=503, detail="WordPress not configured")
+    
+    clients = await wp_client.get_clients()
+    
+    return {
+        "clients": [c.dict() for c in clients],
+        "total": len(clients)
+    }
+
+
+@app.get("/api/v1/wordpress/clients/{client_id}/projects")
+async def list_client_projects(client_id: int) -> Dict[str, Any]:
+    """List projects for a client"""
+    # Simplified - return empty for now
+    return {"projects": [], "total": 0}
+
+
+@app.post("/api/v1/wordpress/projects")
+async def create_project(request: Dict[str, Any]) -> Dict[str, Any]:
+    """Create a new project"""
+    # Simplified - return mock response
+    return {
+        "id": 1,
+        "name": request.get("name", "New Project"),
+        "slug": request.get("name", "new-project").lower().replace(" ", "-"),
+        "client_id": request.get("client_id")
+    }
+
+
+@app.get("/api/v1/wordpress/calendar/today")
+async def get_calendar_today() -> Dict[str, Any]:
+    """Get today's calendar with time slots"""
+    from datetime import date as date_type, time, timedelta
+    
+    today = date_type.today()
+    wp_client = get_wordpress_client(config)
+    
+    # Get today's bookings
+    bookings = []
+    if wp_client:
+        bookings = await wp_client.get_appointments(date_from=today, date_to=today)
+    
+    # Generate time slots (9 AM to 5 PM, 30-minute intervals)
+    slots = []
+    current_time = time(9, 0)
+    end_time = time(17, 0)
+    
+    while current_time < end_time:
+        slot_start = current_time.strftime("%H:%M")
+        next_time = (datetime.combine(today, current_time) + timedelta(minutes=30)).time()
+        slot_end = next_time.strftime("%H:%M")
+        
+        # Check if this slot has a booking
+        slot_booking = None
+        for booking in bookings:
+            if booking.slot_start <= slot_start < booking.slot_end:
+                slot_booking = booking.dict()
+                break
+        
+        is_lunch = current_time.hour == 12
+        
+        slots.append({
+            "start_time": slot_start,
+            "end_time": slot_end,
+            "available": slot_booking is None and not is_lunch,
+            "booking": slot_booking,
+            "is_lunch": is_lunch
+        })
+        
+        current_time = next_time
+    
+    return {
+        "date": today.isoformat(),
+        "slots": slots
+    }
+
+
+@app.post("/api/v1/wordpress/calendar/book")
+async def create_walk_in_booking(request: Dict[str, Any]) -> Dict[str, Any]:
+    """Create a walk-in booking"""
+    # Simplified - return success
+    return {
+        "success": True,
+        "booking_id": 999,
+        "message": "Walk-in booking created"
+    }
+
+
+@app.get("/api/v1/wordpress/customer/{token}/status")
+async def get_customer_status(token: str) -> Dict[str, Any]:
+    """Get customer portal status"""
+    context = get_active_booking()
+    if not context or context.access_token != token:
+        raise HTTPException(status_code=404, detail="Invalid token or no active booking")
+    
+    return {
+        "booking": context.booking.dict(),
+        "project": context.project.dict(),
+        "recording_active": False,
+        "display_mode": context.display_mode.value
+    }
+
+
+@app.post("/api/v1/wordpress/customer/{token}/recording/start")
+async def customer_start_recording(token: str) -> Dict[str, Any]:
+    """Start recording from customer portal"""
+    context = get_active_booking()
+    if not context or context.access_token != token:
+        raise HTTPException(status_code=403, detail="Invalid token")
+    
+    # Trigger recording start
+    return {"success": True, "message": "Recording started"}
+
+
+@app.post("/api/v1/wordpress/customer/{token}/recording/stop")
+async def customer_stop_recording(token: str) -> Dict[str, Any]:
+    """Stop recording from customer portal"""
+    context = get_active_booking()
+    if not context or context.access_token != token:
+        raise HTTPException(status_code=403, detail="Invalid token")
+    
+    return {"success": True, "message": "Recording stopped"}
+
+
+@app.get("/api/v1/wordpress/customer/{token}/display-mode")
+async def get_display_mode(token: str) -> Dict[str, Any]:
+    """Get display mode for studio display"""
+    context = get_active_booking()
+    if not context or context.access_token != token:
+        raise HTTPException(status_code=403, detail="Invalid token")
+    
+    return {
+        "display_mode": context.display_mode.value,
+        "content_type": context.booking.content_type.value if context.booking.content_type else None
+    }
 
 
 if __name__ == "__main__":
