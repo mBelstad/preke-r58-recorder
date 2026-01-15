@@ -30,6 +30,13 @@ export const useRecorderStore = defineStore('recorder', () => {
   const durationMs = ref(0)  // Alias for WebSocket updates
   const inputsLoaded = ref(false)
   const inputs = ref<InputStatus[]>([])
+  
+  // Project/Client context (optional)
+  const recordingType = ref<'podcast' | 'recording' | 'course' | 'webinar' | null>(null)
+  const selectedClient = ref<any | null>(null)
+  const selectedProject = ref<any | null>(null)
+  const clients = ref<any[]>([])
+  const projects = ref<any[]>([])
 
   // Computed
   const isRecording = computed(() => status.value === 'recording')
@@ -69,6 +76,16 @@ export const useRecorderStore = defineStore('recorder', () => {
     // Build warning message
     const uniqueFps = [...new Set(framerates)].sort((a, b) => b - a)
     return `Mixed framerates: ${uniqueFps.map(f => `${Math.round(f)}fps`).join(', ')}`
+  })
+
+  /**
+   * Get recording path based on client/project selection
+   */
+  const recordingPath = computed(() => {
+    if (selectedClient.value && selectedProject.value) {
+      return `/data/recordings/clients/${selectedClient.value.slug}/${selectedProject.value.slug}/`
+    }
+    return '/data/recordings/unassigned/'
   })
 
   // Error state
@@ -286,6 +303,50 @@ export const useRecorderStore = defineStore('recorder', () => {
     }
   }
 
+  async function loadClients() {
+    try {
+      const response = await r58Api.wordpress.listClients()
+      clients.value = response.clients || []
+    } catch (e) {
+      console.error('Failed to load clients:', e)
+      clients.value = []
+    }
+  }
+
+  async function loadProjects(clientId: number) {
+    try {
+      const response = await r58Api.wordpress.listClientProjects(clientId)
+      projects.value = response.projects || []
+    } catch (e) {
+      console.error('Failed to load projects:', e)
+      projects.value = []
+    }
+  }
+
+  async function createProject(clientId: number, name: string, type: string) {
+    try {
+      const response = await r58Api.wordpress.createProject(clientId, name, type)
+      return response
+    } catch (e) {
+      console.error('Failed to create project:', e)
+      throw e
+    }
+  }
+
+  function setClient(client: any) {
+    selectedClient.value = client
+    selectedProject.value = null
+    projects.value = []
+  }
+
+  function setProject(project: any) {
+    selectedProject.value = project
+  }
+
+  function setRecordingType(type: 'podcast' | 'recording' | 'course' | 'webinar' | null) {
+    recordingType.value = type
+  }
+
   return {
     // State
     status,
@@ -296,12 +357,18 @@ export const useRecorderStore = defineStore('recorder', () => {
     inputs,
     inputsLoaded,
     lastError,
+    recordingType,
+    selectedClient,
+    selectedProject,
+    clients,
+    projects,
     
     // Computed
     isRecording,
     formattedDuration,
     activeInputs,
     framerateMismatch,
+    recordingPath,
     
     // Actions
     startRecording,
@@ -310,6 +377,12 @@ export const useRecorderStore = defineStore('recorder', () => {
     fetchInputs,
     updateFromEvent,
     updateInputSignal,
+    loadClients,
+    loadProjects,
+    createProject,
+    setClient,
+    setProject,
+    setRecordingType,
   }
 })
 

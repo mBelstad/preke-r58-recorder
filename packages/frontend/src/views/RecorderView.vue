@@ -18,6 +18,12 @@ const recorderStore = useRecorderStore()
 const capabilitiesStore = useCapabilitiesStore()
 const { showLeaveConfirmation, confirmLeave, cancelLeave } = useRecordingGuard()
 
+// Project selection state
+const showProjectPanel = ref(false)
+const showNewProjectDialog = ref(false)
+const newProjectName = ref('')
+const creatingProject = ref(false)
+
 // Handle loading screen cancel - navigate back to studio
 function handleLoadingCancel() {
   router.push('/')
@@ -66,6 +72,55 @@ function handleAllVideosReady() {
   videosReady.value = true
 }
 
+// Project selection functions
+async function handleClientChange() {
+  if (recorderStore.selectedClient) {
+    await recorderStore.loadProjects(recorderStore.selectedClient.id)
+  } else {
+    recorderStore.projects = []
+  }
+  recorderStore.setProject(null)
+}
+
+async function handleProjectChange(event: Event) {
+  const value = (event.target as HTMLSelectElement).value
+  if (value === 'new') {
+    showNewProjectDialog.value = true
+  } else if (value) {
+    const project = recorderStore.projects.find(p => p.id === parseInt(value))
+    recorderStore.setProject(project)
+  } else {
+    recorderStore.setProject(null)
+  }
+}
+
+async function createNewProject() {
+  if (!recorderStore.selectedClient || !newProjectName.value.trim()) {
+    toast.error('Please enter a project name')
+    return
+  }
+  
+  creatingProject.value = true
+  try {
+    const project = await recorderStore.createProject(
+      recorderStore.selectedClient.id,
+      newProjectName.value.trim(),
+      recorderStore.recordingType || 'podcast'
+    )
+    
+    await recorderStore.loadProjects(recorderStore.selectedClient.id)
+    recorderStore.setProject(project)
+    
+    showNewProjectDialog.value = false
+    newProjectName.value = ''
+    toast.success('Project created')
+  } catch (e: any) {
+    toast.error(e.message || 'Failed to create project')
+  } finally {
+    creatingProject.value = false
+  }
+}
+
 // Fetch real input status on mount - parallelized for speed
 onMounted(async () => {
   const startTime = performance.now()
@@ -75,7 +130,8 @@ onMounted(async () => {
   await Promise.all([
     ensureRecorderMode(),
     recorderStore.fetchInputs(),
-    recorderStore.fetchStatus()
+    recorderStore.fetchStatus(),
+    recorderStore.loadClients()
   ])
   
   const camerasWithSignal = recorderStore.inputs.filter(i => i.hasSignal).length
@@ -149,6 +205,106 @@ watch(showLeaveConfirmation, (show) => {
       
       <!-- Sidebar -->
       <aside class="w-72 flex-shrink-0 border-l border-preke-surface-border bg-preke-surface/80 backdrop-blur-lg p-4 overflow-y-auto">
+        <!-- Project Selection Panel -->
+        <div class="mb-4">
+          <button
+            @click="showProjectPanel = !showProjectPanel"
+            class="w-full flex items-center justify-between p-3 bg-preke-bg-elevated border border-preke-border rounded-lg hover:border-preke-border-gold transition-colors"
+          >
+            <span class="text-sm font-medium text-preke-text-dim">Project (Optional)</span>
+            <svg 
+              class="w-4 h-4 text-preke-text-muted transition-transform"
+              :class="{ 'rotate-180': showProjectPanel }"
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+          </button>
+          
+          <div v-if="showProjectPanel" class="mt-2 space-y-3 p-3 bg-preke-bg-base border border-preke-border rounded-lg">
+            <!-- Recording Type -->
+            <div>
+              <label class="block text-xs font-medium text-preke-text-subtle mb-1">Recording Type</label>
+              <select
+                v-model="recorderStore.recordingType"
+                @change="recorderStore.setRecordingType($event.target.value)"
+                class="w-full px-3 py-2 bg-preke-bg-elevated border border-preke-border rounded text-sm text-preke-text-primary focus:outline-none focus:ring-2 focus:ring-preke-gold"
+              >
+                <option :value="null">Select type...</option>
+                <option value="podcast">Podcast</option>
+                <option value="recording">Talking Head</option>
+                <option value="course">Course</option>
+                <option value="webinar">Webinar</option>
+              </select>
+            </div>
+            
+            <!-- Client -->
+            <div>
+              <label class="block text-xs font-medium text-preke-text-subtle mb-1">Client</label>
+              <select
+                v-model="recorderStore.selectedClient"
+                @change="handleClientChange"
+                class="w-full px-3 py-2 bg-preke-bg-elevated border border-preke-border rounded text-sm text-preke-text-primary focus:outline-none focus:ring-2 focus:ring-preke-gold"
+              >
+                <option :value="null">Select client...</option>
+                <option v-for="client in recorderStore.clients" :key="client.id" :value="client">
+                  {{ client.name }}
+                </option>
+              </select>
+            </div>
+            
+            <!-- Project -->
+            <div v-if="recorderStore.selectedClient">
+              <label class="block text-xs font-medium text-preke-text-subtle mb-1">Project</label>
+              <select
+                :value="recorderStore.selectedProject?.id || ''"
+                @change="handleProjectChange"
+                class="w-full px-3 py-2 bg-preke-bg-elevated border border-preke-border rounded text-sm text-preke-text-primary focus:outline-none focus:ring-2 focus:ring-preke-gold"
+              >
+                <option value="">Select project...</option>
+                <option v-for="project in recorderStore.projects" :key="project.id" :value="project.id">
+                  {{ project.name }}
+                </option>
+                <option value="new">+ Create New Project</option>
+              </select>
+            </div>
+            
+            <!-- New Project Dialog -->
+            <div v-if="showNewProjectDialog" class="p-3 bg-preke-bg-elevated border border-preke-border-gold rounded">
+              <label class="block text-xs font-medium text-preke-text-subtle mb-1">New Project Name</label>
+              <input
+                v-model="newProjectName"
+                type="text"
+                placeholder="Project name"
+                class="w-full px-3 py-2 bg-preke-bg-base border border-preke-border rounded text-sm text-preke-text-primary focus:outline-none focus:ring-2 focus:ring-preke-gold mb-2"
+                @keyup.enter="createNewProject"
+              />
+              <div class="flex gap-2">
+                <button
+                  @click="createNewProject"
+                  :disabled="creatingProject || !newProjectName.trim()"
+                  class="flex-1 px-3 py-1.5 bg-preke-gold text-preke-bg-base rounded text-xs font-medium hover:bg-preke-gold-hover disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {{ creatingProject ? 'Creating...' : 'Create' }}
+                </button>
+                <button
+                  @click="showNewProjectDialog = false; newProjectName = ''"
+                  class="flex-1 px-3 py-1.5 bg-preke-bg-base border border-preke-border rounded text-xs font-medium hover:bg-preke-bg-elevated"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+            
+            <!-- Recording Path Info -->
+            <div v-if="recorderStore.selectedClient && recorderStore.selectedProject" class="text-xs text-preke-text-muted">
+              <span class="font-mono">{{ recorderStore.recordingPath }}</span>
+            </div>
+          </div>
+        </div>
+        
         <SessionInfo />
       </aside>
     </div>

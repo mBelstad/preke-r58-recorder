@@ -121,6 +121,37 @@ const router = createRouter({
       path: '/styleguide-v2',
       redirect: { name: 'style-guide-v2' }
     },
+    // WordPress Booking Integration
+    {
+      path: '/booking/scan',
+      name: 'booking-scan',
+      component: () => import('@/views/BookingScanView.vue'),
+      meta: { title: 'Scan Booking QR' }
+    },
+    {
+      path: '/booking/:appointmentId',
+      name: 'booking-detail',
+      component: () => import('@/views/BookingView.vue'),
+      meta: { title: 'Booking Details' }
+    },
+    {
+      path: '/customer/:token',
+      name: 'customer-portal',
+      component: () => import('@/views/CustomerPortalView.vue'),
+      meta: { title: 'Customer Portal', layout: 'minimal' }
+    },
+    {
+      path: '/studio-display/:token',
+      name: 'studio-display',
+      component: () => import('@/views/StudioDisplayView.vue'),
+      meta: { title: 'Studio Display', layout: 'fullscreen' }
+    },
+    {
+      path: '/calendar',
+      name: 'calendar',
+      component: () => import('@/views/CalendarView.vue'),
+      meta: { title: 'Room Calendar', layout: 'fullscreen' }
+    },
   ]
 })
 

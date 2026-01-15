@@ -306,6 +306,38 @@ async function selectMode(mode: 'recorder' | 'mixer') {
       </div>
     </div>
     
+    <!-- Quick access to views for external displays -->
+    <div class="studio__views">
+      <span class="studio__views-label">Open on Display</span>
+      <div class="studio__views-grid">
+        <router-link to="/booking/scan" class="studio__view-btn">
+          <svg class="studio__view-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/>
+          </svg>
+          <span>Booking</span>
+        </router-link>
+        <router-link to="/calendar" class="studio__view-btn">
+          <svg class="studio__view-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+          </svg>
+          <span>Calendar</span>
+        </router-link>
+        <router-link to="/library" class="studio__view-btn">
+          <svg class="studio__view-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+          </svg>
+          <span>Library</span>
+        </router-link>
+        <router-link to="/admin" class="studio__view-btn">
+          <svg class="studio__view-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+          </svg>
+          <span>Admin</span>
+        </router-link>
+      </div>
+    </div>
+    
     <!-- Error message -->
     <div v-if="switchError" class="studio__error">
       {{ switchError }}
@@ -1395,10 +1427,66 @@ async function selectMode(mode: 'recorder' | 'mixer') {
   box-shadow: var(--preke-shadow-sm);
 }
 
+/* Views section */
+.studio__views {
+  position: absolute;
+  bottom: 3rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  text-align: center;
+}
+
+.studio__views-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--preke-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 0.75rem;
+}
+
+.studio__views-grid {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.studio__view-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.75rem 1rem;
+  background: var(--preke-bg-elevated);
+  border: 1px solid var(--preke-border);
+  border-radius: var(--preke-radius-md);
+  color: var(--preke-text-dim);
+  text-decoration: none;
+  font-size: 0.75rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.studio__view-btn:hover {
+  background: var(--preke-glass-bg);
+  border-color: var(--preke-border-gold);
+  color: var(--preke-gold);
+  transform: translateY(-2px);
+  box-shadow: var(--preke-shadow-md);
+}
+
+.studio__view-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  stroke-width: 2;
+}
+
 /* Error */
 .studio__error {
   position: absolute;
-  bottom: 2rem;
+  bottom: 1rem;
   left: 50%;
   transform: translateX(-50%);
   color: var(--preke-red);

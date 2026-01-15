@@ -1302,5 +1302,223 @@ export const r58Api = {
       }>(await buildApiUrl(`/api/v1/ptz-controller/${cameraName}/ptz`), command)
     },
   },
+
+  // WordPress/Booking Integration
+  wordpress: {
+    async getStatus() {
+      return apiGet<{
+        enabled: boolean
+        connected: boolean
+        wordpress_url: string
+        last_sync?: string
+        error?: string
+      }>(await buildApiUrl('/api/v1/wordpress/status'))
+    },
+
+    async listAppointments(params?: {
+      date_from?: string
+      date_to?: string
+      status?: string
+      page?: number
+      per_page?: number
+    }) {
+      const query = new URLSearchParams()
+      if (params?.date_from) query.set('date_from', params.date_from)
+      if (params?.date_to) query.set('date_to', params.date_to)
+      if (params?.status) query.set('status', params.status)
+      if (params?.page) query.set('page', String(params.page))
+      if (params?.per_page) query.set('per_page', String(params.per_page))
+
+      return apiGet<{
+        bookings: Array<any>
+        total: number
+        page: number
+        per_page: number
+      }>(await buildApiUrl(`/api/v1/wordpress/appointments?${query}`))
+    },
+
+    async getTodaysAppointments() {
+      return apiGet<{
+        bookings: Array<any>
+        total: number
+      }>(await buildApiUrl('/api/v1/wordpress/appointments/today'))
+    },
+
+    async getAppointment(appointmentId: number) {
+      return apiGet<{
+        booking: any
+        graphics: Array<any>
+      }>(await buildApiUrl(`/api/v1/wordpress/appointments/${appointmentId}`))
+    },
+
+    async activateBooking(appointmentId: number, downloadGraphics: boolean = true) {
+      return apiPost<{
+        success: boolean
+        booking: any
+        recording_path: string
+        graphics_downloaded: number
+        message: string
+      }>(
+        await buildApiUrl(`/api/v1/wordpress/appointments/${appointmentId}/activate`),
+        { booking_id: appointmentId, download_graphics: downloadGraphics },
+        { idempotent: true }
+      )
+    },
+
+    async completeBooking(appointmentId: number, uploadRecordings: boolean = true) {
+      return apiPost<{
+        success: boolean
+        booking_id: number
+        recordings_uploaded: number
+        wordpress_status_updated: boolean
+        message: string
+      }>(
+        await buildApiUrl(`/api/v1/wordpress/appointments/${appointmentId}/complete`),
+        { booking_id: appointmentId, upload_recordings: uploadRecordings, update_status: true },
+        { idempotent: true }
+      )
+    },
+
+    async getCurrentBooking() {
+      return apiGet<{
+        active: boolean
+        booking?: any
+        recording_path?: string
+        graphics_downloaded?: boolean
+        graphics_paths?: string[]
+        activated_at?: string
+      }>(await buildApiUrl('/api/v1/wordpress/booking/current'))
+    },
+
+    // Customer Portal API
+    async validateToken(token: string) {
+      return apiPost<{
+        valid: boolean
+        booking?: any
+        project?: any
+        error?: string
+      }>(await buildApiUrl('/api/v1/wordpress/customer/validate'), { token })
+    },
+
+    async getCustomerStatus(token: string) {
+      return apiGet<{
+        booking: any
+        project: any
+        recording_active: boolean
+        recording_duration_ms: number
+        current_slide_index: number
+        total_slides: number
+        disk_space_gb: number
+        display_mode: string
+        teleprompter_script?: string
+        teleprompter_scroll_speed: number
+      }>(await buildApiUrl(`/api/v1/wordpress/customer/${token}/status`))
+    },
+
+    async customerStartRecording(token: string) {
+      return apiPost<{
+        success: boolean
+        message: string
+        recording_path: string
+      }>(await buildApiUrl(`/api/v1/wordpress/customer/${token}/recording/start`))
+    },
+
+    async customerStopRecording(token: string) {
+      return apiPost<{
+        success: boolean
+        message: string
+      }>(await buildApiUrl(`/api/v1/wordpress/customer/${token}/recording/stop`))
+    },
+
+    async customerGotoSlide(token: string, index: number) {
+      return apiPost<{
+        success: boolean
+        current_index: number
+        total_slides: number
+      }>(await buildApiUrl(`/api/v1/wordpress/customer/${token}/presentation/goto/${index}`))
+    },
+
+    // Display Mode API
+    async getDisplayMode(token: string) {
+      return apiGet<{
+        display_mode: string
+        content_type?: string
+      }>(await buildApiUrl(`/api/v1/wordpress/customer/${token}/display-mode`))
+    },
+
+    async updateTeleprompterScript(token: string, script: string) {
+      return apiPost<{
+        success: boolean
+        script_length: number
+      }>(await buildApiUrl(`/api/v1/wordpress/customer/${token}/teleprompter/script`), { script })
+    },
+
+    async setTeleprompterSpeed(token: string, speed: number) {
+      return apiPost<{
+        success: boolean
+        speed: number
+      }>(await buildApiUrl(`/api/v1/wordpress/customer/${token}/teleprompter/speed`), { speed })
+    },
+
+    async checkVdoNinjaStatus(token: string) {
+      return apiGet<{
+        available: boolean
+        url?: string
+        error?: string
+      }>(await buildApiUrl(`/api/v1/wordpress/customer/${token}/vdoninja/status`))
+    },
+
+    // Client/Project API
+    async listClients() {
+      return apiGet<{
+        clients: Array<any>
+        total: number
+      }>(await buildApiUrl('/api/v1/wordpress/clients'))
+    },
+
+    async listClientProjects(clientId: number) {
+      return apiGet<{
+        projects: Array<any>
+        total: number
+      }>(await buildApiUrl(`/api/v1/wordpress/clients/${clientId}/projects`))
+    },
+
+    async createProject(clientId: number, name: string, type: string) {
+      return apiPost<{
+        id: number
+        name: string
+        slug: string
+        client_id: number
+      }>(await buildApiUrl('/api/v1/wordpress/projects'), { client_id: clientId, name, type })
+    },
+
+    // Calendar API
+    async getCalendarToday() {
+      return apiGet<{
+        date: string
+        slots: Array<{
+          start_time: string
+          end_time: string
+          available: boolean
+          booking?: any
+        }>
+      }>(await buildApiUrl('/api/v1/wordpress/calendar/today'))
+    },
+
+    async createWalkInBooking(data: {
+      slot_start: string
+      slot_end: string
+      customer_name: string
+      customer_email: string
+      customer_phone?: string
+      recording_type: string
+    }) {
+      return apiPost<{
+        success: boolean
+        booking_id: number
+        message: string
+      }>(await buildApiUrl('/api/v1/wordpress/calendar/book'), data)
+    },
+  },
 }
 

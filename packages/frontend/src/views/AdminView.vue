@@ -38,7 +38,14 @@ async function downloadSupportBundle() {
   <div class="h-full flex flex-col bg-preke-bg">
     <!-- Header -->
     <header class="px-6 py-4 border-b border-preke-surface-border bg-preke-surface/50 backdrop-blur-sm">
-      <h1 class="text-xl font-semibold text-preke-text mb-4">Admin</h1>
+      <div class="flex items-center gap-4 mb-4">
+        <router-link to="/" class="btn-v2 btn-v2--ghost">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+          </svg>
+        </router-link>
+        <h1 class="text-xl font-semibold text-preke-text">Admin</h1>
+      </div>
       
       <!-- Tabs -->
       <div class="flex gap-1">

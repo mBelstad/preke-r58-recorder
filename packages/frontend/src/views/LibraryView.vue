@@ -235,7 +235,14 @@ onMounted(() => {
   <div class="h-full flex flex-col">
     <!-- Header -->
     <header class="flex items-center justify-between px-6 py-4 border-b border-preke-surface-border bg-preke-surface/50 backdrop-blur-sm">
-      <h1 class="text-xl font-semibold text-preke-text">Recording Library</h1>
+      <div class="flex items-center gap-4">
+        <router-link to="/" class="btn-v2 btn-v2--ghost">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+          </svg>
+        </router-link>
+        <h1 class="text-xl font-semibold text-preke-text">Recording Library</h1>
+      </div>
       <div class="flex items-center gap-4">
         <button @click="fetchSessions" class="btn-v2 btn-v2--primary" :disabled="loading">
           <svg v-if="loading" class="animate-spin w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
