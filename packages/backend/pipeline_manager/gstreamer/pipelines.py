@@ -740,17 +740,31 @@ def build_tee_recording_pipeline(
     
     # === SOURCE + SCALE (NV12 DIRECT) ===
     # All devices capture NV12 directly, eliminating the videoconvert step
-    # NV12 goes straight to encoder after RGA-accelerated scaling
     # 
-    # Pipeline: v4l2src (NV12) → videorate (30fps) → videoscale (RGA) → encoder
-    # This is simpler and more efficient than UYVY→NV12 conversion
-    source_pipeline = (
-        f"v4l2src device={device} io-mode=mmap ! "
-        f"video/x-raw,format=NV12,width={src_width},height={src_height} ! "
-        f"videorate ! video/x-raw,framerate=30/1 ! "
-        f"videoscale ! "
-        f"video/x-raw,format=NV12,width={target_width},height={target_height}"
-    )
+    # OPTIMIZATION: Skip videoscale entirely when source matches target resolution
+    # This saves significant CPU when cameras output at target resolution (e.g., 1080p)
+    # When scaling IS needed, use method=nearest (fastest) or method=bilinear (balanced)
+    needs_scaling = (src_width != target_width or src_height != target_height)
+    
+    if needs_scaling:
+        # Use nearest-neighbor for fastest scaling (lower quality but much faster)
+        # For better quality at cost of CPU, use method=bilinear
+        logger.info(f"{cam_id}: Scaling {src_width}x{src_height} -> {target_width}x{target_height} (using fast nearest-neighbor)")
+        source_pipeline = (
+            f"v4l2src device={device} io-mode=mmap ! "
+            f"video/x-raw,format=NV12,width={src_width},height={src_height} ! "
+            f"videorate ! video/x-raw,framerate=30/1 ! "
+            f"videoscale method=nearest ! "
+            f"video/x-raw,format=NV12,width={target_width},height={target_height}"
+        )
+    else:
+        # No scaling needed - direct passthrough saves CPU
+        logger.info(f"{cam_id}: No scaling needed - source matches target ({src_width}x{src_height})")
+        source_pipeline = (
+            f"v4l2src device={device} io-mode=mmap ! "
+            f"video/x-raw,format=NV12,width={src_width},height={src_height} ! "
+            f"videorate ! video/x-raw,framerate=30/1"
+        )
     
     # === RECORDING BRANCH ===
     # High bitrate H.264 High profile for quality recording
