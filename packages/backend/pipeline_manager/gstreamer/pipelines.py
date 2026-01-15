@@ -770,16 +770,17 @@ def build_tee_recording_pipeline(
         f"filesink location={recording_path} sync=false"
     )
     
-    # === PREVIEW BRANCH (Always On) ===
-    # TESTING: Using HARDWARE encoder (mpph264enc) for preview
-    # Testing if VPU overload was real issue, or if device monitor/format fixes resolved it
-    # If crashes occur: switch to x264enc (software) as fallback
+    # === PREVIEW BRANCH (Always On) - LOW LATENCY OPTIMIZED ===
+    # Using hardware encoder with low-latency settings:
+    # - Medium queue (10 buffers) balances latency vs smoothness
+    # - GOP=15 for faster keyframe sync (every 0.5s at 30fps)
+    # - Baseline profile for faster decoding
     preview_branch = (
-        f"queue name=preview_queue max-size-buffers=30 max-size-time=0 "
+        f"queue name=preview_queue max-size-buffers=10 max-size-time=0 "
         f"max-size-bytes=0 leaky=downstream ! "
         f"mpph264enc "
-        f"qp-init=26 qp-min=10 qp-max=51 "
-        f"gop=30 profile=baseline rc-mode=cbr "
+        f"qp-init=26 qp-min=15 qp-max=45 "
+        f"gop=15 profile=baseline rc-mode=cbr "
         f"bps={preview_bitrate * 1000} ! "
         f"video/x-h264,stream-format=byte-stream ! "
         f"h264parse config-interval=-1 ! "
