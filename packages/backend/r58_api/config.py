@@ -36,6 +36,10 @@ class Settings(BaseSettings):
     vdoninja_enabled: bool = True
     vdoninja_port: int = 8443
     vdoninja_room: str = "studio"
+    
+    # VDO.ninja VPS (external, for webinars)
+    vdoninja_vps_enabled: bool = True
+    vdoninja_vps_url: str = "https://vdo.itagenten.no"
 
     # Fleet
     fleet_enabled: bool = False
@@ -47,6 +51,15 @@ class Settings(BaseSettings):
 
     # Pipeline Manager IPC
     pipeline_socket_path: str = "/run/r58/pipeline.sock"
+
+    # WordPress Integration
+    wordpress_enabled: bool = False
+    wordpress_url: str = "https://preke.no"
+    wordpress_username: str = ""
+    wordpress_app_password: str = ""
+    
+    # Booking recordings path (where booking-specific recordings are stored)
+    booking_recordings_base: str = "/data/recordings/clients"
 
 
 # Singleton settings instance

@@ -349,11 +349,12 @@ def get_device_capabilities(device_path: str) -> Dict[str, Any]:
 
     # All devices now use NV12 - supported by both rkcif and hdmirx
     # NV12 goes directly to encoder without needing videoconvert
+    # framerate=0 means auto-detect (let GStreamer negotiate)
     result = {
         'format': 'NV12',
         'width': 1920,
         'height': 1080,
-        'framerate': 30,
+        'framerate': 0,  # 0 = auto-detect from source
         'has_signal': True,
         'is_bayer': False,
         'bayer_format': None
@@ -672,6 +673,7 @@ def build_tee_recording_pipeline(
     resolution: str = "1920x1080",
     rtsp_port: int = 8554,
     use_valve: bool = True,           # Enable valve for recording control
+    framerate: int = 0,               # 0 = auto-detect from source
 ) -> str:
     """Build TEE pipeline with independent recording + always-on preview.
     
@@ -681,6 +683,7 @@ def build_tee_recording_pipeline(
     - Recording can start/stop without affecting preview (via valve element)
     - .mkv container for edit-while-record (DaVinci Resolve compatible)
     - Dual VPU H.264 encoding (different bitrates/profiles)
+    - Auto-detects input framerate (supports 25p, 30p, 50p, 60p, etc.)
     
     Pipeline structure:
         v4l2src (NV12) → [RGA: videoscale 1080p] → TEE
@@ -701,6 +704,7 @@ def build_tee_recording_pipeline(
         resolution: Target resolution "WxH" (default: 1920x1080)
         rtsp_port: MediaMTX RTSP port (default: 8554)
         use_valve: If True, include valve element to control recording (default: True)
+        framerate: Target framerate (0 = auto-detect from source, supports 25p/30p/etc.)
         
     Returns:
         GStreamer pipeline string
@@ -736,7 +740,12 @@ def build_tee_recording_pipeline(
     # All devices now use NV12 directly - no videoconvert needed
     src_format = 'NV12'
     
-    logger.info(f"{cam_id}: TEE pipeline source NV12 {src_width}x{src_height} -> target {target_width}x{target_height}")
+    # Determine framerate: use config override if set, otherwise auto-detect (0)
+    # framerate=0 means GStreamer will negotiate with the source
+    src_fps = framerate if framerate > 0 else caps.get('framerate', 0)
+    fps_info = f"{src_fps}fps" if src_fps > 0 else "auto"
+    
+    logger.info(f"{cam_id}: TEE pipeline source NV12 {src_width}x{src_height} -> target {target_width}x{target_height} @ {fps_info}")
     
     # === SOURCE + SCALE (NV12 DIRECT) ===
     # All devices capture NV12 directly, eliminating the videoconvert step
@@ -749,22 +758,38 @@ def build_tee_recording_pipeline(
     if needs_scaling:
         # Use nearest-neighbor for fastest scaling (lower quality but much faster)
         # For better quality at cost of CPU, use method=bilinear
-        logger.info(f"{cam_id}: Scaling {src_width}x{src_height} -> {target_width}x{target_height} (using fast nearest-neighbor)")
-        source_pipeline = (
-            f"v4l2src device={device} io-mode=mmap ! "
-            f"video/x-raw,format=NV12,width={src_width},height={src_height} ! "
-            f"videorate ! video/x-raw,framerate=30/1 ! "
-            f"videoscale method=nearest ! "
-            f"video/x-raw,format=NV12,width={target_width},height={target_height}"
-        )
+        logger.info(f"{cam_id}: Scaling {src_width}x{src_height} -> {target_width}x{target_height} (fps: {src_fps if src_fps else 'auto'})")
+        if src_fps > 0:
+            source_pipeline = (
+                f"v4l2src device={device} io-mode=mmap ! "
+                f"video/x-raw,format=NV12,width={src_width},height={src_height} ! "
+                f"videorate ! video/x-raw,framerate={src_fps}/1 ! "
+                f"videoscale method=nearest ! "
+                f"video/x-raw,format=NV12,width={target_width},height={target_height}"
+            )
+        else:
+            # Auto-detect framerate - don't force a specific rate
+            source_pipeline = (
+                f"v4l2src device={device} io-mode=mmap ! "
+                f"video/x-raw,format=NV12,width={src_width},height={src_height} ! "
+                f"videoscale method=nearest ! "
+                f"video/x-raw,format=NV12,width={target_width},height={target_height}"
+            )
     else:
         # No scaling needed - direct passthrough saves CPU
-        logger.info(f"{cam_id}: No scaling needed - source matches target ({src_width}x{src_height})")
-        source_pipeline = (
-            f"v4l2src device={device} io-mode=mmap ! "
-            f"video/x-raw,format=NV12,width={src_width},height={src_height} ! "
-            f"videorate ! video/x-raw,framerate=30/1"
-        )
+        logger.info(f"{cam_id}: No scaling needed - source matches target ({src_width}x{src_height}) (fps: {src_fps if src_fps else 'auto'})")
+        if src_fps > 0:
+            source_pipeline = (
+                f"v4l2src device={device} io-mode=mmap ! "
+                f"video/x-raw,format=NV12,width={src_width},height={src_height} ! "
+                f"videorate ! video/x-raw,framerate={src_fps}/1"
+            )
+        else:
+            # Auto-detect framerate - passthrough native rate
+            source_pipeline = (
+                f"v4l2src device={device} io-mode=mmap ! "
+                f"video/x-raw,format=NV12,width={src_width},height={src_height}"
+            )
     
     # === RECORDING BRANCH ===
     # High bitrate H.264 High profile for quality recording

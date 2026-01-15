@@ -235,6 +235,7 @@ class IngestManager:
                 resolution=cam_config.resolution,
                 rtsp_port=rtsp_port,
                 use_valve=True,  # Enable valve for recording control
+                framerate=cam_config.framerate,  # 0 = auto-detect from source
             )
             is_tee = True
             

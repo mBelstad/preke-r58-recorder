@@ -24,6 +24,7 @@ class CameraConfig:
     TEE Pipeline Architecture:
     - recording_bitrate: High bitrate for quality recording (default: 18Mbps)
     - preview_bitrate: Lower bitrate for preview streaming (default: 6Mbps)
+    - framerate: Target framerate (0 = auto-detect from source, e.g., 25 for PAL, 30 for NTSC)
     
     The TEE pipeline splits the stream after RGA scaling, allowing independent
     quality settings for recording vs preview.
@@ -34,6 +35,7 @@ class CameraConfig:
     recording_bitrate: int = 18000  # 18 Mbps for high-quality recording (H.264 High profile)
     preview_bitrate: int = 6000     # 6 Mbps for preview streaming (H.264 Baseline)
     bitrate: int = 4000             # Legacy: used as preview_bitrate if recording_bitrate not set
+    framerate: int = 0              # 0 = auto-detect from source (supports 25p, 30p, 50p, 60p etc)
     codec: str = "h264"
     enabled: bool = True
     mediamtx_enabled: bool = True
@@ -137,6 +139,7 @@ def _parse_config(data: Dict[str, Any]) -> PipelineConfig:
                 recording_bitrate=recording_bitrate,
                 preview_bitrate=preview_bitrate,
                 bitrate=legacy_bitrate,  # Keep for backward compatibility
+                framerate=cam_data.get("framerate", 0),  # 0 = auto-detect
                 codec=cam_data.get("codec", "h264"),
                 enabled=cam_data.get("enabled", True),
                 mediamtx_enabled=cam_data.get("mediamtx_enabled", True),

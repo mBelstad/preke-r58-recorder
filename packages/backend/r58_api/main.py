@@ -22,6 +22,7 @@ from .control.sessions.router import router as sessions_router
 from .control.streaming import router as streaming_router
 from .control.vdoninja import router as vdoninja_router
 from .control.vdo_ninja.router import router as vdo_ninja_api_router
+from .control.wordpress.router import router as wordpress_router
 from .db.database import init_db
 from .degradation import router as degradation_router
 from .logging import setup_logging
@@ -204,6 +205,7 @@ def create_app() -> FastAPI:
     app.include_router(vdo_ninja_api_router)
     app.include_router(sessions_router)
     app.include_router(streaming_router)
+    app.include_router(wordpress_router)
     app.include_router(health_router)
     app.include_router(metrics_router)
     app.include_router(support_router)
