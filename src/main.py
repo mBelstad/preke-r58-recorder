@@ -607,13 +607,14 @@ async def get_capabilities() -> Dict[str, Any]:
     inputs = []
     for idx, cam_id in enumerate(config.cameras.keys()):
         cam_config = config.cameras[cam_id]
+        device_path = getattr(cam_config, 'device', f"/dev/video{idx * 10}")
         inputs.append({
             "id": cam_id,
             "type": "hdmi",
             "label": f"Camera {idx + 1}",
             "max_resolution": "1920x1080",
             "supports_audio": True,
-            "device_path": cam_config.get("device", f"/dev/video{idx * 10}")
+            "device_path": device_path
         })
     
     # Hardware codecs
@@ -650,11 +651,15 @@ async def get_capabilities() -> Dict[str, Any]:
     ]
     
     # VDO.ninja configuration
+    vdoninja_enabled = getattr(config, 'vdoninja', None) and getattr(config.vdoninja, 'enabled', False)
+    vdoninja_port = getattr(config.vdoninja, 'port', 8080) if hasattr(config, 'vdoninja') else 8080
+    vdoninja_room = getattr(config.vdoninja, 'room', 'r58') if hasattr(config, 'vdoninja') else 'r58'
+    
     vdoninja_config = {
-        "enabled": config.vdoninja.enabled if hasattr(config, 'vdoninja') else False,
+        "enabled": vdoninja_enabled,
         "host": "localhost",
-        "port": config.vdoninja.port if hasattr(config, 'vdoninja') else 8080,
-        "room": config.vdoninja.room if hasattr(config, 'vdoninja') else "r58"
+        "port": vdoninja_port,
+        "room": vdoninja_room
     }
     
     return {
