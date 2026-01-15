@@ -92,6 +92,17 @@ async function buildWhepUrl(cameraId: string): Promise<string> {
     }
   }
   
+  // Local device mode: when running on the R58 itself at localhost (NOT in Electron)
+  // In Electron dev mode (also at localhost), we want to use the configured device, not localhost
+  const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI
+  if (!isElectron && typeof window !== 'undefined' && (
+    window.location.hostname === 'localhost' || 
+    window.location.hostname === '127.0.0.1'
+  )) {
+    console.log(`[WHEP Manager] Local device mode, using localhost MediaMTX`)
+    return `http://localhost:8889/${cameraId}/whep`
+  }
+  
   // Same-domain proxy: app.itagenten.no proxies /cam*/whep directly to MediaMTX
   if (typeof window !== 'undefined' && window.location.hostname === 'app.itagenten.no') {
     console.log(`[WHEP Manager] Browser access from app.itagenten.no, using same-domain proxy`)
@@ -274,12 +285,17 @@ async function createConnection(cameraId: string): Promise<WHEPConnection> {
   }
   
   // Wait for device URL to be set (handles race condition on startup)
-  // Skip waiting in browser mode at app.itagenten.no (no device URL available)
-  const isBrowserMode = typeof window !== 'undefined' && window.location.hostname === 'app.itagenten.no'
+  // Skip waiting in pure browser mode (no Electron API available)
+  const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI
+  const isBrowserOnlyMode = !isElectron && typeof window !== 'undefined' && (
+    window.location.hostname === 'app.itagenten.no' ||
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1'
+  )
   let deviceUrl = getDeviceUrl()
   
-  if (!isBrowserMode) {
-    // Electron mode: wait for device URL
+  if (!isBrowserOnlyMode) {
+    // Electron mode: wait for device URL (even if running at localhost in dev mode)
     let attempts = 0
     while (!deviceUrl && attempts < 5) {
       console.log(`[WHEP Manager ${cameraId}] No device URL yet, waiting... (attempt ${attempts + 1})`)
@@ -288,7 +304,7 @@ async function createConnection(cameraId: string): Promise<WHEPConnection> {
       attempts++
     }
   } else {
-    console.log(`[WHEP Manager ${cameraId}] Browser mode - using MediaMTX proxy`)
+    console.log(`[WHEP Manager ${cameraId}] Browser-only mode (no Electron) - using appropriate proxy`)
   }
   
   const startTime = performance.now()

@@ -8,6 +8,7 @@
  * - Recording indicator with bytes written
  * - Signal quality tooltip
  * - Framerate mismatch warning
+ * - Click to enlarge full-screen view
  * 
  * OPTIMIZATION: Only shows live video previews in Recorder mode.
  * In Mixer mode, shows static placeholders to avoid duplicate
@@ -27,6 +28,17 @@ const emit = defineEmits<{
 
 // Track which cameras have video ready
 const videosReady = ref<Set<string>>(new Set())
+
+// Enlarged view state
+const enlargedInput = ref<InputStatus | null>(null)
+
+function openEnlarged(input: InputStatus) {
+  enlargedInput.value = input
+}
+
+function closeEnlarged() {
+  enlargedInput.value = null
+}
 
 // Track aspect ratios per input (default to 16:9)
 const aspectRatios = ref<Record<string, number>>({})
@@ -177,6 +189,7 @@ function getInputTooltip(input: InputStatus): string {
       :class="getBorderClass(input)"
       :style="getTileStyle(input.id)"
       :title="getInputTooltip(input)"
+      @click="openEnlarged(input)"
     >
       <!-- Video preview - only in recorder mode to avoid duplicate WHEP connections -->
       <InputPreview
@@ -223,6 +236,62 @@ function getInputTooltip(input: InputStatus): string {
       </div>
     </div>
     </div>
+    
+    <!-- Enlarged full-screen view modal -->
+    <Teleport to="body">
+      <Transition name="enlarged">
+        <div 
+          v-if="enlargedInput"
+          class="enlarged-modal"
+          @click="closeEnlarged"
+        >
+          <div class="enlarged-modal__content" @click.stop>
+            <!-- Video preview -->
+            <InputPreview
+              v-if="isRecorderMode"
+              :input-id="enlargedInput.id"
+              class="w-full h-full"
+            />
+            
+            <!-- Info bar -->
+            <div class="enlarged-modal__info">
+              <div class="flex items-center gap-3">
+                <span
+                  class="w-2.5 h-2.5 rounded-full"
+                  :class="{
+                    'bg-emerald-500': getSignalQuality(enlargedInput) === 'excellent' || getSignalQuality(enlargedInput) === 'good',
+                    'bg-amber-500 animate-pulse': getSignalQuality(enlargedInput) === 'unstable',
+                    'bg-preke-text-dim': getSignalQuality(enlargedInput) === 'none',
+                  }"
+                ></span>
+                <span class="font-semibold text-lg">{{ enlargedInput.label }}</span>
+                <span 
+                  v-if="enlargedInput.isRecording"
+                  class="px-2 py-0.5 text-xs font-bold bg-preke-red/20 text-preke-red rounded"
+                >
+                  REC
+                </span>
+              </div>
+              <div class="flex items-center gap-4 text-sm">
+                <span class="text-preke-text-dim">{{ enlargedInput.resolution }}</span>
+                <span :class="getSignalQualityColor(enlargedInput)">{{ enlargedInput.framerate }}fps</span>
+              </div>
+            </div>
+            
+            <!-- Close button -->
+            <button 
+              class="enlarged-modal__close"
+              @click="closeEnlarged"
+              title="Close (or click outside)"
+            >
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -280,15 +349,44 @@ function getInputTooltip(input: InputStatus): string {
   }
 }
 
-/* 3-4 cameras - 2x2 grid, wrap to single column on narrow screens */
-.input-grid__container[data-count="3"],
+/* 3 cameras - 2 on top, 1 centered on bottom */
+.input-grid__container[data-count="3"] {
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+}
+
+.input-grid__container[data-count="3"] .input-grid__tile:nth-child(1) {
+  grid-column: 1 / 3;
+}
+
+.input-grid__container[data-count="3"] .input-grid__tile:nth-child(2) {
+  grid-column: 3 / 5;
+}
+
+.input-grid__container[data-count="3"] .input-grid__tile:nth-child(3) {
+  grid-column: 2 / 4;
+}
+
+@media (max-width: 768px) {
+  .input-grid__container[data-count="3"] {
+    grid-template-columns: 1fr;
+    grid-template-rows: repeat(3, 1fr);
+  }
+  
+  .input-grid__container[data-count="3"] .input-grid__tile:nth-child(1),
+  .input-grid__container[data-count="3"] .input-grid__tile:nth-child(2),
+  .input-grid__container[data-count="3"] .input-grid__tile:nth-child(3) {
+    grid-column: 1;
+  }
+}
+
+/* 4 cameras - 2x2 grid */
 .input-grid__container[data-count="4"] {
   grid-template-columns: repeat(2, 1fr);
   grid-template-rows: repeat(2, 1fr);
 }
 
 @media (max-width: 768px) {
-  .input-grid__container[data-count="3"],
   .input-grid__container[data-count="4"] {
     grid-template-columns: 1fr;
     grid-template-rows: repeat(auto-fit, minmax(200px, 1fr));
@@ -342,5 +440,77 @@ function getInputTooltip(input: InputStatus): string {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+/* Enlarged modal overlay - video only, no bezels */
+.enlarged-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.95);
+}
+
+.enlarged-modal__content {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  overflow: hidden;
+}
+
+.enlarged-modal__content :deep(video) {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.enlarged-modal__info {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
+  color: white;
+}
+
+.enlarged-modal__close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  padding: 0.5rem;
+  background: rgba(0, 0, 0, 0.5);
+  border: none;
+  border-radius: 50%;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.enlarged-modal__close:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.1);
+}
+
+/* Enlarged modal transition */
+.enlarged-enter-active,
+.enlarged-leave-active {
+  transition: all 0.2s ease;
+}
+
+.enlarged-enter-from,
+.enlarged-leave-to {
+  opacity: 0;
+}
+
+.enlarged-enter-from .enlarged-modal__content,
+.enlarged-leave-to .enlarged-modal__content {
+  transform: scale(0.9);
 }
 </style>

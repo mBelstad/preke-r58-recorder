@@ -208,14 +208,17 @@ onUnmounted(() => {
       <div class="animate-spin w-6 h-6 border-2 border-white border-t-transparent rounded-full"></div>
     </div>
     
-    <!-- Reconnecting overlay -->
+    <!-- Reconnecting overlay (click to force reconnect) -->
     <div 
       v-if="isReconnecting"
-      class="absolute inset-0 flex items-center justify-center bg-black/70"
+      class="absolute inset-0 flex items-center justify-center bg-black/70 cursor-pointer"
+      @click="manualRetry"
+      title="Click to force reconnect"
     >
       <div class="text-center">
         <div class="animate-spin w-5 h-5 border-2 border-amber-400 border-t-transparent rounded-full mx-auto mb-2"></div>
         <p class="text-xs text-amber-400">{{ error || 'Reconnecting...' }}</p>
+        <p class="text-xs text-amber-400/60 mt-1">Tap to retry</p>
       </div>
     </div>
     

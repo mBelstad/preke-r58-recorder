@@ -9,8 +9,11 @@
  * - Auto-sleeps after inactivity timeout
  * 
  * This saves significant CPU/GPU by not rendering the full UI.
+ * 
+ * NOTE: Sleep mode is currently disabled on localhost until further
+ * development is complete. Only activates on actual R58 device (ARM Linux).
  */
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useLocalDeviceMode } from '@/composables/useLocalDeviceMode'
 
 const props = defineProps<{
@@ -24,6 +27,16 @@ const emit = defineEmits<{
 
 const { isOnDevice } = useLocalDeviceMode()
 const isSleeping = ref(false)
+
+// Check if we're on localhost (disable sleep mode on localhost for now)
+const isLocalhost = computed(() => {
+  if (typeof window === 'undefined') return false
+  const host = window.location.hostname
+  return host === 'localhost' || host === '127.0.0.1'
+})
+
+// Sleep mode is only enabled on actual device, NOT on localhost
+const sleepModeEnabled = computed(() => isOnDevice.value && !isLocalhost.value)
 const showWakeHint = ref(false)
 
 // Default 5 minute idle timeout
@@ -37,8 +50,8 @@ function resetIdleTimer() {
     clearTimeout(idleTimer)
   }
   
-  // Only auto-sleep on device
-  if (isOnDevice.value) {
+  // Only auto-sleep when sleep mode is enabled (device, not localhost)
+  if (sleepModeEnabled.value) {
     idleTimer = setTimeout(() => {
       sleep()
     }, timeout)
@@ -81,9 +94,9 @@ function handleActivity() {
   }
 }
 
-// Start in sleep mode if on device
+// Start in sleep mode if on device (but not on localhost)
 function initializeSleepState() {
-  if (isOnDevice.value) {
+  if (sleepModeEnabled.value) {
     // Start sleeping immediately on device
     sleep()
   }
@@ -110,9 +123,9 @@ onUnmounted(() => {
   if (hintTimer) clearTimeout(hintTimer)
 })
 
-// Watch for device mode changes
-watch(isOnDevice, (onDevice) => {
-  if (onDevice) {
+// Watch for sleep mode enabled changes
+watch(sleepModeEnabled, (enabled) => {
+  if (enabled) {
     sleep()
   } else {
     wake()
