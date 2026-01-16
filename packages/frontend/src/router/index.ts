@@ -158,6 +158,31 @@ const router = createRouter({
       component: () => import('@/views/QRView.vue'),
       meta: { title: 'QR Code', layout: 'fullscreen' }
     },
+    // Direct-access mode display pages (for testing/preview)
+    {
+      path: '/podcast',
+      name: 'podcast-display',
+      component: () => import('@/views/StudioDisplayView.vue'),
+      meta: { title: 'Podcast Display', layout: 'fullscreen' }
+    },
+    {
+      path: '/talking-head',
+      name: 'talking-head-display',
+      component: () => import('@/views/StudioDisplayView.vue'),
+      meta: { title: 'Talking Head Display', layout: 'fullscreen' }
+    },
+    {
+      path: '/course',
+      name: 'course-display',
+      component: () => import('@/views/StudioDisplayView.vue'),
+      meta: { title: 'Course Display', layout: 'fullscreen' }
+    },
+    {
+      path: '/webinar',
+      name: 'webinar-display',
+      component: () => import('@/views/StudioDisplayView.vue'),
+      meta: { title: 'Webinar Display', layout: 'fullscreen' }
+    },
   ]
 })
 

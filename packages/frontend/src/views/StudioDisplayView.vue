@@ -7,7 +7,22 @@ import TeleprompterDisplay from './studio-display/TeleprompterDisplay.vue'
 import WebinarDisplay from './studio-display/WebinarDisplay.vue'
 
 const route = useRoute()
-const token = computed(() => route.params.token as string)
+const token = computed(() => route.params.token as string | undefined)
+
+// Check if this is a direct-access mode page (no token)
+const isDirectAccess = computed(() => !token.value)
+
+// Determine display mode from route if direct access
+const routeMode = computed(() => {
+  if (isDirectAccess.value) {
+    const routeName = route.name as string
+    if (routeName === 'podcast-display') return 'podcast'
+    if (routeName === 'talking-head-display') return 'teleprompter'
+    if (routeName === 'course-display') return 'course'
+    if (routeName === 'webinar-display') return 'webinar'
+  }
+  return null
+})
 
 const status = ref<any>(null)
 const loading = ref(true)
@@ -16,15 +31,42 @@ const error = ref<string | null>(null)
 let statusInterval: number | null = null
 
 onMounted(async () => {
-  await loadStatus()
-  statusInterval = window.setInterval(loadStatus, 2000)
+  if (isDirectAccess.value) {
+    // Direct access mode - create mock status
+    createMockStatus()
+  } else {
+    // Token-based mode - load from API
+    await loadStatus()
+    statusInterval = window.setInterval(loadStatus, 2000)
+  }
 })
 
 onUnmounted(() => {
   if (statusInterval) clearInterval(statusInterval)
 })
 
+function createMockStatus() {
+  // Create mock status for preview mode
+  status.value = {
+    booking: {
+      id: 0,
+      customer: { name: 'Preview Mode', email: 'preview@preke.no' }
+    },
+    project: {
+      id: 0,
+      name: 'Preview Session',
+      slug: 'preview'
+    },
+    recording_active: false,
+    current_slide_index: 0,
+    display_mode: routeMode.value || 'podcast'
+  }
+  loading.value = false
+}
+
 async function loadStatus() {
+  if (!token.value) return
+  
   try {
     const response = await r58Api.wordpress.getCustomerStatus(token.value)
     status.value = response
@@ -39,6 +81,9 @@ async function loadStatus() {
 }
 
 const displayMode = computed(() => {
+  if (isDirectAccess.value) {
+    return routeMode.value || 'podcast'
+  }
   return status.value?.display_mode || 'podcast'
 })
 </script>
@@ -72,7 +117,7 @@ const displayMode = computed(() => {
     
     <!-- Display Mode Router -->
     <div v-else-if="status" class="display-content">
-      <PodcastDisplay v-if="displayMode === 'podcast'" :status="status" />
+      <PodcastDisplay v-if="displayMode === 'podcast' || displayMode === 'course'" :status="status" />
       <TeleprompterDisplay v-else-if="displayMode === 'teleprompter'" :status="status" />
       <WebinarDisplay v-else-if="displayMode === 'webinar'" :status="status" />
       <div v-else class="text-center">

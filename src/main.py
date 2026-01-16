@@ -6349,11 +6349,13 @@ async def create_qr_session(request: Dict[str, Any] = Body({})) -> Dict[str, Any
     """Create a QR code session for quick access without a booking"""
     import secrets
     
-    # Get display mode from request (default to podcast)
-    display_mode_str = request.get("display_mode", "podcast")
-    try:
-        display_mode = DisplayMode(display_mode_str)
-    except ValueError:
+    # Check for existing active booking to get display_mode
+    existing_context = get_active_booking()
+    if existing_context and existing_context.display_mode:
+        # Use display mode from active booking
+        display_mode = existing_context.display_mode
+    else:
+        # Default to podcast if no active booking
         display_mode = DisplayMode.PODCAST
     
     # Generate access token

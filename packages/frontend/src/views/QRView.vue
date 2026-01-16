@@ -1,23 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { buildApiUrl } from '@/lib/api'
 
-const route = useRoute()
 const router = useRouter()
-
-// Get mode from query parameter (podcast, talking-head, course, webinar)
-const mode = computed(() => {
-  const modeParam = route.query.mode as string
-  // Map talking-head to teleprompter for backend
-  if (modeParam === 'talking-head') return 'teleprompter'
-  return modeParam || 'podcast'
-})
-
-const displayMode = computed(() => {
-  const modeParam = route.query.mode as string
-  return modeParam || 'podcast'
-})
 
 const sessionToken = ref<string | null>(null)
 const loading = ref(true)
@@ -25,14 +11,7 @@ const error = ref<string | null>(null)
 const qrCodeUrl = ref<string>('')
 const customerPortalUrl = ref<string>('')
 const studioDisplayUrl = ref<string>('')
-
-// Mode display names
-const modeNames: Record<string, string> = {
-  podcast: 'Podcast',
-  'talking-head': 'Talking Head',
-  course: 'Course',
-  webinar: 'Webinar'
-}
+const displayMode = ref<string>('')
 
 onMounted(async () => {
   await createSession()
@@ -48,15 +27,13 @@ async function createSession() {
   
   try {
     // Create a temporary session for this QR code
-    // This will generate a token that links to customer portal and studio display
+    // Display mode will be determined by active booking (if exists) or default to podcast
     const response = await fetch(await buildApiUrl('/api/v1/wordpress/qr-session'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        display_mode: mode.value
-      })
+      body: JSON.stringify({})
     })
     
     if (!response.ok) {
@@ -65,6 +42,7 @@ async function createSession() {
     
     const data = await response.json()
     sessionToken.value = data.token
+    displayMode.value = data.display_mode || 'podcast'
     
     // Generate URLs
     const baseUrl = window.location.origin
@@ -117,7 +95,7 @@ function copyDisplayUrl() {
           </svg>
           <span>Back</span>
         </button>
-        <h1 class="qr-view__title">{{ modeNames[displayMode] || 'QR Code' }} Mode</h1>
+        <h1 class="qr-view__title">QR Code</h1>
       </div>
       
       <!-- Loading State -->
@@ -156,7 +134,7 @@ function copyDisplayUrl() {
           </div>
           
           <p class="qr-view__instructions">
-            The TV will display <strong>{{ modeNames[displayMode] }}</strong> mode automatically
+            Scan this QR code to get controls on your phone. The TV will display the appropriate mode automatically.
           </p>
         </div>
         
