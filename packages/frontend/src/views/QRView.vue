@@ -98,11 +98,12 @@ async function createSession() {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 4rem 2rem 2rem;
+  justify-content: flex-start;
+  padding: 6rem 2rem 4rem;
   text-align: center;
   box-sizing: border-box;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
   position: relative;
 }
 
@@ -165,11 +166,12 @@ async function createSession() {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 3rem;
   max-width: 800px;
   width: 100%;
-  margin-top: 2rem;
+  margin: 0 auto;
+  padding-top: 2rem;
 }
 
 .qr-view__welcome {
