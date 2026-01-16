@@ -41,25 +41,26 @@ const recordingTips = [
   }
 ]
 
+let pollInterval: number | null = null
+
 onMounted(async () => {
   // Rotate tips every 5 seconds
   tipInterval = window.setInterval(() => {
     currentTipIndex.value = (currentTipIndex.value + 1) % recordingTips.length
   }, 5000)
   
-  // Fetch camera inputs if not in preview mode
-  if (!props.isPreview) {
-    await recorderStore.fetchInputs()
-    // Poll for input updates every 2 seconds
-    const pollInterval = window.setInterval(() => {
-      recorderStore.fetchInputs()
-    }, 2000)
-    onUnmounted(() => clearInterval(pollInterval))
-  }
+  // Always fetch camera inputs - multiview is core functionality
+  console.log('[PodcastDisplay] Fetching camera inputs')
+  await recorderStore.fetchInputs()
+  // Poll for input updates every 2 seconds
+  pollInterval = window.setInterval(() => {
+    recorderStore.fetchInputs()
+  }, 2000)
 })
 
 onUnmounted(() => {
   if (tipInterval) clearInterval(tipInterval)
+  if (pollInterval) clearInterval(pollInterval)
 })
 
 const isRecording = computed(() => props.status?.recording_active || false)
@@ -91,9 +92,8 @@ const currentGraphic = computed(() => {
 
 const currentTip = computed(() => recordingTips[currentTipIndex.value])
 
-// Get active cameras for multiview
+// Get active cameras for multiview - always show if available
 const activeCameras = computed(() => {
-  if (props.isPreview) return []
   return recorderStore.inputs.filter(i => i.hasSignal).slice(0, 4) // Max 4 cameras
 })
 </script>

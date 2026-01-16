@@ -45,6 +45,8 @@ const teleprompterTips = [
   }
 ]
 
+let pollInterval: number | null = null
+
 onMounted(async () => {
   // Rotate tips every 5 seconds
   tipInterval = window.setInterval(() => {
@@ -59,19 +61,18 @@ onMounted(async () => {
     startScroll()
   }
   
-  // Fetch camera inputs if not in preview mode
-  if (!props.isPreview) {
-    await recorderStore.fetchInputs()
-    // Poll for input updates every 2 seconds
-    const pollInterval = window.setInterval(() => {
-      recorderStore.fetchInputs()
-    }, 2000)
-    onUnmounted(() => clearInterval(pollInterval))
-  }
+  // Always fetch camera inputs - camera preview is core functionality
+  console.log('[TeleprompterDisplay] Fetching camera inputs')
+  await recorderStore.fetchInputs()
+  // Poll for input updates every 2 seconds
+  pollInterval = window.setInterval(() => {
+    recorderStore.fetchInputs()
+  }, 2000)
 })
 
 onUnmounted(() => {
   if (tipInterval) clearInterval(tipInterval)
+  if (pollInterval) clearInterval(pollInterval)
   if (scrollAnimationId) cancelAnimationFrame(scrollAnimationId)
   window.removeEventListener('keydown', handleKeyDown)
 })
@@ -110,9 +111,8 @@ const scriptText = computed(() => {
   return props.status?.teleprompter_script || 'No script loaded. Please add a script in the booking settings.'
 })
 
-// Get first active camera for preview
+// Get first active camera for preview - always show if available
 const previewCamera = computed(() => {
-  if (props.isPreview) return null
   return recorderStore.inputs.find(i => i.hasSignal) || null
 })
 
