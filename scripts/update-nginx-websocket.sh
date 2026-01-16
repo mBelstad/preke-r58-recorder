@@ -1,25 +1,41 @@
 #!/bin/bash
 # Update nginx configuration to support WebSocket for /api/v1/ws
-# Run this script ON the Coolify VPS (65.109.32.111) or via SSH
+# Can be run locally - will SSH to VPS automatically
 
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VPS_HOST="${VPS_HOST:-root@65.109.32.111}"
 NGINX_CONTAINER="${NGINX_CONTAINER:-r58-proxy}"
 CONFIG_FILE="/etc/nginx/conf.d/r58.conf"
+
+# Try to use connect script if available
+if [[ -f "$SCRIPT_DIR/../connect-coolify-vps.sh" ]]; then
+    CONNECT_SCRIPT="$SCRIPT_DIR/../connect-coolify-vps.sh"
+else
+    CONNECT_SCRIPT="ssh"
+fi
 
 echo "🔧 Updating nginx configuration for WebSocket support..."
 echo ""
 
 # Step 1: Backup current config
 echo "Step 1: Backing up current nginx config..."
-ssh "$VPS_HOST" "docker exec $NGINX_CONTAINER cat $CONFIG_FILE > /tmp/r58.conf.backup.\$(date +%Y%m%d_%H%M%S) 2>/dev/null || echo 'Config file may not exist yet'"
+if [[ "$CONNECT_SCRIPT" == "ssh" ]]; then
+    ssh "$VPS_HOST" "docker exec $NGINX_CONTAINER cat $CONFIG_FILE > /tmp/r58.conf.backup.\$(date +%Y%m%d_%H%M%S) 2>/dev/null || echo 'Config file may not exist yet'"
+else
+    bash "$CONNECT_SCRIPT" "docker exec $NGINX_CONTAINER cat $CONFIG_FILE > /tmp/r58.conf.backup.\$(date +%Y%m%d_%H%M%S) 2>/dev/null || echo 'Config file may not exist yet'"
+fi
 echo "✅ Backup saved"
 echo ""
 
 # Step 2: Read current config and update
 echo "Step 2: Reading current nginx config..."
-CURRENT_CONFIG=$(ssh "$VPS_HOST" "docker exec $NGINX_CONTAINER cat $CONFIG_FILE 2>/dev/null || echo ''")
+if [[ "$CONNECT_SCRIPT" == "ssh" ]]; then
+    CURRENT_CONFIG=$(ssh "$VPS_HOST" "docker exec $NGINX_CONTAINER cat $CONFIG_FILE 2>/dev/null || echo ''")
+else
+    CURRENT_CONFIG=$(bash "$CONNECT_SCRIPT" "docker exec $NGINX_CONTAINER cat $CONFIG_FILE 2>/dev/null || echo ''")
+fi
 
 if [[ -z "$CURRENT_CONFIG" ]]; then
     echo "⚠️  No existing config found. You may need to create the initial config first."
@@ -61,27 +77,51 @@ $UPDATED_CONFIG"
 fi
 
 # Write to temp file
-ssh "$VPS_HOST" "cat > /tmp/r58_websocket.conf << 'EOF'
+if [[ "$CONNECT_SCRIPT" == "ssh" ]]; then
+    ssh "$VPS_HOST" "cat > /tmp/r58_websocket.conf << 'EOF'
 $UPDATED_CONFIG
 EOF"
+else
+    bash "$CONNECT_SCRIPT" "cat > /tmp/r58_websocket.conf << 'EOF'
+$UPDATED_CONFIG
+EOF"
+fi
 
 echo "✅ Updated config created"
 echo ""
 
 # Step 4: Copy to container
 echo "Step 4: Copying updated config to nginx container..."
-ssh "$VPS_HOST" "docker cp /tmp/r58_websocket.conf $NGINX_CONTAINER:$CONFIG_FILE"
+if [[ "$CONNECT_SCRIPT" == "ssh" ]]; then
+    ssh "$VPS_HOST" "docker cp /tmp/r58_websocket.conf $NGINX_CONTAINER:$CONFIG_FILE"
+else
+    bash "$CONNECT_SCRIPT" "docker cp /tmp/r58_websocket.conf $NGINX_CONTAINER:$CONFIG_FILE"
+fi
 echo "✅ Configuration copied"
 echo ""
 
 # Step 5: Test nginx config
 echo "Step 5: Testing nginx configuration..."
-if ssh "$VPS_HOST" "docker exec $NGINX_CONTAINER nginx -t"; then
+if [[ "$CONNECT_SCRIPT" == "ssh" ]]; then
+    TEST_RESULT=$(ssh "$VPS_HOST" "docker exec $NGINX_CONTAINER nginx -t 2>&1")
+else
+    TEST_RESULT=$(bash "$CONNECT_SCRIPT" "docker exec $NGINX_CONTAINER nginx -t 2>&1")
+fi
+
+if echo "$TEST_RESULT" | grep -q "syntax is ok"; then
     echo "✅ nginx config is valid"
 else
-    echo "❌ nginx config test failed! Restoring backup..."
-    ssh "$VPS_HOST" "docker cp /tmp/r58.conf.backup.* $NGINX_CONTAINER:$CONFIG_FILE 2>/dev/null || true"
-    ssh "$VPS_HOST" "docker exec $NGINX_CONTAINER nginx -s reload"
+    echo "❌ nginx config test failed!"
+    echo "$TEST_RESULT"
+    echo ""
+    echo "Restoring backup..."
+    if [[ "$CONNECT_SCRIPT" == "ssh" ]]; then
+        ssh "$VPS_HOST" "docker cp /tmp/r58.conf.backup.* $NGINX_CONTAINER:$CONFIG_FILE 2>/dev/null || true"
+        ssh "$VPS_HOST" "docker exec $NGINX_CONTAINER nginx -s reload"
+    else
+        bash "$CONNECT_SCRIPT" "docker cp /tmp/r58.conf.backup.* $NGINX_CONTAINER:$CONFIG_FILE 2>/dev/null || true"
+        bash "$CONNECT_SCRIPT" "docker exec $NGINX_CONTAINER nginx -s reload"
+    fi
     echo "❌ Backup restored. Please check the configuration manually."
     exit 1
 fi
@@ -89,7 +129,11 @@ echo ""
 
 # Step 6: Reload nginx
 echo "Step 6: Reloading nginx..."
-ssh "$VPS_HOST" "docker exec $NGINX_CONTAINER nginx -s reload"
+if [[ "$CONNECT_SCRIPT" == "ssh" ]]; then
+    ssh "$VPS_HOST" "docker exec $NGINX_CONTAINER nginx -s reload"
+else
+    bash "$CONNECT_SCRIPT" "docker exec $NGINX_CONTAINER nginx -s reload"
+fi
 echo "✅ nginx reloaded successfully"
 echo ""
 
