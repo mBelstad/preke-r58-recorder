@@ -113,19 +113,26 @@ export function useR58WebSocket() {
       
       // Check if this was a failed connection (not a graceful disconnect)
       // WebSocket close code 1006 = abnormal closure (connection never established)
-      // Note: We only log debug info, not warnings, since WebSocket is optional on R58
+      // Code 1003 = endpoint going away (server closed)
+      // Code 1000 = normal closure
       if (event.code === 1006 && reconnectAttempts.value === 0) {
-        // First connection failed - endpoint may not exist (404)
+        // First connection failed - endpoint may not exist (404) or connection refused
         // This is expected on R58 devices that don't have WebSocket support
         console.debug('[WebSocket] Initial connection failed - WebSocket endpoint may not be configured')
+      } else if (event.code === 1003 || event.code === 1000) {
+        // Graceful disconnect - don't reconnect
+        endpointUnavailable.value = true
+        return
       }
       
       scheduleReconnect()
     }
     
-    ws.onerror = () => {
+    ws.onerror = (error) => {
       // Errors are handled by onclose - suppress duplicate logging
       // WebSocket errors on R58 are expected (endpoint doesn't exist)
+      // Only log if network debug is enabled
+      networkDebugLog('WebSocket', `Connection error: ${error}`)
     }
   }
   

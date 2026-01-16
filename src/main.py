@@ -5699,6 +5699,98 @@ async def ptz_controller_command(camera_name: str, request: SetPTZRequest = Body
     }
 
 
+@app.websocket("/api/v1/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    """WebSocket endpoint for real-time events and status updates."""
+    await websocket.accept()
+    logger.info("WebSocket client connected")
+    
+    try:
+        # Send initial connection event
+        await websocket.send_json({
+            "v": 1,
+            "type": "connected",
+            "ts": datetime.now().isoformat(),
+            "seq": 1,
+            "device_id": config.device_id or "r58-device",
+            "payload": {
+                "message": "Connected to R58 device"
+            }
+        })
+        
+        # Heartbeat loop
+        last_heartbeat = time.time()
+        heartbeat_interval = 30.0  # 30 seconds
+        
+        while True:
+            try:
+                # Check for incoming messages (non-blocking)
+                try:
+                    data = await asyncio.wait_for(websocket.receive_json(), timeout=1.0)
+                    msg_type = data.get("type")
+                    
+                    if msg_type == "sync_request":
+                        # Client requesting state sync
+                        last_seq = data.get("last_seq", 0)
+                        await websocket.send_json({
+                            "v": 1,
+                            "type": "sync_response",
+                            "ts": datetime.now().isoformat(),
+                            "seq": 2,
+                            "device_id": config.device_id or "r58-device",
+                            "payload": {
+                                "last_seq": last_seq,
+                                "current_seq": 2,
+                                "can_replay": False,
+                                "missed_event_count": 0,
+                                "events": [],
+                                "state": {
+                                    "mode": await mode_manager.get_current_mode() if mode_manager else "recorder",
+                                    "recording": None,
+                                    "inputs": {}
+                                }
+                            }
+                        })
+                    elif msg_type == "ping":
+                        await websocket.send_json({
+                            "v": 1,
+                            "type": "pong",
+                            "ts": datetime.now().isoformat(),
+                            "seq": 2,
+                            "device_id": config.device_id or "r58-device"
+                        })
+                except asyncio.TimeoutError:
+                    # No message received, continue to heartbeat check
+                    pass
+                
+                # Send heartbeat if needed
+                now = time.time()
+                if now - last_heartbeat >= heartbeat_interval:
+                    await websocket.send_json({
+                        "v": 1,
+                        "type": "heartbeat",
+                        "ts": datetime.now().isoformat(),
+                        "seq": 2,
+                        "device_id": config.device_id or "r58-device"
+                    })
+                    last_heartbeat = now
+                    
+            except WebSocketDisconnect:
+                break
+            except Exception as e:
+                logger.error(f"WebSocket error: {e}")
+                break
+                
+    except WebSocketDisconnect:
+        logger.info("WebSocket client disconnected")
+    except Exception as e:
+        logger.error(f"WebSocket error: {e}")
+        try:
+            await websocket.close()
+        except:
+            pass
+
+
 @app.websocket("/api/v1/ptz-controller/ws")
 async def ptz_controller_websocket(websocket: WebSocket):
     """WebSocket endpoint for real-time PTZ control from hardware controllers."""
