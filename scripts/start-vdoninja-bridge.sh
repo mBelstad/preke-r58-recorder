@@ -98,12 +98,13 @@ start_chromium() {
         
         # Build the VDO.ninja URL with &whepshare
         # &videodevice=0&audiodevice=0 disables local camera/mic but allows WHEP stream sharing
-        # &whepshare provides the video source from MediaMTX WHEP endpoint
-        # &nopreview disables local video preview
+        # &whepshare provides the video source from MediaMTX WHEP endpoint (replaces local camera)
+        # &nopreview disables local video preview UI (prevents showing any preview)
+        # &novideo disables video playback/rendering locally (prevents showing video in the tab)
         # &autostart automatically starts streaming
         # &password is required to join the same authenticated room as the director
         # &vb=2000 limits outgoing video bitrate to 2 Mbps to prevent jamming connection
-        local vdo_url="https://$VDONINJA_HOST/?push=$push_id&room=$ROOM_NAME&password=preke-r58-2024&whepshare=$encoded_whep&label=$label&videodevice=0&audiodevice=0&nopreview&autostart&vb=2000"
+        local vdo_url="https://$VDONINJA_HOST/?push=$push_id&room=$ROOM_NAME&password=preke-r58-2024&whepshare=$encoded_whep&label=$label&videodevice=0&audiodevice=0&nopreview&novideo&autostart&vb=2000"
         urls="$urls $vdo_url"
         
         log "Camera: $label -> $whep_url"
@@ -213,24 +214,41 @@ async function main() {
             continue;
         }
         
-        // For whepshare pages, click 'Join Room with Camera' then START
-        if (url.includes('whepshare=')) {
-            console.log('  -> WHEP share page, auto-joining...');
-            
-            try {
-                await page.bringToFront();
-                await new Promise(r => setTimeout(r, 2000));
-                
-                // Check if already in room (has hang up button)
-                const inRoom = await page.evaluate(() => {
-                    return !!document.querySelector('[title*=\"Hang up\"]') || 
-                           !!document.querySelector('[aria-label*=\"Hang up\"]');
-                });
-                
-                if (inRoom) {
-                    console.log('  -> Already in room');
-                    continue;
-                }
+                // For whepshare pages, click 'Join Room with Camera' then START
+                if (url.includes('whepshare=')) {
+                    console.log('  -> WHEP share page, auto-joining...');
+                    
+                    try {
+                        await page.bringToFront();
+                        await new Promise(r => setTimeout(r, 3000)); // Increased wait time
+                        
+                        // Check if WHEP stream is connected (video element with src)
+                        const hasWhepVideo = await page.evaluate(() => {
+                            const videos = document.querySelectorAll('video');
+                            for (const video of videos) {
+                                // Check if video has a source (WHEP stream)
+                                if (video.srcObject || video.src || video.currentSrc) {
+                                    return true;
+                                }
+                            }
+                            return false;
+                        });
+                        
+                        if (hasWhepVideo) {
+                            console.log('  -> WHEP stream already connected');
+                            continue;
+                        }
+                        
+                        // Check if already in room (has hang up button)
+                        const inRoom = await page.evaluate(() => {
+                            return !!document.querySelector('[title*=\"Hang up\"]') || 
+                                   !!document.querySelector('[aria-label*=\"Hang up\"]');
+                        });
+                        
+                        if (inRoom) {
+                            console.log('  -> Already in room');
+                            continue;
+                        }
                 
                 // Click 'Join Room with Camera' button if visible
                 const joinClicked = await page.evaluate(() => {
@@ -281,6 +299,36 @@ async function main() {
                 
                 if (startClicked) {
                     console.log('  -> Clicked START (' + startClicked + ')');
+                    await new Promise(r => setTimeout(r, 3000)); // Wait for WHEP connection
+                    
+                    // Verify WHEP stream is connected (not local camera)
+                    const whepConnected = await page.evaluate(() => {
+                        const videos = document.querySelectorAll('video');
+                        for (const video of videos) {
+                            // Check if video is playing and has a source
+                            if (video.readyState >= 2 && (video.srcObject || video.src)) {
+                                // Check if it's a MediaStream (local) vs WHEP (remote)
+                                if (video.srcObject && video.srcObject instanceof MediaStream) {
+                                    const tracks = video.srcObject.getVideoTracks();
+                                    if (tracks.length > 0) {
+                                        // Check if track label suggests local camera
+                                        const label = tracks[0].label.toLowerCase();
+                                        if (label.includes('camera') || label.includes('webcam') || label.includes('video')) {
+                                            return false; // Likely local camera
+                                        }
+                                    }
+                                }
+                                return true; // WHEP stream connected
+                            }
+                        }
+                        return false;
+                    });
+                    
+                    if (whepConnected) {
+                        console.log('  -> WHEP stream verified and connected');
+                    } else {
+                        console.log('  -> WARNING: WHEP stream may not be connected (check manually)');
+                    }
                 } else {
                     console.log('  -> Could not find START button (may already be streaming)');
                 }

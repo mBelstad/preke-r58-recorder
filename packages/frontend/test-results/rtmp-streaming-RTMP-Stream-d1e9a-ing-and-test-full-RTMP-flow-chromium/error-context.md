@@ -1,0 +1,342 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]:
+        - generic "Slow connection · 5486ms" [ref=e6]:
+          - generic [ref=e8]: Slow · 5486ms
+        - generic "Camera inputs" [ref=e10]:
+          - img [ref=e11]
+          - generic "HDMI 1" [ref=e13]:
+            - generic [ref=e14]: "1"
+          - generic "HDMI 2" [ref=e15]:
+            - generic [ref=e16]: "2"
+          - generic "HDMI 3" [ref=e17]:
+            - generic [ref=e18]: "3"
+          - generic "HDMI 4" [ref=e19]:
+            - generic [ref=e20]: "4"
+      - generic [ref=e22]:
+        - img "Preke" [ref=e23]
+        - generic [ref=e24]: STUDIO
+      - generic [ref=e25]:
+        - generic "348 GB free" [ref=e26]:
+          - img [ref=e27]
+          - generic [ref=e32]: 348GB
+        - generic [ref=e34]: 13:33
+        - button "Switch to light mode" [ref=e35] [cursor=pointer]:
+          - img [ref=e36]
+    - generic [ref=e39]:
+      - complementary [ref=e40]:
+        - navigation [ref=e41]:
+          - list [ref=e42]:
+            - listitem [ref=e43]:
+              - link "Home" [ref=e44] [cursor=pointer]:
+                - /url: "#/"
+                - img [ref=e46]
+                - generic: Home
+            - listitem [ref=e48]:
+              - link "Recorder" [ref=e49] [cursor=pointer]:
+                - /url: "#/recorder"
+                - img [ref=e51]
+                - generic: Recorder
+            - listitem [ref=e55]:
+              - link "Mixer" [ref=e56] [cursor=pointer]:
+                - /url: "#/mixer"
+                - img [ref=e58]
+                - generic: Mixer
+            - listitem [ref=e65]:
+              - link "Library" [ref=e66] [cursor=pointer]:
+                - /url: "#/library"
+                - img [ref=e68]
+                - generic: Library
+            - listitem [ref=e70]:
+              - link "Admin" [ref=e71] [cursor=pointer]:
+                - /url: "#/admin"
+                - img [ref=e73]
+                - generic: Admin
+        - generic [ref=e75]: v2.0
+      - main [ref=e76]:
+        - generic [ref=e77]:
+          - generic [ref=e79]:
+            - generic [ref=e80]:
+              - generic [ref=e81]: Room
+              - generic [ref=e82]: studio
+              - generic [ref=e83]: 3 cams
+            - generic [ref=e87]: Offline
+            - button "Start Streaming" [active] [ref=e89] [cursor=pointer]:
+              - img [ref=e90]
+              - text: Start Streaming
+            - button "Add Stream Key" [ref=e92] [cursor=pointer]:
+              - img [ref=e93]
+              - text: Add Stream Key
+            - button "Watch" [ref=e95] [cursor=pointer]:
+              - img [ref=e96]
+              - text: Watch
+            - button "Scene Output" [ref=e99] [cursor=pointer]:
+              - img [ref=e100]
+              - text: Scene Output
+            - button "Copy scene view link - open this URL, then use 'Publishing setup' to screen-share it to MediaMTX" [ref=e102] [cursor=pointer]:
+              - img [ref=e103]
+            - button "Configure streaming destinations" [ref=e105] [cursor=pointer]:
+              - img [ref=e106]
+          - generic [ref=e109]:
+            - iframe [ref=e110]:
+              - generic [active] [ref=f1e1]:
+                - generic [ref=f1e2]:
+                  - generic [ref=f1e3]: studio
+                  - button "Copy Password 📋" [ref=f1e4] [cursor=pointer]
+                  - button "Switch Modes ↻" [ref=f1e5] [cursor=pointer]
+                  - button "Mixer Settings ⚙︎" [ref=f1e6] [cursor=pointer]
+                  - button "Invite Settings" [ref=f1e7] [cursor=pointer]
+                  - link "Invite Guest Link 📎" [ref=f1e8] [cursor=pointer]:
+                    - /url: https://r58-vdo.itagenten.no/?room=studio&hash=fde7&broadcast
+                  - link "Scene View Link 📎" [ref=f1e9] [cursor=pointer]:
+                    - /url: ./?scene=0&layout&remote&showlabels&room=studio&password=preke-r58-2024
+                  - button "Publish to Twitch" [ref=f1e10] [cursor=pointer]
+                  - button "Scene Output Options" [ref=f1e11] [cursor=pointer]
+                - generic:
+                  - generic [ref=f1e12]:
+                    - generic [ref=f1e13]:
+                      - generic "Create a new custom layout, with the visual scene editor." [ref=f1e14] [cursor=pointer]
+                      - generic "Keyboard hotkey value. Drag elements around to change order." [ref=f1e15]: "0"
+                    - generic [ref=f1e16]:
+                      - generic "This layout will auto-mix all available videos into a single dynamic layout." [ref=f1e17] [cursor=pointer]
+                      - generic "Keyboard hotkey value. Drag elements around to change order." [ref=f1e18]: "1"
+                    - generic [ref=f1e19]:
+                      - generic "Activate this layout; the view scene link will be updated" [ref=f1e20] [cursor=pointer]
+                      - generic "Keyboard hotkey value. Drag elements around to change order." [ref=f1e21]: "2"
+                    - generic [ref=f1e22]:
+                      - generic "Activate this layout; the view scene link will be updated" [ref=f1e23] [cursor=pointer]
+                      - generic "Keyboard hotkey value. Drag elements around to change order." [ref=f1e24]: "3"
+                    - generic [ref=f1e25]:
+                      - generic "Activate this layout; the view scene link will be updated" [ref=f1e26] [cursor=pointer]
+                      - generic "Keyboard hotkey value. Drag elements around to change order." [ref=f1e27]: "4"
+                    - generic [ref=f1e28]:
+                      - generic "Activate this layout; the view scene link will be updated" [ref=f1e29] [cursor=pointer]
+                      - generic "Keyboard hotkey value. Drag elements around to change order." [ref=f1e30]: "5"
+                    - generic [ref=f1e31]:
+                      - generic "Activate this layout; the view scene link will be updated" [ref=f1e32] [cursor=pointer]
+                      - generic "Keyboard hotkey value. Drag elements around to change order." [ref=f1e33]: "6"
+                    - generic [ref=f1e34]:
+                      - generic "Activate this layout; the view scene link will be updated" [ref=f1e35] [cursor=pointer]
+                      - generic "Keyboard hotkey value. Drag elements around to change order." [ref=f1e36]: "7"
+                    - generic [ref=f1e37]:
+                      - generic "Activate this layout; the view scene link will be updated" [ref=f1e38] [cursor=pointer]
+                      - generic "Keyboard hotkey value. Drag elements around to change order." [ref=f1e39]: "8"
+                    - generic [ref=f1e40]:
+                      - generic "Activate this layout; the view scene link will be updated" [ref=f1e41] [cursor=pointer]
+                      - generic "Keyboard hotkey value. Drag elements around to change order." [ref=f1e42]: "9"
+                  - iframe [ref=f1e44]:
+                    - generic [active] [ref=f3e1]:
+                      - text: 
+                      - generic [ref=f3e2]:
+                        - text: 
+                        - button "Mute Speaker output" [ref=f3e3] [cursor=pointer]:
+                          - generic [ref=f3e4]: 
+                        - button "Share a website" [ref=f3e5] [cursor=pointer]:
+                          - generic [ref=f3e6]: 
+                        - button "Room settings menu" [ref=f3e7] [cursor=pointer]:
+                          - generic [ref=f3e8]: 
+                        - 'button " enable director`s microphone or video" [ref=f3e10] [cursor=pointer]':
+                          - generic [ref=f3e11]: 
+                          - generic [ref=f3e12]: "enable director`s microphone or video"
+                      - generic:   
+                      - generic [ref=f3e13]:
+                        - text:        
+                        - generic [ref=f3e14]:
+                          - region "HDMI-IN2" [ref=f3e15]:
+                            - generic "Drag to swap layout positions" [ref=f3e16]:
+                              - 'button "slot: 1" [ref=f3e17] [cursor=pointer]'
+                            - generic "Does not impact scene order." [ref=f3e18]:
+                              - generic [ref=f3e19] [cursor=pointer]: 
+                              - generic [ref=f3e21] [cursor=pointer]: 
+                              - generic [ref=f3e22] [cursor=pointer]: 
+                            - generic [ref=f3e23]:
+                              - text: "ID: hdmi3"
+                              - generic "Copy this Stream ID to the clipboard" [ref=f3e24] [cursor=pointer]: 
+                              - generic "Minimize this control box" [ref=f3e25] [cursor=pointer]: 
+                              - generic "Click here to edit the label for this stream. Changes will propagate to all viewers of this stream" [ref=f3e26] [cursor=pointer]: HDMI-IN2
+                            - generic [ref=f3e28]:
+                              - generic "Video packet loss indicator of video preview; green is good, red is bad. Flame implies CPU is overloaded. May not reflect the packet loss seen by scenes or other guests." [ref=f3e29]:
+                                - generic [ref=f3e30]: 
+                                - text: 
+                              - generic "Hold CTRL or CMD (⌘) while clicking the video to open detailed stats" [ref=f3e31]
+                            - generic [ref=f3e32]:
+                              - generic [ref=f3e33]:
+                                - generic [ref=f3e34]:
+                                  - slider "Remotely change the volume of this guest; updates on release. Dbl-click to reset." [ref=f3e36]: "100"
+                                  - button " Mute" [ref=f3e37] [cursor=pointer]:
+                                    - generic [ref=f3e38]: 
+                                    - generic [ref=f3e39]: Mute
+                                - generic [ref=f3e40]:
+                                  - text:   
+                                  - button " Message" [ref=f3e41] [cursor=pointer]:
+                                    - generic [ref=f3e42]: 
+                                    - generic [ref=f3e43]: Message
+                                  - text: 
+                                  - button " Hangup" [ref=f3e44] [cursor=pointer]:
+                                    - generic [ref=f3e45]: 
+                                    - generic [ref=f3e46]: Hangup
+                                - generic:        
+                                - generic [ref=f3e49]:
+                                  - button " Audio Settings" [ref=f3e50] [cursor=pointer]:
+                                    - generic [ref=f3e51]: 
+                                    - generic [ref=f3e52]: Audio Settings
+                                  - button " Video Settings" [ref=f3e53] [cursor=pointer]:
+                                    - generic [ref=f3e54]: 
+                                    - generic [ref=f3e55]: Video Settings
+                              - generic "A direct solo view of the video/audio stream with nothing else. Its audio can be remotely controlled from here" [ref=f3e56]:
+                                - link "https://r58-vdo.itagenten.no/index.html?view=hdmi3&solo&room=studio&password=preke-r58-2024" [ref=f3e57]:
+                                  - /url: https://r58-vdo.itagenten.no/index.html?view=hdmi3&solo&room=studio&password=preke-r58-2024
+                                - button " copy solo view link" [ref=f3e58] [cursor=pointer]:
+                                  - generic [ref=f3e59]: 
+                                  - generic [ref=f3e60]: copy solo view link
+                          - region "HDMI-IN0" [ref=f3e61]:
+                            - generic "Drag to swap layout positions" [ref=f3e62]:
+                              - 'button "slot: 2" [ref=f3e63] [cursor=pointer]'
+                            - generic "Does not impact scene order." [ref=f3e64]:
+                              - generic [ref=f3e65] [cursor=pointer]: 
+                              - generic [ref=f3e67] [cursor=pointer]: 
+                              - generic [ref=f3e68] [cursor=pointer]: 
+                            - generic [ref=f3e69]:
+                              - text: "ID: hdmi0"
+                              - generic "Copy this Stream ID to the clipboard" [ref=f3e70] [cursor=pointer]: 
+                              - generic "Minimize this control box" [ref=f3e71] [cursor=pointer]: 
+                              - generic "Click here to edit the label for this stream. Changes will propagate to all viewers of this stream" [ref=f3e72] [cursor=pointer]: HDMI-IN0
+                            - generic [ref=f3e74]:
+                              - generic "Video packet loss indicator of video preview; green is good, red is bad. Flame implies CPU is overloaded. May not reflect the packet loss seen by scenes or other guests." [ref=f3e75]:
+                                - generic [ref=f3e76]: 
+                                - text: 
+                              - generic "Hold CTRL or CMD (⌘) while clicking the video to open detailed stats" [ref=f3e77]
+                            - generic [ref=f3e78]:
+                              - generic [ref=f3e79]:
+                                - generic [ref=f3e80]:
+                                  - slider "Remotely change the volume of this guest; updates on release. Dbl-click to reset." [ref=f3e82]: "100"
+                                  - button " Mute" [ref=f3e83] [cursor=pointer]:
+                                    - generic [ref=f3e84]: 
+                                    - generic [ref=f3e85]: Mute
+                                - generic [ref=f3e86]:
+                                  - text:   
+                                  - button " Message" [ref=f3e87] [cursor=pointer]:
+                                    - generic [ref=f3e88]: 
+                                    - generic [ref=f3e89]: Message
+                                  - text: 
+                                  - button " Hangup" [ref=f3e90] [cursor=pointer]:
+                                    - generic [ref=f3e91]: 
+                                    - generic [ref=f3e92]: Hangup
+                                - generic:        
+                                - generic [ref=f3e95]:
+                                  - button " Audio Settings" [ref=f3e96] [cursor=pointer]:
+                                    - generic [ref=f3e97]: 
+                                    - generic [ref=f3e98]: Audio Settings
+                                  - button " Video Settings" [ref=f3e99] [cursor=pointer]:
+                                    - generic [ref=f3e100]: 
+                                    - generic [ref=f3e101]: Video Settings
+                              - generic "A direct solo view of the video/audio stream with nothing else. Its audio can be remotely controlled from here" [ref=f3e102]:
+                                - link "https://r58-vdo.itagenten.no/index.html?view=hdmi0&solo&room=studio&password=preke-r58-2024" [ref=f3e103]:
+                                  - /url: https://r58-vdo.itagenten.no/index.html?view=hdmi0&solo&room=studio&password=preke-r58-2024
+                                - button " copy solo view link" [ref=f3e104] [cursor=pointer]:
+                                  - generic [ref=f3e105]: 
+                                  - generic [ref=f3e106]: copy solo view link
+                          - region "HDMI-IN1" [ref=f3e107]:
+                            - generic "Drag to swap layout positions" [ref=f3e108]:
+                              - 'button "slot: 3" [ref=f3e109] [cursor=pointer]'
+                            - generic "Does not impact scene order." [ref=f3e110]:
+                              - generic [ref=f3e111] [cursor=pointer]: 
+                              - generic [ref=f3e113] [cursor=pointer]: 
+                              - generic [ref=f3e114] [cursor=pointer]: 
+                            - generic [ref=f3e115]:
+                              - text: "ID: hdmi2"
+                              - generic "Copy this Stream ID to the clipboard" [ref=f3e116] [cursor=pointer]: 
+                              - generic "Minimize this control box" [ref=f3e117] [cursor=pointer]: 
+                              - generic "Click here to edit the label for this stream. Changes will propagate to all viewers of this stream" [ref=f3e118] [cursor=pointer]: HDMI-IN1
+                            - generic [ref=f3e120]:
+                              - generic "Video packet loss indicator of video preview; green is good, red is bad. Flame implies CPU is overloaded. May not reflect the packet loss seen by scenes or other guests." [ref=f3e121]:
+                                - generic [ref=f3e122]: 
+                                - text: 
+                              - generic "Hold CTRL or CMD (⌘) while clicking the video to open detailed stats" [ref=f3e123]
+                            - generic [ref=f3e124]:
+                              - generic [ref=f3e125]:
+                                - generic [ref=f3e126]:
+                                  - slider "Remotely change the volume of this guest; updates on release. Dbl-click to reset." [ref=f3e128]: "100"
+                                  - button " Mute" [ref=f3e129] [cursor=pointer]:
+                                    - generic [ref=f3e130]: 
+                                    - generic [ref=f3e131]: Mute
+                                - generic [ref=f3e132]:
+                                  - text:   
+                                  - button " Message" [ref=f3e133] [cursor=pointer]:
+                                    - generic [ref=f3e134]: 
+                                    - generic [ref=f3e135]: Message
+                                  - text: 
+                                  - button " Hangup" [ref=f3e136] [cursor=pointer]:
+                                    - generic [ref=f3e137]: 
+                                    - generic [ref=f3e138]: Hangup
+                                - generic:        
+                                - generic [ref=f3e141]:
+                                  - button " Audio Settings" [ref=f3e142] [cursor=pointer]:
+                                    - generic [ref=f3e143]: 
+                                    - generic [ref=f3e144]: Audio Settings
+                                  - button " Video Settings" [ref=f3e145] [cursor=pointer]:
+                                    - generic [ref=f3e146]: 
+                                    - generic [ref=f3e147]: Video Settings
+                              - generic "A direct solo view of the video/audio stream with nothing else. Its audio can be remotely controlled from here" [ref=f3e148]:
+                                - link "https://r58-vdo.itagenten.no/index.html?view=hdmi2&solo&room=studio&password=preke-r58-2024" [ref=f3e149]:
+                                  - /url: https://r58-vdo.itagenten.no/index.html?view=hdmi2&solo&room=studio&password=preke-r58-2024
+                                - button " copy solo view link" [ref=f3e150] [cursor=pointer]:
+                                  - generic [ref=f3e151]: 
+                                  - generic [ref=f3e152]: copy solo view link
+                      - text:                                      
+                      - generic:
+                        - img
+                      - text: 
+                      - link [ref=f3e153] [cursor=pointer]:
+                        - /url: /rawdoc.md
+                        - text: Full and User Documentation
+                - generic [ref=f1e45]:
+                  - generic [ref=f1e47]: Welcome to VDO.Ninja! You can send text messages directly to connected peers from here.
+                  - generic "Hide the chat window" [ref=f1e48] [cursor=pointer]: x
+                  - generic [ref=f1e49]:
+                    - textbox "Enter chat message to send here" [ref=f1e50]
+                    - button "Send" [ref=f1e51] [cursor=pointer]
+                - generic:
+                  - img
+            - button "Hide Controls" [ref=e111] [cursor=pointer]:
+              - img [ref=e112]
+            - generic [ref=e114]:
+              - generic [ref=e115]:
+                - heading "Mixer Controls" [level=3] [ref=e116]
+                - button "Collapse" [ref=e117] [cursor=pointer]:
+                  - img [ref=e118]
+              - generic [ref=e120]:
+                - generic [ref=e121]:
+                  - generic [ref=e122]: Scenes
+                  - generic [ref=e123]:
+                    - button "1" [ref=e124] [cursor=pointer]
+                    - button "2" [ref=e125] [cursor=pointer]
+                    - button "3" [ref=e126] [cursor=pointer]
+                    - button "4" [ref=e127] [cursor=pointer]
+                    - button "5" [ref=e128] [cursor=pointer]
+                    - button "6" [ref=e129] [cursor=pointer]
+                    - button "7" [ref=e130] [cursor=pointer]
+                    - button "8" [ref=e131] [cursor=pointer]
+                    - button "9" [ref=e132] [cursor=pointer]
+                - generic [ref=e133]:
+                  - generic [ref=e134]: Recording
+                  - button "Start Recording" [ref=e135] [cursor=pointer]:
+                    - generic [ref=e136]:
+                      - img [ref=e137]
+                      - text: Start Recording
+                - generic [ref=e139]:
+                  - generic [ref=e140]: PTZ Controller
+                  - button "Open PTZ Controller" [ref=e141] [cursor=pointer]:
+                    - generic [ref=e142]:
+                      - generic [ref=e143]: Open PTZ Controller
+                      - img [ref=e144]
+  - alert [ref=e146]:
+    - generic [ref=e147]:
+      - generic [ref=e148]: ℹ
+      - paragraph [ref=e150]: Streaming stopped
+      - button "Dismiss" [ref=e151] [cursor=pointer]: ×
+```

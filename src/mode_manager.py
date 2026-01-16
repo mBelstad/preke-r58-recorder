@@ -19,6 +19,7 @@ Only the recording/mixing behavior changes between modes.
 import asyncio
 import logging
 import json
+import subprocess
 from typing import Dict, Optional, List
 from pathlib import Path
 from dataclasses import dataclass
@@ -139,6 +140,50 @@ class ModeManager:
     async def switch_to_recorder(self) -> Dict[str, any]:
         """Switch to Recorder Mode.
         
+        Stops mixer and VDO.ninja bridge, enables individual camera recording.
+        
+        Returns:
+            Dict with success status and message
+        """
+        if self._current_mode == "recorder":
+            logger.info("Already in recorder mode")
+            return {
+                "success": True,
+                "mode": "recorder",
+                "message": "Already in recorder mode"
+            }
+        
+        logger.info("Switching to recorder mode...")
+        
+        # Stop VDO.ninja bridge service
+        try:
+            logger.info("Stopping VDO.ninja bridge service...")
+            result = subprocess.run(
+                ["sudo", "systemctl", "stop", "vdoninja-bridge"],
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+            if result.returncode == 0:
+                logger.info("VDO.ninja bridge service stopped")
+            else:
+                logger.warning(f"Failed to stop vdoninja-bridge service: {result.stderr}")
+        except Exception as e:
+            logger.warning(f"Failed to stop vdoninja-bridge service: {e}")
+        
+        # Update mode
+        self._current_mode = "recorder"
+        self._save_state()
+        
+        logger.info("Switched to recorder mode")
+        return {
+            "success": True,
+            "mode": "recorder",
+            "message": "Switched to recorder mode. Mixer disabled, individual recording enabled."
+        }
+    
+        """Switch to Recorder Mode.
+        
         Stops the mixer/compositor and enables individual camera recording.
         Ingest pipelines continue running (preview always available).
         
@@ -164,6 +209,22 @@ class ModeManager:
                     self.mixer_core.stop()
             except Exception as e:
                 logger.warning(f"Failed to stop mixer: {e}")
+        
+        # Stop VDO.ninja bridge service
+        try:
+            logger.info("Stopping VDO.ninja bridge service...")
+            result = subprocess.run(
+                ["sudo", "systemctl", "stop", "vdoninja-bridge"],
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+            if result.returncode == 0:
+                logger.info("VDO.ninja bridge service stopped")
+            else:
+                logger.warning(f"Failed to stop vdoninja-bridge service: {result.stderr}")
+        except Exception as e:
+            logger.warning(f"Failed to stop vdoninja-bridge service: {e}")
         
         # Update mode
         self._current_mode = "recorder"
@@ -208,6 +269,22 @@ class ModeManager:
                     logger.info(f"Stopped recordings for: {', '.join(stopped_cameras)}")
             except Exception as e:
                 logger.warning(f"Failed to stop recordings: {e}")
+        
+        # Start VDO.ninja bridge service (pushes cameras to VDO.ninja room)
+        try:
+            logger.info("Starting VDO.ninja bridge service...")
+            result = subprocess.run(
+                ["sudo", "systemctl", "start", "vdoninja-bridge"],
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+            if result.returncode == 0:
+                logger.info("VDO.ninja bridge service started")
+            else:
+                logger.warning(f"Failed to start vdoninja-bridge service: {result.stderr}")
+        except Exception as e:
+            logger.warning(f"Failed to start vdoninja-bridge service: {e}")
         
         # Update mode
         self._current_mode = "mixer"

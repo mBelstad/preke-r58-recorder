@@ -1,0 +1,193 @@
+<testsuites id="" name="" tests="1" failures="0" skipped="0" errors="0" time="242.79105099999998">
+<testsuite name="rtmp-streaming.spec.ts" timestamp="2026-01-16T12:31:27.718Z" hostname="chromium" tests="1" failures="0" skipped="0" time="237.649" errors="0">
+<testcase name="RTMP Streaming from Mixer › Click Start Streaming and test full RTMP flow" classname="rtmp-streaming.spec.ts" time="237.649">
+<system-out>
+<![CDATA[Step 1: Configuring RTMP destination...
+RTMP Start Result: {
+  "status": "success",
+  "message": "RTMP relay configured for 1 destination(s)",
+  "destinations": [
+    "youtube"
+  ],
+  "command": "ffmpeg -i rtsp://localhost:8554/mixer_program -c:v copy -c:a aac -ar 44100 -b:a 128k -f flv 'rtmp://a.rtmp.youtube.com/live2/test-key-12345'",
+  "note": "FFmpeg will start automatically when mixer_program stream is published"
+}
+Status after RTMP config: {
+  "active": false,
+  "mixer_program_active": false,
+  "rtmp_relay_configured": true,
+  "run_on_ready": "ffmpeg -i rtsp://localhost:8554/mixer_program -c:v copy -c:a aac -ar 44100 -b:a 128k -f flv 'rtmp://a.rtmp.youtube.com/live2/test-key-12345'",
+  "stream_info": {
+    "name": "mixer_program",
+    "confName": "mixer_program",
+    "source": null,
+    "ready": false,
+    "readyTime": null,
+    "tracks": [],
+    "bytesReceived": 0,
+    "bytesSent": 0,
+    "readers": []
+  }
+}
+Step 2: Clicking Start Streaming button...
+Start Streaming button count: [33m1[39m
+Clicked Start Streaming button
+Button changed to Stop: [33mtrue[39m
+Program Output status after click: Connecting...
+ProgramOutput iframe count: [33m1[39m
+ProgramOutput iframe src: https://r58-vdo.itagenten.no/?scene=&room=studio&cover=&quality=0&width=1280&height=720&cleanoutput=&hideheader=&nologo=&whipout=https%3A%2F%2Fapp.itagenten.no%2Fmixer_program%2Fwhip&autostart=&videod
+Step 3: Monitoring stream status...
+Check 1/10: mixer_program ready = false
+Check 2/10: mixer_program ready = false
+Check 3/10: mixer_program ready = false
+Check 4/10: mixer_program ready = false
+Check 5/10: mixer_program ready = false
+Check 6/10: mixer_program ready = false
+Check 7/10: mixer_program ready = false
+Check 8/10: mixer_program ready = false
+Check 9/10: mixer_program ready = false
+Check 10/10: mixer_program ready = false
+Final status: {
+  "active": false,
+  "mixer_program_active": false,
+  "rtmp_relay_configured": true,
+  "run_on_ready": "ffmpeg -i rtsp://localhost:8554/mixer_program -c:v copy -c:a aac -ar 44100 -b:a 128k -f flv 'rtmp://a.rtmp.youtube.com/live2/test-key-12345'",
+  "stream_info": {
+    "name": "mixer_program",
+    "confName": "mixer_program",
+    "source": null,
+    "ready": false,
+    "readyTime": null,
+    "tracks": [],
+    "bytesReceived": 0,
+    "bytesSent": 0,
+    "readers": []
+  }
+}
+Step 4: Checking for FFmpeg process...
+FFmpeg/RTMP status: {
+  "rtmp_relay_configured": true,
+  "run_on_ready": "ffmpeg -i rtsp://localhost:8554/mixer_program -c:v copy -c:a aac -ar 44100 -b:a 128k -f flv 'rtmp://a.rtmp.youtube.com/live2/test-key-12345'",
+  "stream_ready": false
+}
+Step 5: Stopping streaming...
+Clicked Stop button
+
+[[ATTACHMENT|test-results/rtmp-streaming-RTMP-Stream-d1e9a-ing-and-test-full-RTMP-flow-chromium/test-failed-1.png]]
+
+[[ATTACHMENT|test-results/rtmp-streaming-RTMP-Stream-d1e9a-ing-and-test-full-RTMP-flow-chromium/error-context.md]]
+Step 1: Configuring RTMP destination...
+RTMP Start Result: {
+  "status": "success",
+  "message": "RTMP relay configured for 1 destination(s)",
+  "destinations": [
+    "youtube"
+  ],
+  "command": "ffmpeg -i rtsp://localhost:8554/mixer_program -c:v copy -c:a aac -ar 44100 -b:a 128k -f flv 'rtmp://a.rtmp.youtube.com/live2/test-key-12345'",
+  "note": "FFmpeg will start automatically when mixer_program stream is published"
+}
+Status after RTMP config: {
+  "active": false,
+  "mixer_program_active": false,
+  "rtmp_relay_configured": true,
+  "run_on_ready": "ffmpeg -i rtsp://localhost:8554/mixer_program -c:v copy -c:a aac -ar 44100 -b:a 128k -f flv 'rtmp://a.rtmp.youtube.com/live2/test-key-12345'",
+  "stream_info": {
+    "name": "mixer_program",
+    "confName": "mixer_program",
+    "source": null,
+    "ready": false,
+    "readyTime": null,
+    "tracks": [],
+    "bytesReceived": 0,
+    "bytesSent": 0,
+    "readers": []
+  }
+}
+Step 2: Clicking Start Streaming button...
+Start Streaming button count: [33m1[39m
+Clicked Start Streaming button
+Button changed to Stop: [33mtrue[39m
+Program Output status after click: Connecting...
+ProgramOutput iframe count: [33m1[39m
+ProgramOutput iframe src: https://r58-vdo.itagenten.no/?scene=&room=studio&cover=&quality=0&width=1280&height=720&cleanoutput=&hideheader=&nologo=&whipout=https%3A%2F%2Fapp.itagenten.no%2Fmixer_program%2Fwhip&autostart=&videod
+Step 3: Monitoring stream status...
+Check 1/10: mixer_program ready = false
+Check 2/10: mixer_program ready = false
+Check 3/10: mixer_program ready = false
+Check 4/10: mixer_program ready = false
+Check 5/10: mixer_program ready = false
+Check 6/10: mixer_program ready = false
+Check 7/10: mixer_program ready = false
+Check 8/10: mixer_program ready = false
+Check 9/10: mixer_program ready = false
+Check 10/10: mixer_program ready = false
+Final status: {
+  "active": false,
+  "mixer_program_active": false,
+  "rtmp_relay_configured": true,
+  "run_on_ready": "ffmpeg -i rtsp://localhost:8554/mixer_program -c:v copy -c:a aac -ar 44100 -b:a 128k -f flv 'rtmp://a.rtmp.youtube.com/live2/test-key-12345'",
+  "stream_info": {
+    "name": "mixer_program",
+    "confName": "mixer_program",
+    "source": null,
+    "ready": false,
+    "readyTime": null,
+    "tracks": [],
+    "bytesReceived": 0,
+    "bytesSent": 0,
+    "readers": []
+  }
+}
+Step 4: Checking for FFmpeg process...
+FFmpeg/RTMP status: {
+  "rtmp_relay_configured": true,
+  "run_on_ready": "ffmpeg -i rtsp://localhost:8554/mixer_program -c:v copy -c:a aac -ar 44100 -b:a 128k -f flv 'rtmp://a.rtmp.youtube.com/live2/test-key-12345'",
+  "stream_ready": false
+}
+Step 5: Stopping streaming...
+Clicked Stop button
+RTMP Stop Result: {
+  "status": "success",
+  "message": "RTMP relay stopped"
+}
+Full Flow Test Errors: [
+  [32m'Failed to load resource: the server responded with a status of 404 ()'[39m
+]
+Recent logs: [
+  [32m'[log] {scene: 0, layout: false} Line: 5028'[39m,
+  [32m'[log] {action: layout-updated, value: false} Line: 3488'[39m,
+  [32m'[log] false Line: 5004'[39m,
+  [32m'[log] {scene: 0, layout: false} Line: 5028'[39m,
+  [32m'[log] {action: layout-updated, value: false} Line: 3488'[39m,
+  [32m'[log] {action: guest-connected, value: false, UUID: 91e83c01-002e-42ba-9e7e-1b1b0a50f391, streamID: hdmi3} Line: 3575'[39m,
+  [32m'[log] {action: layout-updated, value: false} Line: 3488'[39m,
+  [32m'[log] {action: view-connection, value: true, UUID: 28b789d8-309c-445b-8d78-261ad9cf2c5c, streamID: hdmi0} Line: 3587'[39m,
+  [32m'[log] {action: view-connection, value: true, UUID: 91e83c01-002e-42ba-9e7e-1b1b0a50f391, streamID: hdmi3} Line: 3587'[39m,
+  [32m'[log] {type: whep, url: https://app.itagenten.no/cam0/whep}'[39m,
+  [32m'[log] {type: whep, url: https://app.itagenten.no/cam3/whep}'[39m,
+  [32m'[log] {action: guest-connected, value: false, UUID: 28b789d8-309c-445b-8d78-261ad9cf2c5c, streamID: hdmi0} Line: 3575'[39m,
+  [32m'[log] {action: layout-updated, value: false} Line: 3488'[39m,
+  [32m'[log] {action: view-connection, value: true, UUID: 79ead791-d6d6-4dff-95b5-e05210f971cc, streamID: hdmi2} Line: 3587'[39m,
+  [32m'[log] {action: guest-connected, value: false, UUID: 79ead791-d6d6-4dff-95b5-e05210f971cc, streamID: hdmi2} Line: 3575'[39m,
+  [32m'[log] {action: layout-updated, value: false} Line: 3488'[39m,
+  [32m'[log] {type: whep, url: https://app.itagenten.no/cam2/whep}'[39m,
+  [32m'[log] [API] Retry 1/3 for /health in 80ms'[39m,
+  [32m'[log] [ProgramOutput] Starting WHIP push to MediaMTX: https://r58-vdo.itagenten.no/?scene=&room=studio&cover=&quality=0&width=1280&height=720&cleanoutput=&hideheader=&nologo=&whipout=https%3A%2F%2Fapp.itagenten.no%2Fmixer_program%2Fwhip&autostart=&videodevice=0&audiodevice=0&b64css=Ci8qIFI1OCBWRE8ubmluamEgVGhlbWUgLSBDb2xvcnMgT25seSAqLwo6cm9vdCB7CiAgLS1yNTgtYmc6ICMwZjE3MmE7CiAgLS1yNTgtYmcyOiAjMWUyOTNiOwogIC0tcjU4LWJnMzogIzMzNDE1NTsKICAtLXI1OC10ZXh0OiAjZjhmYWZjOwogIC0tcjU4LW11dGVkOiAjOTRhM2I4OwogIC0tcjU4LWJsdWU6ICMzYjgyZjY7CiAgLS1yNTgtZ3JlZW46ICMyMmM1NWU7CiAgLS1yNTgtZ29sZDogI2Y1OWUwYjsKICAtLXI1OC1ib3JkZXI6ICM0NzU1Njk7Cn0KYm9keSB7IGJhY2tncm91bmQ6IHZhcigtLXI1OC1iZyk7IGNvbG9yOiB2YXIoLS1yNTgtdGV4dCk7IH0KI21haW5tZW51LCAuY29udHJvbEJ1dHRvbnMsICNndWVzdEZlYXR1cmVzIHsgYmFja2dyb3VuZDogdmFyKC0tcjU4LWJnMik7IH0KYnV0dG9uLCAuYnV0dG9uIHsgYmFja2dyb3VuZDogdmFyKC0tcjU4LWJnMyk7IGNvbG9yOiB2YXIoLS1yNTgtdGV4dCk7IGJvcmRlci1jb2xvcjogdmFyKC0tcjU4LWJvcmRlcik7IH0KYnV0dG9uOmhvdmVyIHsgYmFja2dyb3VuZDogdmFyKC0tcjU4LWJsdWUpOyB9CmlucHV0LCBzZWxlY3QsIHRleHRhcmVhIHsgYmFja2dyb3VuZDogdmFyKC0tcjU4LWJnMyk7IGNvbG9yOiB2YXIoLS1yNTgtdGV4dCk7IGJvcmRlci1jb2xvcjogdmFyKC0tcjU4LWJvcmRlcik7IH0KYSB7IGNvbG9yOiB2YXIoLS1yNTgtYmx1ZSk7IH0KLnZpZGNvbiB7IGJhY2tncm91bmQ6IHZhcigtLXI1OC1iZzIpOyBib3JkZXItY29sb3I6IHZhcigtLXI1OC1ib3JkZXIpOyBib3JkZXItcmFkaXVzOiA4cHg7IH0KdmlkZW8geyBib3JkZXItcmFkaXVzOiA2cHg7IH0K'[39m,
+  [32m'[log] [ProgramOutput] Stopped WHIP push'[39m
+]
+
+[[ATTACHMENT|test-results/rtmp-streaming-RTMP-Stream-d1e9a-ing-and-test-full-RTMP-flow-chromium-retry1/video.webm]]
+
+[[ATTACHMENT|test-results/rtmp-streaming-RTMP-Stream-d1e9a-ing-and-test-full-RTMP-flow-chromium-retry1/trace.zip]]
+]]>
+</system-out>
+<system-err>
+<![CDATA[(node:4648) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:5922) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+]]>
+</system-err>
+</testcase>
+</testsuite>
+</testsuites>
