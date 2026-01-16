@@ -496,7 +496,9 @@ export async function buildCameraContributionUrl(
     url.searchParams.set('b64css', cssBase64)
   }
   
-  return url.toString()
+  const finalUrl = url.toString()
+  console.log(`[VDO.ninja] Camera contribution URL for ${cameraId}: room=${VDO_ROOM}, password=${VDO_DIRECTOR_PASSWORD.substring(0, 4)}...`)
+  return finalUrl
 }
 
 /**
@@ -604,7 +606,8 @@ export async function buildMixerUrl(options: {
   const room = options.room || VDO_ROOM
   url.searchParams.set('room', room)
   
-  // Room password for authentication
+  // Authenticate as director (required for mixer control)
+  url.searchParams.set('director', room)
   url.searchParams.set('password', VDO_DIRECTOR_PASSWORD)
   
   // API key for HTTP API control (Companion/Stream Deck integration)
@@ -631,7 +634,9 @@ export async function buildMixerUrl(options: {
     url.searchParams.set('b64css', mixerCssBase64)
   }
   
-  return url.toString()
+  const finalUrl = url.toString()
+  console.log(`[VDO.ninja] Mixer URL: room=${room}, director=${room}, password=${VDO_DIRECTOR_PASSWORD.substring(0, 4)}...`)
+  return finalUrl
 }
 
 /**
