@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 
 const props = defineProps<{
   status: any
+  isPreview?: boolean
 }>()
 
 const currentTipIndex = ref(0)
@@ -147,8 +148,8 @@ const currentTip = computed(() => recordingTips[currentTipIndex.value])
           </span>
           <span class="text-preke-text-muted">{{ status.booking.date }} • {{ status.booking.slot_start }} - {{ status.booking.slot_end }}</span>
         </div>
-        <div class="flex items-center gap-4 text-preke-text-muted">
-          <span>{{ status.disk_space_gb.toFixed(1) }} GB available</span>
+        <div v-if="!isPreview" class="flex items-center gap-4 text-preke-text-muted">
+          <span v-if="status.disk_space_gb">{{ status.disk_space_gb.toFixed(1) }} GB available</span>
           <span class="flex items-center gap-2">
             <span class="w-3 h-3 rounded-full bg-preke-green"></span>
             Connected

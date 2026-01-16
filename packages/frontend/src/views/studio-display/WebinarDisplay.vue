@@ -5,6 +5,7 @@ import { useRoute } from 'vue-router'
 
 const props = defineProps<{
   status: any
+  isPreview?: boolean
 }>()
 
 const route = useRoute()
@@ -45,8 +46,13 @@ const webinarTips = [
 ]
 
 onMounted(async () => {
-  // Check VDO.ninja availability
-  await checkVdoNinja()
+  // Only check VDO.ninja if not in preview mode
+  if (!props.isPreview) {
+    await checkVdoNinja()
+  } else {
+    checkingVdo.value = false
+    vdoNinjaAvailable.value = false
+  }
   
   // Rotate tips every 5 seconds
   tipInterval = window.setInterval(() => {
@@ -154,7 +160,7 @@ const currentTip = computed(() => webinarTips[currentTipIndex.value])
       </div>
       
       <!-- VDO.ninja Offline -->
-      <div v-else-if="!vdoNinjaAvailable" class="vdo-status">
+      <div v-else-if="!vdoNinjaAvailable && !isPreview" class="vdo-status">
         <svg class="w-20 h-20 text-preke-red mx-auto mb-4" fill="currentColor" viewBox="0 0 20 20">
           <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"/>
         </svg>
@@ -186,8 +192,8 @@ const currentTip = computed(() => webinarTips[currentTipIndex.value])
         <div class="flex items-center gap-4">
           <span class="text-preke-text-muted">{{ status.booking.date }} • {{ status.booking.slot_start }} - {{ status.booking.slot_end }}</span>
         </div>
-        <div class="flex items-center gap-4 text-preke-text-muted">
-          <span>{{ status.disk_space_gb.toFixed(1) }} GB available</span>
+        <div v-if="!isPreview" class="flex items-center gap-4 text-preke-text-muted">
+          <span v-if="status.disk_space_gb">{{ status.disk_space_gb.toFixed(1) }} GB available</span>
           <span class="flex items-center gap-2">
             <span :class="['w-3 h-3 rounded-full', vdoNinjaAvailable ? 'bg-preke-green' : 'bg-preke-red']"></span>
             {{ vdoNinjaAvailable ? 'VDO.ninja Connected' : 'VDO.ninja Offline' }}

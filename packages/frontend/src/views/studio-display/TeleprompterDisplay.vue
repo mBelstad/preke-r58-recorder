@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 
 const props = defineProps<{
   status: any
+  isPreview?: boolean
 }>()
 
 const currentTipIndex = ref(0)

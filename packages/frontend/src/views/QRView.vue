@@ -99,7 +99,7 @@ async function createSession() {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 4rem 2rem;
+  padding: 2rem;
   text-align: center;
   box-sizing: border-box;
   overflow: auto;

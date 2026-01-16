@@ -51,25 +51,34 @@ function createMockStatus() {
   // Create mock status for preview mode
   const mode = routeMode.value || 'podcast'
   console.log('[StudioDisplay] Creating mock status for mode:', mode)
+  
+  // Calculate time remaining (1 hour from now)
+  const now = new Date()
+  const endTime = new Date(now.getTime() + 60 * 60 * 1000) // 1 hour from now
+  const dateStr = now.toISOString().split('T')[0]
+  const startStr = now.toTimeString().slice(0, 5)
+  const endStr = endTime.toTimeString().slice(0, 5)
+  
   status.value = {
     booking: {
       id: 0,
-      date: new Date().toISOString().split('T')[0],
-      slot_start: '10:00',
-      slot_end: '11:00',
-      customer: { name: 'Preview Mode', email: 'preview@preke.no' }
+      date: dateStr,
+      slot_start: startStr,
+      slot_end: endStr,
+      customer: { name: 'Demo Session', email: 'demo@preke.no' },
+      client: { name: 'Preke Studio', logo_url: null }
     },
     project: {
       id: 0,
-      name: 'Preview Session',
-      slug: 'preview',
+      name: 'Demo Recording',
+      slug: 'demo',
       graphics: []
     },
     recording_active: false,
     recording_duration_ms: 0,
     current_slide_index: 0,
     display_mode: mode,
-    disk_space_gb: 100.0 // Mock disk space for preview mode
+    is_preview: true // Flag to indicate this is preview mode
   }
   loading.value = false
   console.log('[StudioDisplay] Mock status created:', status.value)
@@ -128,9 +137,9 @@ const displayMode = computed(() => {
     
     <!-- Display Mode Router -->
     <div v-else-if="status" class="display-content">
-      <PodcastDisplay v-if="displayMode === 'podcast' || displayMode === 'course'" :status="status" />
-      <TeleprompterDisplay v-else-if="displayMode === 'teleprompter'" :status="status" />
-      <WebinarDisplay v-else-if="displayMode === 'webinar'" :status="status" />
+      <PodcastDisplay v-if="displayMode === 'podcast' || displayMode === 'course'" :status="status" :is-preview="isDirectAccess" />
+      <TeleprompterDisplay v-else-if="displayMode === 'teleprompter'" :status="status" :is-preview="isDirectAccess" />
+      <WebinarDisplay v-else-if="displayMode === 'webinar'" :status="status" :is-preview="isDirectAccess" />
       <div v-else class="text-center">
         <p class="text-2xl text-preke-text-dim">Unknown display mode: {{ displayMode }}</p>
       </div>
