@@ -68,7 +68,8 @@ function createMockStatus() {
     recording_active: false,
     recording_duration_ms: 0,
     current_slide_index: 0,
-    display_mode: mode
+    display_mode: mode,
+    disk_space_gb: 100.0 // Mock disk space for preview mode
   }
   loading.value = false
   console.log('[StudioDisplay] Mock status created:', status.value)
