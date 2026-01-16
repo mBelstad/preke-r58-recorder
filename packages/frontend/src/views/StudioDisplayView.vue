@@ -33,9 +33,11 @@ let statusInterval: number | null = null
 onMounted(async () => {
   if (isDirectAccess.value) {
     // Direct access mode - create mock status
+    console.log('[StudioDisplay] Direct access mode, route:', route.name, 'mode:', routeMode.value)
     createMockStatus()
   } else {
     // Token-based mode - load from API
+    console.log('[StudioDisplay] Token-based mode, token:', token.value)
     await loadStatus()
     statusInterval = window.setInterval(loadStatus, 2000)
   }
@@ -47,21 +49,29 @@ onUnmounted(() => {
 
 function createMockStatus() {
   // Create mock status for preview mode
+  const mode = routeMode.value || 'podcast'
+  console.log('[StudioDisplay] Creating mock status for mode:', mode)
   status.value = {
     booking: {
       id: 0,
+      date: new Date().toISOString().split('T')[0],
+      slot_start: '10:00',
+      slot_end: '11:00',
       customer: { name: 'Preview Mode', email: 'preview@preke.no' }
     },
     project: {
       id: 0,
       name: 'Preview Session',
-      slug: 'preview'
+      slug: 'preview',
+      graphics: []
     },
     recording_active: false,
+    recording_duration_ms: 0,
     current_slide_index: 0,
-    display_mode: routeMode.value || 'podcast'
+    display_mode: mode
   }
   loading.value = false
+  console.log('[StudioDisplay] Mock status created:', status.value)
 }
 
 async function loadStatus() {
