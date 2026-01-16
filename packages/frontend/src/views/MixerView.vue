@@ -18,11 +18,13 @@ import { useCapabilitiesStore } from '@/stores/capabilities'
 import { getVdoHost, getVdoProtocol, VDO_ROOM, VDO_DIRECTOR_PASSWORD, buildMixerUrl, getMediaMtxHost } from '@/lib/vdoninja'
 import { buildApiUrl, hasDeviceConfigured } from '@/lib/api'
 import { toast } from '@/composables/useToast'
+import { platform } from '@/lib/platform'
 
 // Components
 import ModeLoadingScreen from '@/components/shared/ModeLoadingScreen.vue'
 import StreamingControlPanel from '@/components/mixer/StreamingControlPanel.vue'
 import MixerControlPanel from '@/components/mixer/MixerControlPanel.vue'
+import CameraPushBar from '@/components/mixer/CameraPushBar.vue'
 
 const router = useRouter()
 const recorderStore = useRecorderStore()
@@ -40,6 +42,24 @@ const bridgeReady = ref(false)
 const loadingStatus = ref('Starting mixer...')
 const iframeRef = ref<HTMLIFrameElement | null>(null)
 const showControls = ref(true)
+const isElectronApp = computed(() => platform.isElectron())
+const useLocalBridge = ref(true)
+const showCameraPushBar = computed(() => isElectronApp.value && useLocalBridge.value)
+
+function loadLocalBridgePreference() {
+  if (typeof window === 'undefined') return
+  const stored = window.localStorage.getItem('preke_mixer_use_local_bridge')
+  if (stored !== null) {
+    useLocalBridge.value = stored === 'true'
+  }
+}
+
+function toggleLocalBridge() {
+  useLocalBridge.value = !useLocalBridge.value
+  if (typeof window !== 'undefined') {
+    window.localStorage.setItem('preke_mixer_use_local_bridge', String(useLocalBridge.value))
+  }
+}
 
 // Active cameras with signal
 const activeCameras = computed(() => 
@@ -151,6 +171,10 @@ async function ensureMixerMode() {
 onMounted(async () => {
   const startTime = performance.now()
   
+  if (isElectronApp.value) {
+    loadLocalBridgePreference()
+  }
+
   // Initialize mixer URL first
   await initializeMixerUrl()
   
@@ -187,6 +211,16 @@ onMounted(async () => {
     <div v-show="!isLoading" class="h-full flex flex-col bg-preke-bg">
     <!-- Streaming Control Panel (with room info integrated) -->
     <StreamingControlPanel :room-name="VDO_ROOM" :camera-count="activeCameras.length" />
+    <div v-if="isElectronApp" class="px-4 py-2 bg-preke-bg-elevated border-b border-preke-bg-surface flex items-center justify-between text-xs text-preke-text-dim">
+      <span>Camera sources: {{ useLocalBridge ? 'Local bridge' : 'External bridge' }}</span>
+      <button
+        class="text-preke-gold hover:underline"
+        @click="toggleLocalBridge"
+        :title="useLocalBridge ? 'Disable local bridge to use external fallback' : 'Enable local bridge for Electron'"
+      >
+        {{ useLocalBridge ? 'Use fallback' : 'Use local bridge' }}
+      </button>
+    </div>
     
     <!-- VDO.ninja Mixer (full height) -->
     <div class="flex-1 relative">
@@ -230,6 +264,8 @@ onMounted(async () => {
         :key="iframeLoaded ? 'ready' : 'loading'"
       />
     </div>
+    <!-- Electron-only: push cameras to room via WHEP -->
+    <CameraPushBar v-if="showCameraPushBar" />
     </div>
   </Transition>
 </template>
