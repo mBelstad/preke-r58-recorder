@@ -69,6 +69,10 @@ from .wordpress import (
     Booking,
     BookingStatus,
     ActiveBookingContext,
+    VideoProject,
+    CustomerInfo,
+    ClientInfo,
+    DisplayMode,
 )
 
 # Configure logging
@@ -6337,6 +6341,65 @@ async def get_display_mode(token: str) -> Dict[str, Any]:
     return {
         "display_mode": context.display_mode.value,
         "content_type": context.booking.content_type.value if context.booking.content_type else None
+    }
+
+
+@app.post("/api/v1/wordpress/qr-session")
+async def create_qr_session(request: Dict[str, Any] = Body({})) -> Dict[str, Any]:
+    """Create a QR code session for quick access without a booking"""
+    import secrets
+    
+    # Get display mode from request (default to podcast)
+    display_mode_str = request.get("display_mode", "podcast")
+    try:
+        display_mode = DisplayMode(display_mode_str)
+    except ValueError:
+        display_mode = DisplayMode.PODCAST
+    
+    # Generate access token
+    access_token = secrets.token_urlsafe(32)
+    
+    # Create a minimal booking for QR sessions
+    booking = Booking(
+        id=0,  # No real booking ID
+        status=BookingStatus.PENDING,
+        date=datetime.now().strftime("%Y-%m-%d"),
+        slot_start=datetime.now().strftime("%H:%M"),
+        slot_end=(datetime.now() + timedelta(hours=1)).strftime("%H:%M"),
+        customer=CustomerInfo(id=0, name="QR Session User", email="qr@preke.no"),
+        client=None,
+        content_type=None
+    )
+    
+    # Create a default project
+    project = VideoProject(
+        id=0,
+        slug="qr-session",
+        name="QR Session",
+        client_id=None
+    )
+    
+    # Create recording path
+    recording_path = f"/data/recordings/qr-sessions/{access_token[:8]}"
+    
+    # Create active booking context
+    context = ActiveBookingContext(
+        booking=booking,
+        recording_id=0,
+        project=project,
+        recording_path=recording_path,
+        access_token=access_token,
+        display_mode=display_mode
+    )
+    
+    # Set as active booking
+    set_active_booking(context)
+    
+    return {
+        "success": True,
+        "token": access_token,
+        "display_mode": display_mode.value,
+        "message": "QR session created"
     }
 
 

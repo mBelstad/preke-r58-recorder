@@ -152,6 +152,12 @@ const router = createRouter({
       component: () => import('@/views/CalendarView.vue'),
       meta: { title: 'Room Calendar', layout: 'fullscreen' }
     },
+    {
+      path: '/qr',
+      name: 'qr',
+      component: () => import('@/views/QRView.vue'),
+      meta: { title: 'QR Code', layout: 'fullscreen' }
+    },
   ]
 })
 
