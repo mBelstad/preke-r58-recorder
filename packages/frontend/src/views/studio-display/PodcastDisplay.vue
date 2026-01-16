@@ -86,7 +86,8 @@ const currentTip = computed(() => recordingTips[currentTipIndex.value])
         <img v-if="status.booking.client?.logo_url" :src="status.booking.client.logo_url" alt="Logo" class="h-20 object-contain" />
         <div class="flex-1">
           <h1 class="text-3xl font-bold">{{ status.booking.customer?.name || 'Guest' }}</h1>
-          <p class="text-xl text-preke-text-dim">{{ status.booking.client?.name }}</p>
+          <p v-if="status.booking.client?.name" class="text-xl text-preke-text-dim">{{ status.booking.client.name }}</p>
+          <p v-if="status.project?.name" class="text-lg text-preke-text-muted mt-1">{{ status.project.name }}</p>
         </div>
         <div class="text-right">
           <div class="text-4xl font-mono font-bold">{{ recordingDuration }}</div>

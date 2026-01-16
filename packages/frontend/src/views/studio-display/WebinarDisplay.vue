@@ -115,7 +115,8 @@ const currentTip = computed(() => webinarTips[currentTipIndex.value])
           <img v-if="status.booking.client?.logo_url" :src="status.booking.client.logo_url" alt="Logo" class="h-16 object-contain" />
           <div>
             <h1 class="text-2xl font-bold">{{ status.booking.customer?.name || 'Guest' }}</h1>
-            <p class="text-lg text-preke-text-dim">{{ status.booking.client?.name }}</p>
+            <p v-if="status.booking.client?.name" class="text-lg text-preke-text-dim">{{ status.booking.client.name }}</p>
+            <p v-if="status.project?.name" class="text-base text-preke-text-muted mt-1">{{ status.project.name }}</p>
           </div>
         </div>
         <div class="flex items-center gap-6">

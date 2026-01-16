@@ -99,7 +99,7 @@ async function createSession() {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 2rem;
+  padding: 3rem 2rem 2rem;
   text-align: center;
   box-sizing: border-box;
   overflow: auto;
@@ -175,11 +175,12 @@ async function createSession() {
 }
 
 .qr-view__welcome-title {
-  font-size: 4rem;
+  font-size: 3.5rem;
   font-weight: 700;
   color: var(--preke-text);
   margin-bottom: 1rem;
   letter-spacing: -0.02em;
+  line-height: 1.1;
 }
 
 .qr-view__welcome-subtitle {
