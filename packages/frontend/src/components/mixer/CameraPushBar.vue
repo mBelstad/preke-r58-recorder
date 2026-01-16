@@ -7,7 +7,7 @@
  */
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRecorderStore } from '@/stores/recorder'
-import { buildCameraContributionUrl, getPublicWhepUrl } from '@/lib/vdoninja'
+import { buildCameraContributionUrl, getPublicWhepUrl, VDO_ROOM, VDO_DIRECTOR_PASSWORD } from '@/lib/vdoninja'
 
 const recorderStore = useRecorderStore()
 
@@ -71,6 +71,14 @@ watch(camerasWithSignal, async (cameras) => {
           continue
         }
         console.log(`[CameraPush] Contribution URL for ${camera.id}:`, iframeSrc)
+        console.log(`[CameraPush] Full URL breakdown:`, {
+          cameraId: camera.id,
+          label: camera.label,
+          whepUrl,
+          iframeSrc: iframeSrc.substring(0, 300) + '...',
+          room: VDO_ROOM,
+          password: VDO_DIRECTOR_PASSWORD.substring(0, 4) + '...'
+        })
         cameraPushStates.value.set(camera.id, {
           cameraId: camera.id,
           label: camera.label,
@@ -97,7 +105,25 @@ function handleIframeLoad(cameraId: string) {
   const state = cameraPushStates.value.get(cameraId)
   if (state) {
     state.status = 'connected'
-    console.log(`[CameraPush] ${cameraId} connected to VDO.ninja`)
+    console.log(`[CameraPush] ${cameraId} iframe loaded - URL:`, state.iframeSrc.substring(0, 200) + '...')
+    
+    // Try to verify connection by checking iframe content
+    // Note: Cross-origin restrictions may prevent this in some cases
+    setTimeout(() => {
+      const iframe = document.querySelector(`iframe[title*="${state.label}"]`) as HTMLIFrameElement
+      if (iframe) {
+        try {
+          // Check if iframe has loaded (may fail due to CORS)
+          const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document
+          if (iframeDoc) {
+            console.log(`[CameraPush] ${cameraId} iframe document accessible`)
+          }
+        } catch (e) {
+          // Expected for cross-origin iframes - this is normal
+          console.log(`[CameraPush] ${cameraId} iframe loaded (cross-origin, cannot inspect content)`)
+        }
+      }
+    }, 2000)
   }
 }
 
@@ -106,7 +132,7 @@ function handleIframeError(cameraId: string) {
   const state = cameraPushStates.value.get(cameraId)
   if (state) {
     state.status = 'error'
-    console.error(`[CameraPush] ${cameraId} failed to connect`)
+    console.error(`[CameraPush] ${cameraId} iframe failed to load - URL:`, state.iframeSrc.substring(0, 200) + '...')
   }
 }
 
@@ -222,16 +248,18 @@ function getStatusText(status: CameraPushState['status']): string {
     
     <!-- Hidden iframes for camera push -->
     <!-- Use fixed positioning off-screen instead of hidden class to ensure iframes load in Electron -->
-    <div class="fixed -left-[9999px] -top-[9999px] w-1 h-1 overflow-hidden pointer-events-none">
+    <!-- Make iframes slightly larger (10x10px) to ensure they load in Electron -->
+    <div class="fixed -left-[9999px] -top-[9999px] w-[10px] h-[10px] overflow-hidden pointer-events-none opacity-0">
       <iframe
         v-for="[cameraId, state] in cameraPushStates"
         :key="cameraId"
         :src="state.iframeSrc"
         @load="handleIframeLoad(cameraId)"
         @error="handleIframeError(cameraId)"
-        allow="camera; microphone; autoplay"
+        allow="camera; microphone; autoplay; display-capture"
         class="w-full h-full border-0"
         :title="`Camera push for ${state.label}`"
+        sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox"
       ></iframe>
     </div>
   </div>
