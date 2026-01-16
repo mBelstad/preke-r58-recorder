@@ -3,17 +3,25 @@
  * Centralizes all platform-specific checks for cleaner component code
  */
 
+// Helper functions (defined first to avoid TDZ issues)
+const isElectronCheck = () => !!window.electronAPI?.isElectron
+const isWebCheck = () => !window.electronAPI?.isElectron
+const isDevCheck = () => import.meta.env.DEV
+const isMacOSCheck = () => navigator.platform.includes('Mac')
+const isWindowsCheck = () => navigator.platform.includes('Win')
+const isLinuxCheck = () => navigator.platform.includes('Linux')
+
 // Runtime detection
 export const platform = {
   // Environment detection
-  isElectron: () => !!window.electronAPI?.isElectron,
-  isWeb: () => !window.electronAPI?.isElectron,
-  isDev: () => import.meta.env.DEV,
+  isElectron: isElectronCheck,
+  isWeb: isWebCheck,
+  isDev: isDevCheck,
   
   // OS detection  
-  isMacOS: () => navigator.platform.includes('Mac'),
-  isWindows: () => navigator.platform.includes('Win'),
-  isLinux: () => navigator.platform.includes('Linux'),
+  isMacOS: isMacOSCheck,
+  isWindows: isWindowsCheck,
+  isLinux: isLinuxCheck,
   
   // Feature flags - what capabilities are available
   features: {
@@ -28,9 +36,9 @@ export const platform = {
   getBodyClasses: () => {
     const classes: string[] = []
     // Use direct checks to avoid TDZ issues
-    const isElectron = !!window.electronAPI?.isElectron
-    const isWindows = navigator.platform.includes('Win')
-    const isMacOS = navigator.platform.includes('Mac')
+    const isElectron = isElectronCheck()
+    const isWindows = isWindowsCheck()
+    const isMacOS = isMacOSCheck()
     if (isElectron) classes.push('electron-app')
     if (isWindows) classes.push('is-windows')
     if (isMacOS) classes.push('is-macos')
@@ -39,5 +47,5 @@ export const platform = {
 }
 
 // Re-export isElectron for backward compatibility with existing imports
-export const isElectron = platform.isElectron
+export const isElectron = isElectronCheck
 
