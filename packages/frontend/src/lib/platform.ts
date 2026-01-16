@@ -27,9 +27,13 @@ export const platform = {
   // CSS class helpers
   getBodyClasses: () => {
     const classes: string[] = []
-    if (platform.isElectron()) classes.push('electron-app')
-    if (platform.isWindows()) classes.push('is-windows')
-    if (platform.isMacOS()) classes.push('is-macos')
+    // Use direct checks to avoid TDZ issues
+    const isElectron = !!window.electronAPI?.isElectron
+    const isWindows = navigator.platform.includes('Win')
+    const isMacOS = navigator.platform.includes('Mac')
+    if (isElectron) classes.push('electron-app')
+    if (isWindows) classes.push('is-windows')
+    if (isMacOS) classes.push('is-macos')
     return classes
   },
 }
