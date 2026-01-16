@@ -130,9 +130,11 @@ export const useCapabilitiesStore = defineStore('capabilities', () => {
       // Use full capabilities if available, otherwise construct from individual endpoints
       if (fullCapabilities) {
         // Use the complete capabilities from /api/v1/capabilities
+        // IMPORTANT: Merge current_mode from mode endpoint since /api/v1/capabilities doesn't include it
         capabilities.value = {
           ...fullCapabilities,
           inputs, // Use inputs from ingest status (more detailed)
+          current_mode: mode.current_mode || fullCapabilities.current_mode || 'recorder', // Merge from mode endpoint
           reveal_js: fullCapabilities.reveal_js || health.reveal_js || { available: false },
         }
       } else {

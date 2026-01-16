@@ -5,6 +5,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import BaseModal from '@/components/shared/BaseModal.vue'
 import { useCameraControls, type CameraInfo } from '@/composables/useCameraControls'
+import CompanionIntegrationPanel from './CompanionIntegrationPanel.vue'
 
 const props = defineProps<{
   cameraName: string | null
@@ -17,7 +18,7 @@ const emit = defineEmits<{
 const modalRef = ref<InstanceType<typeof BaseModal> | null>(null)
 const { cameras, loading, error, supportsFeature, loadCameras, getCamera } = useCameraControls()
 
-const activeTab = ref<'basic' | 'advanced' | 'ptz' | 'color'>('basic')
+const activeTab = ref<'basic' | 'advanced' | 'ptz' | 'color' | 'companion'>('basic')
 const camera = computed(() => props.cameraName ? getCamera.value(props.cameraName) : null)
 
 // Control state
@@ -192,7 +193,7 @@ defineExpose({ open, close })
             {{ cameraName || 'Camera Controls' }}
           </h2>
           <p v-if="camera" class="text-sm text-preke-text-muted mt-1">
-            {{ camera.type === 'blackmagic' ? 'Blackmagic Design' : 'OBSbot Tail 2' }}
+            {{ camera.type === 'blackmagic' ? 'Blackmagic Design' : camera.type === 'sony_fx30' ? 'Sony FX30' : 'OBSbot Tail 2' }}
             <span :class="camera.connected ? 'text-green-500' : 'text-red-500'" class="ml-2">
               {{ camera.connected ? '● Connected' : '○ Disconnected' }}
             </span>
@@ -243,6 +244,12 @@ defineExpose({ open, close })
           @click="activeTab = 'color'"
         >
           Color
+        </button>
+        <button
+          :class="['tab', { 'tab--active': activeTab === 'companion' }]"
+          @click="activeTab = 'companion'"
+        >
+          Companion
         </button>
       </div>
 
@@ -495,6 +502,11 @@ defineExpose({ open, close })
             Color correction controls coming soon
           </p>
         </div>
+      </div>
+
+      <!-- Companion Tab -->
+      <div v-if="activeTab === 'companion'" class="tab-content">
+        <CompanionIntegrationPanel />
       </div>
     </div>
   </BaseModal>

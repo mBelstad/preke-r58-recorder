@@ -160,9 +160,17 @@ guests:
 
 # External cameras configuration
 # These cameras will be triggered to start/stop recording along with R58 cameras
+# Supported types: blackmagic, obsbot_tail2, sony_fx30
 external_cameras:
+  - name: "Sony FX30"
+    type: sony_fx30
+    ip: 192.168.1.100
+    port: 80  # HTTP REST API port
+    visca_port: 52381  # VISCA over IP port for PTZ
+    enabled: false  # Set to true when camera is available
+  
   - name: "BMD Cam 1"
-    type: blackmagic  # blackmagic or obsbot_tail2
+    type: blackmagic  # Blackmagic Design Studio Camera 4K Pro
     ip: 192.168.1.101
     port: 80  # Optional, defaults to 80 for Blackmagic
     enabled: false  # Set to true when camera is available

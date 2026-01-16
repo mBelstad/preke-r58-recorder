@@ -6,7 +6,7 @@ import { r58Api } from '@/lib/api'
 
 export interface CameraInfo {
   name: string
-  type: 'blackmagic' | 'obsbot_tail2'
+  type: 'blackmagic' | 'obsbot_tail2' | 'sony_fx30'
   connected: boolean
   settings?: Record<string, any>
 }
@@ -46,7 +46,7 @@ export function useCameraControls() {
             const status = await r58Api.cameras.getStatus(name)
             return {
               name: status.name,
-              type: status.type as 'blackmagic' | 'obsbot_tail2',
+              type: status.type as 'blackmagic' | 'obsbot_tail2' | 'sony_fx30',
               connected: status.connected,
               settings: status.settings,
             }
@@ -79,11 +79,14 @@ export function useCameraControls() {
 
     const bmdFeatures = ['focus', 'iris', 'whiteBalance', 'gain', 'iso', 'shutter', 'colorCorrection']
     const obsbotFeatures = ['focus', 'exposure', 'whiteBalance', 'ptz']
+    const sonyFeatures = ['focus', 'exposure', 'whiteBalance', 'iso', 'shutter', 'ptz']
 
     if (camera.type === 'blackmagic') {
       return bmdFeatures.includes(feature)
     } else if (camera.type === 'obsbot_tail2') {
       return obsbotFeatures.includes(feature)
+    } else if (camera.type === 'sony_fx30') {
+      return sonyFeatures.includes(feature)
     }
 
     return false
@@ -191,7 +194,7 @@ export function useCameraControls() {
       if (index >= 0) {
         cameras.value[index] = {
           name: status.name,
-          type: status.type as 'blackmagic' | 'obsbot_tail2',
+          type: status.type as 'blackmagic' | 'obsbot_tail2' | 'sony_fx30',
           connected: status.connected,
           settings: status.settings,
         }

@@ -1,2 +1,0 @@
-"""WebSocket realtime communication"""
-

@@ -1,2 +1,0 @@
-"""Device registry and capabilities"""
-

@@ -1,2 +1,0 @@
-"""SQLModel and Pydantic models"""
-

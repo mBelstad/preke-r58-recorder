@@ -662,6 +662,14 @@ async def get_capabilities() -> Dict[str, Any]:
         "room": vdoninja_room
     }
     
+    # Get current mode from mode manager
+    current_mode = "recorder"  # Default
+    if mode_manager:
+        try:
+            current_mode = await mode_manager.get_current_mode()
+        except Exception as e:
+            logger.debug(f"Could not get current mode: {e}")
+    
     return {
         "device_id": f"r58-{config.platform}",
         "device_name": "R58 Recorder",
@@ -690,7 +698,10 @@ async def get_capabilities() -> Dict[str, Any]:
         "max_output_resolution": "1920x1080",
         "storage_total_gb": round(storage_total_gb, 2),
         "storage_available_gb": round(storage_available_gb, 2),
-        "storage_path": storage_path
+        "storage_path": storage_path,
+        
+        # Current mode (important for frontend to determine if videos should show)
+        "current_mode": current_mode
     }
 
 
@@ -5282,7 +5293,14 @@ async def get_external_camera_status(camera_name: str) -> Dict[str, Any]:
     
     camera = camera_control_manager.cameras[camera_name]
     connected = await camera.check_connection()
-    camera_type = "blackmagic" if isinstance(camera, BlackmagicCamera) else "obsbot_tail2"
+    if isinstance(camera, BlackmagicCamera):
+        camera_type = "blackmagic"
+    elif isinstance(camera, ObsbotTail2):
+        camera_type = "obsbot_tail2"
+    elif isinstance(camera, SonyCamera):
+        camera_type = "sony_fx30"
+    else:
+        camera_type = "unknown"
     
     settings = None
     if connected:
@@ -5330,7 +5348,7 @@ async def set_camera_focus(camera_name: str, request: SetFocusRequest = Body(...
         raise HTTPException(status_code=404, detail=f"Camera '{camera_name}' not found")
     
     camera = camera_control_manager.cameras[camera_name]
-    if not isinstance(camera, (BlackmagicCamera, ObsbotTail2)):
+    if not isinstance(camera, (BlackmagicCamera, ObsbotTail2, SonyCamera)):
         raise HTTPException(status_code=400, detail="Camera does not support focus control")
     
     success = await camera.set_focus(request.mode, request.value)
@@ -5354,7 +5372,7 @@ async def set_camera_white_balance(camera_name: str, request: SetWhiteBalanceReq
         raise HTTPException(status_code=404, detail=f"Camera '{camera_name}' not found")
     
     camera = camera_control_manager.cameras[camera_name]
-    if not isinstance(camera, (BlackmagicCamera, ObsbotTail2)):
+    if not isinstance(camera, (BlackmagicCamera, ObsbotTail2, SonyCamera)):
         raise HTTPException(status_code=400, detail="Camera does not support white balance control")
     
     success = await camera.set_white_balance(request.mode, request.temperature)
@@ -5378,7 +5396,7 @@ async def set_camera_exposure(camera_name: str, request: SetExposureRequest = Bo
         raise HTTPException(status_code=404, detail=f"Camera '{camera_name}' not found")
     
     camera = camera_control_manager.cameras[camera_name]
-    if isinstance(camera, ObsbotTail2):
+    if isinstance(camera, (ObsbotTail2, SonyCamera)):
         success = await camera.set_exposure(request.mode, request.value)
     elif isinstance(camera, BlackmagicCamera):
         raise HTTPException(status_code=400, detail="Use /settings/iso and /settings/shutter for Blackmagic cameras")
@@ -5404,10 +5422,12 @@ async def set_camera_iso(camera_name: str, request: SetValueRequest = Body(...))
         raise HTTPException(status_code=404, detail=f"Camera '{camera_name}' not found")
     
     camera = camera_control_manager.cameras[camera_name]
-    if not isinstance(camera, BlackmagicCamera):
+    if isinstance(camera, BlackmagicCamera):
+        success = await camera.set_iso(int(request.value))
+    elif isinstance(camera, SonyCamera):
+        success = await camera.set_iso(int(request.value))
+    else:
         raise HTTPException(status_code=400, detail="Camera does not support ISO control")
-    
-    success = await camera.set_iso(int(request.value))
     if not success:
         raise HTTPException(status_code=500, detail="Failed to set ISO")
     
@@ -5424,10 +5444,12 @@ async def set_camera_shutter(camera_name: str, request: SetValueRequest = Body(.
         raise HTTPException(status_code=404, detail=f"Camera '{camera_name}' not found")
     
     camera = camera_control_manager.cameras[camera_name]
-    if not isinstance(camera, BlackmagicCamera):
+    if isinstance(camera, BlackmagicCamera):
+        success = await camera.set_shutter(request.value)
+    elif isinstance(camera, SonyCamera):
+        success = await camera.set_shutter(request.value)
+    else:
         raise HTTPException(status_code=400, detail="Camera does not support shutter control")
-    
-    success = await camera.set_shutter(request.value)
     if not success:
         raise HTTPException(status_code=500, detail="Failed to set shutter")
     
@@ -5513,7 +5535,7 @@ async def recall_camera_ptz_preset(camera_name: str, preset_id: int) -> Dict[str
         raise HTTPException(status_code=404, detail=f"Camera '{camera_name}' not found")
     
     camera = camera_control_manager.cameras[camera_name]
-    if not isinstance(camera, ObsbotTail2):
+    if not hasattr(camera, "ptz_preset"):
         raise HTTPException(status_code=400, detail="Camera does not support PTZ presets")
     
     success = await camera.ptz_preset(preset_id)

@@ -1,2 +1,0 @@
-"""Project and scene management"""
-

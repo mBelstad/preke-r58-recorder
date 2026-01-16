@@ -1,2 +1,0 @@
-"""Recording session management"""
-
