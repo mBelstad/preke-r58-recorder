@@ -205,6 +205,23 @@ async function tryKnownHostnames(): Promise<DiscoveredDevice[]> {
 }
 
 /**
+ * Fetch device capabilities (device_id, device_name, platform)
+ */
+async function fetchCapabilities(baseUrl: string): Promise<{ deviceId?: string; deviceName?: string; platform?: string } | null> {
+  try {
+    const result = await probeUrl(`${baseUrl}/api/v1/capabilities`, 1200)
+    if (!result) return null
+    return {
+      deviceId: result.device_id,
+      deviceName: result.device_name,
+      platform: result.platform
+    }
+  } catch {
+    return null
+  }
+}
+
+/**
  * Probe a single IP:port for R58 API
  */
 async function probeDevice(
@@ -278,20 +295,6 @@ function probeUrl(url: string, timeout: number): Promise<any | null> {
       resolve(null)
     })
   })
-}
-
-async function fetchCapabilities(baseUrl: string): Promise<{ deviceId?: string; deviceName?: string; platform?: string } | null> {
-  try {
-    const result = await probeUrl(`${baseUrl}/api/v1/capabilities`, 1200)
-    if (!result) return null
-    return {
-      deviceId: result.device_id,
-      deviceName: result.device_name,
-      platform: result.platform
-    }
-  } catch {
-    return null
-  }
 }
 
 /**
