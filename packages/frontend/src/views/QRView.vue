@@ -101,6 +101,8 @@ async function createSession() {
   justify-content: center;
   padding: 4rem 2rem;
   text-align: center;
+  box-sizing: border-box;
+  overflow: auto;
 }
 
 /* Loading State */
