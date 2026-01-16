@@ -15,6 +15,7 @@ const switchError = ref<string | null>(null)
 let switchAbortController: AbortController | null = null
 
 // Switch to idle mode when entering Studio page (stops all camera processes)
+// Note: Idle mode endpoint may not exist on all devices, so we handle 404 gracefully
 onMounted(async () => {
   try {
     const response = await fetch(await buildApiUrl('/api/mode/idle'), { method: 'POST' })
@@ -22,9 +23,13 @@ onMounted(async () => {
       console.log('[Studio] Switched to idle mode')
       // Refresh capabilities to update sidebar
       await capabilitiesStore.fetchCapabilities()
+    } else if (response.status === 404) {
+      // Idle mode endpoint doesn't exist - this is OK, just continue
+      console.debug('[Studio] Idle mode endpoint not available')
     }
   } catch (e) {
-    console.warn('[Studio] Failed to switch to idle mode:', e)
+    // Silently handle errors - idle mode is optional
+    console.debug('[Studio] Idle mode not available:', e)
   }
 })
 
@@ -310,30 +315,29 @@ async function selectMode(mode: 'recorder' | 'mixer') {
     <div class="studio__views">
       <span class="studio__views-label">Open on Display</span>
       <div class="studio__views-grid">
-        <router-link to="/booking/scan" class="studio__view-btn">
+        <router-link to="/qr?mode=podcast" class="studio__view-btn">
           <svg class="studio__view-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
           </svg>
-          <span>Booking</span>
+          <span>Podcast</span>
         </router-link>
-        <router-link to="/calendar" class="studio__view-btn">
+        <router-link to="/qr?mode=talking-head" class="studio__view-btn">
           <svg class="studio__view-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
           </svg>
-          <span>Calendar</span>
+          <span>Talking Head</span>
         </router-link>
-        <router-link to="/library" class="studio__view-btn">
+        <router-link to="/qr?mode=course" class="studio__view-btn">
           <svg class="studio__view-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
           </svg>
-          <span>Library</span>
+          <span>Course</span>
         </router-link>
-        <router-link to="/admin" class="studio__view-btn">
+        <router-link to="/qr?mode=webinar" class="studio__view-btn">
           <svg class="studio__view-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
           </svg>
-          <span>Admin</span>
+          <span>Webinar</span>
         </router-link>
       </div>
     </div>

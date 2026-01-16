@@ -86,10 +86,15 @@ export function useR58WebSocket() {
       reconnectAttempts.value = 0
       
       // Request state sync from last known sequence
-      ws?.send(JSON.stringify({
-        type: 'sync_request',
-        last_seq: lastSeq.value
-      }))
+      // Use setTimeout to ensure WebSocket is fully ready
+      setTimeout(() => {
+        if (ws?.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({
+            type: 'sync_request',
+            last_seq: lastSeq.value
+          }))
+        }
+      }, 100)
     }
     
     ws.onmessage = (msg) => {

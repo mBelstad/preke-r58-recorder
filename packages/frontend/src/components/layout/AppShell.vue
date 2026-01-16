@@ -8,12 +8,17 @@ import StatusBar from './StatusBarV2.vue'
 const route = useRoute()
 const router = useRouter()
 
-// Check if we should show minimal layout (e.g., guest page)
+// Check if we should show minimal or fullscreen layout
 const isMinimalLayout = computed(() => route.meta.layout === 'minimal')
+const isFullscreenLayout = computed(() => route.meta.layout === 'fullscreen')
 </script>
 
 <template>
   <div v-if="isMinimalLayout" class="minimal-layout">
+    <slot />
+  </div>
+  
+  <div v-else-if="isFullscreenLayout" class="fullscreen-layout">
     <slot />
   </div>
   
@@ -41,6 +46,15 @@ const isMinimalLayout = computed(() => route.meta.layout === 'minimal')
   inset: 0;
   width: 100%;
   height: 100%;
+}
+
+/* Fullscreen layout - full screen without sidebar/statusbar */
+.fullscreen-layout {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
 }
 
 .app-shell {
