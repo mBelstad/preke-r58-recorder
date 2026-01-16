@@ -85,6 +85,11 @@ DEPLOY_COMMANDS="cd /opt/preke-r58-recorder && \
     git clean -fd packages/frontend/dist/ || true && \
     git pull origin $DEPLOY_BRANCH && \
     echo 'Latest commit:' && git log -1 --oneline && \
+    echo 'Building frontend...' && \
+    cd packages/frontend && \
+    npm ci && \
+    npm run build && \
+    cd ../.. && \
     echo 'Setting up VDO.ninja if needed...' && \
     sudo bash scripts/setup-vdoninja.sh && \
     echo 'Setting up Reveal.js if needed...' && \
