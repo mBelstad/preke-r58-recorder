@@ -1,10 +1,14 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useRecorderStore } from '@/stores/recorder'
+import InputPreview from '@/components/shared/InputPreview.vue'
 
 const props = defineProps<{
   status: any
   isPreview?: boolean
 }>()
+
+const recorderStore = useRecorderStore()
 
 const currentTipIndex = ref(0)
 const scrollPosition = ref(0)
@@ -41,7 +45,7 @@ const teleprompterTips = [
   }
 ]
 
-onMounted(() => {
+onMounted(async () => {
   // Rotate tips every 5 seconds
   tipInterval = window.setInterval(() => {
     currentTipIndex.value = (currentTipIndex.value + 1) % teleprompterTips.length
@@ -53,6 +57,16 @@ onMounted(() => {
   // Start auto-scroll when recording
   if (isRecording.value) {
     startScroll()
+  }
+  
+  // Fetch camera inputs if not in preview mode
+  if (!props.isPreview) {
+    await recorderStore.fetchInputs()
+    // Poll for input updates every 2 seconds
+    const pollInterval = window.setInterval(() => {
+      recorderStore.fetchInputs()
+    }, 2000)
+    onUnmounted(() => clearInterval(pollInterval))
   }
 })
 
@@ -94,6 +108,12 @@ const scrollSpeed = computed(() => {
 
 const scriptText = computed(() => {
   return props.status?.teleprompter_script || 'No script loaded. Please add a script in the booking settings.'
+})
+
+// Get first active camera for preview
+const previewCamera = computed(() => {
+  if (props.isPreview) return null
+  return recorderStore.inputs.find(i => i.hasSignal) || null
 })
 
 function handleKeyDown(e: KeyboardEvent) {
@@ -183,11 +203,15 @@ function startScroll() {
       
       <!-- Camera Preview (toggleable) -->
       <div v-if="showCamera" class="camera-preview">
-        <div class="camera-placeholder">
+        <div v-if="previewCamera" class="camera-preview-container">
+          <div class="camera-label">{{ previewCamera.label }}</div>
+          <InputPreview :input-id="previewCamera.id" />
+        </div>
+        <div v-else class="camera-placeholder">
           <svg class="w-12 h-12 text-preke-text-subtle" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
           </svg>
-          <span class="text-xs">Camera Preview</span>
+          <span class="text-xs">No Camera Available</span>
         </div>
       </div>
     </div>

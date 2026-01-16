@@ -1,10 +1,14 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useRecorderStore } from '@/stores/recorder'
+import InputPreview from '@/components/shared/InputPreview.vue'
 
 const props = defineProps<{
   status: any
   isPreview?: boolean
 }>()
+
+const recorderStore = useRecorderStore()
 
 const currentTipIndex = ref(0)
 let tipInterval: number | null = null
@@ -37,11 +41,21 @@ const recordingTips = [
   }
 ]
 
-onMounted(() => {
+onMounted(async () => {
   // Rotate tips every 5 seconds
   tipInterval = window.setInterval(() => {
     currentTipIndex.value = (currentTipIndex.value + 1) % recordingTips.length
   }, 5000)
+  
+  // Fetch camera inputs if not in preview mode
+  if (!props.isPreview) {
+    await recorderStore.fetchInputs()
+    // Poll for input updates every 2 seconds
+    const pollInterval = window.setInterval(() => {
+      recorderStore.fetchInputs()
+    }, 2000)
+    onUnmounted(() => clearInterval(pollInterval))
+  }
 })
 
 onUnmounted(() => {
@@ -76,6 +90,12 @@ const currentGraphic = computed(() => {
 })
 
 const currentTip = computed(() => recordingTips[currentTipIndex.value])
+
+// Get active cameras for multiview
+const activeCameras = computed(() => {
+  if (props.isPreview) return []
+  return recorderStore.inputs.filter(i => i.hasSignal).slice(0, 4) // Max 4 cameras
+})
 </script>
 
 <template>
@@ -118,14 +138,39 @@ const currentTip = computed(() => recordingTips[currentTipIndex.value])
     
     <!-- Recording: Multiview + Graphic -->
     <div v-else class="display-main recording-mode">
-      <!-- Camera Grid Placeholder -->
-      <div class="camera-grid">
+      <!-- Camera Grid -->
+      <div v-if="activeCameras.length > 0" class="camera-grid">
+        <div 
+          v-for="camera in activeCameras" 
+          :key="camera.id" 
+          class="camera-preview"
+        >
+          <div class="camera-label">{{ camera.label }}</div>
+          <InputPreview :input-id="camera.id" />
+        </div>
+        <!-- Fill empty slots if less than 4 cameras -->
+        <div 
+          v-for="i in (4 - activeCameras.length)" 
+          :key="`empty-${i}`" 
+          class="camera-preview"
+        >
+          <div class="camera-placeholder">
+            <svg class="w-16 h-16 text-preke-text-subtle" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+            </svg>
+            <span class="text-sm">No Camera</span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- No cameras placeholder -->
+      <div v-else class="camera-grid">
         <div v-for="i in 4" :key="i" class="camera-preview">
           <div class="camera-placeholder">
             <svg class="w-16 h-16 text-preke-text-subtle" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
             </svg>
-            <span class="text-sm">Camera {{ i }}</span>
+            <span class="text-sm">Waiting for cameras...</span>
           </div>
         </div>
       </div>
