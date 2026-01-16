@@ -13,6 +13,7 @@ export interface DeviceConfig {
   id: string
   name: string
   url: string
+  fallbackUrl?: string
   lastConnected?: string
   createdAt: string
 }
@@ -91,14 +92,16 @@ export const deviceStore = {
   /**
    * Add a new device
    */
-  addDevice(name: string, url: string): DeviceConfig {
+  addDevice(name: string, url: string, fallbackUrl?: string): DeviceConfig {
     // Normalize URL (remove trailing slash)
     const normalizedUrl = url.replace(/\/+$/, '')
+    const normalizedFallback = fallbackUrl ? fallbackUrl.replace(/\/+$/, '') : undefined
     
     const device: DeviceConfig = {
       id: generateId(),
       name: name.trim() || 'Preke Device',
       url: normalizedUrl,
+      fallbackUrl: normalizedFallback,
       createdAt: new Date().toISOString()
     }
 
@@ -140,7 +143,7 @@ export const deviceStore = {
   /**
    * Update a device
    */
-  updateDevice(deviceId: string, updates: Partial<Pick<DeviceConfig, 'name' | 'url'>>): DeviceConfig | null {
+  updateDevice(deviceId: string, updates: Partial<Pick<DeviceConfig, 'name' | 'url' | 'fallbackUrl'>>): DeviceConfig | null {
     const devices = this.getDevices()
     const index = devices.findIndex(d => d.id === deviceId)
     
@@ -151,6 +154,9 @@ export const deviceStore = {
     }
     if (updates.url !== undefined) {
       devices[index].url = updates.url.replace(/\/+$/, '')
+    }
+    if (updates.fallbackUrl !== undefined) {
+      devices[index].fallbackUrl = updates.fallbackUrl ? updates.fallbackUrl.replace(/\/+$/, '') : undefined
     }
 
     store.set('devices', devices)

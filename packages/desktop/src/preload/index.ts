@@ -14,6 +14,7 @@ interface DeviceConfig {
   id: string
   name: string
   url: string
+  fallbackUrl?: string
   lastConnected?: string
   createdAt: string
 }
@@ -108,8 +109,8 @@ const electronAPI = {
   /**
    * Add a new device
    */
-  addDevice: (name: string, url: string): Promise<DeviceConfig> => {
-    return ipcRenderer.invoke('add-device', { name, url })
+  addDevice: (name: string, url: string, fallbackUrl?: string): Promise<DeviceConfig> => {
+    return ipcRenderer.invoke('add-device', { name, url, fallbackUrl })
   },
 
   /**
@@ -129,7 +130,7 @@ const electronAPI = {
   /**
    * Update a device
    */
-  updateDevice: (deviceId: string, updates: { name?: string; url?: string }): Promise<DeviceConfig | null> => {
+  updateDevice: (deviceId: string, updates: { name?: string; url?: string; fallbackUrl?: string }): Promise<DeviceConfig | null> => {
     return ipcRenderer.invoke('update-device', deviceId, updates)
   },
 

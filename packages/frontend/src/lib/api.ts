@@ -14,10 +14,10 @@ declare global {
       getDeviceUrl: () => Promise<string | null>
       getDevices: () => Promise<DeviceConfig[]>
       getActiveDevice: () => Promise<DeviceConfig | null>
-      addDevice: (name: string, url: string) => Promise<DeviceConfig>
+      addDevice: (name: string, url: string, fallbackUrl?: string) => Promise<DeviceConfig>
       removeDevice: (deviceId: string) => Promise<boolean>
       setActiveDevice: (deviceId: string) => Promise<boolean>
-      updateDevice: (deviceId: string, updates: { name?: string; url?: string }) => Promise<DeviceConfig | null>
+      updateDevice: (deviceId: string, updates: { name?: string; url?: string; fallbackUrl?: string }) => Promise<DeviceConfig | null>
       onDeviceChanged: (callback: (device: DeviceConfig | null) => void) => () => void
       onNavigate: (callback: (path: string) => void) => () => void
       onExportSupportBundle: (callback: () => void) => () => void
@@ -42,6 +42,7 @@ interface DeviceConfig {
   id: string
   name: string
   url: string
+  fallbackUrl?: string
   lastConnected?: string
   createdAt: string
 }
@@ -64,6 +65,12 @@ let cachedDeviceUrl: string | null = null
 
 /** Cached FRP fallback URL from device configuration */
 let cachedFrpUrl: string | null = null
+
+/** Cached secondary fallback URL (e.g. Tailscale) */
+let cachedFallbackUrl: string | null = null
+
+/** Whether we're currently using secondary fallback */
+let usingFallbackUrl = false
 
 /** Whether we're currently using FRP fallback (device unreachable) */
 let usingFrpFallback = false
@@ -122,7 +129,9 @@ async function getFrpUrl(): Promise<string | null> {
 export async function initializeDeviceUrl(): Promise<string | null> {
   if (window.electronAPI) {
     try {
-      cachedDeviceUrl = await window.electronAPI.getDeviceUrl()
+      const activeDevice = await window.electronAPI.getActiveDevice()
+      cachedDeviceUrl = activeDevice?.url || await window.electronAPI.getDeviceUrl()
+      cachedFallbackUrl = activeDevice?.fallbackUrl || null
       window.__R58_DEVICE_URL__ = cachedDeviceUrl || undefined
       console.log('[API] Device URL initialized:', cachedDeviceUrl)
       
@@ -148,6 +157,21 @@ export function setDeviceUrl(url: string | null): void {
   cachedDeviceUrl = url
   window.__R58_DEVICE_URL__ = url || undefined
   console.log('[API] Device URL set:', url)
+}
+
+/**
+ * Set the secondary fallback URL (e.g. Tailscale)
+ */
+export function setDeviceFallbackUrl(url: string | null): void {
+  cachedFallbackUrl = url ? url.replace(/\/+$/, '') : null
+  if (!cachedFallbackUrl) {
+    usingFallbackUrl = false
+  }
+  console.log('[API] Device fallback URL set:', cachedFallbackUrl)
+}
+
+function getFallbackUrl(): string | null {
+  return cachedFallbackUrl
 }
 
 /**
@@ -425,7 +449,26 @@ export async function apiRequest<T>(
     }
   }
 
-  // All retries exhausted - try FRP fallback if we haven't already
+  // All retries exhausted - try secondary fallback (Tailscale), then FRP
+  if (lastError && isElectron() && !usingFallbackUrl && !usingFrpFallback) {
+    const fallbackUrl = getFallbackUrl()
+    if (fallbackUrl) {
+      console.log('[API] Primary device unreachable, trying fallback URL...')
+      usingFallbackUrl = true
+      try {
+        const urlObj = new URL(url)
+        const fallbackFullUrl = `${fallbackUrl}${urlObj.pathname}${urlObj.search}`
+        console.log('[API] Retrying with fallback URL:', fallbackFullUrl)
+        return await apiRequest<T>(fallbackFullUrl, { ...options, retries: 0 })
+      } catch (fallbackError) {
+        console.error('[API] Fallback URL also failed:', fallbackError)
+        usingFallbackUrl = false
+      }
+    } else {
+      console.log('[API] No fallback URL configured')
+    }
+  }
+
   if (lastError && isElectron() && !usingFrpFallback) {
     console.log('[API] Primary device unreachable, trying FRP fallback...')
     
@@ -527,6 +570,13 @@ export function hasDeviceConfigured(): boolean {
  */
 export async function buildApiUrl(path: string, useFallback: boolean = false): Promise<string> {
   // If explicitly using fallback or we've detected device is unreachable
+  if (useFallback || usingFallbackUrl) {
+    const fallbackUrl = getFallbackUrl()
+    if (fallbackUrl) {
+      return `${fallbackUrl}${path}`
+    }
+  }
+
   if (useFallback || usingFrpFallback) {
     const frpUrl = await getFrpUrl()
     if (frpUrl) {

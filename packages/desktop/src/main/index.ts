@@ -68,8 +68,8 @@ function registerIpcHandlers(): void {
     return deviceStore.getActiveDevice()
   })
 
-  ipcMain.handle('add-device', (_event, device: { name: string; url: string }) => {
-    return deviceStore.addDevice(device.name, device.url)
+  ipcMain.handle('add-device', (_event, device: { name: string; url: string; fallbackUrl?: string }) => {
+    return deviceStore.addDevice(device.name, device.url, device.fallbackUrl)
   })
 
   ipcMain.handle('remove-device', (_event, deviceId: string) => {
@@ -86,7 +86,7 @@ function registerIpcHandlers(): void {
     return true
   })
 
-  ipcMain.handle('update-device', (_event, deviceId: string, updates: { name?: string; url?: string }) => {
+  ipcMain.handle('update-device', (_event, deviceId: string, updates: { name?: string; url?: string; fallbackUrl?: string }) => {
     return deviceStore.updateDevice(deviceId, updates)
   })
 

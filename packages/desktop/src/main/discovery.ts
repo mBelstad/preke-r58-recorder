@@ -29,6 +29,10 @@ export interface DiscoveredDevice {
   host: string
   port: number
   url: string
+  /** Stable device ID from capabilities (if available) */
+  deviceId?: string
+  /** Optional fallback URL (e.g. Tailscale) */
+  fallbackUrl?: string
   source: 'mdns' | 'probe' | 'hostname' | 'tailscale'
   status?: string
   version?: string
@@ -106,13 +110,15 @@ async function discoverViaTailscale(): Promise<DiscoveredDevice[]> {
 
     for (const tsDevice of tailscaleDevices) {
       const { url, isP2P, latencyMs } = await getR58TailscaleUrl(tsDevice)
+      const capability = await fetchCapabilities(url)
       
       devices.push({
-        id: `tailscale-${tsDevice.tailscaleIp.replace(/\./g, '-')}`,
+        id: capability?.deviceId || `tailscale-${tsDevice.tailscaleIp.replace(/\./g, '-')}`,
         name: `${tsDevice.name} ${isP2P ? '(P2P)' : '(Relay)'}`,
         host: tsDevice.tailscaleIp,
         port: 8000,
         url,
+        deviceId: capability?.deviceId,
         source: 'tailscale',
         status: 'healthy',
         version: tsDevice.os,
@@ -215,15 +221,17 @@ async function probeDevice(
     try {
       const result = await probeUrl(`${baseUrl}/health`, timeout)
       if (result && result.status === 'healthy') {
+        const capability = await fetchCapabilities(baseUrl)
         return {
-          id: `preke-${ip.replace(/\./g, '-')}`,
-          name: `Preke Device (${ip})`,
+          id: capability?.deviceId || `preke-${ip.replace(/\./g, '-')}`,
+          name: capability?.deviceName || `Preke Device (${ip})`,
           host: ip,
           port: parseInt(baseUrl.split(':').pop() || '8000'),
           url: baseUrl,
+          deviceId: capability?.deviceId,
           source: 'probe',
           status: result.status,
-          version: result.platform || 'unknown'
+          version: capability?.platform || result.platform || 'unknown'
         }
       }
     } catch (error) {
@@ -270,6 +278,20 @@ function probeUrl(url: string, timeout: number): Promise<any | null> {
       resolve(null)
     })
   })
+}
+
+async function fetchCapabilities(baseUrl: string): Promise<{ deviceId?: string; deviceName?: string; platform?: string } | null> {
+  try {
+    const result = await probeUrl(`${baseUrl}/api/v1/capabilities`, 1200)
+    if (!result) return null
+    return {
+      deviceId: result.device_id,
+      deviceName: result.device_name,
+      platform: result.platform
+    }
+  } catch {
+    return null
+  }
 }
 
 /**
@@ -324,12 +346,46 @@ async function startDiscovery(window: BrowserWindow): Promise<void> {
   window.webContents.send('discovery:started')
 
   const foundDevices = new Map<string, DiscoveredDevice>()
+  const foundDevicesById = new Map<string, DiscoveredDevice>()
+
+  const isLocalSource = (source: DiscoveredDevice['source']) => source !== 'tailscale'
 
   const onDeviceFound = (device: DiscoveredDevice) => {
-    if (!foundDevices.has(device.id)) {
+    const key = device.deviceId || device.id
+    const existing = foundDevicesById.get(key)
+    if (!existing) {
       foundDevices.set(device.id, device)
+      foundDevicesById.set(key, device)
       log.info(`Discovered device: ${device.name} at ${device.url}`)
       window.webContents.send('discovery:device-found', device)
+      return
+    }
+
+    // Merge devices: prefer local connection, keep tailscale as fallback
+    const incomingIsLocal = isLocalSource(device.source)
+    const existingIsLocal = isLocalSource(existing.source)
+
+    if (incomingIsLocal && !existingIsLocal) {
+      const merged = {
+        ...device,
+        fallbackUrl: existing.url
+      }
+      foundDevices.delete(existing.id)
+      foundDevices.set(merged.id, merged)
+      foundDevicesById.set(key, merged)
+      window.webContents.send('discovery:device-found', merged)
+      return
+    }
+
+    if (!incomingIsLocal && existingIsLocal && !existing.fallbackUrl) {
+      const merged = {
+        ...existing,
+        fallbackUrl: device.url
+      }
+      foundDevices.set(existing.id, merged)
+      foundDevicesById.set(key, merged)
+      window.webContents.send('discovery:device-found', merged)
+      return
     }
   }
 

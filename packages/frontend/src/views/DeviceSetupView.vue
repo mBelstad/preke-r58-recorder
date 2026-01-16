@@ -6,7 +6,7 @@
  */
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { isElectron, setDeviceUrl } from '@/lib/api'
+import { isElectron, setDeviceUrl, setDeviceFallbackUrl } from '@/lib/api'
 import logoStacked from '@/assets/logo-studio-stacked.svg'
 
 interface DeviceConfig {
@@ -23,7 +23,8 @@ interface DiscoveredDevice {
   host: string
   port: number
   url: string
-  source: 'mdns' | 'probe' | 'hostname'
+  fallbackUrl?: string
+  source: 'mdns' | 'probe' | 'hostname' | 'tailscale'
   status?: string
   version?: string
 }
@@ -137,7 +138,7 @@ function stopBackgroundScanning() {
 async function addDiscoveredDevice(discovered: DiscoveredDevice) {
   if (!window.electronAPI) return
   try {
-    const device = await window.electronAPI.addDevice(discovered.name, discovered.url)
+    const device = await window.electronAPI.addDevice(discovered.name, discovered.url, discovered.fallbackUrl)
     await loadDevices()
     if (devices.value.length === 1) {
       await selectDevice(device.id)
@@ -214,7 +215,10 @@ async function selectDevice(deviceId: string) {
     await window.electronAPI.setActiveDevice(deviceId)
     activeDeviceId.value = deviceId
     const device = devices.value.find(d => d.id === deviceId)
-    if (device) setDeviceUrl(device.url)
+    if (device) {
+      setDeviceUrl(device.url)
+      setDeviceFallbackUrl(device.fallbackUrl || null)
+    }
     router.push('/')
   } catch (error) {
     console.error('Failed to select device:', error)
