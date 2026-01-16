@@ -14,6 +14,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useVdoNinja } from '@/composables/useVdoNinja'
 import { useCameraControls } from '@/composables/useCameraControls'
 import CameraControlModal from '@/components/camera/CameraControlModal.vue'
+import PTZControllerPanel from '@/components/camera/PTZControllerPanel.vue'
 import type { Ref } from 'vue'
 
 const props = defineProps<{
@@ -59,6 +60,7 @@ const stopRecording = vdo.stopRecording
 const { cameras, getCamera } = useCameraControls()
 const selectedCamera = ref<string | null>(null)
 const showCameraModal = ref(false)
+const showPTZController = ref(false)
 
 // Scene selection
 const currentScene = ref<number | null>(null)
@@ -306,6 +308,29 @@ const cameraSources = computed(() => {
               </svg>
             </span>
           </button>
+        </div>
+      </div>
+      
+      <!-- PTZ Controller -->
+      <div>
+        <label class="text-xs font-medium text-preke-text-dim mb-2 block">PTZ Controller</label>
+        <button
+          v-if="!showPTZController"
+          @click="showPTZController = true"
+          class="w-full px-3 py-2 text-left text-xs bg-preke-bg-elevated hover:bg-preke-bg-elevated/80 rounded transition-colors"
+        >
+          <span class="flex items-center justify-between">
+            <span>Open PTZ Controller</span>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+            </svg>
+          </span>
+        </button>
+        <div v-else class="mt-2">
+          <PTZControllerPanel
+            :camera-name="selectedCamera"
+            @close="showPTZController = false"
+          />
         </div>
       </div>
     </div>

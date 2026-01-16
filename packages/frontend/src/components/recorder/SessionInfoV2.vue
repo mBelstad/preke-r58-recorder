@@ -13,6 +13,7 @@ import { useToast } from '@/composables/useToast'
 import { isElectron } from '@/lib/api'
 import CameraControlModal from '@/components/camera/CameraControlModal.vue'
 import CameraSetupModal from '@/components/camera/CameraSetupModal.vue'
+import PTZControllerPanel from '@/components/camera/PTZControllerPanel.vue'
 
 const router = useRouter()
 const recorderStore = useRecorderStore()
@@ -101,6 +102,7 @@ const { cameras, loadCameras } = useCameraControls()
 const selectedCameraForControl = ref<string | null>(null)
 const cameraModalRef = ref<InstanceType<typeof CameraControlModal> | null>(null)
 const cameraSetupModalRef = ref<InstanceType<typeof CameraSetupModal> | null>(null)
+const showPTZController = ref(false)
 
 onMounted(async () => {
   await loadCameras()
@@ -412,6 +414,29 @@ async function refreshGrowingClips() {
         ref="cameraSetupModalRef"
         @updated="onCameraConfigUpdated"
       />
+      
+      <!-- PTZ Controller Panel -->
+      <div v-if="showPTZController" class="sidebar__card">
+        <PTZControllerPanel
+          :camera-name="selectedCameraForControl"
+          @close="showPTZController = false"
+        />
+      </div>
+      
+      <!-- PTZ Controller Toggle -->
+      <div v-else class="sidebar__card">
+        <div class="sidebar__label">PTZ Controller</div>
+        <button
+          @click="showPTZController = true"
+          class="sidebar__btn"
+          title="Open PTZ Controller (Gamepad/Joystick)"
+        >
+          <svg class="sidebar__btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+          </svg>
+          Open PTZ Controller
+        </button>
+      </div>
       
       <!-- Quick Actions -->
       <div class="sidebar__card">
