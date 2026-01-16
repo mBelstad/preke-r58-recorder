@@ -117,7 +117,7 @@ const activeCameras = computed(() => {
     </div>
     
     <!-- Pre-Recording: Tips Mode -->
-    <div v-if="!isRecording" class="display-main">
+    <div v-if="!isRecording && activeCameras.length === 0" class="display-main">
       <div class="tips-container">
         <div class="tip-card">
           <div class="tip-icon">{{ currentTip.icon }}</div>
@@ -136,7 +136,7 @@ const activeCameras = computed(() => {
       </div>
     </div>
     
-    <!-- Recording: Multiview + Graphic -->
+    <!-- Multiview Mode (when cameras available or recording) -->
     <div v-else class="display-main recording-mode">
       <!-- Camera Grid -->
       <div v-if="activeCameras.length > 0" class="camera-grid">
