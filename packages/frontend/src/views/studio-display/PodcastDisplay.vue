@@ -305,11 +305,27 @@ const activeCameras = computed(() => {
 }
 
 .camera-preview {
+  position: relative;
   background: var(--preke-glass-bg);
   border: 1px solid var(--preke-border);
   border-radius: var(--preke-radius-lg);
   aspect-ratio: 16/9;
   overflow: hidden;
+  min-height: 0;
+}
+
+.camera-label {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(8px);
+  color: white;
+  padding: 0.375rem 0.75rem;
+  border-radius: var(--preke-radius-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+  z-index: 10;
 }
 
 .camera-placeholder {
@@ -320,6 +336,8 @@ const activeCameras = computed(() => {
   align-items: center;
   justify-content: center;
   gap: 1rem;
+  color: var(--preke-text-subtle);
+  background: rgba(0, 0, 0, 0.5);
 }
 
 .graphic-display {

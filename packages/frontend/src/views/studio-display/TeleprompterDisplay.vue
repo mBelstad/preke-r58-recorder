@@ -371,6 +371,26 @@ function startScroll() {
   backdrop-filter: blur(10px);
 }
 
+.camera-preview-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.camera-label {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(8px);
+  color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--preke-radius-sm);
+  font-size: 0.625rem;
+  font-weight: 600;
+  z-index: 10;
+}
+
 .camera-placeholder {
   width: 100%;
   height: 100%;
@@ -379,6 +399,8 @@ function startScroll() {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
+  color: var(--preke-text-subtle);
+  background: rgba(0, 0, 0, 0.7);
 }
 
 /* Footer */
