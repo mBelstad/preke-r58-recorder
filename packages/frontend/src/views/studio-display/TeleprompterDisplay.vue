@@ -108,6 +108,10 @@ const scrollSpeed = computed(() => {
 })
 
 const scriptText = computed(() => {
+  // For preview mode, show demo script
+  if (props.isPreview) {
+    return 'This is a preview of the teleprompter display.\n\nWhen a script is loaded, it will appear here and scroll automatically during recording.\n\nUse the arrow keys to scroll manually, or press Space to pause.'
+  }
   return props.status?.teleprompter_script || 'No script loaded. Please add a script in the booking settings.'
 })
 
@@ -167,8 +171,8 @@ function startScroll() {
       </div>
     </div>
     
-    <!-- Pre-Recording: Tips Mode -->
-    <div v-if="!isRecording" class="display-main">
+    <!-- Pre-Recording: Tips Mode (only if no script) -->
+    <div v-if="!isRecording && !scriptText" class="display-main">
       <div class="tips-container">
         <div class="tip-card">
           <div class="tip-icon">{{ currentTip.icon }}</div>
@@ -187,7 +191,7 @@ function startScroll() {
       </div>
     </div>
     
-    <!-- Recording: Teleprompter -->
+    <!-- Teleprompter Mode (when script available or recording) -->
     <div v-else class="display-main teleprompter-mode">
       <!-- Teleprompter Text Container -->
       <div class="teleprompter-container">
