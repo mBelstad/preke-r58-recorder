@@ -51,7 +51,11 @@ function loadLocalBridgePreference() {
   const stored = window.localStorage.getItem('preke_mixer_use_local_bridge')
   if (stored !== null) {
     useLocalBridge.value = stored === 'true'
+  } else {
+    // Default to true (use local bridge) for Electron
+    useLocalBridge.value = true
   }
+  console.log('[Mixer] Local bridge preference:', useLocalBridge.value)
 }
 
 function toggleLocalBridge() {

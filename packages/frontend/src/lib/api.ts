@@ -383,6 +383,22 @@ export async function apiRequest<T>(
         if (response.ok) {
           // Record successful connection
           recordConnectionSuccess()
+          
+          // Reset fallback flags if we successfully connected to primary URL
+          const deviceUrl = getDeviceUrl()
+          const fallbackUrl = getFallbackUrl()
+          if (deviceUrl) {
+            // Check if this request was to the primary URL (not fallback)
+            const isPrimaryUrl = url.startsWith(deviceUrl)
+            const isFallbackUrl = fallbackUrl && url.startsWith(fallbackUrl)
+            if (isPrimaryUrl && !isFallbackUrl && (usingFallbackUrl || usingFrpFallback)) {
+              console.log('[API] Primary URL is working again, resetting fallback flags')
+              usingFallbackUrl = false
+              usingFrpFallback = false
+              consecutiveFailures = 0
+            }
+          }
+          
           networkDebugLog('API', `Request succeeded: ${fetchOptions.method || 'GET'} ${url}`)
           
           // Handle empty responses
@@ -673,7 +689,6 @@ export async function recordConnectionFailure(): Promise<void> {
  */
 export function recordConnectionSuccess(): void {
   consecutiveFailures = 0
-  // Don't automatically disable fallback - keep using what works
 }
 
 /**

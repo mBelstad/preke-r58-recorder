@@ -29,16 +29,19 @@ const camerasWithSignal = computed(() =>
 
 // Initialize or update camera push states when cameras change
 watch(camerasWithSignal, async (cameras) => {
+  console.log(`[CameraPush] Cameras with signal: ${cameras.length}`, cameras.map(c => c.id))
   // Add new cameras
   for (const camera of cameras) {
     if (!cameraPushStates.value.has(camera.id)) {
       try {
+        console.log(`[CameraPush] Setting up ${camera.id} (${camera.label})`)
         // Both functions are async - need to await them
         const whepUrl = await getPublicWhepUrl(camera.id)
         if (!whepUrl) {
           console.error(`[CameraPush] No WHEP URL for ${camera.id}`)
           continue
         }
+        console.log(`[CameraPush] WHEP URL for ${camera.id}:`, whepUrl)
         const iframeSrc = await buildCameraContributionUrl(
           camera.id,
           whepUrl,
@@ -48,6 +51,7 @@ watch(camerasWithSignal, async (cameras) => {
           console.error(`[CameraPush] Failed to build contribution URL for ${camera.id}`)
           continue
         }
+        console.log(`[CameraPush] Contribution URL for ${camera.id}:`, iframeSrc)
         cameraPushStates.value.set(camera.id, {
           cameraId: camera.id,
           label: camera.label,
