@@ -27,9 +27,28 @@ const camerasWithSignal = computed(() =>
   recorderStore.inputs.filter(i => i.hasSignal)
 )
 
+// Log component mount and initial state
+onMounted(() => {
+  console.log('[CameraPush] Component mounted')
+  console.log('[CameraPush] Initial inputs:', recorderStore.inputs.length)
+  console.log('[CameraPush] Initial cameras with signal:', camerasWithSignal.value.length)
+  console.log('[CameraPush] Inputs loaded:', recorderStore.inputsLoaded)
+})
+
+// Also watch for inputs to be loaded (in case watch runs before inputs are fetched)
+watch(() => recorderStore.inputsLoaded, (loaded) => {
+  if (loaded) {
+    console.log('[CameraPush] Inputs loaded, checking for cameras with signal')
+    const cameras = camerasWithSignal.value
+    if (cameras.length > 0) {
+      console.log(`[CameraPush] Found ${cameras.length} cameras with signal after inputs loaded`)
+    }
+  }
+})
+
 // Initialize or update camera push states when cameras change
 watch(camerasWithSignal, async (cameras) => {
-  console.log(`[CameraPush] Cameras with signal: ${cameras.length}`, cameras.map(c => c.id))
+  console.log(`[CameraPush] Cameras with signal changed: ${cameras.length}`, cameras.map(c => c.id))
   // Add new cameras
   for (const camera of cameras) {
     if (!cameraPushStates.value.has(camera.id)) {
@@ -202,7 +221,8 @@ function getStatusText(status: CameraPushState['status']): string {
     </div>
     
     <!-- Hidden iframes for camera push -->
-    <div class="hidden">
+    <!-- Use fixed positioning off-screen instead of hidden class to ensure iframes load in Electron -->
+    <div class="fixed -left-[9999px] -top-[9999px] w-1 h-1 overflow-hidden pointer-events-none">
       <iframe
         v-for="[cameraId, state] in cameraPushStates"
         :key="cameraId"
@@ -210,7 +230,8 @@ function getStatusText(status: CameraPushState['status']): string {
         @load="handleIframeLoad(cameraId)"
         @error="handleIframeError(cameraId)"
         allow="camera; microphone; autoplay"
-        class="w-0 h-0"
+        class="w-full h-full border-0"
+        :title="`Camera push for ${state.label}`"
       ></iframe>
     </div>
   </div>

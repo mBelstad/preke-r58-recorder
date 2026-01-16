@@ -177,6 +177,7 @@ onMounted(async () => {
   
   if (isElectronApp.value) {
     loadLocalBridgePreference()
+    console.log('[Mixer] Electron app detected, useLocalBridge:', useLocalBridge.value, 'showCameraPushBar:', showCameraPushBar.value)
   }
 
   // Initialize mixer URL first
