@@ -170,7 +170,7 @@ export function setDeviceFallbackUrl(url: string | null): void {
   console.log('[API] Device fallback URL set:', cachedFallbackUrl)
 }
 
-function getFallbackUrl(): string | null {
+export function getFallbackUrl(): string | null {
   return cachedFallbackUrl
 }
 

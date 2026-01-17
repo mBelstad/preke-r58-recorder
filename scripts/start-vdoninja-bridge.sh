@@ -9,7 +9,7 @@ set -e
 # Must match VDO_ROOM in packages/frontend/src/lib/vdoninja.ts
 ROOM_NAME="${VDONINJA_ROOM:-studio}"
 VDONINJA_HOST="${VDONINJA_HOST:-r58-vdo.itagenten.no}"
-API_HOST="${API_HOST:-app.itagenten.no}"
+API_HOST="${API_HOST:-localhost:8000}"
 LOG_FILE="${LOG_FILE:-/var/log/vdoninja-bridge.log}"
 
 # Camera configuration - each camera gets its own entry
@@ -79,6 +79,18 @@ url_encode() {
     python3 -c "import urllib.parse; print(urllib.parse.quote('$1', safe=''))"
 }
 
+build_api_base() {
+    if [[ "$API_HOST" == http* ]]; then
+        echo "$API_HOST"
+        return
+    fi
+    if [[ "$API_HOST" == "localhost"* ]] || [[ "$API_HOST" == "127.0.0.1"* ]] || [[ "$API_HOST" == "192.168."* ]] || [[ "$API_HOST" == "10."* ]]; then
+        echo "http://$API_HOST"
+        return
+    fi
+    echo "https://$API_HOST"
+}
+
 start_chromium() {
     log "Starting Chromium..."
     
@@ -89,11 +101,14 @@ start_chromium() {
     # Build camera URLs
     local urls=""
     IFS=',' read -ra CAMERA_ARRAY <<< "$CAMERAS"
+    local api_base
+    api_base="$(build_api_base)"
+
     for camera in "${CAMERA_ARRAY[@]}"; do
         IFS=':' read -r stream_id push_id label <<< "$camera"
         
-        # URL encode the WHEP URL (format: /{stream_id}/whep)
-        local whep_url="https://$API_HOST/$stream_id/whep"
+        # URL encode the WHEP URL (API proxy ensures CORS headers)
+        local whep_url="${api_base}/whep/$stream_id"
         local encoded_whep=$(url_encode "$whep_url")
         
         # Build the VDO.ninja URL with &whepshare

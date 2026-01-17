@@ -699,40 +699,88 @@ export async function getPublicR58Host(): Promise<string | null> {
  * In Browser: Must use FRP-proxied HTTPS URL due to mixed content security.
  */
 export async function getPublicWhepUrl(cameraId: string): Promise<string | null> {
-  const { getDeviceUrl, getFrpUrl } = await import('./api')
+  const { getDeviceUrl, getFallbackUrl, getFrpUrl } = await import('./api')
   
-  // In Electron, use direct connection when available (mixed content allowed)
-  if (typeof window !== 'undefined' && (window as any).electronAPI) {
-    const deviceUrl = getDeviceUrl()
-    if (deviceUrl) {
-      try {
-        const url = new URL(deviceUrl)
-        // Direct connection - bypasses FRP tunnel for much better performance!
-        console.log(`[VDO.ninja] Using direct WHEP for ${cameraId}`)
-        return `http://${url.hostname}:8889/${cameraId}/whep`
-      } catch (e) {
-        // Invalid URL, fall through to FRP
+  const buildApiWhepUrl = (baseUrl: string): string => {
+    const cleanBase = baseUrl.replace(/\/+$/, '')
+    return `${cleanBase}/whep/${cameraId}`
+  }
+
+  const buildDirectWhepUrl = (host: string): string => {
+    return `http://${host}:8889/${cameraId}/whep`
+  }
+
+  const isLanHost = (host: string): boolean => {
+    if (host === 'localhost' || host === '127.0.0.1') return true
+    if (host.endsWith('.local')) return true
+    if (host.startsWith('192.168.')) return true
+    if (host.startsWith('10.')) return true
+    if (host.startsWith('172.')) {
+      const second = Number(host.split('.')[1])
+      return second >= 16 && second <= 31
+    }
+    return false
+  }
+
+  const isTailscaleHost = (host: string): boolean => {
+    return host.startsWith('100.') || host.endsWith('.ts.net')
+  }
+
+  const deviceUrl = getDeviceUrl()
+  if (deviceUrl) {
+    try {
+      const url = new URL(deviceUrl)
+      // LAN first: direct MediaMTX for lowest latency (Electron allows mixed content)
+      if (isLanHost(url.hostname)) {
+        console.log(`[VDO.ninja] Using LAN WHEP for ${cameraId}`)
+        return buildDirectWhepUrl(url.hostname)
       }
+    } catch {
+      // Ignore invalid device URL
     }
   }
-  
-  // Browser fallback: Use FRP-proxied MediaMTX (HTTPS required)
+
+  // Tailscale fallback (preferred over FRP)
+  const fallbackUrl = getFallbackUrl()
+  if (fallbackUrl) {
+    try {
+      const url = new URL(fallbackUrl)
+      if (isTailscaleHost(url.hostname)) {
+        console.log(`[VDO.ninja] Using Tailscale WHEP for ${cameraId}`)
+        return buildApiWhepUrl(url.toString())
+      }
+    } catch {
+      // Ignore invalid fallback URL
+    }
+  }
+
+  // If device URL isn't LAN (e.g., Tailscale API), use it as next fallback
+  if (deviceUrl) {
+    try {
+      const url = new URL(deviceUrl)
+      if (isTailscaleHost(url.hostname)) {
+        console.log(`[VDO.ninja] Using device fallback WHEP for ${cameraId}`)
+        return buildApiWhepUrl(url.toString())
+      }
+    } catch {
+      // Ignore invalid device URL
+    }
+  }
+
+  // FRP last: use API proxy path to ensure CORS headers for VDO.ninja
   const frpUrl = await getFrpUrl()
   if (frpUrl) {
     try {
       const url = new URL(frpUrl)
-      // Use same-domain architecture: app.itagenten.no for all services
       if (url.hostname.includes('itagenten.no')) {
-        return `https://app.itagenten.no/${cameraId}/whep`
+        return `https://app.itagenten.no/whep/${cameraId}`
       }
-      // Fallback for other domains (legacy)
-      const mediamtxHost = url.hostname.replace('api', 'mediamtx')
-      return `https://${mediamtxHost}/${cameraId}/whep`
+      return buildApiWhepUrl(url.toString())
     } catch (e) {
       console.warn('[VDO.ninja] Failed to construct MediaMTX WHEP URL')
     }
   }
-  
+
   return null
 }
 
