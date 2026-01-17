@@ -1380,6 +1380,55 @@ async def switch_to_vdoninja() -> Dict[str, Any]:
     return result
 
 
+@app.post("/api/mode/idle")
+async def switch_to_idle() -> Dict[str, Any]:
+    """Switch to Idle Mode - stops all camera processes."""
+    if not mode_manager:
+        raise HTTPException(status_code=503, detail="Mode manager not available")
+    
+    # Idle mode is essentially switching back to recorder mode but stopping recording
+    # For now, just switch to recorder mode (which stops active processes)
+    result = await mode_manager.switch_to_recorder()
+    
+    if not result["success"]:
+        raise HTTPException(status_code=500, detail=result["message"])
+    
+    return {
+        "success": True,
+        "message": "Switched to idle mode",
+        "mode": "idle"
+    }
+
+
+@app.get("/api/config")
+async def get_config() -> Dict[str, Any]:
+    """Get device configuration for frontend."""
+    config_data: Dict[str, Any] = {}
+    
+    # FRP URL configuration (if available)
+    # Check if FRP is configured via environment
+    frp_api_url = os.getenv("FRP_API_URL")
+    if frp_api_url:
+        config_data["frp_api_url"] = frp_api_url
+        config_data["frp_url"] = frp_api_url  # Alias for backward compatibility
+    
+    # VDO.ninja configuration
+    vdo_ninja_config: Dict[str, Any] = {}
+    
+    # Get VDO.ninja API key from environment or use default
+    vdo_api_key = os.getenv("VDO_NINJA_API_KEY", "preke-r58-2024-secure-key")
+    vdo_ninja_config["api_key"] = vdo_api_key
+    
+    # Get VDO.ninja host from environment (if configured)
+    vdo_host = os.getenv("VDO_NINJA_HOST")
+    if vdo_host:
+        vdo_ninja_config["host"] = vdo_host
+    
+    config_data["vdo_ninja"] = vdo_ninja_config
+    
+    return config_data
+
+
 @app.get("/api/preview/status")
 async def get_preview_status_api() -> Dict[str, Any]:
     """Get detailed preview status for all cameras (delegates to ingest)."""
