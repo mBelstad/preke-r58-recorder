@@ -127,43 +127,67 @@ async function clearPWACache() {
   clearingCache.value = true
   
   try {
-    // Clear all caches
-    if ('caches' in window) {
-      const cacheNames = await caches.keys()
-      await Promise.all(cacheNames.map(name => caches.delete(name)))
-      console.log('[PWA] Cleared caches:', cacheNames)
-    }
-    
-    // Unregister service worker
+    // Step 1: Unregister all service workers FIRST (prevents re-caching)
     if ('serviceWorker' in navigator) {
       const registrations = await navigator.serviceWorker.getRegistrations()
-      await Promise.all(registrations.map(reg => reg.unregister()))
+      for (const reg of registrations) {
+        // Update the service worker to force it to unregister
+        if (reg.active) {
+          reg.active.postMessage({ type: 'SKIP_WAITING' })
+        }
+        await reg.unregister()
+        console.log('[PWA] Unregistered service worker:', reg.scope)
+      }
       console.log('[PWA] Unregistered service workers:', registrations.length)
     }
     
-    // Clear localStorage (optional - only cache-related keys)
+    // Step 2: Clear all caches
+    if ('caches' in window) {
+      const cacheNames = await caches.keys()
+      for (const name of cacheNames) {
+        await caches.delete(name)
+        console.log('[PWA] Deleted cache:', name)
+      }
+      console.log('[PWA] Cleared all caches:', cacheNames)
+    }
+    
+    // Step 3: Clear localStorage (all cache-related keys)
     try {
       const keysToRemove: string[] = []
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i)
-        if (key && (key.startsWith('workbox-') || key.startsWith('sw-'))) {
+        if (key && (
+          key.startsWith('workbox-') || 
+          key.startsWith('sw-') ||
+          key.startsWith('vite-pwa-') ||
+          key.includes('cache')
+        )) {
           keysToRemove.push(key)
         }
       }
       keysToRemove.forEach(key => localStorage.removeItem(key))
-      console.log('[PWA] Cleared cache-related localStorage keys')
+      console.log('[PWA] Cleared localStorage keys:', keysToRemove)
     } catch (e) {
       console.warn('[PWA] Failed to clear localStorage:', e)
     }
     
-    // Reload page after a short delay
+    // Step 4: Clear sessionStorage
+    try {
+      sessionStorage.clear()
+      console.log('[PWA] Cleared sessionStorage')
+    } catch (e) {
+      console.warn('[PWA] Failed to clear sessionStorage:', e)
+    }
+    
+    // Step 5: Force reload with cache bypass
     setTimeout(() => {
-      window.location.reload()
-    }, 500)
+      // Use location.reload() with cache bypass
+      window.location.href = window.location.href.split('?')[0] + '?nocache=' + Date.now()
+    }, 1000)
   } catch (e) {
     console.error('[PWA] Failed to clear cache:', e)
     clearingCache.value = false
-    alert('Failed to clear PWA cache. Please try manually: DevTools > Application > Clear Storage')
+    alert('Failed to clear PWA cache. Please try manually:\n\n1. Open DevTools (F12)\n2. Application tab\n3. Clear Storage > Clear site data\n4. Hard refresh (Ctrl+Shift+R or Cmd+Shift+R)')
   }
 }
 

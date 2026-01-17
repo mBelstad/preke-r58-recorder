@@ -365,7 +365,18 @@ async def root():
     # Try Vue frontend first
     vue_index = Path(__file__).parent.parent / "packages" / "frontend" / "dist" / "index.html"
     if vue_index.exists():
-        return vue_index.read_text()
+        from fastapi.responses import Response
+        content = vue_index.read_text()
+        # Add cache-busting headers for HTML
+        return Response(
+            content=content,
+            media_type="text/html",
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate, max-age=0",
+                "Pragma": "no-cache",
+                "Expires": "0"
+            }
+        )
     # Fallback to legacy app.html
     app_path = Path(__file__).parent / "static" / "app.html"
     if app_path.exists():
@@ -422,7 +433,15 @@ async def vue_sw_register():
     """Serve Vue service worker registration."""
     path = Path(__file__).parent.parent / "packages" / "frontend" / "dist" / "registerSW.js"
     if path.exists():
-        return Response(content=path.read_text(), media_type="application/javascript")
+        return Response(
+            content=path.read_text(),
+            media_type="application/javascript",
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate, max-age=0",
+                "Pragma": "no-cache",
+                "Expires": "0"
+            }
+        )
     raise HTTPException(status_code=404)
 
 
@@ -431,7 +450,15 @@ async def vue_sw():
     """Serve Vue service worker."""
     path = Path(__file__).parent.parent / "packages" / "frontend" / "dist" / "sw.js"
     if path.exists():
-        return Response(content=path.read_text(), media_type="application/javascript")
+        return Response(
+            content=path.read_text(),
+            media_type="application/javascript",
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate, max-age=0",
+                "Pragma": "no-cache",
+                "Expires": "0"
+            }
+        )
     raise HTTPException(status_code=404)
 
 
@@ -440,8 +467,53 @@ async def vue_workbox(path: str):
     """Serve Vue workbox files."""
     file_path = Path(__file__).parent.parent / "packages" / "frontend" / "dist" / f"workbox-{path}"
     if file_path.exists():
-        return Response(content=file_path.read_text(), media_type="application/javascript")
+        return Response(
+            content=file_path.read_text(),
+            media_type="application/javascript",
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate, max-age=0",
+                "Pragma": "no-cache",
+                "Expires": "0"
+            }
+        )
     raise HTTPException(status_code=404)
+
+
+@app.get("/api/frontend/version")
+async def get_frontend_version() -> Dict[str, Any]:
+    """Get frontend build version/timestamp for cache busting."""
+    import os
+    from datetime import datetime
+    
+    vue_dist = Path(__file__).parent.parent / "packages" / "frontend" / "dist"
+    index_html = vue_dist / "index.html"
+    
+    build_time = None
+    if index_html.exists():
+        stat = index_html.stat()
+        build_time = datetime.fromtimestamp(stat.st_mtime).isoformat()
+    
+    # Get git commit if available
+    git_commit = None
+    try:
+        import subprocess
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=Path(__file__).parent.parent,
+            capture_output=True,
+            text=True,
+            timeout=2
+        )
+        if result.returncode == 0:
+            git_commit = result.stdout.strip()[:8]  # Short commit hash
+    except:
+        pass
+    
+    return {
+        "version": git_commit or "unknown",
+        "build_time": build_time,
+        "timestamp": datetime.now().isoformat()
+    }
 
 
 @app.get("/apple-touch-icon.png")
@@ -6239,13 +6311,21 @@ async def connect_to_lan_device(device_id: str) -> Dict[str, Any]:
 async def get_wordpress_status() -> Dict[str, Any]:
     """Get WordPress integration status"""
     wp_client = get_wordpress_client(config)
-    
-    if not wp_client or not wp_client.is_configured:
+
+    if not hasattr(config, 'wordpress') or not config.wordpress.enabled:
         return {
-            "enabled": hasattr(config, 'wordpress') and config.wordpress.enabled,
+            "enabled": False,
             "connected": False,
             "wordpress_url": config.wordpress.url if hasattr(config, 'wordpress') else '',
-            "error": "WordPress integration not configured"
+            "error": "WordPress integration is disabled"
+        }
+
+    if not wp_client or not wp_client.is_configured:
+        return {
+            "enabled": True,
+            "connected": False,
+            "wordpress_url": config.wordpress.url if hasattr(config, 'wordpress') else '',
+            "error": "WordPress credentials not configured"
         }
     
     connected = await wp_client.test_connection()
@@ -6259,98 +6339,241 @@ async def get_wordpress_status() -> Dict[str, Any]:
     }
 
 
+@app.get("/api/v1/wordpress/health")
+async def get_wordpress_health() -> Dict[str, Any]:
+    """Lightweight health check for WordPress integration routes"""
+    wp_enabled = hasattr(config, 'wordpress') and config.wordpress.enabled
+    wp_client = get_wordpress_client(config)
+
+    if not wp_enabled:
+        return {
+            "ok": False,
+            "enabled": False,
+            "configured": False,
+            "checks": [],
+            "error": "WordPress integration is disabled",
+        }
+
+    if not wp_client or not wp_client.is_configured:
+        return {
+            "ok": False,
+            "enabled": True,
+            "configured": False,
+            "checks": [],
+            "error": "WordPress credentials not configured",
+        }
+
+    checks: List[Dict[str, Any]] = []
+    overall_ok = True
+
+    async def run_check(name: str, coro):
+        nonlocal overall_ok
+        start = time.monotonic()
+        try:
+            result = await coro
+            success = True
+            error = None
+        except Exception as e:
+            result = None
+            success = False
+            error = str(e)
+        duration_ms = int((time.monotonic() - start) * 1000)
+        checks.append({
+            "name": name,
+            "success": success,
+            "duration_ms": duration_ms,
+            "error": error,
+        })
+        if not success:
+            overall_ok = False
+        return result
+
+    # Connection/auth check
+    connection_ok = await run_check("status", wp_client.test_connection())
+    if connection_ok is False:
+        overall_ok = False
+        checks[-1]["success"] = False
+        checks[-1]["error"] = wp_client._last_error or "Authentication failed"
+
+    # Appointments list (today, minimal)
+    today = datetime.now().date()
+    await run_check(
+        "appointments_today",
+        wp_client.get_appointments(date_from=today, date_to=today, limit=1, page=1),
+    )
+
+    # Clients list (minimal)
+    clients: List[ClientInfo] = await run_check("clients", wp_client.get_clients(limit=1)) or []
+
+    # Projects for first client (if available)
+    if clients:
+        await run_check("client_projects", wp_client.get_client_projects(clients[0].id))
+
+    return {
+        "ok": overall_ok,
+        "enabled": True,
+        "configured": True,
+        "wordpress_url": wp_client.base_url,
+        "checked_at": datetime.now().isoformat(),
+        "checks": checks,
+    }
+
+
 @app.get("/api/v1/wordpress/appointments")
 async def list_appointments(
     date_from: Optional[str] = None,
-    date_to: Optional[str] = None
+    date_to: Optional[str] = None,
+    status: Optional[str] = None,
+    page: int = 1,
+    per_page: int = 20
 ) -> Dict[str, Any]:
     """List appointments from JetAppointments"""
     wp_client = get_wordpress_client(config)
-    if not wp_client:
+    if not wp_client or not wp_client.is_configured:
         raise HTTPException(status_code=503, detail="WordPress not configured")
     
     from datetime import date as date_type
     df = date_type.fromisoformat(date_from) if date_from else None
     dt = date_type.fromisoformat(date_to) if date_to else None
-    
-    bookings = await wp_client.get_appointments(date_from=df, date_to=dt)
+
+    booking_status = None
+    if status:
+        try:
+            booking_status = BookingStatus(status)
+        except Exception:
+            booking_status = None
+
+    bookings = await wp_client.get_appointments(
+        date_from=df,
+        date_to=dt,
+        status=booking_status,
+        limit=per_page,
+        page=page,
+    )
     
     return {
         "bookings": [b.dict() for b in bookings],
-        "total": len(bookings)
+        "total": len(bookings),
+        "page": page,
+        "per_page": per_page
     }
 
 
 @app.get("/api/v1/wordpress/appointments/today")
 async def get_todays_appointments() -> Dict[str, Any]:
     """Get today's appointments"""
-    from datetime import date as date_type
-    today = date_type.today()
-    return await list_appointments(
-        date_from=today.isoformat(),
-        date_to=today.isoformat()
-    )
+    wp_client = get_wordpress_client(config)
+    if not wp_client or not wp_client.is_configured:
+        raise HTTPException(status_code=503, detail="WordPress not configured")
+
+    bookings = await wp_client.get_todays_appointments()
+    return {
+        "bookings": [b.dict() for b in bookings],
+        "total": len(bookings)
+    }
 
 
 @app.get("/api/v1/wordpress/appointments/{appointment_id}")
 async def get_appointment(appointment_id: int) -> Dict[str, Any]:
     """Get a specific appointment"""
     wp_client = get_wordpress_client(config)
-    if not wp_client:
+    if not wp_client or not wp_client.is_configured:
         raise HTTPException(status_code=503, detail="WordPress not configured")
     
     booking = await wp_client.get_appointment(appointment_id)
     if not booking:
         raise HTTPException(status_code=404, detail="Appointment not found")
-    
-    return {"booking": booking.dict()}
+
+    graphics = []
+    if booking.content_id:
+        graphics = await wp_client.get_content_graphics(int(booking.content_id))
+    elif booking.client and booking.client.default_project_id:
+        project = await wp_client.get_video_project(booking.client.default_project_id)
+        if project:
+            graphics = project.graphics
+
+    return {
+        "booking": booking.dict(),
+        "graphics": [g.dict() for g in graphics]
+    }
 
 
 @app.post("/api/v1/wordpress/appointments/{appointment_id}/activate")
-async def activate_appointment(appointment_id: int, download_graphics: bool = True) -> Dict[str, Any]:
+async def activate_appointment(appointment_id: int, request: Dict[str, Any] = Body({})) -> Dict[str, Any]:
     """Activate a booking session"""
     wp_client = get_wordpress_client(config)
-    if not wp_client:
+    if not wp_client or not wp_client.is_configured:
         raise HTTPException(status_code=503, detail="WordPress not configured")
-    
+
+    current = get_active_booking()
+    if current and current.booking.id != appointment_id:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Another booking is already active: {current.booking.id}"
+        )
+
     booking = await wp_client.get_appointment(appointment_id)
     if not booking:
         raise HTTPException(status_code=404, detail="Appointment not found")
-    
-    # Generate access token
+
+    if not booking.client:
+        raise HTTPException(status_code=400, detail="Booking has no associated client")
+
+    download_graphics = bool(request.get("download_graphics", True))
+
+    project = await wp_client.get_client_default_project(booking.client.id)
+    if not project:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Client {booking.client.name} has no default project configured"
+        )
+
+    recording_title = f"{booking.client.name} - {booking.date} {booking.slot_start}"
+    recording = await wp_client.create_recording(
+        project_id=project.id,
+        booking_id=booking.id,
+        title=recording_title,
+    )
+
+    if not recording:
+        raise HTTPException(status_code=500, detail="Failed to create recording in WordPress")
+
+    base_path = Path("/data/recordings")
+    client_slug = booking.client.slug or "unknown_client"
+    project_slug = project.slug or "unknown_project"
+    recording_path = base_path / "clients" / client_slug / project_slug / str(recording.id)
+    recording_path.mkdir(parents=True, exist_ok=True)
+
+    graphics_paths: List[str] = []
+    if download_graphics and project.graphics:
+        graphics_dir = recording_path / "graphics"
+        graphics_paths = await wp_client.download_graphics(project.graphics, graphics_dir)
+
     import secrets
     access_token = secrets.token_urlsafe(32)
-    
-    # Create active booking context (simplified)
-    from .wordpress import ActiveBookingContext, VideoProject
-    
-    # Mock project for now - in full implementation, fetch from WordPress
-    project = VideoProject(
-        id=1,
-        slug="default",
-        name="Default Project",
-        client_id=booking.client.id if booking.client else None
-    )
-    
-    recording_path = f"/data/recordings/clients/{booking.client.slug if booking.client else 'unknown'}/default/{appointment_id}"
-    
+
     context = ActiveBookingContext(
         booking=booking,
-        recording_id=appointment_id,
+        recording_id=recording.id,
         project=project,
-        recording_path=recording_path,
+        recording_path=str(recording_path),
+        graphics_downloaded=len(graphics_paths) > 0,
+        graphics_paths=graphics_paths,
         access_token=access_token,
-        display_mode=booking.display_mode
+        display_mode=booking.display_mode,
+        teleprompter_script=booking.teleprompter_script,
     )
-    
+
     set_active_booking(context)
-    
+    await wp_client.update_appointment_status(appointment_id, BookingStatus.PROCESSING)
+
     return {
         "success": True,
         "booking": booking.dict(),
-        "recording_path": recording_path,
+        "recording_path": str(recording_path),
+        "graphics_downloaded": len(graphics_paths),
         "access_token": access_token,
-        "message": "Booking activated"
+        "message": f"Booking activated. Recording #{recording.id} created."
     }
 
 
@@ -6359,9 +6582,64 @@ async def get_current_booking() -> Dict[str, Any]:
     """Get currently active booking"""
     context = get_active_booking()
     if not context:
-        raise HTTPException(status_code=404, detail="No active booking")
-    
-    return {"booking": context.booking.dict(), "context": context.dict()}
+        return {"active": False, "booking": None}
+
+    return {
+        "active": True,
+        "booking": context.booking.dict(),
+        "recording_path": context.recording_path,
+        "graphics_downloaded": context.graphics_downloaded,
+        "graphics_paths": context.graphics_paths,
+        "activated_at": context.activated_at.isoformat(),
+    }
+
+
+@app.post("/api/v1/wordpress/appointments/{appointment_id}/complete")
+async def complete_booking(appointment_id: int, request: Dict[str, Any] = Body({})) -> Dict[str, Any]:
+    """Complete a booking session and optionally upload recordings"""
+    wp_client = get_wordpress_client(config)
+    if not wp_client or not wp_client.is_configured:
+        raise HTTPException(status_code=503, detail="WordPress not configured")
+
+    current = get_active_booking()
+    if not current or current.booking.id != appointment_id:
+        raise HTTPException(status_code=404, detail="Booking is not currently active")
+
+    upload_recordings = bool(request.get("upload_recordings", True))
+    update_status = bool(request.get("update_status", True))
+
+    recordings_uploaded = 0
+    wordpress_updated = False
+
+    if upload_recordings:
+        recording_dir = Path(current.recording_path)
+        if recording_dir.exists():
+            for extension in (".mkv", ".mp4", ".mov"):
+                for recording_file in recording_dir.glob(f"*{extension}"):
+                    media_id = await wp_client.upload_recording(
+                        recording_file,
+                        title=f"Recording - {current.booking.client.name} - {recording_file.stem}" if current.booking.client else recording_file.stem,
+                        parent_post_id=current.recording_id,
+                    )
+                    if media_id:
+                        await wp_client.attach_media_to_recording(current.recording_id, media_id)
+                        recordings_uploaded += 1
+
+    if update_status:
+        wordpress_updated = await wp_client.update_appointment_status(
+            appointment_id,
+            BookingStatus.COMPLETED,
+        )
+
+    set_active_booking(None)
+
+    return {
+        "success": True,
+        "booking_id": appointment_id,
+        "recordings_uploaded": recordings_uploaded,
+        "wordpress_status_updated": wordpress_updated,
+        "message": f"Booking completed. {recordings_uploaded} recordings uploaded."
+    }
 
 
 @app.get("/api/v1/wordpress/clients")
@@ -6382,19 +6660,37 @@ async def list_clients() -> Dict[str, Any]:
 @app.get("/api/v1/wordpress/clients/{client_id}/projects")
 async def list_client_projects(client_id: int) -> Dict[str, Any]:
     """List projects for a client"""
-    # Simplified - return empty for now
-    return {"projects": [], "total": 0}
+    wp_client = get_wordpress_client(config)
+    if not wp_client or not wp_client.is_configured:
+        raise HTTPException(status_code=503, detail="WordPress not configured")
+
+    projects = await wp_client.get_client_projects(client_id)
+    return {"projects": [p.dict() for p in projects], "total": len(projects)}
 
 
 @app.post("/api/v1/wordpress/projects")
 async def create_project(request: Dict[str, Any]) -> Dict[str, Any]:
     """Create a new project"""
-    # Simplified - return mock response
+    wp_client = get_wordpress_client(config)
+    if not wp_client or not wp_client.is_configured:
+        raise HTTPException(status_code=503, detail="WordPress not configured")
+
+    client_id = request.get("client_id")
+    name = request.get("name")
+    project_type = request.get("type", "podcast")
+
+    if not client_id or not name:
+        raise HTTPException(status_code=400, detail="client_id and name are required")
+
+    project = await wp_client.create_video_project(int(client_id), name, project_type)
+    if not project:
+        raise HTTPException(status_code=500, detail="Failed to create project")
+
     return {
-        "id": 1,
-        "name": request.get("name", "New Project"),
-        "slug": request.get("name", "new-project").lower().replace(" ", "-"),
-        "client_id": request.get("client_id")
+        "id": project.id,
+        "name": project.name,
+        "slug": project.slug,
+        "client_id": project.client_id
     }
 
 
@@ -6407,9 +6703,10 @@ async def get_calendar_today() -> Dict[str, Any]:
     wp_client = get_wordpress_client(config)
     
     # Get today's bookings
-    bookings = []
-    if wp_client:
-        bookings = await wp_client.get_appointments(date_from=today, date_to=today)
+    if not wp_client or not wp_client.is_configured:
+        raise HTTPException(status_code=503, detail="WordPress not configured")
+
+    bookings = await wp_client.get_todays_appointments()
     
     # Generate time slots (9 AM to 5 PM, 30-minute intervals)
     slots = []
@@ -6449,11 +6746,70 @@ async def get_calendar_today() -> Dict[str, Any]:
 @app.post("/api/v1/wordpress/calendar/book")
 async def create_walk_in_booking(request: Dict[str, Any]) -> Dict[str, Any]:
     """Create a walk-in booking"""
-    # Simplified - return success
+    wp_client = get_wordpress_client(config)
+    if not wp_client or not wp_client.is_configured:
+        raise HTTPException(status_code=503, detail="WordPress not configured")
+
+    from datetime import date as date_type
+
+    slot_start = request.get("slot_start")
+    slot_end = request.get("slot_end")
+    customer_name = request.get("customer_name")
+    customer_email = request.get("customer_email")
+    customer_phone = request.get("customer_phone")
+    recording_type = request.get("recording_type", "podcast")
+
+    if not all([slot_start, slot_end, customer_name, customer_email]):
+        raise HTTPException(status_code=400, detail="Missing required fields")
+
+    today = date_type.today()
+
+    try:
+        result = await wp_client._request(
+            "POST",
+            "/jet-apb/v1/appointments",
+            json_data={
+                "date": today.isoformat(),
+                "slot": f"{slot_start}-{slot_end}",
+                "status": "pending",
+                "user_name": customer_name,
+                "user_email": customer_email,
+                "user_phone": customer_phone or "",
+                "meta": {
+                    "recording_type": recording_type,
+                    "walk_in": True,
+                },
+            },
+        )
+        booking_id = result.get("ID") or result.get("id")
+        return {
+            "success": True,
+            "booking_id": booking_id,
+            "message": f"Booking created for {slot_start}-{slot_end}",
+        }
+    except Exception as e:
+        logger.error(f"Failed to create walk-in booking: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/v1/wordpress/customer/validate")
+async def validate_customer_token(request: Dict[str, Any] = Body({})) -> Dict[str, Any]:
+    """Validate a customer access token"""
+    token = request.get("token")
+    if not token:
+        raise HTTPException(status_code=400, detail="Token is required")
+
+    context = get_active_booking()
+    if not context:
+        return {"valid": False, "error": "No active booking session"}
+
+    if context.access_token != token:
+        return {"valid": False, "error": "Invalid or expired token"}
+
     return {
-        "success": True,
-        "booking_id": 999,
-        "message": "Walk-in booking created"
+        "valid": True,
+        "booking": context.booking.dict(),
+        "project": context.project.dict(),
     }
 
 
@@ -6463,12 +6819,29 @@ async def get_customer_status(token: str) -> Dict[str, Any]:
     context = get_active_booking()
     if not context or context.access_token != token:
         raise HTTPException(status_code=404, detail="Invalid token or no active booking")
-    
+
+    disk_space_gb = 0.0
+    try:
+        disk_usage = shutil.disk_usage("/data")
+        disk_space_gb = disk_usage.free / (1024 ** 3)
+    except Exception:
+        try:
+            disk_usage = shutil.disk_usage("/")
+            disk_space_gb = disk_usage.free / (1024 ** 3)
+        except Exception as e:
+            logger.warning(f"Failed to read disk usage: {e}")
+
     return {
         "booking": context.booking.dict(),
         "project": context.project.dict(),
         "recording_active": False,
-        "display_mode": context.display_mode.value
+        "recording_duration_ms": 0,
+        "current_slide_index": 0,
+        "total_slides": len(context.project.graphics),
+        "disk_space_gb": disk_space_gb,
+        "display_mode": context.display_mode.value,
+        "teleprompter_script": context.teleprompter_script,
+        "teleprompter_scroll_speed": context.teleprompter_scroll_speed,
     }
 
 
@@ -6477,10 +6850,15 @@ async def customer_start_recording(token: str) -> Dict[str, Any]:
     """Start recording from customer portal"""
     context = get_active_booking()
     if not context or context.access_token != token:
-        raise HTTPException(status_code=403, detail="Invalid token")
+        raise HTTPException(status_code=404, detail="Invalid or expired token")
     
     # Trigger recording start
-    return {"success": True, "message": "Recording started"}
+    logger.info(f"Customer initiated recording start for booking #{context.booking.id}")
+    return {
+        "success": True,
+        "message": "Recording started",
+        "recording_path": context.recording_path,
+    }
 
 
 @app.post("/api/v1/wordpress/customer/{token}/recording/stop")
@@ -6488,9 +6866,28 @@ async def customer_stop_recording(token: str) -> Dict[str, Any]:
     """Stop recording from customer portal"""
     context = get_active_booking()
     if not context or context.access_token != token:
-        raise HTTPException(status_code=403, detail="Invalid token")
+        raise HTTPException(status_code=404, detail="Invalid or expired token")
     
+    logger.info(f"Customer initiated recording stop for booking #{context.booking.id}")
     return {"success": True, "message": "Recording stopped"}
+
+
+@app.post("/api/v1/wordpress/customer/{token}/presentation/goto/{index}")
+async def customer_goto_slide(token: str, index: int) -> Dict[str, Any]:
+    """Jump to a specific slide in the presentation"""
+    context = get_active_booking()
+    if not context or context.access_token != token:
+        raise HTTPException(status_code=404, detail="Invalid or expired token")
+
+    if index < 0 or index >= len(context.project.graphics):
+        raise HTTPException(status_code=400, detail="Invalid slide index")
+
+    logger.info(f"Customer navigated to slide {index} for booking #{context.booking.id}")
+    return {
+        "success": True,
+        "current_index": index,
+        "total_slides": len(context.project.graphics),
+    }
 
 
 @app.get("/api/v1/wordpress/customer/{token}/display-mode")
@@ -6498,11 +6895,82 @@ async def get_display_mode(token: str) -> Dict[str, Any]:
     """Get display mode for studio display"""
     context = get_active_booking()
     if not context or context.access_token != token:
-        raise HTTPException(status_code=403, detail="Invalid token")
+        raise HTTPException(status_code=404, detail="Invalid or expired token")
     
     return {
         "display_mode": context.display_mode.value,
         "content_type": context.booking.content_type.value if context.booking.content_type else None
+    }
+
+
+@app.post("/api/v1/wordpress/customer/{token}/teleprompter/script")
+async def update_teleprompter_script(token: str, request: Dict[str, Any] = Body({})) -> Dict[str, Any]:
+    """Update teleprompter script for the active booking"""
+    context = get_active_booking()
+    if not context or context.access_token != token:
+        raise HTTPException(status_code=404, detail="Invalid or expired token")
+
+    if context.display_mode != DisplayMode.TELEPROMPTER:
+        raise HTTPException(status_code=400, detail="Not in teleprompter mode")
+
+    script = request.get("script", "")
+    context.teleprompter_script = script
+    logger.info(f"Updated teleprompter script for booking #{context.booking.id}")
+
+    return {
+        "success": True,
+        "script_length": len(script),
+    }
+
+
+@app.post("/api/v1/wordpress/customer/{token}/teleprompter/speed")
+async def set_teleprompter_speed(token: str, request: Dict[str, Any] = Body({})) -> Dict[str, Any]:
+    """Set teleprompter scroll speed (1-100)"""
+    context = get_active_booking()
+    if not context or context.access_token != token:
+        raise HTTPException(status_code=404, detail="Invalid or expired token")
+
+    if context.display_mode != DisplayMode.TELEPROMPTER:
+        raise HTTPException(status_code=400, detail="Not in teleprompter mode")
+
+    speed = int(request.get("speed", 50))
+    if speed < 1 or speed > 100:
+        raise HTTPException(status_code=400, detail="Speed must be between 1 and 100")
+
+    context.teleprompter_scroll_speed = speed
+    logger.info(f"Set teleprompter speed to {speed} for booking #{context.booking.id}")
+
+    return {
+        "success": True,
+        "speed": speed,
+    }
+
+
+@app.get("/api/v1/wordpress/customer/{token}/vdoninja/status")
+async def check_vdoninja_status(token: str) -> Dict[str, Any]:
+    """Check if VDO.ninja VPS is available"""
+    context = get_active_booking()
+    if not context or context.access_token != token:
+        raise HTTPException(status_code=404, detail="Invalid or expired token")
+
+    vdoninja_settings = getattr(config, "vdoninja", None)
+    vdoninja_enabled = bool(vdoninja_settings and getattr(vdoninja_settings, "enabled", False))
+    if not vdoninja_enabled:
+        return {
+            "available": False,
+            "error": "VDO.ninja VPS is disabled",
+        }
+
+    host = None
+    if vdoninja_settings:
+        host = getattr(vdoninja_settings, "url", None) or getattr(vdoninja_settings, "host", None)
+        if host and not host.startswith("http"):
+            host = f"https://{host}"
+
+    return {
+        "available": True,
+        "url": host,
+        "error": None,
     }
 
 

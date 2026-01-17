@@ -30,9 +30,49 @@ function initializeTheme() {
 initializeTheme()
 
 /**
+ * Clear PWA cache if requested via URL parameter
+ */
+async function clearCacheIfRequested() {
+  const urlParams = new URLSearchParams(window.location.search)
+  if (urlParams.get('clearcache') === '1' || urlParams.get('nocache') !== null) {
+    console.log('[App] Cache clear requested via URL parameter')
+    
+    try {
+      // Unregister service workers
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations()
+        for (const reg of registrations) {
+          await reg.unregister()
+          console.log('[App] Unregistered service worker:', reg.scope)
+        }
+      }
+      
+      // Clear all caches
+      if ('caches' in window) {
+        const cacheNames = await caches.keys()
+        for (const name of cacheNames) {
+          await caches.delete(name)
+        }
+        console.log('[App] Cleared caches:', cacheNames)
+      }
+      
+      // Remove cache query param and reload
+      const newUrl = new URL(window.location.href)
+      newUrl.searchParams.delete('clearcache')
+      newUrl.searchParams.delete('nocache')
+      window.location.href = newUrl.toString()
+    } catch (e) {
+      console.error('[App] Failed to clear cache:', e)
+    }
+  }
+}
+
+/**
  * Initialize the application
  */
 async function initApp() {
+  // Check for cache clear request first
+  await clearCacheIfRequested()
   const app = createApp(App)
   const pinia = createPinia()
 
