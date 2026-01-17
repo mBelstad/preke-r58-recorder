@@ -350,17 +350,55 @@ async function startDiscovery(window: BrowserWindow): Promise<void> {
 
   const foundDevices = new Map<string, DiscoveredDevice>()
   const foundDevicesById = new Map<string, DiscoveredDevice>()
+  const foundDevicesByName = new Map<string, DiscoveredDevice>()
 
   const isLocalSource = (source: DiscoveredDevice['source']) => source !== 'tailscale'
+  const isTailscaleHost = (host: string): boolean => host.startsWith('100.') || host.endsWith('.ts.net')
+  const normalizeName = (name: string): string => name.replace(/\s*\(.*\)\s*$/, '').trim().toLowerCase()
+
+  const maybePromoteLocalDevice = (device: DiscoveredDevice) => {
+    if (!isLocalSource(device.source)) return
+    const activeDevice = deviceStore.getActiveDevice()
+    if (!activeDevice) return
+
+    const activeHost = (() => {
+      try {
+        return new URL(activeDevice.url).hostname
+      } catch {
+        return null
+      }
+    })()
+
+    if (!activeHost || !isTailscaleHost(activeHost)) return
+
+    const activeName = normalizeName(activeDevice.name)
+    const incomingName = normalizeName(device.name)
+    if (activeName && incomingName && activeName !== incomingName) return
+
+    const updated = deviceStore.updateDevice(activeDevice.id, {
+      url: device.url,
+      fallbackUrl: activeDevice.url,
+    })
+    if (updated) {
+      log.info(`Promoted LAN device for active selection: ${updated.name} -> ${updated.url}`)
+      window.webContents.send('device-changed', deviceStore.getActiveDevice())
+    }
+  }
 
   const onDeviceFound = (device: DiscoveredDevice) => {
     const key = device.deviceId || device.id
     const existing = foundDevicesById.get(key)
+    const nameKey = normalizeName(device.name)
+    const existingByName = nameKey ? foundDevicesByName.get(nameKey) : undefined
     if (!existing) {
       foundDevices.set(device.id, device)
       foundDevicesById.set(key, device)
+      if (nameKey) {
+        foundDevicesByName.set(nameKey, device)
+      }
       log.info(`Discovered device: ${device.name} at ${device.url}`)
       window.webContents.send('discovery:device-found', device)
+      maybePromoteLocalDevice(device)
       return
     }
 
@@ -376,7 +414,11 @@ async function startDiscovery(window: BrowserWindow): Promise<void> {
       foundDevices.delete(existing.id)
       foundDevices.set(merged.id, merged)
       foundDevicesById.set(key, merged)
+      if (nameKey) {
+        foundDevicesByName.set(nameKey, merged)
+      }
       window.webContents.send('discovery:device-found', merged)
+      maybePromoteLocalDevice(merged)
       return
     }
 
@@ -387,8 +429,40 @@ async function startDiscovery(window: BrowserWindow): Promise<void> {
       }
       foundDevices.set(existing.id, merged)
       foundDevicesById.set(key, merged)
+      if (nameKey) {
+        foundDevicesByName.set(nameKey, merged)
+      }
       window.webContents.send('discovery:device-found', merged)
+      maybePromoteLocalDevice(merged)
       return
+    }
+
+    // Fallback merge by normalized name when deviceId is missing
+    if (!existing && existingByName) {
+      const existingNameIsLocal = isLocalSource(existingByName.source)
+      const incomingNameIsLocal = incomingIsLocal
+      if (incomingNameIsLocal && !existingNameIsLocal) {
+        const merged = {
+          ...device,
+          fallbackUrl: existingByName.url
+        }
+        foundDevices.delete(existingByName.id)
+        foundDevices.set(merged.id, merged)
+        foundDevicesByName.set(nameKey, merged)
+        window.webContents.send('discovery:device-found', merged)
+        maybePromoteLocalDevice(merged)
+        return
+      }
+      if (!incomingNameIsLocal && existingNameIsLocal && !existingByName.fallbackUrl) {
+        const merged = {
+          ...existingByName,
+          fallbackUrl: device.url
+        }
+        foundDevices.set(existingByName.id, merged)
+        foundDevicesByName.set(nameKey, merged)
+        window.webContents.send('discovery:device-found', merged)
+        maybePromoteLocalDevice(merged)
+      }
     }
   }
 

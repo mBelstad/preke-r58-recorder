@@ -466,7 +466,8 @@ export async function apiRequest<T>(
   }
 
   // All retries exhausted - try secondary fallback (Tailscale), then FRP
-  if (lastError && isElectron() && !usingFallbackUrl && !usingFrpFallback) {
+  // Only fall back on network-level errors (no HTTP status)
+  if (lastError && !lastError.status && isElectron() && !usingFallbackUrl && !usingFrpFallback) {
     const fallbackUrl = getFallbackUrl()
     if (fallbackUrl) {
       console.log('[API] Primary device unreachable, trying fallback URL...')
@@ -485,7 +486,7 @@ export async function apiRequest<T>(
     }
   }
 
-  if (lastError && isElectron() && !usingFrpFallback) {
+  if (lastError && !lastError.status && isElectron() && !usingFrpFallback) {
     console.log('[API] Primary device unreachable, trying FRP fallback...')
     
     // Get FRP URL from device configuration
