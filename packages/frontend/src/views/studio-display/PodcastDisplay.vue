@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRecorderStore } from '@/stores/recorder'
 import InputPreview from '@/components/shared/InputPreview.vue'
+import StudioDisplayShell from '@/components/shared/StudioDisplayShell.vue'
 
 const props = defineProps<{
   status: any
@@ -99,299 +100,289 @@ const activeCameras = computed(() => {
 </script>
 
 <template>
-  <div class="podcast-display">
-    <!-- Header -->
-    <div class="display-header">
-      <div class="flex items-center gap-6">
-        <img v-if="status.booking.client?.logo_url" :src="status.booking.client.logo_url" alt="Logo" class="h-20 object-contain" />
-        <div class="flex-1">
-          <h1 class="text-3xl font-bold">{{ status.booking.customer?.name || 'Guest' }}</h1>
-          <p v-if="status.booking.client?.name" class="text-xl text-preke-text-dim">{{ status.booking.client.name }}</p>
-          <p v-if="status.project?.name" class="text-lg text-preke-text-muted mt-1">{{ status.project.name }}</p>
-        </div>
-        <div class="text-right">
-          <div class="text-4xl font-mono font-bold">{{ recordingDuration }}</div>
-          <div v-if="timeRemaining" class="text-lg text-preke-text-muted">{{ timeRemaining }}</div>
-        </div>
+  <StudioDisplayShell
+    title="Podcast Session"
+    subtitle="Live multi-cam recording"
+    accent="gold"
+    :show-footer="true"
+    main-class="podcast-display__main"
+  >
+    <template #header-right>
+      <div class="podcast-display__timing">
+        <div class="podcast-display__timer">{{ recordingDuration }}</div>
+        <div v-if="timeRemaining" class="podcast-display__remaining">{{ timeRemaining }}</div>
       </div>
-    </div>
-    
-    <!-- Pre-Recording: Tips Mode -->
-    <div v-if="!isRecording && activeCameras.length === 0" class="display-main">
-      <div class="tips-container">
-        <div class="tip-card">
-          <div class="tip-icon">{{ currentTip.icon }}</div>
-          <h2 class="tip-title">{{ currentTip.title }}</h2>
-          <p class="tip-description">{{ currentTip.description }}</p>
-        </div>
-        
-        <!-- Tip indicators -->
-        <div class="tip-indicators">
-          <span 
-            v-for="(tip, index) in recordingTips" 
-            :key="index"
-            :class="['tip-dot', { active: index === currentTipIndex }]"
-          ></span>
-        </div>
-      </div>
-    </div>
-    
-    <!-- Multiview Mode (when cameras available or recording) -->
-    <div v-else class="display-main recording-mode">
-      <!-- Camera Grid -->
-      <div v-if="activeCameras.length > 0" class="camera-grid">
-        <div 
-          v-for="camera in activeCameras" 
-          :key="camera.id" 
-          class="camera-preview"
-        >
-          <div class="camera-label">{{ camera.label }}</div>
-          <InputPreview :input-id="camera.id" />
-        </div>
-        <!-- Fill empty slots if less than 4 cameras -->
-        <div 
-          v-for="i in (4 - activeCameras.length)" 
-          :key="`empty-${i}`" 
-          class="camera-preview"
-        >
-          <div class="camera-placeholder">
-            <svg class="w-16 h-16 text-preke-text-subtle" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-            </svg>
-            <span class="text-sm">No Camera</span>
+    </template>
+
+    <div class="podcast-display__layout">
+      <section class="podcast-display__left glass-card">
+        <div v-if="activeCameras.length > 0" class="podcast-display__grid">
+          <div
+            v-for="camera in activeCameras"
+            :key="camera.id"
+            class="podcast-display__camera"
+          >
+            <div class="podcast-display__camera-label">{{ camera.label }}</div>
+            <InputPreview :input-id="camera.id" />
+          </div>
+          <div
+            v-for="i in (4 - activeCameras.length)"
+            :key="`empty-${i}`"
+            class="podcast-display__camera podcast-display__camera--empty"
+          >
+            <span>No Camera</span>
           </div>
         </div>
-      </div>
-      
-      <!-- No cameras placeholder -->
-      <div v-else class="camera-grid">
-        <div v-for="i in 4" :key="i" class="camera-preview">
-          <div class="camera-placeholder">
-            <svg class="w-16 h-16 text-preke-text-subtle" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-            </svg>
-            <span class="text-sm">Waiting for cameras...</span>
+        <div v-else class="podcast-display__tip">
+          <div class="podcast-display__tip-icon">{{ currentTip.icon }}</div>
+          <h2 class="podcast-display__tip-title">{{ currentTip.title }}</h2>
+          <p class="podcast-display__tip-text">{{ currentTip.description }}</p>
+        </div>
+      </section>
+
+      <aside class="podcast-display__right">
+        <div class="podcast-display__card glass-panel">
+          <div class="podcast-display__label">Session</div>
+          <div class="podcast-display__value">{{ status.booking.customer?.name || 'Guest' }}</div>
+          <div class="podcast-display__meta">
+            <span v-if="status.booking.client?.name">{{ status.booking.client.name }}</span>
+            <span v-if="status.project?.name">• {{ status.project.name }}</span>
+          </div>
+          <div class="podcast-display__meta">
+            {{ status.booking.date }} • {{ status.booking.slot_start }} - {{ status.booking.slot_end }}
           </div>
         </div>
-      </div>
-      
-      <!-- Current Graphic (if any) -->
-      <div v-if="currentGraphic" class="graphic-display">
-        <img :src="currentGraphic.url" :alt="currentGraphic.filename" class="graphic-image" />
-        <div class="graphic-indicator">
-          Slide {{ status.current_slide_index + 1 }} / {{ status.project.graphics.length }}
+
+        <div v-if="currentGraphic" class="podcast-display__card glass-panel">
+          <div class="podcast-display__label">Current Slide</div>
+          <div class="podcast-display__slide">
+            <img :src="currentGraphic.url" :alt="currentGraphic.filename" />
+            <span>Slide {{ status.current_slide_index + 1 }} / {{ status.project.graphics.length }}</span>
+          </div>
         </div>
-      </div>
+
+        <div class="podcast-display__card glass-panel">
+          <div class="podcast-display__label">Status</div>
+          <div class="podcast-display__status" :class="{ 'podcast-display__status--live': isRecording }">
+            <span class="podcast-display__status-dot"></span>
+            {{ isRecording ? 'Recording in progress' : 'Ready to record' }}
+          </div>
+          <div v-if="!isPreview && status.disk_space_gb" class="podcast-display__meta">
+            {{ status.disk_space_gb.toFixed(1) }} GB available
+          </div>
+        </div>
+      </aside>
     </div>
-    
-    <!-- Status Bar -->
-    <div class="display-footer">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-4">
-          <span v-if="isRecording" class="recording-badge">
-            <span class="recording-dot"></span>
-            REC
-          </span>
-          <span class="text-preke-text-muted">{{ status.booking.date }} • {{ status.booking.slot_start }} - {{ status.booking.slot_end }}</span>
-        </div>
-        <div v-if="!isPreview" class="flex items-center gap-4 text-preke-text-muted">
-          <span v-if="status.disk_space_gb">{{ status.disk_space_gb.toFixed(1) }} GB available</span>
-          <span class="flex items-center gap-2">
-            <span class="w-3 h-3 rounded-full bg-preke-green"></span>
-            Connected
-          </span>
-        </div>
+
+    <template #footer>
+      <div class="podcast-display__footer-left">
+        <span v-if="isRecording" class="podcast-display__rec-badge">
+          <span class="podcast-display__rec-dot"></span>
+          REC
+        </span>
+        <span class="podcast-display__footer-text">Stay close to the mic and speak clearly.</span>
       </div>
-    </div>
-  </div>
+      <div v-if="!isPreview" class="podcast-display__footer-right">
+        System connected
+      </div>
+    </template>
+  </StudioDisplayShell>
 </template>
 
 <style scoped>
 @import '@/styles/design-system-v2.css';
 
-.podcast-display {
+.podcast-display__main {
+  align-items: stretch;
+}
+
+.podcast-display__timing {
+  text-align: right;
+}
+
+.podcast-display__timer {
+  font-size: 2.5rem;
+  font-family: var(--preke-font-mono);
+  font-weight: 700;
+}
+
+.podcast-display__remaining {
+  font-size: 1rem;
+  color: var(--preke-text-muted);
+}
+
+.podcast-display__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 0.8fr);
+  gap: 2rem;
+  width: 100%;
   height: 100%;
-  display: flex;
-  flex-direction: column;
-  padding: 3rem;
+  min-height: 0;
 }
 
-.display-header {
-  background: var(--preke-glass-bg);
-  border: 1px solid var(--preke-border);
-  border-radius: var(--preke-radius-lg);
-  padding: 2rem;
-  backdrop-filter: blur(20px);
-  box-shadow: var(--preke-shadow-lg);
-}
-
-.display-main {
-  flex: 1;
+.podcast-display__left {
+  padding: 1.5rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 3rem 0;
+  min-height: 0;
 }
 
-/* Tips Mode */
-.tips-container {
-  text-align: center;
-  max-width: 800px;
+.podcast-display__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  width: 100%;
 }
 
-.tip-card {
-  background: var(--preke-glass-bg);
+.podcast-display__camera {
+  position: relative;
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: var(--preke-radius-lg);
+  overflow: hidden;
+  aspect-ratio: 16/9;
   border: 1px solid var(--preke-border);
-  border-radius: var(--preke-radius-xl);
-  padding: 4rem;
-  backdrop-filter: blur(20px);
-  box-shadow: var(--preke-shadow-xl);
-  animation: fadeIn 0.5s ease;
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+.podcast-display__camera--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--preke-text-subtle);
+  font-size: 1rem;
 }
 
-.tip-icon {
-  font-size: 6rem;
-  margin-bottom: 2rem;
+.podcast-display__camera-label {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  padding: 0.35rem 0.75rem;
+  border-radius: var(--preke-radius-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+  z-index: 2;
 }
 
-.tip-title {
-  font-size: 2.5rem;
+.podcast-display__tip {
+  text-align: center;
+  max-width: 520px;
+}
+
+.podcast-display__tip-icon {
+  font-size: 4.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.podcast-display__tip-title {
+  font-size: 2rem;
   font-weight: 700;
-  margin-bottom: 1rem;
   color: var(--preke-gold);
+  margin-bottom: 0.75rem;
 }
 
-.tip-description {
-  font-size: 1.5rem;
+.podcast-display__tip-text {
+  font-size: 1.25rem;
   color: var(--preke-text-dim);
   line-height: 1.6;
 }
 
-.tip-indicators {
+.podcast-display__right {
   display: flex;
-  gap: 1rem;
-  justify-content: center;
-  margin-top: 3rem;
-}
-
-.tip-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--preke-text-subtle);
-  transition: all 0.3s ease;
-}
-
-.tip-dot.active {
-  background: var(--preke-gold);
-  transform: scale(1.5);
-}
-
-/* Recording Mode */
-.recording-mode {
-  gap: 2rem;
-}
-
-.camera-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  flex-direction: column;
   gap: 1.5rem;
-  flex: 1;
-}
-
-.camera-preview {
-  position: relative;
-  background: var(--preke-glass-bg);
-  border: 1px solid var(--preke-border);
-  border-radius: var(--preke-radius-lg);
-  aspect-ratio: 16/9;
-  overflow: hidden;
   min-height: 0;
 }
 
-.camera-label {
-  position: absolute;
-  top: 0.75rem;
-  left: 0.75rem;
-  background: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(8px);
-  color: white;
-  padding: 0.375rem 0.75rem;
-  border-radius: var(--preke-radius-sm);
-  font-size: 0.75rem;
-  font-weight: 600;
-  z-index: 10;
-}
-
-.camera-placeholder {
-  width: 100%;
-  height: 100%;
+.podcast-display__card {
+  padding: 1.5rem;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem;
-  color: var(--preke-text-subtle);
-  background: rgba(0, 0, 0, 0.5);
+  gap: 0.75rem;
 }
 
-.graphic-display {
-  flex: 1;
-  position: relative;
-  background: var(--preke-glass-bg);
-  border: 1px solid var(--preke-border);
-  border-radius: var(--preke-radius-lg);
-  overflow: hidden;
+.podcast-display__label {
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-size: 0.75rem;
+  color: var(--preke-text-muted);
 }
 
-.graphic-image {
+.podcast-display__value {
+  font-size: 1.75rem;
+  font-weight: 700;
+}
+
+.podcast-display__meta {
+  color: var(--preke-text-dim);
+  font-size: 1rem;
+}
+
+.podcast-display__slide {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: flex-start;
+  color: var(--preke-text-muted);
+}
+
+.podcast-display__slide img {
   width: 100%;
-  height: 100%;
+  max-height: 220px;
   object-fit: contain;
-}
-
-.graphic-indicator {
-  position: absolute;
-  bottom: 1.5rem;
-  right: 1.5rem;
-  background: rgba(0, 0, 0, 0.8);
-  color: white;
-  padding: 0.75rem 1.5rem;
   border-radius: var(--preke-radius-md);
-  font-size: 1.25rem;
-  font-weight: 600;
+  background: rgba(0, 0, 0, 0.35);
 }
 
-/* Footer */
-.display-footer {
-  background: var(--preke-glass-bg);
-  border: 1px solid var(--preke-border);
-  border-radius: var(--preke-radius-lg);
-  padding: 1.5rem 2rem;
-  backdrop-filter: blur(20px);
-  font-size: 1.125rem;
-}
-
-.recording-badge {
+.podcast-display__status {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  background: rgba(220, 38, 38, 0.2);
-  color: var(--preke-red);
-  padding: 0.5rem 1rem;
-  border-radius: var(--preke-radius-md);
-  font-weight: 700;
-  font-size: 1.25rem;
+  gap: 0.5rem;
+  font-weight: 600;
+  color: var(--preke-text-dim);
 }
 
-.recording-dot {
-  width: 14px;
-  height: 14px;
+.podcast-display__status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--preke-text-subtle);
+}
+
+.podcast-display__status--live .podcast-display__status-dot {
+  background: var(--preke-red);
+  box-shadow: 0 0 12px rgba(212, 90, 90, 0.4);
+}
+
+.podcast-display__footer-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.podcast-display__footer-text {
+  color: var(--preke-text-muted);
+}
+
+.podcast-display__footer-right {
+  color: var(--preke-text-muted);
+}
+
+.podcast-display__rec-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.9rem;
+  border-radius: var(--preke-radius-md);
+  background: rgba(220, 38, 38, 0.2);
+  color: var(--preke-red);
+  font-weight: 700;
+}
+
+.podcast-display__rec-dot {
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   background: var(--preke-red);
   animation: pulse 1.5s ease-in-out infinite;
@@ -400,5 +391,11 @@ const activeCameras = computed(() => {
 @keyframes pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.5; transform: scale(1.3); }
+}
+
+@media (max-width: 1200px) {
+  .podcast-display__layout {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

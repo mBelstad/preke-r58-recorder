@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRecorderStore } from '@/stores/recorder'
 import InputPreview from '@/components/shared/InputPreview.vue'
+import StudioDisplayShell from '@/components/shared/StudioDisplayShell.vue'
 
 const props = defineProps<{
   status: any
@@ -156,315 +157,268 @@ function startScroll() {
 </script>
 
 <template>
-  <div class="teleprompter-display">
-    <!-- Header (only when recording) -->
-    <div v-if="isRecording" class="display-header">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-4">
-          <span class="recording-badge">
-            <span class="recording-dot"></span>
-            REC
-          </span>
-          <div class="text-2xl font-mono font-bold">{{ recordingDuration }}</div>
-        </div>
-        <div v-if="timeRemaining" class="text-lg text-preke-text-muted">{{ timeRemaining }}</div>
+  <StudioDisplayShell
+    title="Talking Head"
+    subtitle="Teleprompter mode"
+    accent="purple"
+    :show-footer="isRecording"
+    main-class="teleprompter-display__main"
+  >
+    <template #header-right>
+      <div class="teleprompter-display__timing">
+        <span class="teleprompter-display__timer">{{ recordingDuration }}</span>
+        <span v-if="timeRemaining" class="teleprompter-display__remaining">{{ timeRemaining }}</span>
       </div>
-    </div>
-    
-    <!-- Pre-Recording: Tips Mode (only if no script) -->
-    <div v-if="!isRecording && !scriptText" class="display-main">
-      <div class="tips-container">
-        <div class="tip-card">
-          <div class="tip-icon">{{ currentTip.icon }}</div>
-          <h2 class="tip-title">{{ currentTip.title }}</h2>
-          <p class="tip-description">{{ currentTip.description }}</p>
-        </div>
-        
-        <!-- Tip indicators -->
-        <div class="tip-indicators">
-          <span 
-            v-for="(tip, index) in teleprompterTips" 
-            :key="index"
-            :class="['tip-dot', { active: index === currentTipIndex }]"
-          ></span>
-        </div>
-      </div>
-    </div>
-    
-    <!-- Teleprompter Mode (when script available or recording) -->
-    <div v-else class="display-main teleprompter-mode">
-      <!-- Teleprompter Text Container -->
-      <div class="teleprompter-container">
-        <div 
-          class="teleprompter-text" 
+    </template>
+
+    <div class="teleprompter-display__layout">
+      <section class="teleprompter-display__script glass-card">
+        <div
+          class="teleprompter-display__text"
           :style="{ transform: `translateY(-${scrollPosition}px) scaleX(-1)` }"
         >
-          <div class="text-content">
+          <div class="teleprompter-display__text-content">
             {{ scriptText }}
           </div>
         </div>
-      </div>
-      
-      <!-- Camera Preview (toggleable) -->
-      <div v-if="showCamera" class="camera-preview">
-        <div v-if="previewCamera" class="camera-preview-container">
-          <div class="camera-label">{{ previewCamera.label }}</div>
-          <InputPreview :input-id="previewCamera.id" />
+      </section>
+
+      <aside class="teleprompter-display__side">
+        <div class="teleprompter-display__card glass-panel">
+          <div class="teleprompter-display__label">Tip</div>
+          <div class="teleprompter-display__tip-title">{{ currentTip.title }}</div>
+          <div class="teleprompter-display__tip-text">{{ currentTip.description }}</div>
         </div>
-        <div v-else class="camera-placeholder">
-          <svg class="w-12 h-12 text-preke-text-subtle" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-          </svg>
-          <span class="text-xs">No Camera Available</span>
+
+        <div class="teleprompter-display__card glass-panel">
+          <div class="teleprompter-display__label">Status</div>
+          <div class="teleprompter-display__status" :class="{ 'teleprompter-display__status--live': isRecording }">
+            <span class="teleprompter-display__status-dot"></span>
+            {{ isRecording ? 'Recording' : 'Ready for recording' }}
+          </div>
+          <div class="teleprompter-display__meta">
+            Scroll speed: {{ status.teleprompter_scroll_speed || 50 }}%
+          </div>
         </div>
-      </div>
+
+        <div v-if="showCamera" class="teleprompter-display__card glass-panel teleprompter-display__camera">
+          <div class="teleprompter-display__label">Camera Preview</div>
+          <div v-if="previewCamera" class="teleprompter-display__camera-frame">
+            <div class="teleprompter-display__camera-label">{{ previewCamera.label }}</div>
+            <InputPreview :input-id="previewCamera.id" />
+          </div>
+          <div v-else class="teleprompter-display__camera-empty">No camera signal</div>
+        </div>
+      </aside>
     </div>
-    
-    <!-- Controls Footer (only when recording) -->
-    <div v-if="isRecording" class="display-footer">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-6">
-          <div class="control-hint">
-            <kbd>Space</kbd> {{ isPaused ? 'Resume' : 'Pause' }}
-          </div>
-          <div class="control-hint">
-            <kbd>↑↓</kbd> Manual Scroll
-          </div>
-          <div class="control-hint">
-            <kbd>H</kbd> {{ showCamera ? 'Hide' : 'Show' }} Camera
-          </div>
-        </div>
-        <div class="flex items-center gap-4">
-          <span class="text-preke-text-muted">Speed: {{ status.teleprompter_scroll_speed }}%</span>
-          <span v-if="isPaused" class="pause-indicator">⏸ PAUSED</span>
-        </div>
+
+    <template #footer>
+      <div class="teleprompter-display__footer-left">
+        <span class="teleprompter-display__rec-badge">
+          <span class="teleprompter-display__rec-dot"></span>
+          REC
+        </span>
+        <span class="teleprompter-display__footer-text">
+          Space = {{ isPaused ? 'Resume' : 'Pause' }} • ↑↓ = Scroll • H = {{ showCamera ? 'Hide' : 'Show' }} Camera
+        </span>
       </div>
-    </div>
-  </div>
+      <div v-if="isPaused" class="teleprompter-display__footer-right">
+        ⏸ Paused
+      </div>
+    </template>
+  </StudioDisplayShell>
 </template>
 
 <style scoped>
 @import '@/styles/design-system-v2.css';
 
-.teleprompter-display {
-  height: 100%;
+.teleprompter-display__main {
+  align-items: stretch;
+}
+
+.teleprompter-display__timing {
   display: flex;
   flex-direction: column;
+  text-align: right;
+}
+
+.teleprompter-display__timer {
+  font-size: 2.25rem;
+  font-family: var(--preke-font-mono);
+  font-weight: 700;
+}
+
+.teleprompter-display__remaining {
+  font-size: 1rem;
+  color: var(--preke-text-muted);
+}
+
+.teleprompter-display__layout {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 0.7fr);
+  gap: 2rem;
+  min-height: 0;
+}
+
+.teleprompter-display__script {
+  position: relative;
+  overflow: hidden;
+  padding: 2rem 0;
   background: #000;
+}
+
+.teleprompter-display__text {
+  width: 100%;
+  height: 100%;
+  text-align: center;
+  font-size: clamp(44px, 6vw, 68px);
+  line-height: 1.5;
+  font-weight: 500;
+  transition: transform 0.05s linear;
+  will-change: transform;
   color: #fff;
 }
 
-.display-header {
-  padding: 2rem 3rem;
-  background: rgba(0, 0, 0, 0.8);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.display-main {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  overflow: hidden;
-}
-
-/* Tips Mode */
-.tips-container {
-  text-align: center;
-  max-width: 800px;
-  padding: 3rem;
-}
-
-.tip-card {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 1.5rem;
-  padding: 4rem;
-  backdrop-filter: blur(20px);
-  animation: fadeIn 0.5s ease;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.tip-icon {
-  font-size: 6rem;
-  margin-bottom: 2rem;
-}
-
-.tip-title {
-  font-size: 2.5rem;
-  font-weight: 700;
-  margin-bottom: 1rem;
-  color: var(--preke-gold);
-}
-
-.tip-description {
-  font-size: 1.5rem;
-  color: rgba(255, 255, 255, 0.7);
-  line-height: 1.6;
-}
-
-.tip-indicators {
-  display: flex;
-  gap: 1rem;
-  justify-content: center;
-  margin-top: 3rem;
-}
-
-.tip-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.3);
-  transition: all 0.3s ease;
-}
-
-.tip-dot.active {
-  background: var(--preke-gold);
-  transform: scale(1.5);
-}
-
-/* Teleprompter Mode */
-.teleprompter-mode {
-  padding: 0;
-}
-
-.teleprompter-container {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  position: relative;
-}
-
-.teleprompter-text {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  font-size: clamp(48px, 8vw, 72px);
-  line-height: 1.4;
-  font-weight: 500;
-  text-align: center;
-  padding: 2rem 4rem;
-  transition: transform 0.05s linear;
-  will-change: transform;
-}
-
-.text-content {
+.teleprompter-display__text-content {
   max-width: 1200px;
   margin: 0 auto;
+  padding: 0 4rem;
   white-space: pre-wrap;
-  word-wrap: break-word;
 }
 
-/* Camera Preview */
-.camera-preview {
-  position: absolute;
-  bottom: 2rem;
-  right: 2rem;
-  width: 320px;
-  aspect-ratio: 16/9;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 0.75rem;
-  overflow: hidden;
-  backdrop-filter: blur(10px);
+.teleprompter-display__side {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
 }
 
-.camera-preview-container {
+.teleprompter-display__card {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.teleprompter-display__label {
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-size: 0.75rem;
+  color: var(--preke-text-muted);
+}
+
+.teleprompter-display__tip-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.teleprompter-display__tip-text {
+  color: var(--preke-text-dim);
+  font-size: 1.05rem;
+}
+
+.teleprompter-display__status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  color: var(--preke-text-dim);
+}
+
+.teleprompter-display__status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--preke-text-subtle);
+}
+
+.teleprompter-display__status--live .teleprompter-display__status-dot {
+  background: var(--preke-red);
+  box-shadow: 0 0 12px rgba(212, 90, 90, 0.4);
+}
+
+.teleprompter-display__meta {
+  color: var(--preke-text-muted);
+  font-size: 0.95rem;
+}
+
+.teleprompter-display__camera {
+  gap: 1rem;
+}
+
+.teleprompter-display__camera-frame {
   position: relative;
-  width: 100%;
-  height: 100%;
+  border-radius: var(--preke-radius-md);
+  overflow: hidden;
+  aspect-ratio: 16/9;
+  background: rgba(0, 0, 0, 0.6);
 }
 
-.camera-label {
+.teleprompter-display__camera-label {
   position: absolute;
   top: 0.5rem;
   left: 0.5rem;
   background: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(8px);
-  color: white;
+  color: #fff;
   padding: 0.25rem 0.5rem;
   border-radius: var(--preke-radius-sm);
-  font-size: 0.625rem;
-  font-weight: 600;
-  z-index: 10;
+  font-size: 0.7rem;
+  z-index: 2;
 }
 
-.camera-placeholder {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  color: var(--preke-text-subtle);
-  background: rgba(0, 0, 0, 0.7);
+.teleprompter-display__camera-empty {
+  text-align: center;
+  color: var(--preke-text-muted);
 }
 
-/* Footer */
-.display-footer {
-  padding: 1.5rem 3rem;
-  background: rgba(0, 0, 0, 0.8);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  font-size: 1rem;
-}
-
-.control-hint {
+.teleprompter-display__footer-left {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  color: rgba(255, 255, 255, 0.7);
+  gap: 1rem;
 }
 
-kbd {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 0.25rem;
-  padding: 0.25rem 0.5rem;
-  font-family: monospace;
-  font-size: 0.875rem;
-  color: #fff;
+.teleprompter-display__footer-text {
+  color: var(--preke-text-muted);
+  font-size: 0.95rem;
 }
 
-.pause-indicator {
+.teleprompter-display__footer-right {
   color: var(--preke-gold);
   font-weight: 600;
-  animation: blink 1s ease-in-out infinite;
 }
 
-@keyframes blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-
-.recording-badge {
-  display: flex;
+.teleprompter-display__rec-badge {
+  display: inline-flex;
   align-items: center;
-  gap: 0.75rem;
-  background: rgba(220, 38, 38, 0.3);
-  color: #ff4444;
-  padding: 0.5rem 1rem;
-  border-radius: 0.5rem;
+  gap: 0.5rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: var(--preke-radius-md);
+  background: rgba(220, 38, 38, 0.2);
+  color: var(--preke-red);
   font-weight: 700;
-  font-size: 1.25rem;
 }
 
-.recording-dot {
-  width: 14px;
-  height: 14px;
+.teleprompter-display__rec-dot {
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
-  background: #ff4444;
+  background: var(--preke-red);
   animation: pulse 1.5s ease-in-out infinite;
 }
 
 @keyframes pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.5; transform: scale(1.3); }
+}
+
+@media (max-width: 1200px) {
+  .teleprompter-display__layout {
+    grid-template-columns: 1fr;
+  }
+
+  .teleprompter-display__text-content {
+    padding: 0 2rem;
+  }
 }
 </style>
