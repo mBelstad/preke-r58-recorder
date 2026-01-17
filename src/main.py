@@ -273,6 +273,50 @@ async def allow_file_origin_cors(request: Request, call_next):
 
     return response
 
+
+# WHEP/WHIP endpoints must always include CORS headers (even on errors)
+WHEP_CORS_HEADERS = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "POST, PATCH, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Accept",
+    "Access-Control-Max-Age": "86400",
+}
+
+
+def _whep_error_response(status_code: int, detail: str) -> JSONResponse:
+    return JSONResponse(
+        status_code=status_code,
+        content={"detail": detail},
+        headers=WHEP_CORS_HEADERS,
+    )
+
+
+async def _mediamtx_request(
+    method: str,
+    path: str,
+    body: bytes,
+    headers: Dict[str, str],
+    timeout: float = 10.0,
+) -> httpx.Response:
+    clean_path = path.lstrip("/")
+    urls = [
+        f"https://localhost:8889/{clean_path}",
+        f"http://localhost:8889/{clean_path}",
+    ]
+    last_error: Optional[Exception] = None
+    async with httpx.AsyncClient(verify=False) as client:
+        for url in urls:
+            try:
+                if method == "POST":
+                    return await client.post(url, content=body, headers=headers, timeout=timeout)
+                if method == "PATCH":
+                    return await client.patch(url, content=body, headers=headers, timeout=timeout)
+                raise ValueError(f"Unsupported MediaMTX method: {method}")
+            except (httpx.ConnectError, httpx.ConnectTimeout, httpx.ReadError) as e:
+                last_error = e
+                continue
+    raise last_error or RuntimeError("MediaMTX request failed")
+
 # Mount Vue frontend assets (js, css) at /assets
 vue_dist_path = Path(__file__).parent.parent / "packages" / "frontend" / "dist"
 vue_assets_path = vue_dist_path / "assets"
@@ -1463,46 +1507,46 @@ async def proxy_whep(stream_path: str, request: Request):
         # Get request body
         body = await request.body()
         
-        # Forward to MediaMTX WHEP endpoint (HTTPS - MediaMTX uses TLS on 8889)
-        async with httpx.AsyncClient(verify=False) as client:
-            mediamtx_url = f"https://localhost:8889/{stream_path}/whep"
-            
-            response = await client.post(
-                mediamtx_url,
-                content=body,
-                headers={
-                    "Content-Type": request.headers.get("Content-Type", "application/sdp"),
-                    "Accept": request.headers.get("Accept", "application/sdp"),
-                },
-                timeout=10.0
-            )
-            
-            # Get Location header if present
-            location = response.headers.get("Location")
-            response_headers = {
-                "Access-Control-Allow-Origin": "*",  # CORS for VDO.ninja
-                "Content-Type": response.headers.get("Content-Type", "application/sdp"),
-            }
-            if location:
-                # Rewrite Location header to point to our proxy
-                if location.startswith("https://localhost:8889/"):
-                    location = location.replace("https://localhost:8889/", "/whep-resource/")
-                elif location.startswith("http://localhost:8889/"):
-                    location = location.replace("http://localhost:8889/", "/whep-resource/")
-                response_headers["Location"] = location
-            
-            # Log the response for debugging
-            if response.status_code != 200:
-                logger.error(f"WHEP error for {stream_path}: {response.status_code} - {response.text}")
-            
-            return Response(
-                content=response.content,
-                status_code=response.status_code,
-                headers=response_headers
-            )
+        response = await _mediamtx_request(
+            "POST",
+            f"{stream_path}/whep",
+            body,
+            {
+                "Content-Type": request.headers.get("Content-Type", "application/sdp"),
+                "Accept": request.headers.get("Accept", "application/sdp"),
+            },
+        )
+        
+        # Get Location header if present
+        location = response.headers.get("Location")
+        response_headers = {
+            **WHEP_CORS_HEADERS,
+            "Content-Type": response.headers.get("Content-Type", "application/sdp"),
+        }
+        if location:
+            # Rewrite Location header to point to our proxy
+            if location.startswith("https://localhost:8889/"):
+                location = location.replace("https://localhost:8889/", "/whep-resource/")
+            elif location.startswith("http://localhost:8889/"):
+                location = location.replace("http://localhost:8889/", "/whep-resource/")
+            response_headers["Location"] = location
+        
+        # Log the response for debugging
+        if response.status_code != 200:
+            logger.error(f"WHEP error for {stream_path}: {response.status_code} - {response.text}")
+        
+        return Response(
+            content=response.content,
+            status_code=response.status_code,
+            headers=response_headers
+        )
+    except httpx.TimeoutException:
+        return _whep_error_response(504, "Stream timeout - MediaMTX may not be running")
+    except httpx.ConnectError:
+        return _whep_error_response(503, "Cannot connect to MediaMTX - service may be down")
     except Exception as e:
         logger.error(f"WHEP proxy error for {stream_path}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        return _whep_error_response(500, str(e))
 
 
 @app.patch("/whep-resource/{stream_path:path}")
@@ -1524,28 +1568,27 @@ async def proxy_whep_resource(stream_path: str, request: Request):
     try:
         body = await request.body()
         
-        async with httpx.AsyncClient(verify=False) as client:
-            mediamtx_url = f"https://localhost:8889/{stream_path}"
-            
-            response = await client.patch(
-                mediamtx_url,
-                content=body,
-                headers={
-                    "Content-Type": request.headers.get("Content-Type", "application/trickle-ice-sdpfrag"),
-                },
-                timeout=10.0
-            )
-            
-            return Response(
-                content=response.content,
-                status_code=response.status_code,
-                headers={
-                    "Access-Control-Allow-Origin": "*",
-                }
-            )
+        response = await _mediamtx_request(
+            "PATCH",
+            stream_path,
+            body,
+            {
+                "Content-Type": request.headers.get("Content-Type", "application/trickle-ice-sdpfrag"),
+            },
+        )
+        
+        return Response(
+            content=response.content,
+            status_code=response.status_code,
+            headers=WHEP_CORS_HEADERS,
+        )
+    except httpx.TimeoutException:
+        return _whep_error_response(504, "Stream timeout - MediaMTX may not be running")
+    except httpx.ConnectError:
+        return _whep_error_response(503, "Cannot connect to MediaMTX - service may be down")
     except Exception as e:
         logger.error(f"WHEP resource proxy error for {stream_path}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        return _whep_error_response(500, str(e))
 
 
 @app.post("/whip/{stream_path}")
@@ -1561,18 +1604,12 @@ async def proxy_whip(stream_path: str, request: Request):
         # Read the SDP offer from request body
         sdp_offer = await request.body()
         
-        # Forward to MediaMTX WHIP endpoint (HTTPS - MediaMTX uses TLS)
-        mediamtx_whip_url = f"https://localhost:8889/{stream_path}/whip"
-        
-        async with httpx.AsyncClient(verify=False) as client:
-            response = await client.post(
-                mediamtx_whip_url,
-                content=sdp_offer,
-                headers={
-                    "Content-Type": "application/sdp"
-                },
-                timeout=10.0
-            )
+        response = await _mediamtx_request(
+            "POST",
+            f"{stream_path}/whip",
+            sdp_offer,
+            {"Content-Type": "application/sdp"},
+        )
             
             if response.status_code == 404:
                 raise HTTPException(status_code=404, detail=f"Stream path not found: {stream_path}")
@@ -1589,19 +1626,15 @@ async def proxy_whip(stream_path: str, request: Request):
                 content=response.content,
                 status_code=response.status_code,
                 media_type="application/sdp",
-                headers={
-                    "Access-Control-Allow-Origin": "*",
-                    "Access-Control-Allow-Methods": "POST, OPTIONS",
-                    "Access-Control-Allow-Headers": "Content-Type",
-                }
+                headers=WHEP_CORS_HEADERS,
             )
     except httpx.TimeoutException:
-        raise HTTPException(status_code=504, detail="WHIP timeout - MediaMTX may not be responding")
+        return _whep_error_response(504, "WHIP timeout - MediaMTX may not be responding")
     except httpx.ConnectError:
-        raise HTTPException(status_code=503, detail="Cannot connect to MediaMTX - service may be down")
+        return _whep_error_response(503, "Cannot connect to MediaMTX - service may be down")
     except Exception as e:
         logger.error(f"WHIP proxy error for {stream_path}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        return _whep_error_response(500, str(e))
 
 
 @app.options("/whip/{stream_path}")
@@ -1648,19 +1681,16 @@ async def mediamtx_whip_compat(stream_name: str, request: Request):
     
     try:
         sdp_offer = await request.body()
-        mediamtx_url = f"https://localhost:8889/{stream_name}/whip"
-        
-        async with httpx.AsyncClient(verify=False) as client:
-            response = await client.post(
-                mediamtx_url,
-                content=sdp_offer,
-                headers={"Content-Type": "application/sdp"},
-                timeout=10.0
-            )
+        response = await _mediamtx_request(
+            "POST",
+            f"{stream_name}/whip",
+            sdp_offer,
+            {"Content-Type": "application/sdp"},
+        )
             
             location = response.headers.get("Location")
             response_headers = {
-                "Access-Control-Allow-Origin": "*",
+                **WHEP_CORS_HEADERS,
                 "Content-Type": response.headers.get("Content-Type", "application/sdp"),
             }
             if location:
@@ -1671,9 +1701,13 @@ async def mediamtx_whip_compat(stream_name: str, request: Request):
                 status_code=response.status_code,
                 headers=response_headers
             )
+    except httpx.TimeoutException:
+        return _whep_error_response(504, "WHIP timeout - MediaMTX may not be responding")
+    except httpx.ConnectError:
+        return _whep_error_response(503, "Cannot connect to MediaMTX - service may be down")
     except Exception as e:
         logger.error(f"MediaMTX WHIP compat error for {stream_name}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        return _whep_error_response(500, str(e))
 
 
 @app.post("/{stream_name}/whep")
@@ -1702,22 +1736,19 @@ async def mediamtx_whep_compat(stream_name: str, request: Request):
     
     try:
         body = await request.body()
-        mediamtx_url = f"https://localhost:8889/{stream_name}/whep"
-        
-        async with httpx.AsyncClient(verify=False) as client:
-            response = await client.post(
-                mediamtx_url,
-                content=body,
-                headers={
-                    "Content-Type": request.headers.get("Content-Type", "application/sdp"),
-                    "Accept": request.headers.get("Accept", "application/sdp"),
-                },
-                timeout=10.0
-            )
+        response = await _mediamtx_request(
+            "POST",
+            f"{stream_name}/whep",
+            body,
+            {
+                "Content-Type": request.headers.get("Content-Type", "application/sdp"),
+                "Accept": request.headers.get("Accept", "application/sdp"),
+            },
+        )
             
             location = response.headers.get("Location")
             response_headers = {
-                "Access-Control-Allow-Origin": "*",
+                **WHEP_CORS_HEADERS,
                 "Content-Type": response.headers.get("Content-Type", "application/sdp"),
             }
             if location:
@@ -1728,9 +1759,13 @@ async def mediamtx_whep_compat(stream_name: str, request: Request):
                 status_code=response.status_code,
                 headers=response_headers
             )
+    except httpx.TimeoutException:
+        return _whep_error_response(504, "Stream timeout - MediaMTX may not be running")
+    except httpx.ConnectError:
+        return _whep_error_response(503, "Cannot connect to MediaMTX - service may be down")
     except Exception as e:
         logger.error(f"MediaMTX WHEP compat error for {stream_name}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        return _whep_error_response(500, str(e))
 
 
 @app.get("/api/turn-credentials")
