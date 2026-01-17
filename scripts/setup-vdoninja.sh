@@ -166,6 +166,6 @@ echo "3. Check service status:"
 echo "   systemctl status vdo-ninja vdo-webapp"
 echo ""
 echo "4. Test VDO.ninja access:"
-echo "   https://r58-vdo.itagenten.no/mixer.html?room=studio"
+echo "   https://app.itagenten.no/vdo/mixer.html?room=studio"
 echo ""
 

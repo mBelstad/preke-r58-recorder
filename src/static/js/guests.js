@@ -267,7 +267,7 @@ async function openDirectorRoom() {
             window.open('https://app.itagenten.no/vdo/?director=r58studio', '_blank');
         }
     } catch (error) {
-        window.open('https://r58-vdo.itagenten.no/?director=r58studio', '_blank');
+        window.open('https://app.itagenten.no/vdo/?director=r58studio', '_blank');
     }
 }
 

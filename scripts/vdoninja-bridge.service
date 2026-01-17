@@ -17,8 +17,8 @@ Environment=DISPLAY=:0
 # Must match VDO_ROOM in packages/frontend/src/lib/vdoninja.ts
 Environment=VDONINJA_ROOM=studio
 
-# VDO.ninja host (self-hosted instance)
-Environment=VDONINJA_HOST=r58-vdo.itagenten.no
+# VDO.ninja host (self-hosted instance, now on same domain as MediaMTX)
+Environment=VDONINJA_HOST=app.itagenten.no/vdo
 
 # R58 API host (for WHEP streams)
 Environment=API_HOST=app.itagenten.no
