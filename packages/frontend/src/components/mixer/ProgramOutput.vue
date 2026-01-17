@@ -22,7 +22,7 @@ const iframeSrc = ref('')
 // MediaMTX WHIP endpoint for program output
 function getWhipUrl(): string {
   // Use app.itagenten.no (same-domain architecture) with CORS headers configured
-  // VDO.ninja iframe (from r58-vdo.itagenten.no) needs to POST here
+  // VDO.ninja iframe (from app.itagenten.no/vdo) needs to POST here
   return 'https://app.itagenten.no/mixer_program/whip'
 }
 

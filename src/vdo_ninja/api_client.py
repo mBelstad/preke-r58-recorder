@@ -20,7 +20,7 @@ class VdoNinjaApiClient:
     _client: Optional[httpx.AsyncClient] = None
     _client_lock = asyncio.Lock()
     
-    def __init__(self, api_key: str, api_url: str = "https://r58-vdo.itagenten.no"):
+    def __init__(self, api_key: str, api_url: str = "https://app.itagenten.no/vdo"):
         """
         Initialize VDO.ninja API client
         
@@ -215,7 +215,7 @@ def get_vdo_ninja_client_from_config(config_path: Optional[str] = None) -> Optio
         
         vdo_config = config.get('vdo_ninja', {})
         api_key = vdo_config.get('api_key')
-        api_url = vdo_config.get('api_url', 'https://r58-vdo.itagenten.no')
+        api_url = vdo_config.get('api_url', 'https://app.itagenten.no/vdo')
         
         if not api_key:
             logger.warning("VDO.ninja API key not found in config")

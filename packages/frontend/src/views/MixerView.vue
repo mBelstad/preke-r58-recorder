@@ -95,7 +95,7 @@ async function initializeMixerUrl() {
     console.log('[Mixer] Mixer URL initialized with API key')
   } else {
     // Fallback if buildMixerUrl fails
-    const VDO_HOST = await getVdoHost() || 'r58-vdo.itagenten.no'
+    const VDO_HOST = await getVdoHost() || 'app.itagenten.no'
     const VDO_PROTOCOL = getVdoProtocol()
     const fallbackUrl = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/mixer.html`)
     fallbackUrl.searchParams.set('room', VDO_ROOM)

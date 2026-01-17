@@ -162,7 +162,7 @@ export const useCapabilitiesStore = defineStore('capabilities', () => {
           ],
           vdoninja: {
             enabled: true,
-            host: 'r58-vdo.itagenten.no',
+            host: 'app.itagenten.no/vdo',
             port: 443,
             room: 'studio',
           },

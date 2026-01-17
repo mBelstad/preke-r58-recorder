@@ -106,7 +106,7 @@ async function copyToClipboard(text: string, label: string) {
 
 // Open stream in new window (for WHEP preview)
 function openPreview(streamName: string) {
-  const url = `https://r58-vdo.itagenten.no/?view=${streamName}&solo&room=studio&password=preke-r58-2024`
+  const url = `https://app.itagenten.no/vdo/?view=${streamName}&solo&room=studio&password=preke-r58-2024`
   window.open(url, `preview_${streamName}`, 'width=1280,height=720,menubar=no,toolbar=no')
 }
 

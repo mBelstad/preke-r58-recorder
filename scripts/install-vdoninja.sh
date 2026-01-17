@@ -221,7 +221,7 @@ echo -e "${BLUE}Step 4: Generating SSL certificates...${NC}"
 mkdir -p "$VDO_CERTS_DIR"
 
 if [[ ! -f "$VDO_CERTS_DIR/key.pem" ]]; then
-    openssl req -x509 -newkey rsa:4096 -keyout "$VDO_CERTS_DIR/key.pem" -out "$VDO_CERTS_DIR/cert.pem" -days 3650 -nodes -subj "/C=NO/ST=Oslo/L=Oslo/O=Preke/CN=r58-vdo.itagenten.no"
+    openssl req -x509 -newkey rsa:4096 -keyout "$VDO_CERTS_DIR/key.pem" -out "$VDO_CERTS_DIR/cert.pem" -days 3650 -nodes -subj "/C=NO/ST=Oslo/L=Oslo/O=Preke/CN=app.itagenten.no"
     echo -e "${GREEN}✓ SSL certificates generated${NC}"
 else
     echo -e "${YELLOW}SSL certificates already exist${NC}"
@@ -332,11 +332,11 @@ echo "  - vdo-webapp.service (port ${VDO_WEBAPP_PORT})"
 echo ""
 echo "Access URLs:"
 echo "  - Local: https://localhost:${VDO_PORT}/mixer.html"
-echo "  - Remote: https://r58-vdo.itagenten.no/mixer.html"
+echo "  - Remote: https://app.itagenten.no/vdo/mixer.html"
 echo ""
 echo "Next steps:"
 echo "  1. Restart FRP to apply tunnel configuration:"
 echo "     sudo systemctl restart frpc"
-echo "  2. Test access: https://r58-vdo.itagenten.no/mixer.html?room=studio"
+echo "  2. Test access: https://app.itagenten.no/vdo/mixer.html?room=studio"
 echo ""
 

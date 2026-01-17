@@ -191,7 +191,7 @@ external_cameras:
 # API key is required for HTTP API control (Companion/Stream Deck integration)
 vdo_ninja:
   api_key: "preke-r58-2024-secure-key"  # API key for VDO.ninja HTTP API (must match &api= in URL)
-  api_url: "https://r58-vdo.itagenten.no"  # VDO.ninja host for API calls
+  api_url: "https://app.itagenten.no/vdo"  # VDO.ninja host for API calls (same domain as MediaMTX)
   room: "r58studio"  # Default room name
   password: "preke-r58-2024"  # Room password
 

@@ -506,7 +506,7 @@
             <h2>Settings</h2>
             <div class="form-group">
                 <label>VDO.ninja Host</label>
-                <input type="text" id="vdoninjaHost" placeholder="r58-vdo.itagenten.no">
+                <input type="text" id="vdoninjaHost" placeholder="app.itagenten.no/vdo">
             </div>
             <div class="form-group">
                 <label>Room Name</label>
@@ -529,7 +529,7 @@
     <script>
         // Configuration
         const config = {
-            vdoninjaHost: localStorage.getItem('vdoninjaHost') || 'r58-vdo.itagenten.no',
+            vdoninjaHost: localStorage.getItem('vdoninjaHost') || 'app.itagenten.no/vdo',
             roomName: localStorage.getItem('roomName') || 'r58studio',
             apiHost: localStorage.getItem('apiHost') || window.location.host,
             cameras: ['cam2']

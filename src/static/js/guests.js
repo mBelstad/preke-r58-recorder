@@ -118,7 +118,7 @@ function loadGuestsContent(container) {
                 <h3>🎬 VDO.ninja Director</h3>
                 <p>Full control room for managing all guests and cameras</p>
                 <div class="invite-link">
-                    <div class="invite-url" id="directorLink">https://r58-vdo.itagenten.no/?director=r58studio</div>
+                    <div class="invite-url" id="directorLink">https://app.itagenten.no/vdo/?director=r58studio</div>
                 </div>
                 <div class="flex gap-sm">
                     <button class="btn btn-primary flex-1" onclick="copyDirectorLink()">
@@ -245,7 +245,7 @@ async function copyDirectorLink() {
         }
     } catch (error) {
         // Fallback to hardcoded URL
-        const link = 'https://r58-vdo.itagenten.no/?director=r58studio';
+        const link = 'https://app.itagenten.no/vdo/?director=r58studio';
         navigator.clipboard.writeText(link).then(() => {
             showToast('Director link copied!');
         });
@@ -264,7 +264,7 @@ async function openDirectorRoom() {
             window.open(data.url, '_blank');
         } else {
             // Fallback
-            window.open('https://r58-vdo.itagenten.no/?director=r58studio', '_blank');
+            window.open('https://app.itagenten.no/vdo/?director=r58studio', '_blank');
         }
     } catch (error) {
         window.open('https://r58-vdo.itagenten.no/?director=r58studio', '_blank');

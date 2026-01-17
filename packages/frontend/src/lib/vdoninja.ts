@@ -53,8 +53,9 @@ export async function getVdoHost(): Promise<string | null> {
     console.log('[VDO.ninja] Device does not provide VDO.ninja host configuration')
   }
   
-  // Default fallback to r58-vdo.itagenten.no
-  const defaultHost = 'r58-vdo.itagenten.no'
+  // Default fallback to app.itagenten.no (same domain as MediaMTX to avoid CORS)
+  // Path /vdo/ is added in URL construction
+  const defaultHost = 'app.itagenten.no'
   cachedVdoHost = defaultHost
   console.log(`[VDO.ninja] Using default host: ${defaultHost}`)
   return defaultHost
@@ -63,6 +64,15 @@ export async function getVdoHost(): Promise<string | null> {
 // Protocol for VDO.ninja URLs
 export function getVdoProtocol(): string {
   return 'https'
+}
+
+/**
+ * Get VDO.ninja base path (empty for separate domain, /vdo for same domain)
+ */
+export async function getVdoBasePath(): Promise<string> {
+  const host = await getVdoHost()
+  // If using app.itagenten.no (same domain as MediaMTX), add /vdo prefix
+  return host === 'app.itagenten.no' ? '/vdo' : ''
 }
 
 export const VDO_ROOM = 'studio'
@@ -376,9 +386,10 @@ export async function buildVdoUrl(
     return null
   }
   const VDO_PROTOCOL = getVdoProtocol()
+  const vdoBasePath = await getVdoBasePath()
   const config = embedProfiles[profile]
   const basePath = config.base || '/'
-  const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}${basePath}`)
+  const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}${vdoBasePath}${basePath}`)
   
   const effectiveVars = { ...vars }
   
@@ -439,7 +450,8 @@ export async function buildGuestInviteUrl(guestName: string, guestId?: string): 
     return null
   }
   const VDO_PROTOCOL = getVdoProtocol()
-  const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/`)
+  const vdoBasePath = await getVdoBasePath()
+  const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}${vdoBasePath}/`)
   
   url.searchParams.set('room', VDO_ROOM)
   url.searchParams.set('push', guestId || guestName.toLowerCase().replace(/\s+/g, '-'))
@@ -474,7 +486,8 @@ export async function buildCameraContributionUrl(
     return null
   }
   const VDO_PROTOCOL = getVdoProtocol()
-  const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/`)
+  const vdoBasePath = await getVdoBasePath()
+  const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}${vdoBasePath}/`)
   
   // Use whepplay (not whepshare) - this pulls the WHEP stream from MediaMTX
   url.searchParams.set('whepplay', whepUrl)
@@ -522,7 +535,8 @@ export async function buildProgramOutputUrl(whipUrl: string): Promise<string | n
     return null
   }
   const VDO_PROTOCOL = getVdoProtocol()
-  const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/`)
+  const vdoBasePath = await getVdoBasePath()
+  const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}${vdoBasePath}/`)
   
   // Scene output params
   url.searchParams.set('scene', '')
@@ -606,8 +620,9 @@ export async function buildMixerUrl(options: {
     return null
   }
   const VDO_PROTOCOL = getVdoProtocol()
+  const vdoBasePath = await getVdoBasePath()
   // Use standard mixer.html (alpha mixer lacks bundled dependencies)
-  const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/mixer.html`)
+  const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}${vdoBasePath}/mixer.html`)
   
   // Room name
   const room = options.room || VDO_ROOM
@@ -814,7 +829,8 @@ export async function buildSceneOutputUrl(
     return null
   }
   const VDO_PROTOCOL = getVdoProtocol()
-  const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}/`)
+  const vdoBasePath = await getVdoBasePath()
+  const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}${vdoBasePath}/`)
   
   // Use &scene for OBS-style output - shows sources added via director API addToScene command
   // Scene 1 = program output, Scene 2 = preview, etc.

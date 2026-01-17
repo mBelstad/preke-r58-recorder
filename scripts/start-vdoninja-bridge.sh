@@ -8,7 +8,7 @@ set -e
 # Configuration - can be overridden by environment variables
 # Must match VDO_ROOM in packages/frontend/src/lib/vdoninja.ts
 ROOM_NAME="${VDONINJA_ROOM:-studio}"
-VDONINJA_HOST="${VDONINJA_HOST:-r58-vdo.itagenten.no}"
+VDONINJA_HOST="${VDONINJA_HOST:-app.itagenten.no/vdo}"
 API_HOST="${API_HOST:-localhost:8000}"
 LOG_FILE="${LOG_FILE:-/var/log/vdoninja-bridge.log}"
 

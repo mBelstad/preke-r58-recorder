@@ -4587,7 +4587,7 @@ async def clear_queue() -> Dict[str, str]:
 # VDO.ninja URL configuration
 # Use local instance via FRP tunnel for remote access
 VDONINJA_LOCAL_HOST = "localhost:8443"
-VDONINJA_REMOTE_HOST = "r58-vdo.itagenten.no"
+VDONINJA_REMOTE_HOST = "app.itagenten.no/vdo"  # Path /vdo/ is handled by nginx
 MEDIAMTX_REMOTE_HOST = "app.itagenten.no"  # Same-domain proxy
 
 

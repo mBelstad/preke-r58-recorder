@@ -111,8 +111,8 @@ sshpass -p linaro ssh -p 10022 linaro@65.109.32.111
 - **This Wiki**: https://app.itagenten.no/static/wiki.html
 
 **VDO.ninja**:
-- **Mixer**: https://r58-vdo.itagenten.no/mixer.html?room=studio
-- **Director**: https://r58-vdo.itagenten.no/?director=studio
+- **Mixer**: https://app.itagenten.no/vdo/mixer.html?room=studio
+- **Director**: https://app.itagenten.no/vdo/?director=studio
 
 **Use cases**:
 - View camera feeds
@@ -344,7 +344,7 @@ All pages work on phones, tablets, and computers.
 **Use case**: Production monitoring, recording, administration
 
 ### VDO.ninja Mixer
-**URL**: https://r58-vdo.itagenten.no/mixer.html?room=studio
+**URL**: https://app.itagenten.no/vdo/mixer.html?room=studio
 
 **Features**:
 - Live mixing interface
