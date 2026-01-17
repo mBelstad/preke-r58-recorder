@@ -25,6 +25,11 @@ onMounted(async () => {
         description: 'MediaMTX stream monitor and URL helpers'
       },
       {
+        label: 'WordPress Health',
+        url: await buildApiUrl('/api/v1/wordpress/health'),
+        description: 'Read-only checks for WordPress integration'
+      },
+      {
         label: 'RTMP Test',
         url: await buildApiUrl('/static/rtmp_test.html'),
         description: 'RTMP relay test and status checks'
@@ -68,6 +73,7 @@ onMounted(async () => {
 const switchingMode = ref(false)
 const modeError = ref<string | null>(null)
 const clearingCache = ref(false)
+const clearingAllCaches = ref(false)
 let pollInterval: ReturnType<typeof setInterval> | null = null
 
 async function switchMode(mode: 'recorder' | 'mixer') {
@@ -184,10 +190,30 @@ async function clearPWACache() {
       // Use location.reload() with cache bypass
       window.location.href = window.location.href.split('?')[0] + '?nocache=' + Date.now()
     }, 1000)
+    clearingAllCaches.value = false
   } catch (e) {
     console.error('[PWA] Failed to clear cache:', e)
     clearingCache.value = false
     alert('Failed to clear PWA cache. Please try manually:\n\n1. Open DevTools (F12)\n2. Application tab\n3. Clear Storage > Clear site data\n4. Hard refresh (Ctrl+Shift+R or Cmd+Shift+R)')
+  }
+}
+
+async function clearAllCaches() {
+  if (clearingAllCaches.value || clearingCache.value) return
+
+  clearingAllCaches.value = true
+
+  try {
+    const response = await fetch(await buildApiUrl('/api/admin/clear-cache'), { method: 'POST' })
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}))
+      throw new Error(data.detail || 'Failed to clear server cache')
+    }
+    await clearPWACache()
+  } catch (e) {
+    console.error('[Cache] Failed to clear all caches:', e)
+    clearingAllCaches.value = false
+    alert('Failed to clear server cache. Please try again.')
   }
 }
 
@@ -295,16 +321,16 @@ onUnmounted(() => {
           Clear service worker cache and reload to see latest changes in web app.
         </p>
         <button
-          @click="clearPWACache"
-          :disabled="clearingCache"
+          @click="clearAllCaches"
+          :disabled="clearingAllCaches || clearingCache"
           class="btn btn-sm w-full"
-          :class="clearingCache ? 'btn-secondary' : 'btn-warning'"
+          :class="clearingAllCaches || clearingCache ? 'btn-secondary' : 'btn-warning'"
         >
-          <span v-if="clearingCache" class="inline-block animate-spin mr-1">⟳</span>
-          {{ clearingCache ? 'Clearing...' : 'Clear PWA Cache & Reload' }}
+          <span v-if="clearingAllCaches || clearingCache" class="inline-block animate-spin mr-1">⟳</span>
+          {{ clearingAllCaches || clearingCache ? 'Clearing...' : 'Clear All Caches & Reload' }}
         </button>
         <p class="text-xs text-preke-text-dim">
-          This will unregister service workers, clear all caches, and reload the page.
+          This will clear server caches, unregister service workers, clear browser caches, and reload the page.
         </p>
       </div>
     </div>

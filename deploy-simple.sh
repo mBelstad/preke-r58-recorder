@@ -88,6 +88,7 @@ DEPLOY_COMMANDS="cd /opt/preke-r58-recorder && \
     echo 'Building frontend...' && \
     cd packages/frontend && \
     npm ci && \
+    npm install --no-save @rollup/rollup-linux-arm64-gnu && \
     npm run build && \
     cd ../.. && \
     echo 'Setting up VDO.ninja if needed...' && \

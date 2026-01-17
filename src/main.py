@@ -38,6 +38,7 @@ Configuration:
 import asyncio
 import logging
 import os
+import subprocess
 import json
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -514,6 +515,39 @@ async def get_frontend_version() -> Dict[str, Any]:
         "build_time": build_time,
         "timestamp": datetime.now().isoformat()
     }
+
+
+@app.post("/api/admin/clear-cache")
+async def clear_all_caches() -> Dict[str, Any]:
+    """Clear server-side caches via script (best-effort)."""
+    script_path = Path(__file__).parent.parent / "scripts" / "clear-all-caches.sh"
+    if not script_path.exists():
+        raise HTTPException(status_code=404, detail="Cache clear script not found")
+
+    try:
+        result = subprocess.run(
+            ["bash", str(script_path)],
+            cwd=Path(__file__).parent.parent,
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Cache clear failed: {e}")
+
+    if result.returncode != 0:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Cache clear failed: {result.stderr.strip() or result.stdout.strip()}"
+        )
+
+    # Restart service after response is sent to avoid killing the request
+    try:
+        subprocess.Popen(["bash", "-c", "sleep 1; systemctl restart preke-recorder"])
+    except Exception:
+        pass
+
+    return {"status": "ok", "output": result.stdout.strip()}
 
 
 @app.get("/apple-touch-icon.png")
