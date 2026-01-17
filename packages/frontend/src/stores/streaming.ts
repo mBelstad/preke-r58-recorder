@@ -79,6 +79,10 @@ export const useStreamingStore = defineStore('streaming', () => {
   const destinations = ref<StreamingDestination[]>([])
   const isStreaming = ref(false)
   const activeDestinationId = ref<string | null>(null)
+  const programOutputMode = ref<'alpha' | 'whipout'>('alpha')
+  const streamStartTime = ref<number | null>(null)
+  const streamStatus = ref<any | null>(null)
+  const streamStats = ref<any | null>(null)
   
   // SRT Output configuration
   const srtOutput = ref<SrtOutput>({
@@ -212,6 +216,9 @@ export const useStreamingStore = defineStore('streaming', () => {
         if (parsed.srtOutput) {
           srtOutput.value = { ...srtOutput.value, ...parsed.srtOutput }
         }
+        if (parsed.programOutputMode) {
+          programOutputMode.value = parsed.programOutputMode
+        }
       }
     } catch (e) {
       console.warn('Failed to load saved streaming destinations:', e)
@@ -223,7 +230,8 @@ export const useStreamingStore = defineStore('streaming', () => {
     try {
       localStorage.setItem('r58-streaming-destinations', JSON.stringify({
         destinations: destinations.value,
-        srtOutput: srtOutput.value
+        srtOutput: srtOutput.value,
+        programOutputMode: programOutputMode.value
       }))
     } catch (e) {
       console.warn('Failed to save streaming destinations:', e)
@@ -330,6 +338,34 @@ export const useStreamingStore = defineStore('streaming', () => {
     }
   }
 
+  async function getStreamingStats(): Promise<Record<string, any> | null> {
+    try {
+      const response = await fetch(await buildApiUrl('/api/streaming/stats'))
+      if (!response.ok) {
+        throw new Error('Failed to get streaming stats')
+      }
+      return await response.json()
+    } catch (e) {
+      console.error('[Streaming] Failed to get streaming stats:', e)
+      return null
+    }
+  }
+
+  function setProgramOutputMode(mode: 'alpha' | 'whipout') {
+    programOutputMode.value = mode
+    saveDestinations()
+  }
+
+  function markStreamActive(isActive: boolean) {
+    if (isActive) {
+      if (!streamStartTime.value) {
+        streamStartTime.value = Date.now()
+      }
+    } else {
+      streamStartTime.value = null
+    }
+  }
+
   // Initialize
   loadSavedDestinations()
 
@@ -339,6 +375,10 @@ export const useStreamingStore = defineStore('streaming', () => {
     isStreaming,
     activeDestinationId,
     srtOutput,
+    programOutputMode,
+    streamStartTime,
+    streamStatus,
+    streamStats,
 
     // Computed
     activeDestination,
@@ -355,6 +395,8 @@ export const useStreamingStore = defineStore('streaming', () => {
     updateSrtConfig,
     startStreaming,
     stopStreaming,
+    setProgramOutputMode,
+    markStreamActive,
     buildRtmpUrl,
     getSrtOutputUrl,
     saveDestinations,
@@ -363,7 +405,8 @@ export const useStreamingStore = defineStore('streaming', () => {
     // RTMP Relay API
     startRtmpRelay,
     stopRtmpRelay,
-    getStreamingStatus
+    getStreamingStatus,
+    getStreamingStats
   }
 })
 

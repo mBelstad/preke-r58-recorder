@@ -568,6 +568,71 @@ export async function buildProgramOutputUrl(whipUrl: string): Promise<string | n
 }
 
 /**
+ * Build a program output URL using VDO.ninja alpha publish mode
+ *
+ * Uses &publish and &mediamtx parameters to publish the scene output
+ * directly to MediaMTX (no &whipout). This matches the alpha approach.
+ */
+export async function buildProgramOutputUrlAlpha(
+  mediamtxHost?: string | null
+): Promise<string | null> {
+  const VDO_HOST = await getVdoHost()
+  if (!VDO_HOST) {
+    return null
+  }
+  const VDO_PROTOCOL = getVdoProtocol()
+  const vdoBasePath = await getVdoBasePath()
+  const url = new URL(`${VDO_PROTOCOL}://${VDO_HOST}${vdoBasePath}/`)
+
+  // Alpha approach: scene 0 (auto-adds all guests)
+  url.searchParams.set('scene', '0')
+  url.searchParams.set('layout', '')
+  url.searchParams.set('remote', '')
+  url.searchParams.set('room', VDO_ROOM)
+  url.searchParams.set('password', VDO_DIRECTOR_PASSWORD)
+  url.searchParams.set('cleanviewer', '')
+  url.searchParams.set('chroma', '000')
+  url.searchParams.set('ssar', 'landscape')
+  url.searchParams.set('nosettings', '')
+  url.searchParams.set('showlabels', '')
+  url.searchParams.set('prefercurrenttab', '')
+  url.searchParams.set('selfbrowsersurface', 'include')
+  url.searchParams.set('displaysurface', 'browser')
+  url.searchParams.set('np', '')
+  url.searchParams.set('publish', '')
+  url.searchParams.set('quality', '1')
+  url.searchParams.set('screenshareaspectratio', '1.7777777777777777')
+  url.searchParams.set('locked', '1.7777777777777777')
+
+  const resolvedMediaMtxHost = mediamtxHost || await getMediaMtxHost() || 'app.itagenten.no'
+  if (resolvedMediaMtxHost) {
+    let mediamtxParam = resolvedMediaMtxHost
+    if (!resolvedMediaMtxHost.includes('://')) {
+      const isLocal =
+        resolvedMediaMtxHost === 'localhost' ||
+        resolvedMediaMtxHost === '127.0.0.1' ||
+        resolvedMediaMtxHost.startsWith('192.168.') ||
+        resolvedMediaMtxHost.startsWith('10.') ||
+        resolvedMediaMtxHost.startsWith('172.')
+      const protocol = isLocal ? 'http' : 'https'
+      const hasPort = resolvedMediaMtxHost.includes(':')
+      mediamtxParam = hasPort
+        ? `${protocol}://${resolvedMediaMtxHost}`
+        : `${protocol}://${resolvedMediaMtxHost}:8889`
+    }
+    url.searchParams.set('mediamtx', mediamtxParam)
+  }
+
+  // Custom CSS (b64css for base64 inline CSS)
+  const programCssBase64 = getVdoCssUrl()
+  if (programCssBase64) {
+    url.searchParams.set('b64css', programCssBase64)
+  }
+
+  return url.toString()
+}
+
+/**
  * Build a mixer URL with MediaMTX integration
  * 
  * Uses the standard mixer.html which has all dependencies bundled.
@@ -878,9 +943,9 @@ export async function buildPreviewUrl(sceneNumber: number, room?: string): Promi
 /**
  * Build a VDO.ninja program monitor URL (PGM)
  * Full quality, audio enabled for live output
- * Uses scene=1 which receives sources added via addToScene director command
+ * Uses scene=0 which auto-adds all guests in the room
  */
-export async function buildProgramUrl(sceneNumber: number = 1, room?: string): Promise<string | null> {
+export async function buildProgramUrl(sceneNumber: number = 0, room?: string): Promise<string | null> {
   return buildSceneOutputUrl(sceneNumber, { muted: false, quality: 2, room })
 }
 

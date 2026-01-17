@@ -29,6 +29,7 @@ const customStreamKey = ref('')
 const destinations = computed(() => streamingStore.destinations)
 const platforms = computed(() => STREAMING_PLATFORMS)
 const programUrls = computed(() => streamingStore.programOutputUrls)
+const programOutputMode = computed(() => streamingStore.programOutputMode)
 
 function openSettings() {
   isOpen.value = true
@@ -113,6 +114,11 @@ function quickAddAndSave() {
   
   quickSetupStreamKey.value = ''
   toast.success(`${getPlatformName(quickSetupPlatform.value)} configured and enabled!`)
+}
+
+function setOutputMode(mode: 'alpha' | 'whipout') {
+  streamingStore.setProgramOutputMode(mode)
+  toast.success(`Program output mode set to ${mode === 'alpha' ? 'Alpha publish' : 'WHIP output'}`)
 }
 
 // Expose open method
@@ -401,6 +407,36 @@ defineExpose({ open: openSettings })
                     Ultra-low latency WebRTC. Best for interactive use.
                   </p>
                 </div>
+              </div>
+            </section>
+
+            <!-- Program Output Mode -->
+            <section class="mb-8">
+              <h3 class="text-lg font-medium mb-4">Program Output Mode</h3>
+              <div class="p-4 bg-preke-bg-surface rounded-lg space-y-3">
+                <label class="flex items-center gap-3 text-sm">
+                  <input
+                    type="radio"
+                    name="program-output-mode"
+                    value="alpha"
+                    :checked="programOutputMode === 'alpha'"
+                    @change="setOutputMode('alpha')"
+                  />
+                  <span>Alpha publish mode (`&publish&mediamtx=`)</span>
+                </label>
+                <label class="flex items-center gap-3 text-sm">
+                  <input
+                    type="radio"
+                    name="program-output-mode"
+                    value="whipout"
+                    :checked="programOutputMode === 'whipout'"
+                    @change="setOutputMode('whipout')"
+                  />
+                  <span>WHIP output mode (`&whipout=`)</span>
+                </label>
+                <p class="text-xs text-preke-text-dim">
+                  Alpha publish mode matches the newest VDO.Ninja alpha workflow and is recommended for MediaMTX.
+                </p>
               </div>
             </section>
 

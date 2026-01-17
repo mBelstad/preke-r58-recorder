@@ -10,12 +10,56 @@ const { capabilities, loading, error } = storeToRefs(capabilitiesStore)
 // Computed properties for reveal.js URLs (buildApiUrl is async, so we need to handle it)
 const revealDemoUrl = ref<string>('')
 const revealGraphicsUrl = ref<string>('')
+const testTools = ref<Array<{ label: string; url: string; description?: string }>>([])
 
 // Initialize URLs when component mounts
 onMounted(async () => {
   try {
     revealDemoUrl.value = await buildApiUrl('/reveal')
     revealGraphicsUrl.value = await buildApiUrl('/reveal/graphics')
+    const baseUrl = window.location.origin
+    testTools.value = [
+      {
+        label: 'Stream Test',
+        url: `${baseUrl}/#/stream-test`,
+        description: 'MediaMTX stream monitor and URL helpers'
+      },
+      {
+        label: 'RTMP Test',
+        url: await buildApiUrl('/static/rtmp_test.html'),
+        description: 'RTMP relay test and status checks'
+      },
+      {
+        label: 'WHEP to Room Bridge',
+        url: await buildApiUrl('/static/whep-to-room-bridge.html'),
+        description: 'Pull WHEP into a VDO.ninja room'
+      },
+      {
+        label: 'Camera Bridge',
+        url: await buildApiUrl('/static/camera-bridge.html'),
+        description: 'Bridge HDMI cameras into VDO.ninja'
+      },
+      {
+        label: 'VDO Guest Bridge',
+        url: await buildApiUrl('/static/vdoninja-guest-bridge.html'),
+        description: 'Guest bridge utilities for VDO.ninja'
+      },
+      {
+        label: 'MediaMTX Mixer',
+        url: await buildApiUrl('/static/mediamtx_mixer.html'),
+        description: 'MediaMTX mixer test page'
+      },
+      {
+        label: 'Test Cameras',
+        url: await buildApiUrl('/static/test_cameras.html'),
+        description: 'Camera preview test page'
+      },
+      {
+        label: 'VDO Manager',
+        url: await buildApiUrl('/static/vdoninja-manager.html'),
+        description: 'VDO.ninja manager utilities'
+      }
+    ]
   } catch (e) {
     console.error('Failed to build reveal.js URLs:', e)
   }
@@ -145,6 +189,29 @@ onUnmounted(() => {
               Graphics Presentation
             </a>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Test Tools -->
+    <div class="card">
+      <h3 class="text-sm font-semibold text-preke-text-dim uppercase tracking-wide mb-4">Test Tools</h3>
+      <div class="space-y-3">
+        <div v-for="tool in testTools" :key="tool.label" class="flex flex-col gap-1">
+          <a
+            :href="tool.url"
+            target="_blank"
+            class="text-preke-blue hover:text-preke-gold transition-colors truncate"
+            :title="tool.label"
+          >
+            {{ tool.label }}
+          </a>
+          <span v-if="tool.description" class="text-xs text-preke-text-dim">
+            {{ tool.description }}
+          </span>
+        </div>
+        <div v-if="testTools.length === 0" class="text-preke-text-dim text-sm">
+          Test tools not available.
         </div>
       </div>
     </div>

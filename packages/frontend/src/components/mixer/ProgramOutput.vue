@@ -6,10 +6,10 @@
  * Automatically pushes the VDO.ninja mixed program output to MediaMTX via WHIP
  * when the mixer goes live (controlled by "Go Live" button in header).
  */
-import { ref, watch } from 'vue'
+import { ref, watch, onBeforeUnmount, computed } from 'vue'
 import { useMixerStore } from '@/stores/mixer'
 import { useStreamingStore } from '@/stores/streaming'
-import { buildProgramOutputUrl } from '@/lib/vdoninja'
+import { buildProgramOutputUrl, buildProgramOutputUrlAlpha } from '@/lib/vdoninja'
 import { toast } from '@/composables/useToast'
 
 const mixerStore = useMixerStore()
@@ -18,6 +18,11 @@ const streamingStore = useStreamingStore()
 const isActive = ref(false)
 const status = ref<'idle' | 'connecting' | 'live' | 'error'>('idle')
 const iframeSrc = ref('')
+const streamStatus = ref<any | null>(null)
+const lastStatusError = ref<string | null>(null)
+let statusPollTimer: ReturnType<typeof setInterval> | null = null
+
+const useAlphaOutput = computed(() => streamingStore.programOutputMode === 'alpha')
 
 // MediaMTX WHIP endpoint for program output
 function getWhipUrl(): string {
@@ -31,8 +36,9 @@ async function startProgramOutput() {
   
   status.value = 'connecting'
   
-  // buildProgramOutputUrl is async - must await it!
-  const url = await buildProgramOutputUrl(getWhipUrl())
+  const url = useAlphaOutput.value
+    ? await buildProgramOutputUrlAlpha()
+    : await buildProgramOutputUrl(getWhipUrl())
   if (!url) {
     status.value = 'error'
     console.error('[ProgramOutput] Failed to build VDO.ninja URL - VDO.ninja not configured')
@@ -42,7 +48,7 @@ async function startProgramOutput() {
   iframeSrc.value = url
   isActive.value = true
   
-  console.log('[ProgramOutput] Starting WHIP push to MediaMTX:', url)
+  console.log('[ProgramOutput] Starting program output:', url)
 }
 
 function stopProgramOutput() {
@@ -51,6 +57,9 @@ function stopProgramOutput() {
   isActive.value = false
   iframeSrc.value = ''
   status.value = 'idle'
+  streamStatus.value = null
+  lastStatusError.value = null
+  stopStatusPolling()
   
   console.log('[ProgramOutput] Stopped WHIP push')
 }
@@ -77,9 +86,42 @@ async function retryConnection() {
 watch(() => mixerStore.isLive, async (live) => {
   if (live) {
     await startProgramOutput()
+    startStatusPolling()
   } else {
     stopProgramOutput()
   }
+})
+
+function startStatusPolling() {
+  if (statusPollTimer) return
+  statusPollTimer = setInterval(async () => {
+    try {
+      const statusResponse = await streamingStore.getStreamingStatus()
+      if (!statusResponse) return
+      streamStatus.value = statusResponse
+      lastStatusError.value = statusResponse.error || null
+      if (statusResponse.mixer_program_active) {
+        status.value = 'live'
+      } else if (statusResponse.error) {
+        status.value = 'error'
+      } else if (isActive.value) {
+        status.value = 'connecting'
+      }
+    } catch (error) {
+      lastStatusError.value = error instanceof Error ? error.message : 'Status polling failed'
+    }
+  }, 2000)
+}
+
+function stopStatusPolling() {
+  if (statusPollTimer) {
+    clearInterval(statusPollTimer)
+    statusPollTimer = null
+  }
+}
+
+onBeforeUnmount(() => {
+  stopStatusPolling()
 })
 
 // Status color helper

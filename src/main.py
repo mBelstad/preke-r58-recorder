@@ -1956,11 +1956,20 @@ async def get_streaming_status() -> Dict[str, Any]:
             except:
                 pass
             
+            bytes_received = mixer_info.get("bytesReceived") if mixer_info else None
+            bytes_sent = mixer_info.get("bytesSent") if mixer_info else None
+            readers = mixer_info.get("readers") if mixer_info else None
+            source = mixer_info.get("source") if mixer_info else None
+
             return {
                 "active": mixer_active,
                 "mixer_program_active": mixer_active,
                 "rtmp_relay_configured": bool(run_on_ready),
                 "run_on_ready": run_on_ready or None,
+                "bytes_received": bytes_received,
+                "bytes_sent": bytes_sent,
+                "readers": readers,
+                "source": source,
                 "stream_info": mixer_info
             }
             
@@ -1975,6 +1984,48 @@ async def get_streaming_status() -> Dict[str, Any]:
         }
     except Exception as e:
         logger.error(f"Failed to get streaming status: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/streaming/stats")
+async def get_streaming_stats() -> Dict[str, Any]:
+    """Get detailed mixer_program statistics from MediaMTX."""
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.get(f"{MEDIAMTX_API}/v3/paths/get/mixer_program")
+            if response.status_code == 404:
+                return {"active": False, "error": "mixer_program path not found"}
+            response.raise_for_status()
+            data = response.json()
+
+            source = data.get("source", {})
+            video_info = source.get("video", {}) if isinstance(source, dict) else {}
+            audio_info = source.get("audio", {}) if isinstance(source, dict) else {}
+
+            return {
+                "active": data.get("ready", False),
+                "bitrate_bps": data.get("bytesReceived", 0) * 8 if data.get("bytesReceived") else None,
+                "bytes_received_total": data.get("bytesReceived"),
+                "bytes_sent_total": data.get("bytesSent"),
+                "readers": data.get("readers"),
+                "source": {
+                    "video": {
+                        "resolution": video_info.get("resolution"),
+                        "fps": video_info.get("fps"),
+                        "codec": video_info.get("codec")
+                    },
+                    "audio": {
+                        "codec": audio_info.get("codec"),
+                        "sample_rate": audio_info.get("sampleRate"),
+                        "channels": audio_info.get("channels")
+                    }
+                }
+            }
+    except httpx.HTTPError as e:
+        logger.error(f"MediaMTX API error (stats): {e}")
+        return {"active": False, "error": "MediaMTX API not available"}
+    except Exception as e:
+        logger.error(f"Failed to get streaming stats: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

@@ -16,6 +16,7 @@ import { openProgramPopup, buildProgramOutputUrl, buildSceneOutputUrl, VDO_ROOM 
 import { toast } from '@/composables/useToast'
 import StreamingSettings from './StreamingSettings.vue'
 import ProgramOutput from './ProgramOutput.vue'
+import StreamHealthMonitor from './StreamHealthMonitor.vue'
 
 const props = withDefaults(defineProps<{
   roomName?: string
@@ -88,7 +89,7 @@ async function stopStreaming() {
 }
 
 function watchProgram() {
-  const popup = openProgramPopup(1)
+  const popup = openProgramPopup(0)
   if (!popup) {
     toast.error('Popup blocked - please allow popups for this site')
   } else {
@@ -363,6 +364,11 @@ function getStatusText(): string {
         </div>
       </div>
     </transition>
+
+    <!-- Stream Health Monitor -->
+    <div v-if="isStreaming" class="px-4 py-3">
+      <StreamHealthMonitor />
+    </div>
     
     <!-- Hidden ProgramOutput component (handles WHIP push) -->
     <div class="hidden">
