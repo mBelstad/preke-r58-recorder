@@ -603,6 +603,9 @@ export async function buildProgramOutputUrlAlpha(
   url.searchParams.set('quality', '1')
   url.searchParams.set('screenshareaspectratio', '1.7777777777777777')
   url.searchParams.set('locked', '1.7777777777777777')
+  // Bandwidth optimization for SFU - reduce bitrate for efficiency
+  url.searchParams.set('maxvideobitrate', '2500')  // 2.5 Mbps per source (SFU distributes efficiently)
+  url.searchParams.set('totalroombitrate', '6000')  // 6 Mbps total room bandwidth
 
   const resolvedMediaMtxHost = mediamtxHost || await getMediaMtxHost() || 'app.itagenten.no'
   if (resolvedMediaMtxHost) {

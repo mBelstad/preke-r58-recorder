@@ -67,6 +67,7 @@ onMounted(async () => {
 
 const switchingMode = ref(false)
 const modeError = ref<string | null>(null)
+const clearingCache = ref(false)
 let pollInterval: ReturnType<typeof setInterval> | null = null
 
 async function switchMode(mode: 'recorder' | 'mixer') {
@@ -117,6 +118,52 @@ function getStatusLabel(status: string, hasSignal: boolean): string {
     case 'idle': return 'Idle'
     case 'error': return 'Error'
     default: return status
+  }
+}
+
+async function clearPWACache() {
+  if (clearingCache.value) return
+  
+  clearingCache.value = true
+  
+  try {
+    // Clear all caches
+    if ('caches' in window) {
+      const cacheNames = await caches.keys()
+      await Promise.all(cacheNames.map(name => caches.delete(name)))
+      console.log('[PWA] Cleared caches:', cacheNames)
+    }
+    
+    // Unregister service worker
+    if ('serviceWorker' in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations()
+      await Promise.all(registrations.map(reg => reg.unregister()))
+      console.log('[PWA] Unregistered service workers:', registrations.length)
+    }
+    
+    // Clear localStorage (optional - only cache-related keys)
+    try {
+      const keysToRemove: string[] = []
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i)
+        if (key && (key.startsWith('workbox-') || key.startsWith('sw-'))) {
+          keysToRemove.push(key)
+        }
+      }
+      keysToRemove.forEach(key => localStorage.removeItem(key))
+      console.log('[PWA] Cleared cache-related localStorage keys')
+    } catch (e) {
+      console.warn('[PWA] Failed to clear localStorage:', e)
+    }
+    
+    // Reload page after a short delay
+    setTimeout(() => {
+      window.location.reload()
+    }, 500)
+  } catch (e) {
+    console.error('[PWA] Failed to clear cache:', e)
+    clearingCache.value = false
+    alert('Failed to clear PWA cache. Please try manually: DevTools > Application > Clear Storage')
   }
 }
 
@@ -213,6 +260,28 @@ onUnmounted(() => {
         <div v-if="testTools.length === 0" class="text-preke-text-dim text-sm">
           Test tools not available.
         </div>
+      </div>
+    </div>
+
+    <!-- PWA Cache Control -->
+    <div class="card">
+      <h3 class="text-sm font-semibold text-preke-text-dim uppercase tracking-wide mb-4">PWA Cache</h3>
+      <div class="space-y-3">
+        <p class="text-xs text-preke-text-dim">
+          Clear service worker cache and reload to see latest changes in web app.
+        </p>
+        <button
+          @click="clearPWACache"
+          :disabled="clearingCache"
+          class="btn btn-sm w-full"
+          :class="clearingCache ? 'btn-secondary' : 'btn-warning'"
+        >
+          <span v-if="clearingCache" class="inline-block animate-spin mr-1">⟳</span>
+          {{ clearingCache ? 'Clearing...' : 'Clear PWA Cache & Reload' }}
+        </button>
+        <p class="text-xs text-preke-text-dim">
+          This will unregister service workers, clear all caches, and reload the page.
+        </p>
       </div>
     </div>
     

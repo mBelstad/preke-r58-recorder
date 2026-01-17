@@ -86,6 +86,12 @@ paths:
     source: publisher
   mixer_program:
     source: publisher
+    # Optimize for SFU usage - don't wait for source, accept immediately
+    sourceOnDemand: no
+    sourceOnDemandStartTimeout: 10s
+    sourceOnDemandCloseAfter: 10s
+    # Enable source ready state for better status reporting
+    sourceOnReady: ""
   # Remote guest paths (published via WHIP)
   guest1:
     source: publisher
