@@ -1610,24 +1610,24 @@ async def proxy_whip(stream_path: str, request: Request):
             sdp_offer,
             {"Content-Type": "application/sdp"},
         )
-            
-            if response.status_code == 404:
-                raise HTTPException(status_code=404, detail=f"Stream path not found: {stream_path}")
-            
-            if not response.is_success:
-                logger.error(f"WHIP proxy error for {stream_path}: {response.status_code} - {response.text}")
-                raise HTTPException(
-                    status_code=response.status_code,
-                    detail=f"MediaMTX WHIP error: {response.text}"
-                )
-            
-            # Return the SDP answer
-            return Response(
-                content=response.content,
+
+        if response.status_code == 404:
+            raise HTTPException(status_code=404, detail=f"Stream path not found: {stream_path}")
+        
+        if not response.is_success:
+            logger.error(f"WHIP proxy error for {stream_path}: {response.status_code} - {response.text}")
+            raise HTTPException(
                 status_code=response.status_code,
-                media_type="application/sdp",
-                headers=WHEP_CORS_HEADERS,
+                detail=f"MediaMTX WHIP error: {response.text}"
             )
+        
+        # Return the SDP answer
+        return Response(
+            content=response.content,
+            status_code=response.status_code,
+            media_type="application/sdp",
+            headers=WHEP_CORS_HEADERS,
+        )
     except httpx.TimeoutException:
         return _whep_error_response(504, "WHIP timeout - MediaMTX may not be responding")
     except httpx.ConnectError:
@@ -1687,20 +1687,20 @@ async def mediamtx_whip_compat(stream_name: str, request: Request):
             sdp_offer,
             {"Content-Type": "application/sdp"},
         )
-            
-            location = response.headers.get("Location")
-            response_headers = {
-                **WHEP_CORS_HEADERS,
-                "Content-Type": response.headers.get("Content-Type", "application/sdp"),
-            }
-            if location:
-                response_headers["Location"] = location
-            
-            return Response(
-                content=response.content,
-                status_code=response.status_code,
-                headers=response_headers
-            )
+
+        location = response.headers.get("Location")
+        response_headers = {
+            **WHEP_CORS_HEADERS,
+            "Content-Type": response.headers.get("Content-Type", "application/sdp"),
+        }
+        if location:
+            response_headers["Location"] = location
+        
+        return Response(
+            content=response.content,
+            status_code=response.status_code,
+            headers=response_headers
+        )
     except httpx.TimeoutException:
         return _whep_error_response(504, "WHIP timeout - MediaMTX may not be responding")
     except httpx.ConnectError:
@@ -1745,20 +1745,20 @@ async def mediamtx_whep_compat(stream_name: str, request: Request):
                 "Accept": request.headers.get("Accept", "application/sdp"),
             },
         )
-            
-            location = response.headers.get("Location")
-            response_headers = {
-                **WHEP_CORS_HEADERS,
-                "Content-Type": response.headers.get("Content-Type", "application/sdp"),
-            }
-            if location:
-                response_headers["Location"] = location
-            
-            return Response(
-                content=response.content,
-                status_code=response.status_code,
-                headers=response_headers
-            )
+
+        location = response.headers.get("Location")
+        response_headers = {
+            **WHEP_CORS_HEADERS,
+            "Content-Type": response.headers.get("Content-Type", "application/sdp"),
+        }
+        if location:
+            response_headers["Location"] = location
+        
+        return Response(
+            content=response.content,
+            status_code=response.status_code,
+            headers=response_headers
+        )
     except httpx.TimeoutException:
         return _whep_error_response(504, "Stream timeout - MediaMTX may not be running")
     except httpx.ConnectError:
