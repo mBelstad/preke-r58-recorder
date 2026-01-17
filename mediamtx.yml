@@ -37,8 +37,8 @@ webrtcAddress: :8889
 webrtcAllowOrigins:
   - "https://preke.no"
   - "https://*.preke.no"
-  - "https://app.itagenten.no"  # VDO.ninja now served at /vdo/ on same domain
-  - "https://r58-vdo.itagenten.no"  # Legacy - kept for backward compatibility
+  - "https://app.itagenten.no"  # VDO.ninja now served at /vdo/ on same domain (migrated Jan 2026)
+  - "https://r58-vdo.itagenten.no"  # Legacy - kept for backward compatibility (redirects to app.itagenten.no/vdo)
   - "https://itagenten.no"
   - "https://*.itagenten.no"
   - "http://localhost:*"

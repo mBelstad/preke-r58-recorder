@@ -1,5 +1,12 @@
 #!/bin/bash
 # Fix nginx configuration to add missing server blocks for r58-vdo and r58-api
+# 
+# NOTE: This script is OBSOLETE as of Jan 2026.
+# VDO.ninja was migrated from r58-vdo.itagenten.no to app.itagenten.no/vdo/
+# The current nginx configuration serves VDO.ninja at /vdo/ path on app.itagenten.no
+# The r58-vdo.itagenten.no domain now only redirects to app.itagenten.no/vdo/
+# See deployment/nginx.conf for the current configuration.
+#
 # Run this script ON the Coolify VPS (65.109.32.111)
 
 set -e
@@ -71,6 +78,10 @@ server {
 }
 
 # VDO.ninja server block
+# NOTE: As of Jan 2026, this server block is OBSOLETE.
+# VDO.ninja is now served at app.itagenten.no/vdo/ (see deployment/nginx.conf)
+# This block is kept only for legacy redirects. The actual VDO.ninja service
+# is proxied through the app.itagenten.no server block with /vdo/ path prefix.
 server {
     listen 80;
     server_name r58-vdo.itagenten.no;
@@ -165,12 +176,17 @@ echo "✅ All server blocks configured!"
 echo ""
 echo "📝 What was added:"
 echo "   ✅ app.itagenten.no → port 18889 (MediaMTX)"
-echo "   ✅ r58-vdo.itagenten.no → port 18443 (VDO.ninja) [NEW]"
+echo "   ✅ r58-vdo.itagenten.no → port 18443 (VDO.ninja) [OBSOLETE - now at app.itagenten.no/vdo/]"
 echo "   ✅ app.itagenten.no → port 18000 (FastAPI) [NEW]"
+echo ""
+echo "⚠️  NOTE: This script creates an OBSOLETE configuration."
+echo "   VDO.ninja is now served at https://app.itagenten.no/vdo/ (migrated Jan 2026)"
+echo "   The r58-vdo.itagenten.no domain now only redirects to app.itagenten.no/vdo/"
 echo ""
 echo "🧪 Test the services:"
 echo "   MediaMTX: curl -I https://app.itagenten.no/cam0"
-echo "   VDO.ninja: curl -I https://r58-vdo.itagenten.no/"
+echo "   VDO.ninja: curl -I https://app.itagenten.no/vdo/ (NEW location)"
+echo "   VDO.ninja (legacy redirect): curl -I https://r58-vdo.itagenten.no/ (should redirect)"
 echo "   API: curl -I https://app.itagenten.no/static/r58_control.html"
 echo ""
 echo "🎉 Configuration complete!"

@@ -1,5 +1,11 @@
 #!/bin/bash
 # Fix X-Frame-Options for VDO.ninja to allow iframe embedding
+# 
+# NOTE: This script is OBSOLETE as of Jan 2026.
+# VDO.ninja was migrated from r58-vdo.itagenten.no to app.itagenten.no/vdo/
+# The X-Frame-Options header is now configured in the main app.itagenten.no server block
+# in deployment/nginx.conf, not in a separate r58-vdo.itagenten.no server block.
+#
 # Run this script ON the Coolify VPS (65.109.32.111) as root
 
 set -e
@@ -18,7 +24,10 @@ echo ""
 
 # Step 2: Update VDO.ninja server block to REMOVE X-Frame-Options
 # This allows the iframe to be embedded from any origin
+# NOTE: As of Jan 2026, VDO.ninja is served at app.itagenten.no/vdo/, not r58-vdo.itagenten.no
+# The old r58-vdo.itagenten.no server block now only redirects to app.itagenten.no/vdo/
 echo "Step 2: Removing X-Frame-Options from VDO.ninja server block..."
+echo "⚠️  WARNING: This script targets the old r58-vdo.itagenten.no server block which now only redirects."
 
 docker exec $NGINX_CONTAINER sed -i '/server_name r58-vdo.itagenten.no;/,/^server {/s/add_header X-Frame-Options.*always;//g' $CONFIG_FILE
 
@@ -57,7 +66,8 @@ echo ""
 
 # Step 6: Test with curl
 echo "Step 6: Testing HTTP headers..."
-response=$(curl -sI https://r58-vdo.itagenten.no/ 2>/dev/null | grep -i "x-frame-options" || echo "No X-Frame-Options header found")
+# NOTE: r58-vdo.itagenten.no now redirects to app.itagenten.no/vdo/, so test the new URL
+response=$(curl -sI https://app.itagenten.no/vdo/ 2>/dev/null | grep -i "x-frame-options" || echo "No X-Frame-Options header found")
 echo "Response: $response"
 echo ""
 
@@ -65,4 +75,6 @@ echo "🎉 Fix complete!"
 echo ""
 echo "The VDO.ninja iframe should now work in Preke Studio."
 echo "Test at: https://app.itagenten.no/mixer"
+echo ""
+echo "⚠️  NOTE: VDO.ninja is now served at https://app.itagenten.no/vdo/ (migrated Jan 2026)"
 
