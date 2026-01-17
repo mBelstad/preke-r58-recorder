@@ -58,11 +58,13 @@ function loadLocalBridgePreference() {
   console.log('[Mixer] Local bridge preference:', useLocalBridge.value)
 }
 
-function toggleLocalBridge() {
+async function toggleLocalBridge() {
   useLocalBridge.value = !useLocalBridge.value
   if (typeof window !== 'undefined') {
     window.localStorage.setItem('preke_mixer_use_local_bridge', String(useLocalBridge.value))
   }
+  iframeLoaded.value = false
+  await initializeMixerUrl()
 }
 
 // Active cameras with signal
@@ -80,11 +82,12 @@ const mixerUrl = ref<string>('')
 
 // Initialize mixer URL on mount (getVdoHost is async)
 async function initializeMixerUrl() {
-  // Use buildMixerUrl() which includes API key and all necessary parameters
-  const mediamtxHost = await getMediaMtxHost()
+  const useMediamtx = !(isElectronApp.value && useLocalBridge.value)
+  const mediamtxHost = useMediamtx ? await getMediaMtxHost() : null
   const url = await buildMixerUrl({
     mediamtxHost: mediamtxHost || undefined,
-    room: VDO_ROOM
+    room: VDO_ROOM,
+    useMediamtx,
   })
   
   if (url) {

@@ -83,7 +83,7 @@ const FAILURES_BEFORE_FALLBACK = 2
  * Get FRP fallback URL from device configuration
  * Returns null if device doesn't provide FRP URL
  */
-async function getFrpUrl(): Promise<string | null> {
+export async function getFrpUrl(): Promise<string | null> {
   // If already cached, return it
   if (cachedFrpUrl) {
     return cachedFrpUrl

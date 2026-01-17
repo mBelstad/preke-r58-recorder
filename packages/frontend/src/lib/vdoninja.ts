@@ -464,7 +464,10 @@ export async function buildGuestInviteUrl(guestName: string, guestId?: string): 
 export async function buildCameraContributionUrl(
   cameraId: string,
   whepUrl: string,
-  label: string
+  label: string,
+  options: {
+    useMediamtx?: boolean
+  } = {}
 ): Promise<string | null> {
   const VDO_HOST = await getVdoHost()
   if (!VDO_HOST) {
@@ -483,11 +486,14 @@ export async function buildCameraContributionUrl(
   url.searchParams.set('stereo', '2')  // Audio channels
   url.searchParams.set('whepwait', '2000')  // Wait time for WHEP connection
   
-  // CRITICAL: Use MediaMTX SFU instead of P2P for sharing to the room
-  // Without this, the camera's video won't reach the director through FRP tunnels
-  const mediamtxHost = await getMediaMtxHost()
-  if (mediamtxHost) {
-    url.searchParams.set('mediamtx', mediamtxHost)
+  // Optional: Use MediaMTX SFU instead of P2P for sharing to the room
+  // Enable when P2P is unavailable (e.g., FRP fallback)
+  const useMediamtx = options.useMediamtx !== false
+  if (useMediamtx) {
+    const mediamtxHost = await getMediaMtxHost()
+    if (mediamtxHost) {
+      url.searchParams.set('mediamtx', mediamtxHost)
+    }
   }
   
   // Add custom CSS only if available
@@ -593,6 +599,7 @@ async function getVdoApiKey(): Promise<string | null> {
 export async function buildMixerUrl(options: {
   mediamtxHost?: string
   room?: string
+  useMediamtx?: boolean
 } = {}): Promise<string | null> {
   const VDO_HOST = await getVdoHost()
   if (!VDO_HOST) {
@@ -618,7 +625,7 @@ export async function buildMixerUrl(options: {
   
   // MediaMTX integration - enables WHEP/WHIP transport instead of P2P
   // This is critical for working through FRP tunnels
-  if (options.mediamtxHost) {
+  if (options.useMediamtx !== false && options.mediamtxHost) {
     url.searchParams.set('mediamtx', options.mediamtxHost)
   }
   
@@ -648,7 +655,7 @@ export async function buildMixerUrl(options: {
 export async function getMediaMtxHost(): Promise<string | null> {
   // Try to get from device config
   try {
-    const { getDeviceUrl, getFrpUrl } = await import('./api')
+    const { getFrpUrl } = await import('./api')
     const frpUrl = await getFrpUrl()
     if (frpUrl) {
       try {

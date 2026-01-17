@@ -246,6 +246,33 @@ app = FastAPI(
 # NOTE: CORS is handled by nginx proxy at VPS level (app.itagenten.no)
 # Do not add CORSMiddleware here to avoid duplicate Access-Control-Allow-Origin headers
 
+# Electron renderer runs from file:// and needs explicit CORS headers when
+# calling the device API directly (no nginx in front).
+FILE_ORIGIN_CORS_HEADERS = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Accept, X-Requested-With, X-Idempotency-Key",
+    "Access-Control-Max-Age": "86400",
+}
+
+
+@app.middleware("http")
+async def allow_file_origin_cors(request: Request, call_next):
+    origin = request.headers.get("origin")
+    is_file_origin = origin == "null" or (origin and origin.startswith("file://"))
+
+    if is_file_origin and request.method == "OPTIONS":
+        return Response(status_code=200, headers=FILE_ORIGIN_CORS_HEADERS)
+
+    response = await call_next(request)
+
+    if is_file_origin:
+        for header, value in FILE_ORIGIN_CORS_HEADERS.items():
+            if header not in response.headers:
+                response.headers[header] = value
+
+    return response
+
 # Mount Vue frontend assets (js, css) at /assets
 vue_dist_path = Path(__file__).parent.parent / "packages" / "frontend" / "dist"
 vue_assets_path = vue_dist_path / "assets"

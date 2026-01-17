@@ -64,7 +64,8 @@ watch(camerasWithSignal, async (cameras) => {
         const iframeSrc = await buildCameraContributionUrl(
           camera.id,
           whepUrl,
-          camera.label
+          camera.label,
+          { useMediamtx: false }
         )
         if (!iframeSrc) {
           console.error(`[CameraPush] Failed to build contribution URL for ${camera.id}`)
@@ -150,7 +151,8 @@ async function retryConnection(cameraId: string) {
     const iframeSrc = await buildCameraContributionUrl(
       cameraId,
       whepUrl,
-      camera.label
+      camera.label,
+      { useMediamtx: false }
     )
     if (!iframeSrc) {
       console.error(`[CameraPush] Failed to build contribution URL for ${cameraId}`)

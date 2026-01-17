@@ -27,7 +27,7 @@ fi
 VDO_INSTALL_DIR="/opt/vdo.ninja"
 VDO_SIGNALING_DIR="/opt/vdo-signaling"
 VDO_CERTS_DIR="/opt/vdo.ninja/certs"
-VDO_VERSION="v28.4"  # Version with WHEP support
+VDO_VERSION="v28.0.0"  # Required version (WHEP support)
 VDO_PORT=8443
 VDO_WEBAPP_PORT=8444
 NODE_VERSION="20"
