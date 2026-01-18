@@ -6546,7 +6546,13 @@ async def list_appointments(
     """List appointments from JetAppointments"""
     wp_client = get_wordpress_client(config)
     if not wp_client or not wp_client.is_configured:
-        raise HTTPException(status_code=503, detail="WordPress not configured")
+        return {
+            "bookings": [],
+            "total": 0,
+            "page": page,
+            "per_page": per_page,
+            "warning": "WordPress not configured - set WORDPRESS_USERNAME and WORDPRESS_APP_PASSWORD"
+        }
     
     from datetime import date as date_type
     df = date_type.fromisoformat(date_from) if date_from else None
@@ -6580,7 +6586,11 @@ async def get_todays_appointments() -> Dict[str, Any]:
     """Get today's appointments"""
     wp_client = get_wordpress_client(config)
     if not wp_client or not wp_client.is_configured:
-        raise HTTPException(status_code=503, detail="WordPress not configured")
+        return {
+            "bookings": [],
+            "total": 0,
+            "warning": "WordPress not configured"
+        }
 
     bookings = await wp_client.get_todays_appointments()
     return {
@@ -6762,8 +6772,12 @@ async def complete_booking(appointment_id: int, request: Dict[str, Any] = Body({
 async def list_clients() -> Dict[str, Any]:
     """List all WordPress clients"""
     wp_client = get_wordpress_client(config)
-    if not wp_client:
-        raise HTTPException(status_code=503, detail="WordPress not configured")
+    if not wp_client or not wp_client.is_configured:
+        return {
+            "clients": [],
+            "total": 0,
+            "warning": "WordPress not configured - set WORDPRESS_USERNAME and WORDPRESS_APP_PASSWORD environment variables"
+        }
     
     clients = await wp_client.get_clients()
     
@@ -6778,7 +6792,11 @@ async def list_client_projects(client_id: int) -> Dict[str, Any]:
     """List projects for a client"""
     wp_client = get_wordpress_client(config)
     if not wp_client or not wp_client.is_configured:
-        raise HTTPException(status_code=503, detail="WordPress not configured")
+        return {
+            "projects": [],
+            "total": 0,
+            "warning": "WordPress not configured"
+        }
 
     projects = await wp_client.get_client_projects(client_id)
     return {"projects": [p.dict() for p in projects], "total": len(projects)}
@@ -6818,11 +6836,13 @@ async def get_calendar_today() -> Dict[str, Any]:
     today = date_type.today()
     wp_client = get_wordpress_client(config)
     
-    # Get today's bookings
+    # Get today's bookings (empty list if WordPress not configured)
+    bookings = []
+    warning = None
     if not wp_client or not wp_client.is_configured:
-        raise HTTPException(status_code=503, detail="WordPress not configured")
-
-    bookings = await wp_client.get_todays_appointments()
+        warning = "WordPress not configured - showing empty slots"
+    else:
+        bookings = await wp_client.get_todays_appointments()
     
     # Generate time slots (9 AM to 5 PM, 30-minute intervals)
     slots = []
@@ -6853,10 +6873,13 @@ async def get_calendar_today() -> Dict[str, Any]:
         
         current_time = next_time
     
-    return {
+    result = {
         "date": today.isoformat(),
         "slots": slots
     }
+    if warning:
+        result["warning"] = warning
+    return result
 
 
 @app.post("/api/v1/wordpress/calendar/book")

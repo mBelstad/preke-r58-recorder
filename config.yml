@@ -201,6 +201,15 @@ vdo_ninja:
   room: "r58studio"  # Default room name
   password: "preke-r58-2024"  # Room password
 
+# WordPress/JetAppointments integration configuration
+# Enables booking management, client/project handling, and calendar functionality
+# For preke.no integration
+wordpress:
+  enabled: true
+  url: "https://preke.no"
+  username: ""  # Set via environment variable WORDPRESS_USERNAME
+  app_password: ""  # Set via environment variable WORDPRESS_APP_PASSWORD
+
 # DaVinci Resolve automation configuration
 # Enables automatic project creation and media import when recording sessions start
 davinci_automation:

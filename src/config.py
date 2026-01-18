@@ -1,4 +1,5 @@
 """Configuration management for the R58 recorder."""
+import os
 from pathlib import Path
 from typing import Optional, List, Dict
 import yaml
@@ -268,13 +269,13 @@ class AppConfig:
             sync_method=davinci_data.get("sync_method", "timecode"),
         )
         
-        # Load WordPress config
+        # Load WordPress config (supports environment variables as fallback)
         wordpress_data = data.get("wordpress", {})
         wordpress = WordPressConfig(
             enabled=wordpress_data.get("enabled", False),
-            url=wordpress_data.get("url", ""),
-            username=wordpress_data.get("username", ""),
-            app_password=wordpress_data.get("app_password", ""),
+            url=wordpress_data.get("url", "") or os.environ.get("WORDPRESS_URL", ""),
+            username=wordpress_data.get("username", "") or os.environ.get("WORDPRESS_USERNAME", ""),
+            app_password=wordpress_data.get("app_password", "") or os.environ.get("WORDPRESS_APP_PASSWORD", ""),
         )
 
         return cls(
