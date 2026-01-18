@@ -61,11 +61,13 @@ watch(camerasWithSignal, async (cameras) => {
           continue
         }
         console.log(`[CameraPush] WHEP URL for ${camera.id}:`, whepUrl)
+        // IMPORTANT: Enable MediaMTX mode to use SFU instead of P2P
+        // P2P exposes ICE candidates with Tailscale/LAN IPs causing Mixed Content errors
         const iframeSrc = await buildCameraContributionUrl(
           camera.id,
           whepUrl,
           camera.label,
-          { useMediamtx: false }
+          { useMediamtx: true }
         )
         if (!iframeSrc) {
           console.error(`[CameraPush] Failed to build contribution URL for ${camera.id}`)
@@ -148,11 +150,12 @@ async function retryConnection(cameraId: string) {
       console.error(`[CameraPush] No WHEP URL for ${cameraId}`)
       return
     }
+    // Enable MediaMTX mode to use SFU instead of P2P (avoids Mixed Content errors)
     const iframeSrc = await buildCameraContributionUrl(
       cameraId,
       whepUrl,
       camera.label,
-      { useMediamtx: false }
+      { useMediamtx: true }
     )
     if (!iframeSrc) {
       console.error(`[CameraPush] Failed to build contribution URL for ${cameraId}`)

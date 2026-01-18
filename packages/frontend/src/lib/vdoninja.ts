@@ -84,10 +84,10 @@ export const VDO_DIRECTOR_PASSWORD = 'preke-r58-2024'
 /**
  * VDO.ninja URL parameter profiles for each embed scenario
  * 
- * NOTE: We do NOT use &mediamtx= parameter here because:
- * 1. It causes VDO.ninja to connect directly to MediaMTX:8889 which fails through nginx proxy
- * 2. CameraPushBar handles camera bridging via &whepplay= which works correctly
- * 3. The cameras appear as P2P room guests, which is more reliable through tunnels
+ * NOTE: We now USE &mediamtx= parameter to force SFU mode:
+ * 1. P2P WebRTC exposes ICE candidates with Tailscale/LAN IPs
+ * 2. VDO.ninja on HTTPS cannot connect to HTTP endpoints (Mixed Content)
+ * 3. Using MediaMTX SFU avoids P2P and routes all traffic through HTTPS proxy
  */
 export const embedProfiles = {
   // DIRECTOR VIEW - Full control panel for operator
@@ -608,10 +608,9 @@ export async function buildProgramOutputUrlAlpha(
   url.searchParams.set('maxvideobitrate', '500')   // 500 kbps per source (very conservative)
   url.searchParams.set('totalroombitrate', '1500')  // 1.5 Mbps total room bandwidth
 
-  // CRITICAL: Always use HTTPS proxy for VDO.ninja to avoid Mixed Content errors
-  // VDO.ninja runs on HTTPS, so it cannot make HTTP requests to Tailscale/LAN
-  // Force app.itagenten.no which proxies through nginx to MediaMTX
-  const resolvedMediaMtxHost = 'https://app.itagenten.no'
+  // CRITICAL: Use HTTPS proxy hostname (no protocol) to avoid Mixed Content errors
+  // VDO.ninja adds https:// automatically - passing full URL causes double-protocol bug
+  const resolvedMediaMtxHost = 'app.itagenten.no'
   if (resolvedMediaMtxHost) {
     let mediamtxParam = resolvedMediaMtxHost
     if (!resolvedMediaMtxHost.includes('://')) {
@@ -737,15 +736,14 @@ export async function buildMixerUrl(options: {
 /**
  * Get the MediaMTX host for VDO.ninja's &mediamtx= parameter
  * 
- * IMPORTANT: VDO.ninja runs on HTTPS and cannot make HTTP requests (Mixed Content).
- * Always return the HTTPS proxy URL (app.itagenten.no) to avoid connection failures.
- * Direct Tailscale/LAN connections will cause Mixed Content errors and network flooding.
+ * IMPORTANT: VDO.ninja expects just the hostname (no protocol).
+ * It will automatically add https:// when constructing WHEP/WHIP URLs.
+ * Always return the HTTPS proxy hostname to avoid Mixed Content errors.
  */
 export async function getMediaMtxHost(): Promise<string | null> {
-  // ALWAYS use HTTPS proxy to avoid Mixed Content errors
-  // VDO.ninja cannot make HTTP requests from an HTTPS page
-  // The nginx proxy on app.itagenten.no handles routing to MediaMTX
-  return 'https://app.itagenten.no'
+  // Return just the hostname - VDO.ninja adds the protocol automatically
+  // Using the HTTPS proxy avoids Mixed Content errors from Tailscale/LAN IPs
+  return 'app.itagenten.no'
 }
 
 /**
