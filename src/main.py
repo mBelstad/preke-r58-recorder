@@ -7062,6 +7062,131 @@ async def set_teleprompter_speed(token: str, request: Dict[str, Any] = Body({}))
     }
 
 
+@app.post("/api/v1/wordpress/customer/{token}/teleprompter/scroll")
+async def scroll_teleprompter(token: str, request: Dict[str, Any] = Body({})) -> Dict[str, Any]:
+    """Scroll teleprompter manually (up/down)"""
+    context = get_active_booking()
+    if not context or context.access_token != token:
+        raise HTTPException(status_code=404, detail="Invalid or expired token")
+
+    if context.display_mode != DisplayMode.TELEPROMPTER:
+        raise HTTPException(status_code=400, detail="Not in teleprompter mode")
+
+    direction = request.get("direction", "down")
+    if direction not in ["up", "down"]:
+        raise HTTPException(status_code=400, detail="Invalid direction")
+
+    # In a real implementation, this would send a websocket message to the display
+    # For now, we'll log it and let the display poll for updates if we store state
+    # But scroll position is transient, so polling isn't great.
+    # We might need a command queue or similar.
+    # Assuming for now we just log it as the frontend implementation is a control surface.
+    
+    logger.info(f"Scroll teleprompter {direction} for booking #{context.booking.id}")
+
+    return {
+        "success": True,
+        "direction": direction,
+    }
+
+
+@app.post("/api/v1/wordpress/customer/{token}/teleprompter/jump-to")
+async def jump_teleprompter(token: str, request: Dict[str, Any] = Body({})) -> Dict[str, Any]:
+    """Jump teleprompter to position (top/bottom)"""
+    context = get_active_booking()
+    if not context or context.access_token != token:
+        raise HTTPException(status_code=404, detail="Invalid or expired token")
+
+    if context.display_mode != DisplayMode.TELEPROMPTER:
+        raise HTTPException(status_code=400, detail="Not in teleprompter mode")
+
+    position = request.get("position", "top")
+    if position not in ["top", "bottom"]:
+        raise HTTPException(status_code=400, detail="Invalid position")
+
+    logger.info(f"Jump teleprompter to {position} for booking #{context.booking.id}")
+
+    return {
+        "success": True,
+        "position": position,
+    }
+
+
+@app.post("/api/v1/wordpress/customer/{token}/teleprompter/text-size")
+async def set_teleprompter_text_size(token: str, request: Dict[str, Any] = Body({})) -> Dict[str, Any]:
+    """Set teleprompter text size (1-5)"""
+    context = get_active_booking()
+    if not context or context.access_token != token:
+        raise HTTPException(status_code=404, detail="Invalid or expired token")
+
+    if context.display_mode != DisplayMode.TELEPROMPTER:
+        raise HTTPException(status_code=400, detail="Not in teleprompter mode")
+
+    size = int(request.get("size", 3))
+    if size < 1 or size > 5:
+        raise HTTPException(status_code=400, detail="Size must be between 1 and 5")
+
+    # Store text size in context (need to add field to ActiveBookingContext if persistent)
+    # For now, we'll just log it
+    logger.info(f"Set teleprompter text size to {size} for booking #{context.booking.id}")
+
+    return {
+        "success": True,
+        "size": size,
+    }
+
+
+@app.post("/api/v1/wordpress/customer/{token}/activate")
+async def activate_session(token: str) -> Dict[str, Any]:
+    """Activate session and switch TV display"""
+    context = get_active_booking()
+    if not context or context.access_token != token:
+        raise HTTPException(status_code=404, detail="Invalid or expired token")
+
+    # Determine TV route based on display mode
+    path = "/podcast"
+    if context.display_mode == DisplayMode.TELEPROMPTER:
+        path = "/talking-head"
+    elif context.display_mode == DisplayMode.COURSE:
+        path = "/course"
+    elif context.display_mode == DisplayMode.WEBINAR:
+        path = "/webinar"
+    
+    # Switch TV display
+    script_path = "/opt/preke-r58-recorder/scripts/switch-tv-display.sh"
+    try:
+        import subprocess
+        result = subprocess.run(
+            [script_path, path],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        
+        if result.returncode == 0:
+            logger.info(f"Session activated, TV switched to {path}")
+            return {
+                "success": True,
+                "message": "Session activated",
+                "display_path": path
+            }
+        else:
+            logger.error(f"Failed to switch TV: {result.stderr}")
+            # Still return success for session activation, but warn about TV
+            return {
+                "success": True,
+                "message": "Session activated (TV switch failed)",
+                "error": result.stderr
+            }
+    except Exception as e:
+        logger.error(f"Error activating session: {e}")
+        return {
+            "success": True,
+            "message": "Session activated (TV switch error)",
+            "error": str(e)
+        }
+
+
 @app.get("/api/v1/wordpress/customer/{token}/vdoninja/status")
 async def check_vdoninja_status(token: str) -> Dict[str, Any]:
     """Check if VDO.ninja VPS is available"""

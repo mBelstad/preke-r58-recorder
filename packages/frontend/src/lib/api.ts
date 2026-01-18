@@ -1586,6 +1586,36 @@ export const r58Api = {
       }>(await buildApiUrl(`/api/v1/wordpress/customer/${token}/vdoninja/status`))
     },
 
+    async scrollTeleprompter(token: string, direction: 'up' | 'down') {
+      return apiPost<{
+        success: boolean
+        direction: string
+      }>(await buildApiUrl(`/api/v1/wordpress/customer/${token}/teleprompter/scroll`), { direction })
+    },
+
+    async jumpTeleprompter(token: string, position: 'top' | 'bottom') {
+      return apiPost<{
+        success: boolean
+        position: string
+      }>(await buildApiUrl(`/api/v1/wordpress/customer/${token}/teleprompter/jump-to`), { position })
+    },
+
+    async setTeleprompterTextSize(token: string, size: number) {
+      return apiPost<{
+        success: boolean
+        size: number
+      }>(await buildApiUrl(`/api/v1/wordpress/customer/${token}/teleprompter/text-size`), { size })
+    },
+
+    async activateSession(token: string) {
+      return apiPost<{
+        success: boolean
+        message: string
+        display_path?: string
+        error?: string
+      }>(await buildApiUrl(`/api/v1/wordpress/customer/${token}/activate`))
+    },
+
     // Client/Project API
     async listClients() {
       return apiGet<{
