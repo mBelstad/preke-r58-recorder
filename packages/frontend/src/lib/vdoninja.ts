@@ -603,12 +603,15 @@ export async function buildProgramOutputUrlAlpha(
   url.searchParams.set('quality', '1')
   url.searchParams.set('screenshareaspectratio', '1.7777777777777777')
   url.searchParams.set('locked', '1.7777777777777777')
-  // Bandwidth optimization for SFU - reduced bitrate for network stability
-  // Lower values prevent network congestion on slower connections
-  url.searchParams.set('maxvideobitrate', '1000')  // 1 Mbps per source (reduced for stability)
-  url.searchParams.set('totalroombitrate', '2500')  // 2.5 Mbps total room bandwidth
+  // Bandwidth optimization for SFU - VERY LOW bitrate to prevent network overload
+  // These values are conservative to prevent network crashes on limited connections
+  url.searchParams.set('maxvideobitrate', '500')   // 500 kbps per source (very conservative)
+  url.searchParams.set('totalroombitrate', '1500')  // 1.5 Mbps total room bandwidth
 
-  const resolvedMediaMtxHost = mediamtxHost || await getMediaMtxHost() || 'app.itagenten.no'
+  // CRITICAL: Always use HTTPS proxy for VDO.ninja to avoid Mixed Content errors
+  // VDO.ninja runs on HTTPS, so it cannot make HTTP requests to Tailscale/LAN
+  // Force app.itagenten.no which proxies through nginx to MediaMTX
+  const resolvedMediaMtxHost = 'https://app.itagenten.no'
   if (resolvedMediaMtxHost) {
     let mediamtxParam = resolvedMediaMtxHost
     if (!resolvedMediaMtxHost.includes('://')) {
@@ -713,12 +716,12 @@ export async function buildMixerUrl(options: {
     url.searchParams.set('mediamtx', options.mediamtxHost)
   }
   
-  // Bandwidth limiting - prevent jamming the connection when opening mixer
+  // Bandwidth limiting - VERY LOW to prevent network overload
   // totalroombitrate: max total incoming bitrate from all sources (kbps)
   // maxvideobitrate: max per-source video bitrate (kbps)
-  // Reduced values for network stability on slower connections
-  url.searchParams.set('totalroombitrate', '2500')  // 2.5 Mbps total for all cameras
-  url.searchParams.set('maxvideobitrate', '1000')   // 1 Mbps max per camera
+  // Conservative values to prevent network crashes on limited connections
+  url.searchParams.set('totalroombitrate', '1500')  // 1.5 Mbps total for all cameras
+  url.searchParams.set('maxvideobitrate', '500')    // 500 kbps max per camera
   
   // Custom CSS for R58 reskin (b64css for base64 inline CSS)
   const mixerCssBase64 = getVdoCssUrl()
@@ -734,34 +737,15 @@ export async function buildMixerUrl(options: {
 /**
  * Get the MediaMTX host for VDO.ninja's &mediamtx= parameter
  * 
- * This host is used by VDO.ninja for MediaMTX SFU mode, which requires HTTPS.
- * Gets from device configuration or constructs from FRP URL.
+ * IMPORTANT: VDO.ninja runs on HTTPS and cannot make HTTP requests (Mixed Content).
+ * Always return the HTTPS proxy URL (app.itagenten.no) to avoid connection failures.
+ * Direct Tailscale/LAN connections will cause Mixed Content errors and network flooding.
  */
 export async function getMediaMtxHost(): Promise<string | null> {
-  // Try to get from device config
-  try {
-    const { getFrpUrl } = await import('./api')
-    const frpUrl = await getFrpUrl()
-    if (frpUrl) {
-      try {
-        const url = new URL(frpUrl)
-        // Use same-domain architecture: app.itagenten.no for all services
-        // The WHEP/WHIP endpoints are proxied through app.itagenten.no
-        // VDO.ninja's &mediamtx= parameter expects just the hostname (no protocol)
-        if (url.hostname.includes('itagenten.no')) {
-          return 'app.itagenten.no'
-        }
-        // Fallback for other domains (legacy)
-        const mediamtxHost = url.hostname.replace('api', 'mediamtx')
-        return mediamtxHost
-      } catch (e) {
-        console.warn('[VDO.ninja] Failed to construct MediaMTX host from FRP URL')
-      }
-    }
-  } catch (e) {
-    // Not available
-  }
-  return null
+  // ALWAYS use HTTPS proxy to avoid Mixed Content errors
+  // VDO.ninja cannot make HTTP requests from an HTTPS page
+  // The nginx proxy on app.itagenten.no handles routing to MediaMTX
+  return 'https://app.itagenten.no'
 }
 
 /**
