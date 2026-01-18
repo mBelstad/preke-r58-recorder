@@ -599,7 +599,9 @@ export async function buildProgramOutputUrlAlpha(
   url.searchParams.set('selfbrowsersurface', 'include')
   url.searchParams.set('displaysurface', 'browser')
   url.searchParams.set('np', '')
-  url.searchParams.set('publish', '')
+  // IMPORTANT: &publish=mixer_program tells VDO.ninja to publish via WHIP to MediaMTX
+  // The stream will appear at mediamtx/mixer_program/whip endpoint
+  url.searchParams.set('publish', 'mixer_program')
   url.searchParams.set('quality', '1')
   url.searchParams.set('screenshareaspectratio', '1.7777777777777777')
   url.searchParams.set('locked', '1.7777777777777777')
@@ -608,26 +610,10 @@ export async function buildProgramOutputUrlAlpha(
   url.searchParams.set('maxvideobitrate', '500')   // 500 kbps per source (very conservative)
   url.searchParams.set('totalroombitrate', '1500')  // 1.5 Mbps total room bandwidth
 
-  // CRITICAL: Use HTTPS proxy hostname (no protocol) to avoid Mixed Content errors
-  // VDO.ninja adds https:// automatically - passing full URL causes double-protocol bug
-  const resolvedMediaMtxHost = 'app.itagenten.no'
-  if (resolvedMediaMtxHost) {
-    let mediamtxParam = resolvedMediaMtxHost
-    if (!resolvedMediaMtxHost.includes('://')) {
-      const isLocal =
-        resolvedMediaMtxHost === 'localhost' ||
-        resolvedMediaMtxHost === '127.0.0.1' ||
-        resolvedMediaMtxHost.startsWith('192.168.') ||
-        resolvedMediaMtxHost.startsWith('10.') ||
-        resolvedMediaMtxHost.startsWith('172.')
-      const protocol = isLocal ? 'http' : 'https'
-      const hasPort = resolvedMediaMtxHost.includes(':')
-      mediamtxParam = hasPort
-        ? `${protocol}://${resolvedMediaMtxHost}`
-        : `${protocol}://${resolvedMediaMtxHost}:8889`
-    }
-    url.searchParams.set('mediamtx', mediamtxParam)
-  }
+  // MediaMTX host for WHIP publishing
+  // VDO.ninja expects just hostname - it adds https:// and /streamId/whip automatically
+  // Using HTTPS proxy to avoid Mixed Content errors (no :8889 - use nginx proxy on 443)
+  url.searchParams.set('mediamtx', 'app.itagenten.no')
 
   // Custom CSS (b64css for base64 inline CSS)
   const programCssBase64 = getVdoCssUrl()
