@@ -178,6 +178,12 @@ const router = createRouter({
       meta: { title: 'Course Display', layout: 'fullscreen' }
     },
     {
+      path: '/course-teleprompter',
+      name: 'course-teleprompter-display',
+      component: () => import('@/views/StudioDisplayView.vue'),
+      meta: { title: 'Course Teleprompter Display', layout: 'fullscreen' }
+    },
+    {
       path: '/webinar',
       name: 'webinar-display',
       component: () => import('@/views/StudioDisplayView.vue'),

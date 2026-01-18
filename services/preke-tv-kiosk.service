@@ -1,0 +1,20 @@
+[Unit]
+Description=Preke Studio TV Kiosk - QR Code Display
+After=graphical.target preke-recorder.service
+Wants=preke-recorder.service
+# Ensure this starts AFTER VDO.ninja bridge so it appears on top
+After=vdoninja-bridge.service
+
+[Service]
+Type=simple
+User=linaro
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=/home/linaro/.Xauthority
+# Wait for X and API to be ready
+ExecStartPre=/bin/sleep 3
+ExecStart=/opt/preke-r58-recorder/scripts/preke-tv-kiosk.sh
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=graphical-session.target

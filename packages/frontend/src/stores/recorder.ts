@@ -208,6 +208,18 @@ export const useRecorderStore = defineStore('recorder', () => {
      * This includes signal detection, resolution, and real FPS data.
      */
     try {
+      // Check if device URL is available
+      const { getDeviceUrl } = await import('@/lib/api')
+      const deviceUrl = getDeviceUrl()
+      
+      if (!deviceUrl) {
+        // No device configured - set empty inputs for preview mode
+        inputs.value = []
+        inputsLoaded.value = true
+        console.log('[Recorder] No device configured, inputs cleared')
+        return
+      }
+      
       // Fetch both ingest status and FPS data in parallel
       const [ingestResponse, fpsResponse] = await Promise.all([
         r58Api.getInputsStatus(),
@@ -249,7 +261,12 @@ export const useRecorderStore = defineStore('recorder', () => {
       console.log(`[Recorder] Loaded ${inputs.value.length} inputs, ${inputs.value.filter(i => i.hasSignal).length} with signal`)
     } catch (error) {
       console.error('Failed to fetch inputs status:', error)
-      // Keep existing inputs on error
+      // On network/API errors, clear inputs if no device configured
+      const { getDeviceUrl } = await import('@/lib/api')
+      if (!getDeviceUrl()) {
+        inputs.value = []
+      }
+      // Otherwise keep existing inputs on error
     }
   }
 

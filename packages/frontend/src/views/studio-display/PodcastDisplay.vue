@@ -123,7 +123,7 @@ const activeCameras = computed(() => {
             class="podcast-display__camera"
           >
             <div class="podcast-display__camera-label">{{ camera.label }}</div>
-            <InputPreview :input-id="camera.id" />
+            <InputPreview :input-id="camera.id" :is-preview="isPreview" />
           </div>
           <div
             v-for="i in (4 - activeCameras.length)"
@@ -214,10 +214,11 @@ const activeCameras = computed(() => {
 .podcast-display__layout {
   display: grid;
   grid-template-columns: minmax(0, 1.5fr) minmax(0, 0.8fr);
-  gap: 2rem;
+  gap: 1.75rem;
   width: 100%;
   height: 100%;
   min-height: 0;
+  align-items: start;
 }
 
 .podcast-display__left {
@@ -226,6 +227,8 @@ const activeCameras = computed(() => {
   align-items: center;
   justify-content: center;
   min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
 }
 
 .podcast-display__grid {
@@ -291,8 +294,10 @@ const activeCameras = computed(() => {
 .podcast-display__right {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.25rem;
   min-height: 0;
+  max-height: 100%;
+  overflow-y: auto;
 }
 
 .podcast-display__card {

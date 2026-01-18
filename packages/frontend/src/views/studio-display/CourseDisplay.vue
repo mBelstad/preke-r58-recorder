@@ -81,8 +81,14 @@ const currentGraphic = computed(() => {
 
 const currentTip = computed(() => courseTips[currentTipIndex.value])
 
-const previewCamera = computed(() => {
+// Get cameras for display (presenter + second camera)
+const presenterCamera = computed(() => {
   return recorderStore.inputs.find(i => i.hasSignal) || null
+})
+
+const secondCamera = computed(() => {
+  const cameras = recorderStore.inputs.filter(i => i.hasSignal)
+  return cameras.length > 1 ? cameras[1] : null
 })
 </script>
 
@@ -119,11 +125,19 @@ const previewCamera = computed(() => {
       <aside class="course-display__side">
         <div class="course-display__card glass-panel">
           <div class="course-display__label">Presenter</div>
-          <div v-if="previewCamera" class="course-display__camera">
-            <div class="course-display__camera-label">{{ previewCamera.label }}</div>
-            <InputPreview :input-id="previewCamera.id" />
+          <div v-if="presenterCamera" class="course-display__camera">
+            <div class="course-display__camera-label">{{ presenterCamera.label }}</div>
+            <InputPreview :input-id="presenterCamera.id" :is-preview="isPreview" />
           </div>
           <div v-else class="course-display__camera-empty">Waiting for camera signal</div>
+        </div>
+
+        <div v-if="secondCamera" class="course-display__card glass-panel">
+          <div class="course-display__label">Second Camera</div>
+          <div class="course-display__camera">
+            <div class="course-display__camera-label">{{ secondCamera.label }}</div>
+            <InputPreview :input-id="secondCamera.id" :is-preview="isPreview" />
+          </div>
         </div>
 
         <div class="course-display__card glass-panel">
@@ -191,10 +205,11 @@ const previewCamera = computed(() => {
 .course-display__layout {
   display: grid;
   grid-template-columns: minmax(0, 1.6fr) minmax(0, 0.7fr);
-  gap: 2rem;
+  gap: 1.75rem;
   width: 100%;
   height: 100%;
   min-height: 0;
+  align-items: start;
 }
 
 .course-display__slides {
@@ -202,6 +217,8 @@ const previewCamera = computed(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  max-height: 100%;
+  overflow: hidden;
 }
 
 .course-display__slide {
@@ -258,7 +275,9 @@ const previewCamera = computed(() => {
 .course-display__side {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.25rem;
+  max-height: 100%;
+  overflow-y: auto;
 }
 
 .course-display__card {

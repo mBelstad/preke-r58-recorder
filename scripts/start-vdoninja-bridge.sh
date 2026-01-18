@@ -92,10 +92,11 @@ build_api_base() {
 }
 
 start_chromium() {
-    log "Starting Chromium..."
+    log "Starting Chromium for VDO.ninja bridge (background mode)..."
     
-    # Kill any existing Chromium instances
-    pkill -f chromium 2>/dev/null || true
+    # Kill any existing VDO.ninja bridge Chromium instances (NOT kiosk instances)
+    # The kiosk uses --kiosk flag, bridge uses --window-position
+    pkill -f 'chromium.*--window-position=-10000' 2>/dev/null || true
     sleep 2
     
     # Build camera URLs
@@ -129,7 +130,13 @@ start_chromium() {
     local director_url="https://$VDONINJA_HOST/?director=$ROOM_NAME&password=preke-r58-2024"
     
     # Start Chromium with all URLs
-    # Key flags:
+    # IMPORTANT: Run in background/minimized mode so it doesn't appear in front of TV kiosk
+    # Key flags for background operation:
+    # --window-position=-10000,-10000: Position window off-screen (far left/top)
+    # --window-size=800,600: Small window size (will be off-screen anyway)
+    # The TV kiosk runs with --kiosk which is always-on-top fullscreen
+    #
+    # Other key flags:
     # --use-fake-ui-for-media-stream: Auto-allow camera/mic without prompts
     # --autoplay-policy=no-user-gesture-required: Allow autoplay
     # --disable-features=TranslateUI: No translation popups
@@ -139,7 +146,7 @@ start_chromium() {
     # --enable-features=VaapiVideoDecoder,VaapiVideoEncoder: Hardware video decode/encode
     # --enable-accelerated-video-decode: Enable hardware video decoding
     # --enable-gpu-rasterization: Use GPU for rasterization
-    log "Opening browser tabs..."
+    log "Opening browser tabs (background mode - off-screen)..."
     nohup chromium \
         --use-gl=angle \
         --use-angle=gles-egl \
@@ -167,13 +174,14 @@ start_chromium() {
         --use-fake-ui-for-media-stream \
         --disable-notifications \
         --disable-popup-blocking \
-        --start-maximized \
+        --window-position=-10000,-10000 \
+        --window-size=800,600 \
         $urls \
         >/dev/null 2>&1 &
     # Note: director tab removed - Electron app is the director
     
     CHROMIUM_PID=$!
-    log "Chromium started (PID: $CHROMIUM_PID), waiting for it to be ready..."
+    log "Chromium started (PID: $CHROMIUM_PID) in background mode, waiting for it to be ready..."
     sleep 3  # Reduced from 5s (conservative reduction)
     
     # Wait for debugger to be available

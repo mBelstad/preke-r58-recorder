@@ -117,8 +117,9 @@ const scriptText = computed(() => {
 })
 
 // Get first active camera for preview - always show if available
-const previewCamera = computed(() => {
-  return recorderStore.inputs.find(i => i.hasSignal) || null
+// Get active cameras for display
+const activeCameras = computed(() => {
+  return recorderStore.inputs.filter(i => i.hasSignal).slice(0, 2) // Show up to 2 cameras
 })
 
 function handleKeyDown(e: KeyboardEvent) {
@@ -137,11 +138,7 @@ function handleKeyDown(e: KeyboardEvent) {
       e.preventDefault()
       scrollPosition.value += 50
       break
-    case 'h':
-    case 'H':
-      e.preventDefault()
-      showCamera.value = !showCamera.value
-      break
+    // H key removed - cameras always visible now
   }
 }
 
@@ -157,80 +154,97 @@ function startScroll() {
 </script>
 
 <template>
-  <StudioDisplayShell
-    title="Talking Head"
-    subtitle="Teleprompter mode"
-    accent="purple"
-    :show-footer="isRecording"
-    main-class="teleprompter-display__main"
-  >
-    <template #header-right>
-      <div class="teleprompter-display__timing">
-        <span class="teleprompter-display__timer">{{ recordingDuration }}</span>
-        <span v-if="timeRemaining" class="teleprompter-display__remaining">{{ timeRemaining }}</span>
+  <div class="teleprompter-display__mirror-wrapper">
+    <StudioDisplayShell
+      title="Talking Head"
+      subtitle="Teleprompter mode"
+      accent="purple"
+      :show-footer="isRecording"
+      main-class="teleprompter-display__main"
+    >
+      <template #header-right>
+        <div class="teleprompter-display__timing">
+          <span class="teleprompter-display__timer">{{ recordingDuration }}</span>
+          <span v-if="timeRemaining" class="teleprompter-display__remaining">{{ timeRemaining }}</span>
+        </div>
+      </template>
+
+      <div class="teleprompter-display__layout">
+        <section class="teleprompter-display__script glass-card">
+          <div
+            class="teleprompter-display__text"
+            :style="{ transform: `translateY(-${scrollPosition}px)` }"
+          >
+            <div class="teleprompter-display__text-content">
+              {{ scriptText }}
+            </div>
+          </div>
+        </section>
+
+        <aside class="teleprompter-display__side">
+          <div v-if="activeCameras.length > 0" class="teleprompter-display__cameras">
+            <div
+              v-for="camera in activeCameras"
+              :key="camera.id"
+              class="teleprompter-display__camera-card glass-panel"
+            >
+              <div class="teleprompter-display__camera-label">{{ camera.label }}</div>
+              <div class="teleprompter-display__camera-frame">
+                <InputPreview :input-id="camera.id" :is-preview="isPreview" />
+              </div>
+            </div>
+          </div>
+          
+          <div class="teleprompter-display__card glass-panel">
+            <div class="teleprompter-display__label">Tip</div>
+            <div class="teleprompter-display__tip-title">{{ currentTip.title }}</div>
+            <div class="teleprompter-display__tip-text">{{ currentTip.description }}</div>
+          </div>
+
+          <div class="teleprompter-display__card glass-panel">
+            <div class="teleprompter-display__label">Status</div>
+            <div class="teleprompter-display__status" :class="{ 'teleprompter-display__status--live': isRecording }">
+              <span class="teleprompter-display__status-dot"></span>
+              {{ isRecording ? 'Recording' : 'Ready for recording' }}
+            </div>
+            <div class="teleprompter-display__meta">
+              Scroll speed: {{ status.teleprompter_scroll_speed || 50 }}%
+            </div>
+          </div>
+        </aside>
       </div>
-    </template>
 
-    <div class="teleprompter-display__layout">
-      <section class="teleprompter-display__script glass-card">
-        <div
-          class="teleprompter-display__text"
-          :style="{ transform: `translateY(-${scrollPosition}px) scaleX(-1)` }"
-        >
-          <div class="teleprompter-display__text-content">
-            {{ scriptText }}
-          </div>
+      <template #footer>
+        <div class="teleprompter-display__footer-left">
+          <span class="teleprompter-display__rec-badge">
+            <span class="teleprompter-display__rec-dot"></span>
+            REC
+          </span>
+          <span class="teleprompter-display__footer-text">
+            Space = {{ isPaused ? 'Resume' : 'Pause' }} • ↑↓ = Scroll
+          </span>
         </div>
-      </section>
-
-      <aside class="teleprompter-display__side">
-        <div class="teleprompter-display__card glass-panel">
-          <div class="teleprompter-display__label">Tip</div>
-          <div class="teleprompter-display__tip-title">{{ currentTip.title }}</div>
-          <div class="teleprompter-display__tip-text">{{ currentTip.description }}</div>
+        <div v-if="isPaused" class="teleprompter-display__footer-right">
+          ⏸ Paused
         </div>
-
-        <div class="teleprompter-display__card glass-panel">
-          <div class="teleprompter-display__label">Status</div>
-          <div class="teleprompter-display__status" :class="{ 'teleprompter-display__status--live': isRecording }">
-            <span class="teleprompter-display__status-dot"></span>
-            {{ isRecording ? 'Recording' : 'Ready for recording' }}
-          </div>
-          <div class="teleprompter-display__meta">
-            Scroll speed: {{ status.teleprompter_scroll_speed || 50 }}%
-          </div>
-        </div>
-
-        <div v-if="showCamera" class="teleprompter-display__card glass-panel teleprompter-display__camera">
-          <div class="teleprompter-display__label">Camera Preview</div>
-          <div v-if="previewCamera" class="teleprompter-display__camera-frame">
-            <div class="teleprompter-display__camera-label">{{ previewCamera.label }}</div>
-            <InputPreview :input-id="previewCamera.id" />
-          </div>
-          <div v-else class="teleprompter-display__camera-empty">No camera signal</div>
-        </div>
-      </aside>
-    </div>
-
-    <template #footer>
-      <div class="teleprompter-display__footer-left">
-        <span class="teleprompter-display__rec-badge">
-          <span class="teleprompter-display__rec-dot"></span>
-          REC
-        </span>
-        <span class="teleprompter-display__footer-text">
-          Space = {{ isPaused ? 'Resume' : 'Pause' }} • ↑↓ = Scroll • H = {{ showCamera ? 'Hide' : 'Show' }} Camera
-        </span>
-      </div>
-      <div v-if="isPaused" class="teleprompter-display__footer-right">
-        ⏸ Paused
-      </div>
-    </template>
-  </StudioDisplayShell>
+      </template>
+    </StudioDisplayShell>
+  </div>
 </template>
 
 <style scoped>
 @import '@/styles/design-system-v2.css';
+
+/* Full page mirroring for teleprompter */
+.teleprompter-display__mirror-wrapper {
+  width: 100vw;
+  height: 100vh;
+  transform: scaleX(-1);
+}
+
+.teleprompter-display__mirror-wrapper > * {
+  transform: scaleX(-1);
+}
 
 .teleprompter-display__main {
   align-items: stretch;
@@ -258,8 +272,9 @@ function startScroll() {
   height: 100%;
   display: grid;
   grid-template-columns: minmax(0, 1.6fr) minmax(0, 0.7fr);
-  gap: 2rem;
+  gap: 1.75rem;
   min-height: 0;
+  align-items: start;
 }
 
 .teleprompter-display__script {
@@ -279,6 +294,7 @@ function startScroll() {
   transition: transform 0.05s linear;
   will-change: transform;
   color: #fff;
+  /* Text is already mirrored by parent, so we don't need scaleX(-1) here */
 }
 
 .teleprompter-display__text-content {
@@ -291,7 +307,9 @@ function startScroll() {
 .teleprompter-display__side {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.25rem;
+  max-height: 100%;
+  overflow-y: auto;
 }
 
 .teleprompter-display__card {
@@ -343,8 +361,16 @@ function startScroll() {
   font-size: 0.95rem;
 }
 
-.teleprompter-display__camera {
+.teleprompter-display__cameras {
+  display: flex;
+  flex-direction: column;
   gap: 1rem;
+}
+
+.teleprompter-display__camera-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
 .teleprompter-display__camera-frame {
@@ -353,23 +379,13 @@ function startScroll() {
   overflow: hidden;
   aspect-ratio: 16/9;
   background: rgba(0, 0, 0, 0.6);
+  min-height: 0;
 }
 
 .teleprompter-display__camera-label {
-  position: absolute;
-  top: 0.5rem;
-  left: 0.5rem;
-  background: rgba(0, 0, 0, 0.8);
-  color: #fff;
-  padding: 0.25rem 0.5rem;
-  border-radius: var(--preke-radius-sm);
-  font-size: 0.7rem;
-  z-index: 2;
-}
-
-.teleprompter-display__camera-empty {
-  text-align: center;
-  color: var(--preke-text-muted);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--preke-text-dim);
 }
 
 .teleprompter-display__footer-left {

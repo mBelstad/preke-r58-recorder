@@ -6,6 +6,7 @@ import PodcastDisplay from './studio-display/PodcastDisplay.vue'
 import TeleprompterDisplay from './studio-display/TeleprompterDisplay.vue'
 import WebinarDisplay from './studio-display/WebinarDisplay.vue'
 import CourseDisplay from './studio-display/CourseDisplay.vue'
+import CourseTeleprompterDisplay from './studio-display/CourseTeleprompterDisplay.vue'
 
 const route = useRoute()
 const token = computed(() => route.params.token as string | undefined)
@@ -20,6 +21,7 @@ const routeMode = computed(() => {
     if (routeName === 'podcast-display') return 'podcast'
     if (routeName === 'talking-head-display') return 'teleprompter'
     if (routeName === 'course-display') return 'course'
+    if (routeName === 'course-teleprompter-display') return 'course-teleprompter'
     if (routeName === 'webinar-display') return 'webinar'
   }
   return null
@@ -140,6 +142,7 @@ const displayMode = computed(() => {
     <div v-else-if="status" class="display-content">
       <PodcastDisplay v-if="displayMode === 'podcast'" :status="status" :is-preview="isDirectAccess" />
       <CourseDisplay v-else-if="displayMode === 'course'" :status="status" :is-preview="isDirectAccess" />
+      <CourseTeleprompterDisplay v-else-if="displayMode === 'course-teleprompter'" :status="status" :is-preview="isDirectAccess" />
       <TeleprompterDisplay v-else-if="displayMode === 'teleprompter'" :status="status" :is-preview="isDirectAccess" />
       <WebinarDisplay v-else-if="displayMode === 'webinar'" :status="status" :is-preview="isDirectAccess" />
       <div v-else class="text-center">

@@ -1,8 +1,10 @@
 [Unit]
-Description=VDO.ninja WHEP Bridge - Share HDMI cameras to VDO.ninja room
+Description=VDO.ninja WHEP Bridge - Share HDMI cameras to VDO.ninja room (background)
 After=network-online.target graphical.target preke-recorder.service
 Wants=network-online.target
 Requires=graphical.target
+# Start before TV kiosk so kiosk appears on top
+Before=preke-tv-kiosk.service
 
 [Service]
 Type=oneshot

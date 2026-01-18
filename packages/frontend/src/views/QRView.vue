@@ -53,8 +53,8 @@ async function createSession() {
 
 <template>
   <StudioDisplayShell
-    title="Scan to Start"
-    subtitle="Your session begins on your phone"
+    title="Welcome to Preke Studio"
+    subtitle="Your professional recording experience starts here"
     accent="gold"
     :show-footer="true"
     main-class="qr-view__main"
@@ -81,33 +81,34 @@ async function createSession() {
       </div>
 
       <!-- QR Code Display -->
-      <div v-else-if="sessionToken && qrCodeUrl" class="qr-view__grid">
-        <div class="qr-view__qr glass-card">
+      <div v-else-if="sessionToken && qrCodeUrl" class="qr-view__welcome-layout">
+        <div class="qr-view__welcome-section">
+          <h1 class="qr-view__welcome-title">Welcome</h1>
+          <p class="qr-view__welcome-tagline">Scan to begin your professional recording session</p>
+        </div>
+        
+        <div class="qr-view__qr-container glass-card qr-view__fade-in">
           <img
             :src="qrCodeUrl"
             alt="QR Code - Scan with your phone"
             class="qr-view__qr-image"
           />
-          <p class="qr-view__qr-caption">Open your phone camera and scan</p>
         </div>
-        <div class="qr-view__steps glass-card">
-          <h2 class="qr-view__steps-title">Start your booked session</h2>
-          <ol class="qr-view__steps-list">
-            <li>Scan the QR code with your phone</li>
-            <li>Confirm your booking details</li>
-            <li>Use the mobile controls to begin</li>
+        
+        <div class="qr-view__instructions glass-card qr-view__fade-in">
+          <h2 class="qr-view__instructions-title">Get Started</h2>
+          <ol class="qr-view__instructions-list">
+            <li>Open your phone camera</li>
+            <li>Point it at the QR code above</li>
           </ol>
+          <p class="qr-view__instructions-note">Your session controls will appear on your phone</p>
         </div>
       </div>
     </div>
 
     <template #footer>
-      <div class="qr-view__footer-left">
-        <span class="qr-view__footer-label">Session link</span>
-        <span class="qr-view__footer-url">{{ customerPortalUrl || 'Generating secure link...' }}</span>
-      </div>
-      <div class="qr-view__footer-right">
-        Need help? Ask the studio technician.
+      <div class="qr-view__footer-content">
+        <span class="qr-view__footer-text">Need help? Ask the studio technician.</span>
       </div>
     </template>
   </StudioDisplayShell>
@@ -201,99 +202,158 @@ async function createSession() {
   color: var(--preke-text-dim);
 }
 
-.qr-view__grid {
+.qr-view__welcome-layout {
   width: 100%;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 2rem;
-  align-items: center;
-}
-
-.qr-view__qr {
+  max-width: 1200px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1.5rem;
+  gap: 3rem;
+  padding: 2rem 0;
+}
+
+.qr-view__welcome-section {
+  text-align: center;
+  animation: fadeInUp 0.8s ease-out;
+}
+
+.qr-view__welcome-title {
+  font-size: clamp(3rem, 6vw, 5rem);
+  font-weight: 700;
+  color: var(--preke-text-primary);
+  margin-bottom: 1rem;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, var(--preke-text-primary) 0%, var(--preke-gold) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.qr-view__welcome-tagline {
+  font-size: clamp(1.25rem, 2vw, 1.75rem);
+  color: var(--preke-text-dim);
+  font-weight: 400;
+}
+
+.qr-view__qr-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 2.5rem;
+  animation-delay: 0.2s;
 }
 
 .qr-view__qr-image {
-  width: clamp(320px, 30vw, 520px);
-  height: clamp(320px, 30vw, 520px);
-  border-radius: 16px;
+  width: clamp(400px, 35vw, 600px);
+  height: clamp(400px, 35vw, 600px);
+  border-radius: 20px;
   background: #ffffff;
-  padding: 1rem;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+  padding: 1.5rem;
+  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(224, 160, 48, 0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
-.qr-view__qr-caption {
-  font-size: 1.125rem;
-  color: var(--preke-text-dim);
+.qr-view__qr-image:hover {
+  transform: scale(1.02);
+  box-shadow: 0 30px 100px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(224, 160, 48, 0.2);
 }
 
-.qr-view__steps {
+.qr-view__instructions {
   padding: 2.5rem 3rem;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  text-align: center;
+  max-width: 600px;
+  animation-delay: 0.4s;
 }
 
-.qr-view__steps-title {
+.qr-view__instructions-title {
   font-size: 2rem;
   font-weight: 700;
+  color: var(--preke-text-primary);
 }
 
-.qr-view__steps-list {
+.qr-view__instructions-list {
   list-style: none;
   margin: 0;
   padding: 0;
-  display: grid;
-  gap: 1rem;
-  font-size: 1.25rem;
-  color: var(--preke-text-dim);
-}
-
-.qr-view__steps-list li::before {
-  content: '•';
-  color: var(--preke-gold);
-  font-weight: 700;
-  margin-right: 0.75rem;
-}
-
-.qr-view__footer-left {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  min-width: 0;
-}
-
-.qr-view__footer-label {
-  text-transform: uppercase;
-  font-size: 0.75rem;
-  letter-spacing: 0.2em;
-}
-
-.qr-view__footer-url {
+  gap: 1rem;
+  font-size: 1.5rem;
   color: var(--preke-text-dim);
-  font-size: 0.9rem;
-  max-width: 520px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  counter-reset: step-counter;
 }
 
-.qr-view__footer-right {
-  text-align: right;
+.qr-view__instructions-list li {
+  counter-increment: step-counter;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.qr-view__instructions-list li::before {
+  content: counter(step-counter);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background: var(--preke-gold);
+  color: var(--preke-bg-base);
+  font-weight: 700;
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.qr-view__instructions-note {
+  margin-top: 0.5rem;
+  font-size: 1.125rem;
   color: var(--preke-text-muted);
+  font-style: italic;
+}
+
+.qr-view__fade-in {
+  animation: fadeInUp 0.8s ease-out both;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.qr-view__footer-content {
+  width: 100%;
+  text-align: center;
+}
+
+.qr-view__footer-text {
+  color: var(--preke-text-muted);
+  font-size: 1rem;
 }
 
 @media (max-width: 1100px) {
-  .qr-view__grid {
-    grid-template-columns: 1fr;
+  .qr-view__welcome-layout {
+    gap: 2rem;
+    padding: 1rem 0;
   }
 
-  .qr-view__footer-url {
-    max-width: 320px;
+  .qr-view__qr-image {
+    width: clamp(300px, 50vw, 500px);
+    height: clamp(300px, 50vw, 500px);
+  }
+
+  .qr-view__instructions {
+    padding: 2rem;
   }
 }
 </style>

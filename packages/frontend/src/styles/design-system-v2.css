@@ -116,9 +116,9 @@
 .glass-card {
   background: linear-gradient(
     145deg,
-    rgba(80, 80, 80, 0.35) 0%,
-    rgba(50, 50, 50, 0.45) 50%,
-    rgba(35, 35, 35, 0.55) 100%
+    rgba(80, 80, 80, 0.4) 0%,
+    rgba(50, 50, 50, 0.5) 50%,
+    rgba(35, 35, 35, 0.6) 100%
   );
   backdrop-filter: blur(var(--preke-blur-lg)) saturate(1.2);
   -webkit-backdrop-filter: blur(var(--preke-blur-lg)) saturate(1.2);
@@ -128,9 +128,10 @@
   border-radius: var(--preke-radius-xl);
   box-shadow: 
     var(--preke-shadow-xl),
-    0 10px 20px rgba(0, 0, 0, 0.3),
-    inset 0 1px 1px rgba(255, 255, 255, 0.15),
-    inset 0 -1px 1px rgba(0, 0, 0, 0.3);
+    0 10px 20px rgba(0, 0, 0, 0.4),
+    inset 0 1px 1px rgba(255, 255, 255, 0.2),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.3),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
   position: relative;
   overflow: hidden;
 }
@@ -154,13 +155,15 @@
 .glass-panel {
   background: linear-gradient(
     135deg,
-    rgba(255, 255, 255, 0.06) 0%,
-    rgba(255, 255, 255, 0.02) 100%
+    rgba(255, 255, 255, 0.08) 0%,
+    rgba(255, 255, 255, 0.03) 100%
   );
   border: 1px solid var(--preke-border);
-  border-top-color: rgba(255, 255, 255, 0.15);
+  border-top-color: rgba(255, 255, 255, 0.18);
   border-radius: var(--preke-radius-lg);
-  box-shadow: var(--preke-shadow-sm);
+  box-shadow: 
+    var(--preke-shadow-sm),
+    0 0 0 1px rgba(255, 255, 255, 0.03);
   transition: all var(--preke-transition-base);
 }
 
