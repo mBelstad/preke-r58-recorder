@@ -177,6 +177,9 @@ export async function probeConnections(
     )
   }
   
+  // Remember the original device URL - don't overwrite a working connection
+  const originalDeviceUrl = getDeviceUrl()
+  
   // Race with Promise.any - first success wins
   try {
     const winner = await Promise.any(probes)
@@ -192,10 +195,37 @@ export async function probeConnections(
     
     return winner
   } catch (e) {
-    // All probes failed - fallback to HLS
-    console.warn('[ConnectionProbe] All methods failed, using HLS fallback')
-    onStatus?.('Using HLS fallback')
+    // All probes failed
+    console.warn('[ConnectionProbe] All methods failed')
     
+    // IMPORTANT: Don't overwrite a working device URL!
+    // If we had a device URL before (e.g., Tailscale), keep using it
+    // The probe failure might be temporary or due to /health endpoint issues
+    if (originalDeviceUrl) {
+      console.log('[ConnectionProbe] Keeping original device URL:', originalDeviceUrl)
+      onStatus?.('Using existing connection')
+      
+      // Determine the method from the original URL
+      let method: ConnectionMethod = 'lan'
+      try {
+        const url = new URL(originalDeviceUrl)
+        if (url.hostname.startsWith('100.') || url.hostname.endsWith('.ts.net')) {
+          method = 'tailscale'
+        } else if (url.hostname.includes('itagenten.no')) {
+          method = 'frp'
+        }
+      } catch {}
+      
+      return {
+        method,
+        url: originalDeviceUrl,
+        latency: 0,
+        success: false  // Probe failed but we have a URL
+      }
+    }
+    
+    // No original device URL - use FRP fallback
+    onStatus?.('Using HLS fallback')
     const hlsUrl = deviceConfig.frpUrl || 'https://app.itagenten.no'
     setDeviceUrl(hlsUrl)
     
