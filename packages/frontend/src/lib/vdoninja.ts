@@ -782,6 +782,26 @@ export async function getPublicR58Host(): Promise<string | null> {
  * In Browser: Must use FRP-proxied HTTPS URL due to mixed content security.
  */
 export async function getPublicWhepUrl(cameraId: string): Promise<string | null> {
+  // IMPORTANT: This function provides WHEP URLs for VDO.ninja iframes
+  // VDO.ninja runs on HTTPS (app.itagenten.no/vdo/)
+  // We CANNOT use HTTP URLs due to Mixed Content blocking in browsers
+  // Therefore, we MUST ALWAYS use the HTTPS proxy (app.itagenten.no)
+  // 
+  // The proxy path is: VDO.ninja -> app.itagenten.no -> FRP -> R58 MediaMTX
+  // This works because nginx proxies /cam*/whep to MediaMTX via FRP
+  //
+  // Note: For direct WHEP in Electron (InputPreview), use whepConnectionManager
+  // which handles HTTP connections correctly.
+  
+  console.log(`[VDO.ninja] Using HTTPS proxy for ${cameraId}`)
+  return `https://app.itagenten.no/${cameraId}/whep`
+}
+
+/**
+ * @deprecated Use getPublicWhepUrl instead - kept for reference
+ * Old function that tried to use direct HTTP URLs, which fails due to Mixed Content
+ */
+async function _getPublicWhepUrl_OLD(cameraId: string): Promise<string | null> {
   const { getDeviceUrl, getFallbackUrl, getFrpUrl } = await import('./api')
   
   const buildApiWhepUrl = (baseUrl: string): string => {
