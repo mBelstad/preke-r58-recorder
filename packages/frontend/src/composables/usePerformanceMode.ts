@@ -8,13 +8,31 @@
  * - Reduces animation frame rate
  * - Throttles non-critical UI updates
  * - Disables decorative animations
+ * 
+ * FIXED: State is now lazily initialized to avoid TDZ issues
+ * in minified builds. Module-level refs can cause "Cannot access before
+ * initialization" errors when imports are reordered by bundlers.
  */
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, type Ref } from 'vue'
 import { useRecorderStore } from '@/stores/recorder'
 
-// Performance mode state
-const enabled = ref(localStorage.getItem('r58_performance_mode') === 'true')
-const autoEnable = ref(localStorage.getItem('r58_performance_mode_auto') !== 'false')
+// Singleton state (lazily initialized)
+let _enabled: Ref<boolean> | null = null
+let _autoEnable: Ref<boolean> | null = null
+
+function getEnabled(): Ref<boolean> {
+  if (!_enabled) {
+    _enabled = ref(localStorage.getItem('r58_performance_mode') === 'true')
+  }
+  return _enabled
+}
+
+function getAutoEnable(): Ref<boolean> {
+  if (!_autoEnable) {
+    _autoEnable = ref(localStorage.getItem('r58_performance_mode_auto') !== 'false')
+  }
+  return _autoEnable
+}
 
 // Auto-enable threshold (number of recording inputs)
 const AUTO_ENABLE_INPUTS = 3
@@ -25,6 +43,8 @@ const PERFORMANCE_UPDATE_INTERVAL = 500  // 2 FPS in performance mode
 
 export function usePerformanceMode() {
   const recorderStore = useRecorderStore()
+  const enabled = getEnabled()
+  const autoEnable = getAutoEnable()
   
   // Determine if we should be in performance mode
   const isActive = computed(() => {

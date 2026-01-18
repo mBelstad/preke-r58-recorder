@@ -93,6 +93,12 @@ export const useRecorderStore = defineStore('recorder', () => {
 
   // Actions
   async function startRecording(sessionName?: string) {
+    // Guard against duplicate starts
+    if (status.value === 'starting' || status.value === 'recording') {
+      console.warn(`[Recorder] Ignoring startRecording - already ${status.value}`)
+      return
+    }
+    
     status.value = 'starting'
     lastError.value = null
     

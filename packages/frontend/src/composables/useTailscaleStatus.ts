@@ -3,8 +3,11 @@
  * 
  * Monitors Tailscale P2P connection status for Electron app.
  * Only active when running in Electron with Tailscale available.
+ * 
+ * FIXED: State is now lazily initialized to avoid TDZ issues
+ * in minified builds.
  */
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, type Ref } from 'vue'
 import { isElectron, getDeviceUrl } from '@/lib/api'
 
 export interface TailscaleStatus {
@@ -29,18 +32,55 @@ export interface TailscaleDevice {
 
 export type ConnectionMethod = 'tailscale-p2p' | 'tailscale-relay' | 'lan' | 'frp' | 'unknown'
 
-const status = ref<TailscaleStatus | null>(null)
-const connectedDevice = ref<TailscaleDevice | null>(null)
-const connectionMethod = ref<ConnectionMethod>('unknown')
-const isAvailable = ref(false)
-const isChecking = ref(false)
-const lastCheck = ref<Date | null>(null)
+// Singleton state (lazily initialized)
+let _status: Ref<TailscaleStatus | null> | null = null
+let _connectedDevice: Ref<TailscaleDevice | null> | null = null
+let _connectionMethod: Ref<ConnectionMethod> | null = null
+let _isAvailable: Ref<boolean> | null = null
+let _isChecking: Ref<boolean> | null = null
+let _lastCheck: Ref<Date | null> | null = null
+
+function getStatus(): Ref<TailscaleStatus | null> {
+  if (!_status) _status = ref<TailscaleStatus | null>(null)
+  return _status
+}
+
+function getConnectedDevice(): Ref<TailscaleDevice | null> {
+  if (!_connectedDevice) _connectedDevice = ref<TailscaleDevice | null>(null)
+  return _connectedDevice
+}
+
+function getConnectionMethod(): Ref<ConnectionMethod> {
+  if (!_connectionMethod) _connectionMethod = ref<ConnectionMethod>('unknown')
+  return _connectionMethod
+}
+
+function getIsAvailable(): Ref<boolean> {
+  if (!_isAvailable) _isAvailable = ref(false)
+  return _isAvailable
+}
+
+function getIsChecking(): Ref<boolean> {
+  if (!_isChecking) _isChecking = ref(false)
+  return _isChecking
+}
+
+function getLastCheck(): Ref<Date | null> {
+  if (!_lastCheck) _lastCheck = ref<Date | null>(null)
+  return _lastCheck
+}
 
 const CHECK_INTERVAL = 30000 // 30 seconds
 
 let checkInterval: number | null = null
 
 export function useTailscaleStatus() {
+  const status = getStatus()
+  const connectedDevice = getConnectedDevice()
+  const connectionMethod = getConnectionMethod()
+  const isAvailable = getIsAvailable()
+  const isChecking = getIsChecking()
+  const lastCheck = getLastCheck()
   const isTailscaleP2P = computed(() => connectionMethod.value === 'tailscale-p2p')
   const isTailscaleRelay = computed(() => connectionMethod.value === 'tailscale-relay')
   const isTailscale = computed(() => isTailscaleP2P.value || isTailscaleRelay.value)

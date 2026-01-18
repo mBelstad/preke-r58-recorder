@@ -6,8 +6,11 @@
  * - >= 10GB: OK (green)
  * - 2-10GB: Warning (yellow) - can proceed with caution
  * - < 2GB: Critical (red) - blocked from starting
+ * 
+ * FIXED: State is now lazily initialized to avoid TDZ issues
+ * in minified builds.
  */
-import { ref, computed } from 'vue'
+import { ref, computed, type Ref } from 'vue'
 import { r58Api } from '@/lib/api'
 
 export interface DiskSpaceStatus {
@@ -17,10 +20,31 @@ export interface DiskSpaceStatus {
   recording_path: string
 }
 
-const diskSpace = ref<DiskSpaceStatus | null>(null)
-const isLoading = ref(false)
-const lastCheck = ref<Date | null>(null)
-const error = ref<string | null>(null)
+// Singleton state (lazily initialized)
+let _diskSpace: Ref<DiskSpaceStatus | null> | null = null
+let _isLoading: Ref<boolean> | null = null
+let _lastCheck: Ref<Date | null> | null = null
+let _error: Ref<string | null> | null = null
+
+function getDiskSpaceRef(): Ref<DiskSpaceStatus | null> {
+  if (!_diskSpace) _diskSpace = ref<DiskSpaceStatus | null>(null)
+  return _diskSpace
+}
+
+function getIsLoading(): Ref<boolean> {
+  if (!_isLoading) _isLoading = ref(false)
+  return _isLoading
+}
+
+function getLastCheckRef(): Ref<Date | null> {
+  if (!_lastCheck) _lastCheck = ref<Date | null>(null)
+  return _lastCheck
+}
+
+function getError(): Ref<string | null> {
+  if (!_error) _error = ref<string | null>(null)
+  return _error
+}
 
 // Thresholds in GB
 const WARNING_THRESHOLD_GB = 10
@@ -30,6 +54,10 @@ const CRITICAL_THRESHOLD_GB = 2
 const ESTIMATED_RATE_MBS = 25 // ~25 MB/s for 1080p30 x 4 inputs
 
 export function useDiskSpace() {
+  const diskSpace = getDiskSpaceRef()
+  const isLoading = getIsLoading()
+  const lastCheck = getLastCheckRef()
+  const error = getError()
   const status = computed(() => {
     if (!diskSpace.value) return 'unknown'
     if (diskSpace.value.available_gb < CRITICAL_THRESHOLD_GB) return 'critical'

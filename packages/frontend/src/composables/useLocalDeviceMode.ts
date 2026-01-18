@@ -8,14 +8,38 @@
  * 1. URL is localhost or 127.0.0.1
  * 2. Hostname matches R58 patterns (linaro-alip, etc.)
  * 3. User agent indicates ARM/Linux
+ * 
+ * FIXED: State is now lazily initialized to avoid TDZ issues
+ * in minified builds.
  */
 
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, type Ref } from 'vue'
 
-// Singleton state
-const isLocalDevice = ref<boolean | null>(null)
-const detectionComplete = ref(false)
-const deviceHostname = ref<string | null>(null)
+// Singleton state (lazily initialized)
+let _isLocalDevice: Ref<boolean | null> | null = null
+let _detectionComplete: Ref<boolean> | null = null
+let _deviceHostname: Ref<string | null> | null = null
+
+function getIsLocalDeviceRef(): Ref<boolean | null> {
+  if (!_isLocalDevice) {
+    _isLocalDevice = ref<boolean | null>(null)
+  }
+  return _isLocalDevice
+}
+
+function getDetectionComplete(): Ref<boolean> {
+  if (!_detectionComplete) {
+    _detectionComplete = ref(false)
+  }
+  return _detectionComplete
+}
+
+function getDeviceHostname(): Ref<string | null> {
+  if (!_deviceHostname) {
+    _deviceHostname = ref<string | null>(null)
+  }
+  return _deviceHostname
+}
 
 // Check if URL indicates local access
 function isLocalUrl(): boolean {
@@ -62,6 +86,10 @@ function isR58Hostname(hostname: string | null): boolean {
 }
 
 export function useLocalDeviceMode() {
+  const isLocalDevice = getIsLocalDeviceRef()
+  const detectionComplete = getDetectionComplete()
+  const deviceHostname = getDeviceHostname()
+  
   /**
    * Whether we're running on the R58 device itself
    */
@@ -140,10 +168,10 @@ export function useLocalDeviceMode() {
 
 // Export singleton getters for use outside of components
 export function getIsLiteMode(): boolean {
-  return isLocalDevice.value === true || isLocalUrl()
+  return getIsLocalDeviceRef().value === true || isLocalUrl()
 }
 
 export function getIsOnDevice(): boolean {
-  return isLocalDevice.value === true || (isLocalUrl() && isArmLinux())
+  return getIsLocalDeviceRef().value === true || (isLocalUrl() && isArmLinux())
 }
 
