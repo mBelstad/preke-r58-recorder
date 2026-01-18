@@ -85,7 +85,7 @@ async function initializeConnection() {
   })
   
   connectionMethod.value = result.method.toUpperCase()
-  loadingStatus.value = `Connected via ${result.method.toUpperCase()}`
+  // Status is already set by the probe callback, don't duplicate
   
   // Note: Camera connections are handled by InputPreview components
   // We don't preload here to avoid blocking on 404 errors when streams aren't ready

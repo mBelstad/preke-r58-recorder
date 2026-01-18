@@ -188,7 +188,7 @@ export async function probeConnections(
     controllers.forEach(c => c.abort())
     
     console.log(`[ConnectionProbe] Winner: ${winner.method.toUpperCase()} (${Math.round(winner.latency)}ms)`)
-    onStatus?.(`Connected via ${winner.method.toUpperCase()}`)
+    onStatus?.('Connection established')
     
     // Set the device URL to the winning method
     setDeviceUrl(winner.url)

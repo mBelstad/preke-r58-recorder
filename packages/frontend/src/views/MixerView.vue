@@ -192,7 +192,7 @@ async function initializeConnection() {
   })
   
   connectionMethod.value = result.method.toUpperCase()
-  loadingStatus.value = `Connected via ${result.method.toUpperCase()}`
+  // Status is already set by the probe callback, don't duplicate
 }
 
 // Fetch inputs on mount - parallelized for speed
