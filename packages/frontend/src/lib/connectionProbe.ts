@@ -67,26 +67,35 @@ async function getDeviceConfig(): Promise<{
     frpUrl?: string
   } = {}
   
-  // Get primary device URL (LAN or direct)
+  // Helper to check if hostname is a private/local IP
+  const isPrivateIp = (hostname: string): boolean => {
+    if (hostname === 'localhost' || hostname === '127.0.0.1') return true
+    if (hostname.startsWith('192.168.')) return true
+    if (hostname.startsWith('10.')) return true
+    if (hostname.startsWith('172.')) {
+      const second = parseInt(hostname.split('.')[1], 10)
+      return second >= 16 && second <= 31
+    }
+    return false
+  }
+  
+  const isTailscaleIp = (hostname: string): boolean => {
+    return hostname.startsWith('100.') || hostname.endsWith('.ts.net')
+  }
+  
+  // Get primary device URL (LAN or Tailscale only - NOT public URLs)
   const deviceUrl = getDeviceUrl()
   if (deviceUrl) {
     try {
       const url = new URL(deviceUrl)
-      // Check if it's a private IP (LAN) or Tailscale (100.x.x.x)
-      if (url.hostname.startsWith('100.')) {
+      // Only treat as direct connection if it's a private IP or Tailscale
+      if (isTailscaleIp(url.hostname)) {
         config.tailscaleUrl = deviceUrl
-      } else if (
-        url.hostname.startsWith('192.168.') ||
-        url.hostname.startsWith('10.') ||
-        url.hostname.startsWith('172.') ||
-        url.hostname === 'localhost' ||
-        url.hostname === '127.0.0.1'
-      ) {
-        config.lanUrl = deviceUrl
-      } else {
-        // Public IP - treat as LAN for now
+      } else if (isPrivateIp(url.hostname)) {
         config.lanUrl = deviceUrl
       }
+      // Public hostnames (like app.itagenten.no) are NOT direct connections
+      // They'll be handled as FRP below
     } catch (e) {
       console.warn('[ConnectionProbe] Invalid device URL:', deviceUrl)
     }

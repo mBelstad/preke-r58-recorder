@@ -823,34 +823,35 @@ export async function getPublicWhepUrl(cameraId: string): Promise<string | null>
     }
   }
 
-  // Tailscale fallback (preferred over FRP)
+  // Tailscale: use direct MediaMTX connection (port 8889)
+  // Check device URL first for Tailscale IP
+  if (deviceUrl) {
+    try {
+      const url = new URL(deviceUrl)
+      if (isTailscaleHost(url.hostname)) {
+        console.log(`[VDO.ninja] Using Tailscale WHEP for ${cameraId}`)
+        return buildDirectWhepUrl(url.hostname)
+      }
+    } catch {
+      // Ignore invalid device URL
+    }
+  }
+  
+  // Check fallback URL for Tailscale
   const fallbackUrl = getFallbackUrl()
   if (fallbackUrl) {
     try {
       const url = new URL(fallbackUrl)
       if (isTailscaleHost(url.hostname)) {
-        console.log(`[VDO.ninja] Using Tailscale WHEP for ${cameraId}`)
-        return buildApiWhepUrl(url.toString())
+        console.log(`[VDO.ninja] Using Tailscale fallback WHEP for ${cameraId}`)
+        return buildDirectWhepUrl(url.hostname)
       }
     } catch {
       // Ignore invalid fallback URL
     }
   }
 
-  // If device URL isn't LAN (e.g., Tailscale API), use it as next fallback
-  if (deviceUrl) {
-    try {
-      const url = new URL(deviceUrl)
-      if (isTailscaleHost(url.hostname)) {
-        console.log(`[VDO.ninja] Using device fallback WHEP for ${cameraId}`)
-        return buildApiWhepUrl(url.toString())
-      }
-    } catch {
-      // Ignore invalid device URL
-    }
-  }
-
-  // FRP last: use API proxy path to ensure CORS headers for VDO.ninja
+  // FRP/Public URL: use API proxy path to ensure CORS headers for VDO.ninja
   const frpUrl = await getFrpUrl()
   if (frpUrl) {
     try {
@@ -864,7 +865,27 @@ export async function getPublicWhepUrl(cameraId: string): Promise<string | null>
     }
   }
 
-  return null
+  // If device URL is a public hostname (e.g., app.itagenten.no), use it as proxy
+  if (deviceUrl) {
+    try {
+      const url = new URL(deviceUrl)
+      if (url.hostname.includes('itagenten.no')) {
+        console.log(`[VDO.ninja] Using device URL as WHEP proxy for ${cameraId}`)
+        return `https://app.itagenten.no/${cameraId}/whep`
+      }
+      // For any other public URL, try to use it as a proxy
+      if (!isLanHost(url.hostname) && !isTailscaleHost(url.hostname)) {
+        console.log(`[VDO.ninja] Using public device URL for ${cameraId}`)
+        return buildApiWhepUrl(url.toString())
+      }
+    } catch {
+      // Ignore invalid URL
+    }
+  }
+
+  // Last resort: use app.itagenten.no hardcoded
+  console.log(`[VDO.ninja] Using hardcoded app.itagenten.no for ${cameraId}`)
+  return `https://app.itagenten.no/${cameraId}/whep`
 }
 
 /**

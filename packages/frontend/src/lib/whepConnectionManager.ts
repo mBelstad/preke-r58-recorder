@@ -155,12 +155,33 @@ async function buildWhepUrl(cameraId: string): Promise<string> {
   const deviceUrl = getDeviceUrl()
   const usingFrp = isUsingFrpFallback()
   
-  // Use direct connection only if available AND FRP fallback not active
-  // (FRP fallback means direct connection already failed)
+  // Helper to check if hostname is a direct connection (private IP or Tailscale)
+  const isDirectConnection = (hostname: string): boolean => {
+    // Tailscale IPs
+    if (hostname.startsWith('100.') || hostname.endsWith('.ts.net')) return true
+    // Private IPs
+    if (hostname === 'localhost' || hostname === '127.0.0.1') return true
+    if (hostname.startsWith('192.168.')) return true
+    if (hostname.startsWith('10.')) return true
+    if (hostname.startsWith('172.')) {
+      const second = parseInt(hostname.split('.')[1], 10)
+      return second >= 16 && second <= 31
+    }
+    return false
+  }
+  
+  // Use direct connection only if:
+  // 1. Device URL is available
+  // 2. FRP fallback not active (FRP fallback means direct connection already failed)
+  // 3. It's actually a direct connection (private IP or Tailscale, NOT public hostname)
   if (deviceUrl && !usingFrp) {
     try {
       const url = new URL(deviceUrl)
-      return `http://${url.hostname}:8889/${cameraId}/whep`
+      if (isDirectConnection(url.hostname)) {
+        return `http://${url.hostname}:8889/${cameraId}/whep`
+      }
+      // If device URL is a public hostname (like app.itagenten.no), 
+      // don't try port 8889 - fall through to FRP handling below
     } catch (e) {
       console.warn(`[WHEP Manager] Invalid device URL, falling back to FRP`)
     }
