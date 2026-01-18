@@ -87,6 +87,9 @@ sudo systemctl restart r58-api r58-pipeline
 EOF
 ```
 
+Note: On ARM64 (R58), `npm ci` can skip the optional Rollup binary. The frontend `postinstall`
+now installs `@rollup/rollup-linux-arm64-gnu` automatically on Linux ARM64 to avoid build failures.
+
 ### Docker Deployment
 
 ```bash

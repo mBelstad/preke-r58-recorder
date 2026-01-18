@@ -14,7 +14,8 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "generate-api": "openapi-typescript-codegen --input ../../openapi/openapi.json --output src/api --client fetch --useOptions"
+    "generate-api": "openapi-typescript-codegen --input ../../openapi/openapi.json --output src/api --client fetch --useOptions",
+    "postinstall": "node -e \"const {execSync}=require('child_process'); const isLinuxArm64=process.platform==='linux' && process.arch==='arm64'; if (isLinuxArm64){execSync('npm install --no-save @rollup/rollup-linux-arm64-gnu',{stdio:'inherit'});}\""
   },
   "dependencies": {
     "pinia": "^2.1.7",
