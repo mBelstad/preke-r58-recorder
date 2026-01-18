@@ -57,9 +57,7 @@ async function saveScript() {
 
 async function scrollTeleprompter(direction: 'up' | 'down') {
   try {
-    // TODO: Add backend endpoint for this
-    // await r58Api.wordpress.scrollTeleprompter(props.token, direction)
-    console.log('Scroll', direction)
+    await r58Api.wordpress.scrollTeleprompter(props.token, direction)
   } catch (e) {
     console.error('Failed to scroll:', e)
   }
@@ -67,9 +65,7 @@ async function scrollTeleprompter(direction: 'up' | 'down') {
 
 async function jumpTo(position: 'top' | 'bottom') {
   try {
-    // TODO: Add backend endpoint for this
-    // await r58Api.wordpress.jumpTeleprompter(props.token, position)
-    console.log('Jump to', position)
+    await r58Api.wordpress.jumpTeleprompter(props.token, position)
   } catch (e) {
     console.error('Failed to jump:', e)
   }
@@ -78,9 +74,7 @@ async function jumpTo(position: 'top' | 'bottom') {
 async function updateTextSize(newSize: number) {
   textSize.value = newSize
   try {
-    // TODO: Add backend endpoint for this
-    // await r58Api.wordpress.setTeleprompterTextSize(props.token, newSize)
-    console.log('Text size', newSize)
+    await r58Api.wordpress.setTeleprompterTextSize(props.token, newSize)
   } catch (e) {
     console.error('Failed to set text size:', e)
   }
@@ -175,7 +169,7 @@ async function updateTextSize(newSize: number) {
               -
             </button>
             <button
-              @click="emit('update-speed', Math.max(1, teleprompterSpeed + 5))"
+              @click="emit('update-speed', Math.min(100, teleprompterSpeed + 5))"
               class="btn-v2 btn-v2--glass btn-sm touch-target w-12"
             >
               +
