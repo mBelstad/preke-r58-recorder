@@ -6,7 +6,7 @@ import { useCapabilitiesStore } from '@/stores/capabilities'
 import { useRecordingGuard } from '@/composables/useRecordingGuard'
 import { buildApiUrl, hasDeviceConfigured } from '@/lib/api'
 import { toast } from '@/composables/useToast'
-import { probeConnections, preloadCameras } from '@/lib/connectionProbe'
+import { probeConnections } from '@/lib/connectionProbe'
 import RecorderControls from '@/components/recorder/RecorderControls.vue'
 import RecordingHealth from '@/components/recorder/RecordingHealth.vue'
 import InputGrid from '@/components/recorder/InputGrid.vue'
@@ -70,7 +70,7 @@ async function ensureRecorderMode() {
   }
 }
 
-// Initialize connection and preload cameras
+// Initialize connection (fast - no preloading)
 async function initializeConnection() {
   if (!hasDeviceConfigured()) {
     loadingStatus.value = 'No device configured'
@@ -87,24 +87,8 @@ async function initializeConnection() {
   connectionMethod.value = result.method.toUpperCase()
   loadingStatus.value = `Connected via ${result.method.toUpperCase()}`
   
-  // Get active cameras with signal
-  const activeCameras = recorderStore.inputs
-    .filter(i => i.hasSignal)
-    .map(i => i.id)
-  
-  if (activeCameras.length > 0) {
-    loadingStatus.value = 'Preloading cameras...'
-    
-    // Preload camera connections
-    await preloadCameras(activeCameras, result, (loaded, total, cameraId) => {
-      loadingProgress.value = Math.round((loaded / total) * 100)
-      if (cameraId !== 'done') {
-        loadingStatus.value = `Loading ${cameraId}... (${loaded}/${total})`
-      } else {
-        loadingStatus.value = 'All cameras ready'
-      }
-    })
-  }
+  // Note: Camera connections are handled by InputPreview components
+  // We don't preload here to avoid blocking on 404 errors when streams aren't ready
 }
 
 // Called by InputGrid when all videos have their first frame

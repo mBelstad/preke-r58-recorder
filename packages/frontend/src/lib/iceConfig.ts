@@ -19,9 +19,30 @@ export const DEFAULT_STUN_SERVERS: RTCIceServer[] = [
 /**
  * Get complete ICE server configuration including TURN
  * 
- * Returns STUN servers + TURN servers (if available)
+ * Returns STUN servers immediately, TURN is fetched in background
+ * TURN is optional - connections work fine with just STUN in most cases
  */
 export async function getIceServers(): Promise<RTCIceServer[]> {
-  const turnServers = await getTurnCredentials()
-  return [...DEFAULT_STUN_SERVERS, ...(turnServers || [])]
+  // Try to get TURN with a very short timeout - don't block on it
+  try {
+    const turnPromise = getTurnCredentials()
+    const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 500))
+    
+    const turnServers = await Promise.race([turnPromise, timeoutPromise])
+    if (turnServers) {
+      return [...DEFAULT_STUN_SERVERS, ...turnServers]
+    }
+  } catch (e) {
+    // TURN failed - continue with STUN only
+  }
+  
+  return DEFAULT_STUN_SERVERS
+}
+
+/**
+ * Get STUN-only servers (synchronous, no TURN)
+ * Use when you need ICE servers immediately without waiting
+ */
+export function getStunServers(): RTCIceServer[] {
+  return DEFAULT_STUN_SERVERS
 }

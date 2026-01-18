@@ -180,9 +180,13 @@ export function getFallbackUrl(): string | null {
 
 let cachedTurnCredentials: { iceServers: RTCIceServer[], expiresAt: number } | null = null
 
+/** Whether TURN fetch has been attempted */
+let turnFetchAttempted = false
+
 /**
  * Get TURN server credentials from r58-turn-api service
- * Returns null if TURN is not configured or unavailable
+ * Returns null immediately if TURN fetch has already failed
+ * This is non-blocking - TURN is optional for most connections
  */
 export async function getTurnCredentials(): Promise<RTCIceServer[] | null> {
   // Return cached credentials if still valid
@@ -190,31 +194,17 @@ export async function getTurnCredentials(): Promise<RTCIceServer[] | null> {
     return cachedTurnCredentials.iceServers
   }
   
+  // If we already tried and failed, don't retry (avoid repeated timeouts)
+  if (turnFetchAttempted && !cachedTurnCredentials) {
+    return null
+  }
+  
+  turnFetchAttempted = true
+  
   try {
-    // Try to get TURN URL from device config first
-    const deviceUrl = getDeviceUrl()
-    let turnUrl = 'https://turn.itagenten.no/turn-credentials'
-    
-    if (deviceUrl) {
-      try {
-        const response = await fetch(`${deviceUrl}/api/config`, {
-          signal: AbortSignal.timeout(3000),
-          mode: 'cors',
-          cache: 'no-cache'
-        })
-        if (response.ok) {
-          const config = await response.json()
-          if (config.turn_url) {
-            turnUrl = config.turn_url
-          }
-        }
-      } catch (e) {
-        // Fall back to default TURN URL
-      }
-    }
-    
-    const response = await fetch(turnUrl, {
-      signal: AbortSignal.timeout(5000),
+    // Use a very short timeout - TURN is optional
+    const response = await fetch('https://turn.itagenten.no/turn-credentials', {
+      signal: AbortSignal.timeout(2000),  // 2s max - TURN is optional
       mode: 'cors',
       cache: 'no-cache'
     })
@@ -229,7 +219,8 @@ export async function getTurnCredentials(): Promise<RTCIceServer[] | null> {
       return cachedTurnCredentials.iceServers
     }
   } catch (e) {
-    console.warn('[API] Failed to get TURN credentials:', e)
+    // TURN is optional - log but don't block
+    console.debug('[API] TURN credentials unavailable (optional):', e instanceof Error ? e.message : e)
   }
   
   return null
