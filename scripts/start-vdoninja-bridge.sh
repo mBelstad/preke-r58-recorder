@@ -109,7 +109,8 @@ start_chromium() {
         IFS=':' read -r stream_id push_id label <<< "$camera"
         
         # URL encode the WHEP URL (API proxy ensures CORS headers)
-        local whep_url="${api_base}/whep/$stream_id"
+        # MediaMTX uses /{stream_id}/whep format (not /whep/{stream_id})
+        local whep_url="${api_base}/${stream_id}/whep"
         local encoded_whep=$(url_encode "$whep_url")
         
         # Build the VDO.ninja URL with &whepshare
