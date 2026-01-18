@@ -603,9 +603,10 @@ export async function buildProgramOutputUrlAlpha(
   url.searchParams.set('quality', '1')
   url.searchParams.set('screenshareaspectratio', '1.7777777777777777')
   url.searchParams.set('locked', '1.7777777777777777')
-  // Bandwidth optimization for SFU - reduce bitrate for efficiency
-  url.searchParams.set('maxvideobitrate', '2500')  // 2.5 Mbps per source (SFU distributes efficiently)
-  url.searchParams.set('totalroombitrate', '6000')  // 6 Mbps total room bandwidth
+  // Bandwidth optimization for SFU - reduced bitrate for network stability
+  // Lower values prevent network congestion on slower connections
+  url.searchParams.set('maxvideobitrate', '1000')  // 1 Mbps per source (reduced for stability)
+  url.searchParams.set('totalroombitrate', '2500')  // 2.5 Mbps total room bandwidth
 
   const resolvedMediaMtxHost = mediamtxHost || await getMediaMtxHost() || 'app.itagenten.no'
   if (resolvedMediaMtxHost) {
@@ -715,8 +716,9 @@ export async function buildMixerUrl(options: {
   // Bandwidth limiting - prevent jamming the connection when opening mixer
   // totalroombitrate: max total incoming bitrate from all sources (kbps)
   // maxvideobitrate: max per-source video bitrate (kbps)
-  url.searchParams.set('totalroombitrate', '6000')  // 6 Mbps total for all cameras
-  url.searchParams.set('maxvideobitrate', '2000')   // 2 Mbps max per camera
+  // Reduced values for network stability on slower connections
+  url.searchParams.set('totalroombitrate', '2500')  // 2.5 Mbps total for all cameras
+  url.searchParams.set('maxvideobitrate', '1000')   // 1 Mbps max per camera
   
   // Custom CSS for R58 reskin (b64css for base64 inline CSS)
   const mixerCssBase64 = getVdoCssUrl()
