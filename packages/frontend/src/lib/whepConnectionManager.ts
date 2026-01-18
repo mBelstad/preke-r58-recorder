@@ -600,6 +600,14 @@ async function createConnectionInternal(cameraId: string): Promise<WHEPConnectio
       conn!.mediaStream = event.streams[0]
       console.log(`[WHEP Manager ${cameraId}] Received media stream`)
       
+      // Clear ICE gathering timeout - we have media, connection is working
+      // (ICE gathering may never formally complete on some networks like Tailscale)
+      if (conn!.iceGatheringTimeout) {
+        clearTimeout(conn!.iceGatheringTimeout)
+        conn!.iceGatheringTimeout = null
+        console.log(`[WHEP Manager ${cameraId}] Cleared ICE timeout - media stream received`)
+      }
+      
       // Set low jitter buffer for reduced latency
       // jitterBufferTarget is in milliseconds - lower = less latency but more sensitive to network jitter
       try {
@@ -620,10 +628,16 @@ async function createConnectionInternal(cameraId: string): Promise<WHEPConnectio
     }
   }
   
-  // ICE gathering timeout
+  // ICE gathering timeout - only fail if we don't have media
   conn.iceGatheringTimeout = setTimeout(() => {
+    // If we have a media stream, connection is working even if ICE gathering didn't complete
+    if (conn!.mediaStream) {
+      console.log(`[WHEP Manager ${cameraId}] ICE gathering incomplete but media stream present - connection OK`)
+      return
+    }
+    
     if (pc.iceGatheringState !== 'complete') {
-      console.warn(`[WHEP Manager ${cameraId}] ICE gathering timeout after ${ICE_GATHERING_TIMEOUT}ms`)
+      console.warn(`[WHEP Manager ${cameraId}] ICE gathering timeout after ${ICE_GATHERING_TIMEOUT}ms (no media)`)
       conn!.state = 'failed'
       notifyListeners(cameraId)
       if (conn!.refCount > 0) {
