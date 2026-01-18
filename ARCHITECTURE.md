@@ -238,6 +238,24 @@ Located in `tests/test_scenes.py`:
 5. **Audio Mixing**: Mix audio from multiple sources
 6. **Advanced Layouts**: Custom layouts, borders, labels
 
+### SFU for Multiple Viewers
+
+**Current Architecture**: Each browser creates a direct WebRTC connection to MediaMTX. This works well for a few viewers but can overwhelm the R58 device with many simultaneous connections.
+
+**Future Enhancement Options**:
+
+1. **VDO.ninja Meshcast Mode**: Use VDO.ninja's `&meshcast` mode as a relay SFU. This would have the VPS act as a relay, reducing load on the R58.
+
+2. **MediaMTX Cascading/Replication**: Set up MediaMTX replication from R58 to VPS, allowing the VPS to serve multiple viewers while R58 only needs to stream to the VPS once.
+
+3. **Cloudflare Stream**: For high-scale distribution, integrate Cloudflare Stream which provides global CDN distribution for live video with automatic transcoding and adaptive bitrate.
+
+**Considerations**:
+- SFU adds latency (extra hop)
+- Requires additional infrastructure (VPS resources)
+- Only needed for scenarios with many simultaneous viewers (>10)
+- Current P2P architecture is optimal for low-latency, small-scale use cases
+
 ## Troubleshooting
 
 ### Pipeline Won't Start

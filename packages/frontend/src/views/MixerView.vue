@@ -19,6 +19,7 @@ import { getVdoHost, getVdoProtocol, VDO_ROOM, VDO_DIRECTOR_PASSWORD, buildMixer
 import { buildApiUrl, hasDeviceConfigured } from '@/lib/api'
 import { toast } from '@/composables/useToast'
 import { platform } from '@/lib/platform'
+import { probeConnections } from '@/lib/connectionProbe'
 
 // Components
 import ModeLoadingScreen from '@/components/shared/ModeLoadingScreen.vue'
@@ -40,6 +41,8 @@ const isLoading = ref(true)
 const iframeLoaded = ref(false)
 const bridgeReady = ref(false)
 const loadingStatus = ref('Starting mixer...')
+const loadingProgress = ref<number | undefined>(undefined)
+const connectionMethod = ref<string | undefined>(undefined)
 const iframeRef = ref<HTMLIFrameElement | null>(null)
 const showControls = ref(true)
 const isElectronApp = computed(() => platform.isElectron())
@@ -174,6 +177,24 @@ async function ensureMixerMode() {
   }
 }
 
+// Initialize connection and preload
+async function initializeConnection() {
+  if (!hasDeviceConfigured()) {
+    loadingStatus.value = 'No device configured'
+    return
+  }
+  
+  loadingStatus.value = 'Finding best connection...'
+  
+  // Race all connection methods - total max wait ~3s
+  const result = await probeConnections((status) => {
+    loadingStatus.value = status
+  })
+  
+  connectionMethod.value = result.method.toUpperCase()
+  loadingStatus.value = `Connected via ${result.method.toUpperCase()}`
+}
+
 // Fetch inputs on mount - parallelized for speed
 onMounted(async () => {
   const startTime = performance.now()
@@ -183,13 +204,15 @@ onMounted(async () => {
     console.log('[Mixer] Electron app detected, useLocalBridge:', useLocalBridge.value, 'showCameraPushBar:', showCameraPushBar.value)
   }
 
-  // Initialize mixer URL first
-  await initializeMixerUrl()
+  // Phase 0: Probe connection method (parallel with other initialization)
+  const connectionPromise = initializeConnection()
   
-  // Phase 1: Mode switch and data fetch in parallel
+  // Phase 1: Mode switch, data fetch, and mixer URL in parallel
   await Promise.all([
+    connectionPromise,
     ensureMixerMode(),
-    recorderStore.fetchInputs()
+    recorderStore.fetchInputs(),
+    initializeMixerUrl()
   ])
   
   // Phase 2: Wait for bridge to start (gives cameras time to join)
@@ -209,6 +232,9 @@ onMounted(async () => {
       :min-time="2000"
       :max-time="20000"
       :show-cancel="true"
+      :status-text="loadingStatus"
+      :progress="loadingProgress"
+      :connection-method="connectionMethod"
       @ready="handleLoadingReady"
       @cancel="handleLoadingCancel"
     />

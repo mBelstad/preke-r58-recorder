@@ -6,6 +6,7 @@ import { useCapabilitiesStore } from '@/stores/capabilities'
 import { useRecordingGuard } from '@/composables/useRecordingGuard'
 import { buildApiUrl, hasDeviceConfigured } from '@/lib/api'
 import { toast } from '@/composables/useToast'
+import { probeConnections, preloadCameras } from '@/lib/connectionProbe'
 import RecorderControls from '@/components/recorder/RecorderControls.vue'
 import RecordingHealth from '@/components/recorder/RecordingHealth.vue'
 import InputGrid from '@/components/recorder/InputGrid.vue'
@@ -36,6 +37,9 @@ const duration = computed(() => recorderStore.formattedDuration)
 const isLoading = ref(true)
 const dataLoaded = ref(false)
 const videosReady = ref(false)
+const loadingStatus = ref('Starting recorder...')
+const loadingProgress = ref<number | undefined>(undefined)
+const connectionMethod = ref<string | undefined>(undefined)
 
 // Content is ready when BOTH data is loaded AND videos are displaying
 const contentReady = computed(() => dataLoaded.value && videosReady.value)
@@ -63,6 +67,43 @@ async function ensureRecorderMode() {
     } catch (e) {
       console.warn('[Recorder] Failed to switch mode:', e)
     }
+  }
+}
+
+// Initialize connection and preload cameras
+async function initializeConnection() {
+  if (!hasDeviceConfigured()) {
+    loadingStatus.value = 'No device configured'
+    return
+  }
+  
+  loadingStatus.value = 'Finding best connection...'
+  
+  // Race all connection methods - total max wait ~3s
+  const result = await probeConnections((status) => {
+    loadingStatus.value = status
+  })
+  
+  connectionMethod.value = result.method.toUpperCase()
+  loadingStatus.value = `Connected via ${result.method.toUpperCase()}`
+  
+  // Get active cameras with signal
+  const activeCameras = recorderStore.inputs
+    .filter(i => i.hasSignal)
+    .map(i => i.id)
+  
+  if (activeCameras.length > 0) {
+    loadingStatus.value = 'Preloading cameras...'
+    
+    // Preload camera connections
+    await preloadCameras(activeCameras, result, (loaded, total, cameraId) => {
+      loadingProgress.value = Math.round((loaded / total) * 100)
+      if (cameraId !== 'done') {
+        loadingStatus.value = `Loading ${cameraId}... (${loaded}/${total})`
+      } else {
+        loadingStatus.value = 'All cameras ready'
+      }
+    })
   }
 }
 
@@ -125,9 +166,12 @@ async function createNewProject() {
 onMounted(async () => {
   const startTime = performance.now()
   
-  // Fetch data (mode, inputs, status) in parallel
-  // Video connections start automatically via InputPreview components
+  // Phase 0: Probe connection and preload cameras (parallel with data fetch)
+  const connectionPromise = initializeConnection()
+  
+  // Phase 1: Fetch data (mode, inputs, status) in parallel
   await Promise.all([
+    connectionPromise,
     ensureRecorderMode(),
     recorderStore.fetchInputs(),
     recorderStore.fetchStatus(),
@@ -138,6 +182,7 @@ onMounted(async () => {
   console.log(`[Recorder] Data loaded: ${recorderStore.inputs.length} inputs, ${camerasWithSignal} with signal (${Math.round(performance.now() - startTime)}ms)`)
   
   // Mark data as loaded - videos are loading in parallel via InputPreview
+  // (but they should already be preloaded from connection probe)
   dataLoaded.value = true
   
   // If no cameras with signal, mark videos as ready immediately
@@ -167,8 +212,11 @@ watch(showLeaveConfirmation, (show) => {
       mode="recorder"
       :content-ready="contentReady"
       :min-time="1500"
-      :max-time="5000"
+      :max-time="12000"
       :show-cancel="true"
+      :status-text="loadingStatus"
+      :progress="loadingProgress"
+      :connection-method="connectionMethod"
       @ready="handleLoadingReady"
       @cancel="handleLoadingCancel"
     />

@@ -12,11 +12,20 @@ const props = withDefaults(defineProps<{
   contentReady?: boolean
   /** Show cancel button */
   showCancel?: boolean
+  /** Status text to display (e.g., "Testing LAN connection...") */
+  statusText?: string
+  /** Progress percentage (0-100) for camera preload */
+  progress?: number
+  /** Connection method (e.g., "LAN", "Tailscale", "FRP", "HLS") */
+  connectionMethod?: string
 }>(), {
   minTime: 1500,
   maxTime: 8000,
   contentReady: false,
-  showCancel: false
+  showCancel: false,
+  statusText: undefined,
+  progress: undefined,
+  connectionMethod: undefined
 })
 
 const emit = defineEmits<{
@@ -116,6 +125,27 @@ onUnmounted(() => {
             animationDelay: `${(i - 1) * 0.15}s`
           }"
         ></div>
+      </div>
+      
+      <!-- Connection status -->
+      <div v-if="statusText" class="loading-status">
+        {{ statusText }}
+      </div>
+      
+      <!-- Progress bar -->
+      <div v-if="progress !== undefined" class="loading-progress">
+        <div 
+          class="loading-progress__bar" 
+          :style="{ 
+            width: `${progress}%`,
+            backgroundColor: modeColor
+          }"
+        ></div>
+      </div>
+      
+      <!-- Connection method badge -->
+      <div v-if="connectionMethod" class="loading-method">
+        Connected via {{ connectionMethod }}
       </div>
       
       <!-- Cancel button -->
@@ -258,5 +288,39 @@ onUnmounted(() => {
 .loading-cancel svg {
   width: 16px;
   height: 16px;
+}
+
+/* Connection status */
+.loading-status {
+  font-size: 0.875rem;
+  color: var(--preke-text-muted);
+  text-align: center;
+  min-height: 1.25rem;
+  margin-top: -0.5rem;
+}
+
+/* Progress bar */
+.loading-progress {
+  width: 200px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 0.5rem;
+}
+
+.loading-progress__bar {
+  height: 100%;
+  transition: width 0.3s ease;
+  border-radius: 2px;
+}
+
+/* Connection method badge */
+.loading-method {
+  font-size: 0.75rem;
+  color: var(--preke-text-subtle);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 0.25rem;
 }
 </style>

@@ -54,13 +54,15 @@ webrtcServerKey: /etc/ssl/r58/privkey.pem
 webrtcServerCert: /etc/ssl/r58/fullchain.pem
 
 # ICE configuration for NAT traversal
-# webrtcAdditionalHosts advertises these IPs as host candidates (v1.15.6+)
-# Priority order: Tailscale (P2P) > LAN (P2P) > VPS (relay fallback)
-# This enables direct P2P connections when possible, falling back to VPS relay only when necessary
-webrtcAdditionalHosts:
-  - "100.65.219.117"  # Tailscale IP - P2P priority (no bandwidth cost)
-  - "192.168.1.24"    # LAN IP - P2P priority (local network)
-  - "65.109.32.111"   # VPS IP - Relay fallback (for remote access)
+# FIXED: Removed webrtcAdditionalHosts to prevent ICE candidate flooding
+# Multiple host candidates cause browsers to attempt connections to all IPs simultaneously,
+# flooding the network on poor connections.
+# 
+# REMOVED webrtcICEHostNAT1To1IPs: This setting replaces ALL host candidates with the VPS IP,
+# which breaks direct LAN/Tailscale connections. Instead, we rely on:
+# - STUN discovery: For all connections (LAN/Tailscale/FRP), let normal ICE discovery work
+# - nginx proxy: Handles FRP relay routing without needing NAT1To1 mapping
+# This allows proper P2P connections while still supporting FRP relay access
 
 # UDP port for WebRTC media (mapped via FRP to 18189 on VPS)
 webrtcLocalUDPAddress: :8189
@@ -69,9 +71,11 @@ webrtcLocalUDPAddress: :8189
 # This enables WebRTC to work over TCP through the FRP tunnel
 webrtcLocalTCPAddress: :8190
 
-# STUN servers for ICE gathering
+# STUN servers for ICE gathering (synchronized with frontend)
 webrtcICEServers2:
   - url: stun:stun.l.google.com:19302
+  - url: stun:stun1.l.google.com:19302
+  - url: stun:stun.cloudflare.com:3478
 
 # Paths configuration
 # Camera streams published via RTSP (rtspclientsink with H.265)

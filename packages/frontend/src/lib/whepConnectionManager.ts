@@ -13,22 +13,38 @@
  */
 
 import { getDeviceUrl, isUsingFrpFallback } from './api'
+import { getIceServers } from './iceConfig'
+
+// Connection quality metrics
+interface ConnectionQuality {
+  rtt: number  // Round-trip time in ms
+  packetLoss: number  // Packet loss percentage (0-100)
+  jitter: number  // Jitter in ms
+  quality: 'excellent' | 'good' | 'fair' | 'poor' | 'very-poor'
+  lastUpdated: number
+}
 
 // Connection state for each camera
 interface WHEPConnection {
   cameraId: string
   peerConnection: RTCPeerConnection
   mediaStream: MediaStream | null
-  state: 'connecting' | 'connected' | 'disconnected' | 'failed'
-  connectionType: 'p2p' | 'relay' | 'unknown'
+  state: 'connecting' | 'connected' | 'disconnected' | 'failed' | 'hls-fallback'
+  connectionType: 'p2p' | 'relay' | 'unknown' | 'hls'
   refCount: number  // Number of components using this connection
   whepUrl: string
+  hlsUrl: string | null  // HLS fallback URL
   lastConnectedAt: number | null
   reconnectAttempts: number
   reconnectTimeout: ReturnType<typeof setTimeout> | null
   disconnectedTimeout: ReturnType<typeof setTimeout> | null  // Timeout for disconnected state recovery
   connectionStartTime: number | null  // For timing measurements
   isConnecting: boolean  // Guard flag to prevent multiple simultaneous connection attempts
+  quality: ConnectionQuality | null  // Connection quality metrics
+  qualityMonitorInterval: ReturnType<typeof setInterval> | null  // Interval for quality monitoring
+  shouldUseHLS: boolean  // Whether to use HLS fallback
+  qualityCheckTimeout: ReturnType<typeof setTimeout> | null  // Timeout for quality check before HLS fallback
+  iceGatheringTimeout: ReturnType<typeof setTimeout> | null  // Timeout for ICE gathering
 }
 
 // Helper to check if an IP is in a private range (P2P)
@@ -45,6 +61,11 @@ function isPrivateIP(ip: string): boolean {
 const MAX_RECONNECT_ATTEMPTS = 5
 const INITIAL_RECONNECT_DELAY = 1000  // 1 second
 const MAX_RECONNECT_DELAY = 30000     // 30 seconds
+
+// Timeout configuration (optimized for fast failure)
+const ICE_GATHERING_TIMEOUT = 8000  // 8 seconds (reduced for faster failure)
+const WHEP_FETCH_TIMEOUT = 5000     // 5 seconds (reduced for faster failure)
+const QUALITY_CHECK_TIMEOUT = 5000  // 5 seconds before HLS fallback (reduced from 10s)
 
 // Network debug logging
 const isNetworkDebugEnabled = (): boolean => {
@@ -72,6 +93,59 @@ const connections = new Map<string, WHEPConnection>()
 
 // Event listeners per camera
 const listeners = new Map<string, Set<(conn: WHEPConnection) => void>>()
+
+// Connection locks to prevent race conditions
+const connectionLocks = new Map<string, Promise<WHEPConnection>>()
+
+/**
+ * Build the HLS URL for a camera (fallback for poor connections)
+ * Uses same logic as WHEP URL but with /index.m3u8 suffix
+ */
+async function buildHlsUrl(cameraId: string): Promise<string> {
+  const deviceUrl = getDeviceUrl()
+  const usingFrp = isUsingFrpFallback()
+  
+  // Use direct connection only if available AND FRP fallback not active
+  if (deviceUrl && !usingFrp) {
+    try {
+      const url = new URL(deviceUrl)
+      return `http://${url.hostname}:8888/${cameraId}/index.m3u8`
+    } catch (e) {
+      console.warn(`[WHEP Manager] Invalid device URL for HLS, falling back to FRP`)
+    }
+  }
+  
+  // Local device mode
+  const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI
+  if (!isElectron && typeof window !== 'undefined' && (
+    window.location.hostname === 'localhost' || 
+    window.location.hostname === '127.0.0.1'
+  )) {
+    return `http://localhost:8888/${cameraId}/index.m3u8`
+  }
+  
+  // Same-domain proxy - needs /hls/ prefix for nginx routing
+  if (typeof window !== 'undefined' && window.location.hostname === 'app.itagenten.no') {
+    return `https://app.itagenten.no/hls/${cameraId}/index.m3u8`
+  }
+  
+  // FRP fallback - also needs /hls/ prefix
+  const { getFrpUrl } = await import('./api')
+  const frpUrl = await getFrpUrl()
+  if (frpUrl) {
+    try {
+      const url = new URL(frpUrl)
+      if (url.hostname.includes('itagenten.no')) {
+        return `https://app.itagenten.no/hls/${cameraId}/index.m3u8`
+      }
+    } catch (e) {
+      console.warn(`[WHEP Manager] Invalid FRP URL for HLS`)
+    }
+  }
+  
+  // Default fallback - with /hls/ prefix
+  return `https://app.itagenten.no/hls/${cameraId}/index.m3u8`
+}
 
 /**
  * Build the WHEP URL for a camera
@@ -135,6 +209,125 @@ async function buildWhepUrl(cameraId: string): Promise<string> {
   
   // No FRP configured - throw error
   throw new Error('No device configured and no FRP fallback available')
+}
+
+/**
+ * Monitor connection quality via WebRTC stats
+ * Returns quality metrics including RTT, packet loss, and jitter
+ */
+async function monitorConnectionQuality(pc: RTCPeerConnection): Promise<ConnectionQuality> {
+  try {
+    const stats = await pc.getStats()
+    let rtt = 0
+    let packetsLost = 0
+    let packetsReceived = 0
+    let jitter = 0
+    
+    // Find the active candidate pair
+    for (const report of stats.values()) {
+      if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+        rtt = report.currentRoundTripTime ? report.currentRoundTripTime * 1000 : 0
+        
+        // Get remote candidate stats
+        const remoteCandidate = stats.get(report.remoteCandidateId)
+        if (remoteCandidate) {
+          // Get inbound RTP stats for video
+          for (const inboundReport of stats.values()) {
+            if (inboundReport.type === 'inbound-rtp' && inboundReport.mediaType === 'video') {
+              packetsLost = inboundReport.packetsLost || 0
+              packetsReceived = inboundReport.packetsReceived || 0
+              jitter = inboundReport.jitter ? inboundReport.jitter * 1000 : 0
+              break
+            }
+          }
+        }
+        break
+      }
+    }
+    
+    // Calculate packet loss percentage
+    const totalPackets = packetsReceived + packetsLost
+    const packetLossPercent = totalPackets > 0 ? (packetsLost / totalPackets) * 100 : 0
+    
+    // Determine quality level
+    let quality: ConnectionQuality['quality'] = 'excellent'
+    if (rtt > 500 || packetLossPercent > 10) {
+      quality = 'very-poor'
+    } else if (rtt > 300 || packetLossPercent > 5) {
+      quality = 'poor'
+    } else if (rtt > 150 || packetLossPercent > 2) {
+      quality = 'fair'
+    } else if (rtt > 100 || packetLossPercent > 1) {
+      quality = 'good'
+    }
+    
+    return {
+      rtt: Math.round(rtt),
+      packetLoss: Math.round(packetLossPercent * 10) / 10,
+      jitter: Math.round(jitter),
+      quality,
+      lastUpdated: Date.now()
+    }
+  } catch (e) {
+    console.warn('[WHEP Manager] Failed to get connection quality:', e)
+    return {
+      rtt: 0,
+      packetLoss: 0,
+      jitter: 0,
+      quality: 'unknown' as any,
+      lastUpdated: Date.now()
+    }
+  }
+}
+
+/**
+ * Start quality monitoring for a connection
+ */
+function startQualityMonitoring(cameraId: string, pc: RTCPeerConnection) {
+  const conn = connections.get(cameraId)
+  if (!conn) return
+  
+  // Clear existing monitor
+  if (conn.qualityMonitorInterval) {
+    clearInterval(conn.qualityMonitorInterval)
+  }
+  
+  // Monitor every 5 seconds
+  conn.qualityMonitorInterval = setInterval(async () => {
+    if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+      const quality = await monitorConnectionQuality(pc)
+      conn.quality = quality
+      
+      // Check if we should fall back to HLS
+      // Fall back if: RTT > 500ms OR packet loss > 5% for 5+ seconds (reduced from 10s)
+      if (quality.quality === 'poor' || quality.quality === 'very-poor') {
+        if (!conn.shouldUseHLS && !conn.qualityCheckTimeout) {
+          console.warn(`[WHEP Manager ${cameraId}] Poor connection quality detected (RTT: ${quality.rtt}ms, Loss: ${quality.packetLoss}%), considering HLS fallback`)
+          
+          // Wait 5 seconds of poor quality before switching (tracked timeout for cleanup)
+          conn.qualityCheckTimeout = setTimeout(async () => {
+            const currentQuality = await monitorConnectionQuality(pc)
+            if (currentQuality.quality === 'poor' || currentQuality.quality === 'very-poor') {
+              console.log(`[WHEP Manager ${cameraId}] Switching to HLS fallback due to poor quality`)
+              conn.shouldUseHLS = true
+              conn.qualityCheckTimeout = null
+              notifyListeners(cameraId)
+            } else {
+              conn.qualityCheckTimeout = null
+            }
+          }, QUALITY_CHECK_TIMEOUT)
+        }
+      } else if (quality.quality === 'excellent' || quality.quality === 'good') {
+        // Good quality - can switch back to WHEP if we were on HLS
+        if (conn.shouldUseHLS && conn.state === 'hls-fallback') {
+          console.log(`[WHEP Manager ${cameraId}] Connection quality improved, can switch back to WHEP`)
+          conn.shouldUseHLS = false
+        }
+      }
+      
+      notifyListeners(cameraId)
+    }
+  }, 5000)
 }
 
 /**
@@ -260,9 +453,9 @@ function scheduleReconnect(cameraId: string) {
 }
 
 /**
- * Create or reconnect a WHEP connection
+ * Create or reconnect a WHEP connection (internal implementation)
  */
-async function createConnection(cameraId: string): Promise<WHEPConnection> {
+async function createConnectionInternal(cameraId: string): Promise<WHEPConnection> {
   let conn = connections.get(cameraId)
   
   // If connection exists and is active, just return it
@@ -309,12 +502,17 @@ async function createConnection(cameraId: string): Promise<WHEPConnection> {
   
   const startTime = performance.now()
   const whepUrl = await buildWhepUrl(cameraId)
+  const hlsUrl = await buildHlsUrl(cameraId)
   networkDebugLog('WHEP', `Camera ${cameraId}: Creating connection to ${whepUrl}`)
   console.log(`[WHEP Manager ${cameraId}] Creating connection to: ${whepUrl}`)
+  console.log(`[WHEP Manager ${cameraId}] HLS fallback available at: ${hlsUrl}`)
   console.log(`[WHEP Manager ${cameraId}] Device URL was: ${deviceUrl || 'none (browser mode)'}`)
   
   // Clean up old connection if exists
   if (conn?.peerConnection) {
+    if (conn.qualityMonitorInterval) {
+      clearInterval(conn.qualityMonitorInterval)
+    }
     conn.peerConnection.close()
   }
   
@@ -329,13 +527,12 @@ async function createConnection(cameraId: string): Promise<WHEPConnection> {
     conn.isConnecting = true
   }
   
+  // Get ICE servers (STUN + TURN if available)
+  const iceServers = await getIceServers()
+  
   // Create new peer connection
   const pc = new RTCPeerConnection({
-    iceServers: [
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' },
-      { urls: 'stun:stun.cloudflare.com:3478' },
-    ]
+    iceServers
   })
   
   // Initialize or update connection record
@@ -348,22 +545,32 @@ async function createConnection(cameraId: string): Promise<WHEPConnection> {
       connectionType: 'unknown',
       refCount: 0,
       whepUrl,
+      hlsUrl,
       lastConnectedAt: null,
       reconnectAttempts: 0,
       reconnectTimeout: null,
       disconnectedTimeout: null,
       connectionStartTime: startTime,
       isConnecting: true,
+      quality: null,
+      qualityMonitorInterval: null,
+      shouldUseHLS: false,
+      qualityCheckTimeout: null,
+      iceGatheringTimeout: null,
     }
     connections.set(cameraId, conn)
   } else {
     conn.peerConnection = pc
     conn.state = 'connecting'
     conn.whepUrl = whepUrl
+    conn.hlsUrl = hlsUrl
     conn.mediaStream = null
     conn.connectionType = 'unknown'
     conn.connectionStartTime = startTime
     conn.isConnecting = true
+      conn.shouldUseHLS = false
+      conn.qualityCheckTimeout = null
+      conn.iceGatheringTimeout = null
   }
   
   // Track events
@@ -392,17 +599,46 @@ async function createConnection(cameraId: string): Promise<WHEPConnection> {
     }
   }
   
+  // ICE gathering timeout
+  conn.iceGatheringTimeout = setTimeout(() => {
+    if (pc.iceGatheringState !== 'complete') {
+      console.warn(`[WHEP Manager ${cameraId}] ICE gathering timeout after ${ICE_GATHERING_TIMEOUT}ms`)
+      conn!.state = 'failed'
+      notifyListeners(cameraId)
+      if (conn!.refCount > 0) {
+        scheduleReconnect(cameraId)
+      }
+    }
+  }, ICE_GATHERING_TIMEOUT)
+  
+  pc.onicegatheringstatechange = () => {
+    if (pc.iceGatheringState === 'complete') {
+      if (conn!.iceGatheringTimeout) {
+        clearTimeout(conn!.iceGatheringTimeout)
+        conn!.iceGatheringTimeout = null
+      }
+    }
+  }
+  
   pc.oniceconnectionstatechange = async () => {
     const state = pc.iceConnectionState
     networkDebugLog('WHEP', `Camera ${cameraId}: ICE state changed to ${state}`)
     console.log(`[WHEP Manager ${cameraId}] ICE state: ${state}`)
     
     if (state === 'connected' || state === 'completed') {
+      // Clear ICE gathering timeout on success
+      if (conn!.iceGatheringTimeout) {
+        clearTimeout(conn!.iceGatheringTimeout)
+        conn!.iceGatheringTimeout = null
+      }
       conn!.state = 'connected'
       conn!.lastConnectedAt = Date.now()
       conn!.reconnectAttempts = 0  // Reset on success
       conn!.isConnecting = false  // Clear connecting flag
       conn!.connectionType = await detectConnectionType(pc, cameraId)
+      
+      // Start quality monitoring
+      startQualityMonitoring(cameraId, pc)
       
       // Clear any disconnected timeout
       if (conn!.disconnectedTimeout) {
@@ -458,18 +694,32 @@ async function createConnection(cameraId: string): Promise<WHEPConnection> {
     const offer = await pc.createOffer()
     await pc.setLocalDescription(offer)
     
-    const response = await fetch(whepUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/sdp' },
-      body: offer.sdp
-    })
+    // Add fetch timeout
+    const controller = new AbortController()
+    const fetchTimeout = setTimeout(() => controller.abort(), WHEP_FETCH_TIMEOUT)
     
-    if (!response.ok) {
-      throw new Error(`WHEP request failed: ${response.status}`)
+    try {
+      const response = await fetch(whepUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/sdp' },
+        body: offer.sdp,
+        signal: controller.signal
+      })
+      clearTimeout(fetchTimeout)
+      
+      if (!response.ok) {
+        throw new Error(`WHEP request failed: ${response.status}`)
+      }
+      
+      const answerSdp = await response.text()
+      await pc.setRemoteDescription({ type: 'answer', sdp: answerSdp })
+    } catch (fetchError: any) {
+      clearTimeout(fetchTimeout)
+      if (fetchError.name === 'AbortError') {
+        throw new Error(`WHEP request timeout after ${WHEP_FETCH_TIMEOUT}ms`)
+      }
+      throw fetchError
     }
-    
-    const answerSdp = await response.text()
-    await pc.setRemoteDescription({ type: 'answer', sdp: answerSdp })
     
   } catch (e) {
     console.error(`[WHEP Manager ${cameraId}] Connection error:`, e)
@@ -483,6 +733,27 @@ async function createConnection(cameraId: string): Promise<WHEPConnection> {
   }
   
   return conn
+}
+
+/**
+ * Create or reconnect a WHEP connection (with mutex to prevent race conditions)
+ */
+async function createConnection(cameraId: string): Promise<WHEPConnection> {
+  // Check for existing lock
+  const existingLock = connectionLocks.get(cameraId)
+  if (existingLock) {
+    return existingLock
+  }
+  
+  // Create new lock
+  const connectionPromise = createConnectionInternal(cameraId)
+  connectionLocks.set(cameraId, connectionPromise)
+  
+  try {
+    return await connectionPromise
+  } finally {
+    connectionLocks.delete(cameraId)
+  }
 }
 
 /**
@@ -542,6 +813,9 @@ export function releaseConnection(
   if (conn.refCount === 0) {
     console.log(`[WHEP Manager ${cameraId}] Closing unused connection`)
     
+    // Cleanup quality monitoring
+    cleanupQualityMonitoring(cameraId)
+    
     if (conn.reconnectTimeout) {
       clearTimeout(conn.reconnectTimeout)
     }
@@ -549,6 +823,9 @@ export function releaseConnection(
     if (conn.disconnectedTimeout) {
       clearTimeout(conn.disconnectedTimeout)
     }
+    
+    // Cleanup all timeouts
+    cleanupQualityMonitoring(cameraId)
     
     conn.peerConnection.close()
     connections.delete(cameraId)
@@ -623,20 +900,75 @@ export function hasVideoReady(cameraId: string): boolean {
 }
 
 /**
+ * Get HLS URL for a camera (for fallback)
+ */
+export async function getHlsUrl(cameraId: string): Promise<string> {
+  return buildHlsUrl(cameraId)
+}
+
+/**
+ * Force HLS fallback for a camera
+ */
+export function forceHlsFallback(cameraId: string): void {
+  const conn = connections.get(cameraId)
+  if (!conn) return
+  
+  console.log(`[WHEP Manager ${cameraId}] Forcing HLS fallback`)
+  conn.shouldUseHLS = true
+  conn.state = 'hls-fallback'
+  conn.connectionType = 'hls'
+  
+  // Close WebRTC connection
+  if (conn.peerConnection) {
+    conn.peerConnection.close()
+  }
+  
+  // Clear quality monitoring
+  if (conn.qualityMonitorInterval) {
+    clearInterval(conn.qualityMonitorInterval)
+    conn.qualityMonitorInterval = null
+  }
+  
+  notifyListeners(cameraId)
+}
+
+/**
  * Get all active connections (for debugging)
  */
-export function getActiveConnections(): Map<string, { state: string; refCount: number; type: string }> {
+export function getActiveConnections(): Map<string, { state: string; refCount: number; type: string; quality: ConnectionQuality | null }> {
   const result = new Map()
   connections.forEach((conn, id) => {
     result.set(id, {
       state: conn.state,
       refCount: conn.refCount,
-      type: conn.connectionType
+      type: conn.connectionType,
+      quality: conn.quality
     })
   })
   return result
 }
 
+/**
+ * Cleanup quality monitoring on connection release
+ */
+function cleanupQualityMonitoring(cameraId: string) {
+  const conn = connections.get(cameraId)
+  if (conn) {
+    if (conn.qualityMonitorInterval) {
+      clearInterval(conn.qualityMonitorInterval)
+      conn.qualityMonitorInterval = null
+    }
+    if (conn.qualityCheckTimeout) {
+      clearTimeout(conn.qualityCheckTimeout)
+      conn.qualityCheckTimeout = null
+    }
+    if (conn.iceGatheringTimeout) {
+      clearTimeout(conn.iceGatheringTimeout)
+      conn.iceGatheringTimeout = null
+    }
+  }
+}
+
 // Export types
-export type { WHEPConnection }
+export type { WHEPConnection, ConnectionQuality }
 

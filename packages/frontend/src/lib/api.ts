@@ -174,6 +174,67 @@ export function getFallbackUrl(): string | null {
   return cachedFallbackUrl
 }
 
+// ============================================
+// TURN Server Integration
+// ============================================
+
+let cachedTurnCredentials: { iceServers: RTCIceServer[], expiresAt: number } | null = null
+
+/**
+ * Get TURN server credentials from r58-turn-api service
+ * Returns null if TURN is not configured or unavailable
+ */
+export async function getTurnCredentials(): Promise<RTCIceServer[] | null> {
+  // Return cached credentials if still valid
+  if (cachedTurnCredentials && Date.now() < cachedTurnCredentials.expiresAt) {
+    return cachedTurnCredentials.iceServers
+  }
+  
+  try {
+    // Try to get TURN URL from device config first
+    const deviceUrl = getDeviceUrl()
+    let turnUrl = 'https://turn.itagenten.no/turn-credentials'
+    
+    if (deviceUrl) {
+      try {
+        const response = await fetch(`${deviceUrl}/api/config`, {
+          signal: AbortSignal.timeout(3000),
+          mode: 'cors',
+          cache: 'no-cache'
+        })
+        if (response.ok) {
+          const config = await response.json()
+          if (config.turn_url) {
+            turnUrl = config.turn_url
+          }
+        }
+      } catch (e) {
+        // Fall back to default TURN URL
+      }
+    }
+    
+    const response = await fetch(turnUrl, {
+      signal: AbortSignal.timeout(5000),
+      mode: 'cors',
+      cache: 'no-cache'
+    })
+    
+    if (response.ok) {
+      const data = await response.json()
+      cachedTurnCredentials = {
+        iceServers: data.iceServers || [],
+        expiresAt: data.expiresAt ? new Date(data.expiresAt).getTime() : Date.now() + 86400000 // 24h default
+      }
+      console.log('[API] TURN credentials cached')
+      return cachedTurnCredentials.iceServers
+    }
+  } catch (e) {
+    console.warn('[API] Failed to get TURN credentials:', e)
+  }
+  
+  return null
+}
+
 /**
  * Get the current device URL
  */
