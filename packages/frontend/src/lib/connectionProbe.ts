@@ -180,6 +180,22 @@ export async function probeConnections(
   // Remember the original device URL - don't overwrite a working connection
   const originalDeviceUrl = getDeviceUrl()
   
+  // Helper to check if URL is a direct connection
+  const isDirectUrl = (url: string): boolean => {
+    try {
+      const parsed = new URL(url)
+      // Tailscale IPs (100.x.x.x) or private IPs
+      if (parsed.hostname.startsWith('100.') || parsed.hostname.endsWith('.ts.net')) return true
+      if (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1') return true
+      if (parsed.hostname.startsWith('192.168.') || parsed.hostname.startsWith('10.')) return true
+      if (parsed.hostname.startsWith('172.')) {
+        const second = parseInt(parsed.hostname.split('.')[1], 10)
+        return second >= 16 && second <= 31
+      }
+      return false
+    } catch { return false }
+  }
+  
   // Race with Promise.any - first success wins
   try {
     const winner = await Promise.any(probes)
@@ -189,6 +205,21 @@ export async function probeConnections(
     
     console.log(`[ConnectionProbe] Winner: ${winner.method.toUpperCase()} (${Math.round(winner.latency)}ms)`)
     onStatus?.('Connection established')
+    
+    // IMPORTANT: Don't switch from direct connection (Tailscale/LAN) to FRP
+    // If original URL is direct and WHEP can use it, keep it
+    // FRP winning just means the /health endpoint is faster, not that WHEP needs it
+    if (originalDeviceUrl && isDirectUrl(originalDeviceUrl) && winner.method === 'frp') {
+      console.log(`[ConnectionProbe] Keeping direct device URL despite FRP winning:`, originalDeviceUrl)
+      // Keep the original device URL, but report the result
+      // This allows WHEP to use direct connections while API uses FRP as needed
+      return {
+        method: winner.method,  // Report what won
+        url: originalDeviceUrl, // But keep the original direct URL
+        latency: winner.latency,
+        success: true
+      }
+    }
     
     // Set the device URL to the winning method
     setDeviceUrl(winner.url)

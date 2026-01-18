@@ -600,6 +600,13 @@ async function createConnectionInternal(cameraId: string): Promise<WHEPConnectio
       conn!.mediaStream = event.streams[0]
       console.log(`[WHEP Manager ${cameraId}] Received media stream`)
       
+      // IMPORTANT: Set state to 'connected' when we receive media
+      // This is proof the connection works, even if ICE state hasn't formally completed
+      // (Tailscale/DERP relays may never report ICE 'connected' state)
+      conn!.state = 'connected'
+      conn!.lastConnectedAt = Date.now()
+      conn!.isConnecting = false
+      
       // Clear ICE gathering timeout - we have media, connection is working
       // (ICE gathering may never formally complete on some networks like Tailscale)
       if (conn!.iceGatheringTimeout) {
