@@ -16,11 +16,9 @@
  */
 import { ref, computed, watch } from 'vue'
 import { useRecorderStore, type InputStatus } from '@/stores/recorder'
-import { useCapabilitiesStore } from '@/stores/capabilities'
 import InputPreview from '@/components/shared/InputPreview.vue'
 
 const recorderStore = useRecorderStore()
-const capabilitiesStore = useCapabilitiesStore()
 
 const emit = defineEmits<{
   (e: 'allVideosReady'): void
@@ -69,11 +67,11 @@ watch(() => inputs.value.length, () => {
   videosReady.value.clear()
 })
 
-// Only show live video in recorder mode to avoid duplicate WHEP connections
-// VDO.ninja handles video streams in mixer mode
-const isRecorderMode = computed(() => 
-  capabilitiesStore.capabilities?.current_mode === 'recorder'
-)
+// Always show live video in InputGrid
+// This component is only used in RecorderView, so we always want videos
+// The old check for 'recorder' mode was causing videos to not show when
+// capabilities failed to load or when the mode wasn't explicitly 'recorder'
+const isRecorderMode = computed(() => true)
 
 // Filter to show only inputs with signal (hides disconnected HDMI inputs)
 const inputs = computed(() => recorderStore.inputs.filter(i => i.hasSignal))
