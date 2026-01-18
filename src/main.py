@@ -2276,6 +2276,88 @@ async def stop_rtmp_streaming():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/api/test/start-video")
+async def start_test_video(request: Dict[str, Any] = Body({})) -> Dict[str, Any]:
+    """Start a test video source for testing the streaming pipeline.
+    
+    This starts an FFmpeg process that generates a test pattern with audio
+    and publishes it to MediaMTX at mixer_program.
+    
+    Args:
+        duration: Duration in seconds (default: 120, max: 600)
+    """
+    import subprocess
+    import os
+    
+    duration = min(request.get("duration", 120), 600)  # Max 10 minutes
+    
+    # Kill any existing test video
+    try:
+        subprocess.run(
+            ["pkill", "-f", "ffmpeg.*testsrc.*mixer_program"],
+            capture_output=True,
+            timeout=5
+        )
+    except:
+        pass
+    
+    # Build FFmpeg command for test pattern with audio
+    ffmpeg_cmd = [
+        "ffmpeg", "-y", "-re",
+        "-f", "lavfi", "-i", f"testsrc=duration={duration}:size=1280x720:rate=30",
+        "-f", "lavfi", "-i", f"sine=frequency=1000:sample_rate=48000:duration={duration}",
+        "-c:v", "libx264", "-preset", "ultrafast", "-tune", "zerolatency",
+        "-pix_fmt", "yuv420p", "-b:v", "2000k",
+        "-c:a", "aac", "-ar", "48000", "-b:a", "128k",
+        "-f", "rtsp", "rtsp://localhost:8554/mixer_program"
+    ]
+    
+    try:
+        # Start in background
+        process = subprocess.Popen(
+            ffmpeg_cmd,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            stdin=subprocess.DEVNULL,
+            start_new_session=True
+        )
+        
+        logger.info(f"Started test video with PID {process.pid} for {duration}s")
+        
+        return {
+            "success": True,
+            "message": f"Test video started for {duration} seconds",
+            "pid": process.pid,
+            "duration": duration
+        }
+    except Exception as e:
+        logger.error(f"Failed to start test video: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/test/stop-video")
+async def stop_test_video() -> Dict[str, Any]:
+    """Stop the test video source."""
+    import subprocess
+    
+    try:
+        result = subprocess.run(
+            ["pkill", "-f", "ffmpeg.*testsrc.*mixer_program"],
+            capture_output=True,
+            timeout=5
+        )
+        
+        return {
+            "success": True,
+            "message": "Test video stopped"
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "message": str(e)
+        }
+
+
 @app.get("/api/fps")
 async def get_fps_stats() -> Dict[str, Any]:
     """Get real-time framerate statistics for all cameras.
@@ -7067,6 +7149,134 @@ async def create_qr_session(request: Dict[str, Any] = Body({})) -> Dict[str, Any
         "display_mode": display_mode.value,
         "message": "QR session created"
     }
+
+
+@app.post("/api/v1/tv/display")
+async def switch_tv_display(request: Dict[str, Any] = Body({})) -> Dict[str, Any]:
+    """Switch the TV display to a different page.
+    
+    The TV kiosk runs Chromium in fullscreen mode showing the frontend app.
+    This endpoint navigates the kiosk to a different route.
+    
+    Request body:
+        path: The route path to navigate to (e.g., "/qr", "/podcast", "/talking-head")
+        token: Optional customer token for session-based pages
+    
+    Example paths:
+        - /qr: QR code welcome page
+        - /podcast: Podcast multiview display
+        - /talking-head: Teleprompter display
+        - /course: Course TV display
+        - /course-teleprompter: Course teleprompter display
+        - /webinar: Webinar display with VDO.ninja
+        - /customer/{token}: Customer session display
+    """
+    path = request.get("path", "/qr")
+    
+    # Validate path starts with /
+    if not path.startswith("/"):
+        path = f"/{path}"
+    
+    # Run the switch script
+    script_path = "/opt/preke-r58-recorder/scripts/switch-tv-display.sh"
+    
+    try:
+        import subprocess
+        result = subprocess.run(
+            [script_path, path],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        
+        if result.returncode == 0:
+            logger.info(f"TV display switched to: {path}")
+            return {
+                "success": True,
+                "path": path,
+                "message": f"TV display switched to {path}"
+            }
+        else:
+            logger.error(f"Failed to switch TV display: {result.stderr}")
+            return {
+                "success": False,
+                "path": path,
+                "message": f"Failed to switch display: {result.stderr}"
+            }
+    except subprocess.TimeoutExpired:
+        logger.error("TV display switch timed out")
+        return {
+            "success": False,
+            "path": path,
+            "message": "Switch timed out - TV kiosk may not be running"
+        }
+    except FileNotFoundError:
+        logger.warning(f"Switch script not found at {script_path}")
+        return {
+            "success": False,
+            "path": path,
+            "message": "Switch script not installed on device"
+        }
+    except Exception as e:
+        logger.error(f"Error switching TV display: {e}")
+        return {
+            "success": False,
+            "path": path,
+            "message": str(e)
+        }
+
+
+@app.get("/api/v1/tv/status")
+async def get_tv_status() -> Dict[str, Any]:
+    """Get the status of the TV kiosk display.
+    
+    Returns information about whether the kiosk is running and what page it's showing.
+    """
+    try:
+        import subprocess
+        
+        # Check if kiosk Chromium is running (on port 9223)
+        result = subprocess.run(
+            ["curl", "-s", "http://127.0.0.1:9223/json"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        
+        if result.returncode == 0 and result.stdout:
+            import json
+            pages = json.loads(result.stdout)
+            current_url = None
+            for page in pages:
+                if page.get("type") == "page":
+                    current_url = page.get("url", "")
+                    break
+            
+            # Extract path from URL
+            current_path = None
+            if current_url and "#" in current_url:
+                current_path = current_url.split("#")[1] if "#" in current_url else "/"
+            
+            return {
+                "running": True,
+                "url": current_url,
+                "path": current_path,
+                "cdp_port": 9223
+            }
+        else:
+            return {
+                "running": False,
+                "url": None,
+                "path": None,
+                "message": "TV kiosk not running"
+            }
+    except Exception as e:
+        return {
+            "running": False,
+            "url": None,
+            "path": None,
+            "message": str(e)
+        }
 
 
 if __name__ == "__main__":

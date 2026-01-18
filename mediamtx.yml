@@ -94,6 +94,9 @@ paths:
     sourceOnDemand: no
     sourceOnDemandStartTimeout: 10s
     sourceOnDemandCloseAfter: 10s
+  # RTMP loopback test output (receives RTMP relay from mixer_program for testing)
+  rtmp_test_output:
+    source: publisher
   # Remote guest paths (published via WHIP)
   guest1:
     source: publisher

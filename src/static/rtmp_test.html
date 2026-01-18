@@ -243,6 +243,67 @@
         <h1>🔴 RTMP Streaming Test</h1>
         <p class="subtitle">Test page for verifying RTMP relay from MediaMTX to external platforms</p>
         
+        <!-- RTMP Loopback Test Section -->
+        <div class="card" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border: 2px solid #22c55e;">
+            <h2 style="color: #22c55e;">🔄 RTMP Loopback Test</h2>
+            <p style="color: #94a3b8; margin-bottom: 15px;">
+                Test the full RTMP relay chain locally: mixer_program → FFmpeg RTMP → rtmp_test_output → Browser
+            </p>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <!-- Source Stream -->
+                <div>
+                    <h3 style="color: #60a5fa; margin-bottom: 10px;">📥 Source: mixer_program</h3>
+                    <div class="status" id="sourceStatus">
+                        <span class="status-dot inactive" id="sourceDot"></span>
+                        <div class="status-text">
+                            <div class="status-label">Source Stream</div>
+                            <div class="status-value" id="sourceStatusText">Checking...</div>
+                        </div>
+                    </div>
+                    <div class="video-container" style="margin-top: 10px;">
+                        <video id="sourcePlayer" controls autoplay muted playsinline></video>
+                    </div>
+                    <button class="button secondary" onclick="loadSourceWHEP()" style="margin-top: 10px;">Load Source</button>
+                </div>
+                
+                <!-- Output Stream (proves RTMP works) -->
+                <div>
+                    <h3 style="color: #f59e0b; margin-bottom: 10px;">📤 Output: rtmp_test_output</h3>
+                    <div class="status" id="outputStatus">
+                        <span class="status-dot inactive" id="outputDot"></span>
+                        <div class="status-text">
+                            <div class="status-label">RTMP Output</div>
+                            <div class="status-value" id="outputStatusText">Not started</div>
+                        </div>
+                    </div>
+                    <div class="video-container" style="margin-top: 10px;">
+                        <video id="outputPlayer" controls autoplay muted playsinline></video>
+                    </div>
+                    <button class="button secondary" onclick="loadOutputWHEP()" style="margin-top: 10px;">Load Output</button>
+                </div>
+            </div>
+            
+            <div style="margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="button" onclick="startLoopbackTest()" style="background: #22c55e;">
+                    🚀 Start Loopback Test
+                </button>
+                <button class="button secondary" onclick="stopLoopbackTest()">
+                    ⏹️ Stop Loopback Test
+                </button>
+                <button class="button secondary" onclick="startTestVideo()">
+                    🎬 Start Test Video Source
+                </button>
+            </div>
+            
+            <div class="info-box" style="margin-top: 15px;">
+                <strong>How it works:</strong><br>
+                <code style="font-size: 0.8em;">
+                    Test Video → RTSP → mixer_program → [runOnReady] → FFmpeg → RTMP → rtmp_test_output → Browser
+                </code>
+            </div>
+        </div>
+        
         <div class="grid">
             <!-- Video Player -->
             <div class="card">
@@ -797,6 +858,280 @@
                     break;
             }
         });
+        
+        // ========== LOOPBACK TEST FUNCTIONS ==========
+        
+        let sourceConnection = null;
+        let outputConnection = null;
+        
+        function updateSourceStatus(active, text) {
+            const dot = document.getElementById('sourceDot');
+            const textEl = document.getElementById('sourceStatusText');
+            dot.className = 'status-dot ' + (active ? 'active' : 'inactive');
+            textEl.textContent = text;
+        }
+        
+        function updateOutputStatus(active, text) {
+            const dot = document.getElementById('outputDot');
+            const textEl = document.getElementById('outputStatusText');
+            dot.className = 'status-dot ' + (active ? 'active' : 'inactive');
+            textEl.textContent = text;
+        }
+        
+        async function loadSourceWHEP() {
+            const video = document.getElementById('sourcePlayer');
+            const whepUrl = IS_REMOTE 
+                ? `https://app.itagenten.no/mixer_program/whep`
+                : `http://${HOSTNAME}:8889/mixer_program/whep`;
+            
+            log('Loading source stream (mixer_program)...', 'info');
+            
+            try {
+                if (sourceConnection) {
+                    sourceConnection.close();
+                }
+                
+                const pc = new RTCPeerConnection({
+                    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+                });
+                
+                pc.ontrack = (event) => {
+                    video.srcObject = event.streams[0];
+                    updateSourceStatus(true, 'Playing');
+                    log('Source stream connected', 'success');
+                };
+                
+                pc.oniceconnectionstatechange = () => {
+                    if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
+                        updateSourceStatus(false, 'Disconnected');
+                    }
+                };
+                
+                const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
+                await pc.setLocalDescription(offer);
+                
+                await new Promise(resolve => {
+                    if (pc.iceGatheringState === 'complete') resolve();
+                    else {
+                        pc.onicecandidate = e => { if (!e.candidate) resolve(); };
+                        setTimeout(resolve, 2000);
+                    }
+                });
+                
+                const response = await fetch(whepUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/sdp', 'Accept': 'application/sdp' },
+                    body: pc.localDescription.sdp
+                });
+                
+                if (!response.ok) throw new Error(`WHEP failed: ${response.status}`);
+                
+                const answerSdp = await response.text();
+                await pc.setRemoteDescription({ type: 'answer', sdp: answerSdp });
+                
+                sourceConnection = pc;
+            } catch (error) {
+                log(`Source stream error: ${error.message}`, 'error');
+                updateSourceStatus(false, 'Error');
+            }
+        }
+        
+        async function loadOutputWHEP() {
+            const video = document.getElementById('outputPlayer');
+            const whepUrl = IS_REMOTE 
+                ? `https://app.itagenten.no/rtmp_test_output/whep`
+                : `http://${HOSTNAME}:8889/rtmp_test_output/whep`;
+            
+            log('Loading output stream (rtmp_test_output)...', 'info');
+            
+            try {
+                if (outputConnection) {
+                    outputConnection.close();
+                }
+                
+                const pc = new RTCPeerConnection({
+                    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+                });
+                
+                pc.ontrack = (event) => {
+                    video.srcObject = event.streams[0];
+                    updateOutputStatus(true, 'Playing (RTMP works!)');
+                    log('🎉 RTMP OUTPUT RECEIVED! The relay chain is working!', 'success');
+                };
+                
+                pc.oniceconnectionstatechange = () => {
+                    if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
+                        updateOutputStatus(false, 'Disconnected');
+                    }
+                };
+                
+                const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
+                await pc.setLocalDescription(offer);
+                
+                await new Promise(resolve => {
+                    if (pc.iceGatheringState === 'complete') resolve();
+                    else {
+                        pc.onicecandidate = e => { if (!e.candidate) resolve(); };
+                        setTimeout(resolve, 2000);
+                    }
+                });
+                
+                const response = await fetch(whepUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/sdp', 'Accept': 'application/sdp' },
+                    body: pc.localDescription.sdp
+                });
+                
+                if (!response.ok) throw new Error(`WHEP failed: ${response.status}`);
+                
+                const answerSdp = await response.text();
+                await pc.setRemoteDescription({ type: 'answer', sdp: answerSdp });
+                
+                outputConnection = pc;
+            } catch (error) {
+                log(`Output stream error: ${error.message}`, 'error');
+                updateOutputStatus(false, 'Error - stream may not be ready yet');
+            }
+        }
+        
+        async function startLoopbackTest() {
+            log('Starting RTMP loopback test...', 'info');
+            log('Configuring relay: mixer_program → RTMP → rtmp_test_output', 'info');
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/streaming/rtmp/start`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        destinations: [{
+                            platform: 'loopback_test',
+                            rtmp_url: 'rtmp://localhost:1935/',
+                            stream_key: 'rtmp_test_output',
+                            enabled: true
+                        }]
+                    })
+                });
+                
+                if (!response.ok) throw new Error(await response.text());
+                
+                const data = await response.json();
+                log(`Loopback configured: ${data.message}`, 'success');
+                log(`FFmpeg will relay to: rtmp://localhost:1935/rtmp_test_output`, 'info');
+                log('When mixer_program becomes ready, FFmpeg will start relaying', 'info');
+                
+                updateOutputStatus(false, 'Waiting for source...');
+                
+                // Poll for output stream
+                setTimeout(checkOutputStreamAndLoad, 3000);
+                
+            } catch (error) {
+                log(`Loopback test error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function checkOutputStreamAndLoad() {
+            try {
+                const response = await fetch(`${API_BASE}/v3/paths/get/rtmp_test_output`);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.ready) {
+                        log('Output stream is ready! Loading...', 'success');
+                        loadOutputWHEP();
+                        return;
+                    }
+                }
+                // Keep polling
+                log('Waiting for output stream...', 'info');
+                setTimeout(checkOutputStreamAndLoad, 2000);
+            } catch (e) {
+                setTimeout(checkOutputStreamAndLoad, 2000);
+            }
+        }
+        
+        async function stopLoopbackTest() {
+            log('Stopping loopback test...', 'info');
+            
+            if (sourceConnection) {
+                sourceConnection.close();
+                sourceConnection = null;
+            }
+            if (outputConnection) {
+                outputConnection.close();
+                outputConnection = null;
+            }
+            
+            document.getElementById('sourcePlayer').srcObject = null;
+            document.getElementById('outputPlayer').srcObject = null;
+            
+            updateSourceStatus(false, 'Stopped');
+            updateOutputStatus(false, 'Stopped');
+            
+            await stopRtmpRelay();
+            log('Loopback test stopped', 'info');
+        }
+        
+        async function startTestVideo() {
+            log('Starting test video source...', 'info');
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/test/start-video`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ duration: 120 })
+                });
+                
+                if (!response.ok) {
+                    // Fallback: show instructions
+                    log('Test video API not available. Run this on R58:', 'warning');
+                    log('ffmpeg -re -f lavfi -i "testsrc=duration=120:size=1280x720:rate=30" -f lavfi -i "sine=frequency=1000:sample_rate=48000:duration=120" -c:v libx264 -preset ultrafast -c:a aac -f rtsp rtsp://localhost:8554/mixer_program', 'info');
+                    return;
+                }
+                
+                const data = await response.json();
+                log(`Test video started: ${data.message}`, 'success');
+                
+                // Auto-load source after a moment
+                setTimeout(loadSourceWHEP, 3000);
+                
+            } catch (error) {
+                log(`Could not start test video via API: ${error.message}`, 'warning');
+                log('You can manually start a test stream on the R58 device', 'info');
+            }
+        }
+        
+        // Check source stream status
+        async function checkSourceStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/v3/paths/get/mixer_program`);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.ready) {
+                        updateSourceStatus(true, 'Active');
+                    } else {
+                        updateSourceStatus(false, 'Inactive');
+                    }
+                }
+            } catch (e) {
+                // Ignore errors
+            }
+        }
+        
+        // Check output stream status  
+        async function checkOutputStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/v3/paths/get/rtmp_test_output`);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.ready) {
+                        updateOutputStatus(true, 'Active');
+                    }
+                }
+            } catch (e) {
+                // Ignore errors
+            }
+        }
+        
+        // ========== END LOOPBACK TEST FUNCTIONS ==========
         
         // Initialize
         buildUrls();
