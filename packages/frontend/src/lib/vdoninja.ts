@@ -786,7 +786,7 @@ export async function getPublicWhepUrl(cameraId: string): Promise<string | null>
   
   const buildApiWhepUrl = (baseUrl: string): string => {
     const cleanBase = baseUrl.replace(/\/+$/, '')
-    return `${cleanBase}/whep/${cameraId}`
+    return `${cleanBase}/${cameraId}/whep`
   }
 
   const buildDirectWhepUrl = (host: string): string => {
@@ -856,7 +856,7 @@ export async function getPublicWhepUrl(cameraId: string): Promise<string | null>
     try {
       const url = new URL(frpUrl)
       if (url.hostname.includes('itagenten.no')) {
-        return `https://app.itagenten.no/whep/${cameraId}`
+        return `https://app.itagenten.no/${cameraId}/whep`
       }
       return buildApiWhepUrl(url.toString())
     } catch (e) {
