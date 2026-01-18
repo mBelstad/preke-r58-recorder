@@ -132,16 +132,32 @@ export function useToast() {
   }
 }
 
-// Global singleton instance
-const globalToast = useToast()
-export const toast = {
-  success: globalToast.success,
-  error: globalToast.error,
-  warning: globalToast.warning,
-  info: globalToast.info,
-  dismiss: globalToast.dismiss,
-  dismissAll: globalToast.dismissAll,
+// Global singleton instance (lazy initialization to avoid TDZ)
+let _globalToast: ReturnType<typeof useToast> | null = null
+
+function getGlobalToast() {
+  if (!_globalToast) {
+    _globalToast = useToast()
+  }
+  return _globalToast
 }
 
-export default globalToast
+export const toast = {
+  success: (title: string, message?: string) => getGlobalToast().success(title, message),
+  error: (title: string, message?: string, action?: { label: string; onClick: () => void }) => getGlobalToast().error(title, message, action),
+  warning: (title: string, message?: string) => getGlobalToast().warning(title, message),
+  info: (title: string, message?: string) => getGlobalToast().info(title, message),
+  dismiss: (id: string) => getGlobalToast().dismiss(id),
+  dismissAll: () => getGlobalToast().dismissAll(),
+}
+
+export default {
+  get toasts() { return getGlobalToast().toasts },
+  success: toast.success,
+  error: toast.error,
+  warning: toast.warning,
+  info: toast.info,
+  dismiss: toast.dismiss,
+  dismissAll: toast.dismissAll,
+}
 
