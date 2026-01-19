@@ -58,11 +58,12 @@ webrtcServerCert: /etc/ssl/r58/fullchain.pem
 # Multiple host candidates cause browsers to attempt connections to all IPs simultaneously,
 # flooding the network on poor connections.
 # 
-# REMOVED webrtcICEHostNAT1To1IPs: This setting replaces ALL host candidates with the VPS IP,
-# which breaks direct LAN/Tailscale connections. Instead, we rely on:
-# - STUN discovery: For all connections (LAN/Tailscale/FRP), let normal ICE discovery work
-# - nginx proxy: Handles FRP relay routing without needing NAT1To1 mapping
-# This allows proper P2P connections while still supporting FRP relay access
+# webrtcICEHostNAT1To1IPs: Replaces host candidates with VPS IP for external connections
+# This prevents VDO.ninja (running on HTTPS) from discovering local IPs (LAN/Tailscale)
+# and attempting direct HTTP connections, which fail due to Mixed Content security.
+# The frontend app can still use direct connections via WHEP (different protocol).
+# VDO.ninja connections will route through the HTTPS proxy on the VPS.
+webrtcICEHostNAT1To1IPs: ["65.109.32.111"]  # VPS IP - forces VDO.ninja to use HTTPS proxy
 
 # UDP port for WebRTC media (mapped via FRP to 18189 on VPS)
 webrtcLocalUDPAddress: :8189

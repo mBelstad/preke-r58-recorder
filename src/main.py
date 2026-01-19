@@ -973,6 +973,128 @@ async def get_system_info() -> Dict[str, Any]:
     return result
 
 
+@app.get("/api/network/info")
+async def get_network_info() -> Dict[str, Any]:
+    """Get network interface information including LAN and Tailscale IPs."""
+    import socket
+    import subprocess
+    
+    result = {
+        "interfaces": [],
+        "lan_ip": None,
+        "tailscale_ip": None,
+        "all_ips": []
+    }
+    
+    try:
+        # Get all network interfaces and their IPs
+        # Use 'ip' command (Linux) or 'ifconfig' (fallback)
+        try:
+            # Try 'ip addr' first (modern Linux)
+            proc = subprocess.run(
+                ["ip", "-4", "addr", "show"],
+                capture_output=True,
+                text=True,
+                timeout=2
+            )
+            if proc.returncode == 0:
+                current_interface = None
+                for line in proc.stdout.split('\n'):
+                    line = line.strip()
+                    if line and not line.startswith('inet '):
+                        # Interface name line (e.g., "2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP>")
+                        if ':' in line:
+                            parts = line.split(':')
+                            if len(parts) >= 2:
+                                current_interface = parts[1].strip()
+                    elif line.startswith('inet '):
+                        # IP address line (e.g., "inet 192.168.1.24/24 brd 192.168.1.255 scope global eth0")
+                        parts = line.split()
+                        if len(parts) >= 2:
+                            ip_with_cidr = parts[1]
+                            ip = ip_with_cidr.split('/')[0]
+                            
+                            # Classify IP
+                            ip_type = "unknown"
+                            if ip.startswith('192.168.') or ip.startswith('10.') or (ip.startswith('172.') and 16 <= int(ip.split('.')[1]) <= 31):
+                                ip_type = "lan"
+                                if not result["lan_ip"]:
+                                    result["lan_ip"] = ip
+                            elif ip.startswith('100.'):
+                                ip_type = "tailscale"
+                                if not result["tailscale_ip"]:
+                                    result["tailscale_ip"] = ip
+                            
+                            result["all_ips"].append(ip)
+                            result["interfaces"].append({
+                                "name": current_interface or "unknown",
+                                "ip": ip,
+                                "type": ip_type
+                            })
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            # Fallback to ifconfig
+            try:
+                proc = subprocess.run(
+                    ["ifconfig"],
+                    capture_output=True,
+                    text=True,
+                    timeout=2
+                )
+                if proc.returncode == 0:
+                    current_interface = None
+                    for line in proc.stdout.split('\n'):
+                        line = line.strip()
+                        if line and not line.startswith('inet '):
+                            # Interface name line
+                            if ':' in line:
+                                current_interface = line.split(':')[0]
+                        elif line.startswith('inet '):
+                            # IP address line
+                            parts = line.split()
+                            if len(parts) >= 2:
+                                ip = parts[1]
+                                
+                                # Classify IP
+                                ip_type = "unknown"
+                                if ip.startswith('192.168.') or ip.startswith('10.') or (ip.startswith('172.') and 16 <= int(ip.split('.')[1]) <= 31):
+                                    ip_type = "lan"
+                                    if not result["lan_ip"]:
+                                        result["lan_ip"] = ip
+                                elif ip.startswith('100.'):
+                                    ip_type = "tailscale"
+                                    if not result["tailscale_ip"]:
+                                        result["tailscale_ip"] = ip
+                                
+                                result["all_ips"].append(ip)
+                                result["interfaces"].append({
+                                    "name": current_interface or "unknown",
+                                    "ip": ip,
+                                    "type": ip_type
+                                })
+            except (subprocess.TimeoutExpired, FileNotFoundError):
+                pass
+        
+        # Also try to get hostname's IP as fallback
+        if not result["lan_ip"] and not result["tailscale_ip"]:
+            try:
+                hostname = socket.gethostname()
+                host_ip = socket.gethostbyname(hostname)
+                if host_ip and host_ip != "127.0.0.1":
+                    result["all_ips"].append(host_ip)
+                    if host_ip.startswith('100.'):
+                        result["tailscale_ip"] = host_ip
+                    elif host_ip.startswith('192.168.') or host_ip.startswith('10.'):
+                        result["lan_ip"] = host_ip
+            except Exception:
+                pass
+                
+    except Exception as e:
+        logger.error(f"Error getting network info: {e}")
+        result["error"] = str(e)
+    
+    return result
+
+
 @app.get("/api/system/logs")
 async def get_system_logs(service: str = "preke-recorder", lines: int = 100) -> Dict[str, Any]:
     """Get system logs from journalctl."""

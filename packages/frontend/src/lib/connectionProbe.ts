@@ -55,6 +55,7 @@ async function probeMethod(
 
 /**
  * Get device configuration URLs for all connection methods
+ * Prioritizes LAN over Tailscale when both are available
  */
 async function getDeviceConfig(): Promise<{
   lanUrl?: string
@@ -85,7 +86,44 @@ async function getDeviceConfig(): Promise<{
   
   // Get primary device URL (LAN or Tailscale only - NOT public URLs)
   const deviceUrl = getDeviceUrl()
+  let discoveredLanIp: string | null = null
+  
+  // Try to discover LAN IP from device network info
+  // This allows us to prefer LAN even when device was configured with Tailscale
   if (deviceUrl) {
+    try {
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 2000)
+      
+      const response = await fetch(`${deviceUrl}/api/network/info`, {
+        signal: controller.signal,
+        cache: 'no-store'
+      })
+      clearTimeout(timeout)
+      
+      if (response.ok) {
+        const networkInfo = await response.json()
+        if (networkInfo.lan_ip) {
+          discoveredLanIp = networkInfo.lan_ip
+          // Build LAN URL using same protocol and port as current device URL
+          try {
+            const currentUrl = new URL(deviceUrl)
+            const lanUrl = `${currentUrl.protocol}//${discoveredLanIp}:${currentUrl.port || 8000}`
+            config.lanUrl = lanUrl
+            console.log(`[ConnectionProbe] Discovered LAN IP: ${discoveredLanIp}, using ${lanUrl}`)
+          } catch (e) {
+            console.warn('[ConnectionProbe] Failed to build LAN URL:', e)
+          }
+        }
+      }
+    } catch (e) {
+      // Network info endpoint not available or failed - continue with existing logic
+      console.debug('[ConnectionProbe] Could not fetch network info:', e)
+    }
+  }
+  
+  // If we didn't discover LAN via network info, check the configured device URL
+  if (!config.lanUrl && deviceUrl) {
     try {
       const url = new URL(deviceUrl)
       // Only treat as direct connection if it's a private IP or Tailscale
@@ -102,8 +140,9 @@ async function getDeviceConfig(): Promise<{
   }
   
   // Get fallback URL (usually Tailscale)
+  // Only use if we don't have a LAN URL (LAN takes priority)
   const fallbackUrl = getFallbackUrl()
-  if (fallbackUrl && !config.tailscaleUrl) {
+  if (fallbackUrl && !config.tailscaleUrl && !config.lanUrl) {
     config.tailscaleUrl = fallbackUrl
   }
   
@@ -132,14 +171,18 @@ export async function probeConnections(
   const controllers: AbortController[] = []
   
   // Build probe list based on available URLs
+  // IMPORTANT: Order matters - LAN first (highest priority), then Tailscale, then FRP
   const methodConfigs: { method: ConnectionMethod; url: string; timeout: number }[] = []
   
+  // LAN has highest priority - probe it first
   if (deviceConfig.lanUrl) {
     methodConfigs.push({ method: 'lan', url: deviceConfig.lanUrl, timeout: PROBE_TIMEOUTS.lan })
   }
+  // Tailscale is second priority (P2P but over internet)
   if (deviceConfig.tailscaleUrl) {
     methodConfigs.push({ method: 'tailscale', url: deviceConfig.tailscaleUrl, timeout: PROBE_TIMEOUTS.tailscale })
   }
+  // FRP is lowest priority (relay through VPS)
   if (deviceConfig.frpUrl) {
     methodConfigs.push({ method: 'frp', url: deviceConfig.frpUrl, timeout: PROBE_TIMEOUTS.frp })
   }
@@ -197,13 +240,43 @@ export async function probeConnections(
   }
   
   // Race with Promise.any - first success wins
+  // However, we prioritize LAN over Tailscale even if Tailscale responds faster
   try {
-    const winner = await Promise.any(probes)
+    const results = await Promise.allSettled(probes)
     
     // Cancel remaining probes
     controllers.forEach(c => c.abort())
     
+    // Find all successful results
+    const successful: ProbeResult[] = []
+    for (const result of results) {
+      if (result.status === 'fulfilled') {
+        successful.push(result.value)
+      }
+    }
+    
+    if (successful.length === 0) {
+      throw new Error('All probes failed')
+    }
+    
+    // Prioritize: LAN > Tailscale > FRP
+    // Even if Tailscale responds faster, prefer LAN if both succeed
+    successful.sort((a, b) => {
+      const priority: Record<ConnectionMethod, number> = {
+        lan: 1,
+        tailscale: 2,
+        frp: 3,
+        hls: 4
+      }
+      return priority[a.method] - priority[b.method]
+    })
+    
+    const winner = successful[0]
+    
     console.log(`[ConnectionProbe] Winner: ${winner.method.toUpperCase()} (${Math.round(winner.latency)}ms)`)
+    if (successful.length > 1) {
+      console.log(`[ConnectionProbe] Also available: ${successful.slice(1).map(r => r.method.toUpperCase()).join(', ')}`)
+    }
     onStatus?.('Connection established')
     
     // IMPORTANT: Don't switch from direct connection (Tailscale/LAN) to FRP
