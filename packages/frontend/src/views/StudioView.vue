@@ -14,24 +14,9 @@ const switchError = ref<string | null>(null)
 // AbortController to cancel in-flight mode switch requests
 let switchAbortController: AbortController | null = null
 
-// Switch to idle mode when entering Studio page (stops all camera processes)
-// Note: Idle mode endpoint may not exist on all devices, so we handle 404 gracefully
-onMounted(async () => {
-  try {
-    const response = await fetch(await buildApiUrl('/api/mode/idle'), { method: 'POST' })
-    if (response.ok) {
-      console.log('[Studio] Switched to idle mode')
-      // Refresh capabilities to update sidebar
-      await capabilitiesStore.fetchCapabilities()
-    } else if (response.status === 404) {
-      // Idle mode endpoint doesn't exist - this is OK, just continue
-      console.debug('[Studio] Idle mode endpoint not available')
-    }
-  } catch (e) {
-    // Silently handle errors - idle mode is optional
-    console.debug('[Studio] Idle mode not available:', e)
-  }
-})
+// NOTE: Removed auto-switch to idle mode on mount
+// This was stopping camera processes when navigating to Studio page,
+// which could interfere with mixer mode and kill the camera bridge
 
 async function selectMode(mode: 'recorder' | 'mixer') {
   if (switching.value) return
