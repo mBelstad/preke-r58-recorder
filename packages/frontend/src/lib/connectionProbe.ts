@@ -89,8 +89,15 @@ async function getDeviceConfig(): Promise<{
   let discoveredLanIp: string | null = null
   
   // Try to discover LAN IP from device network info
-  // This allows us to prefer LAN even when device was configured with Tailscale
-  if (deviceUrl) {
+  // IMPORTANT: Only attempt LAN discovery if we're NOT connected via Tailscale
+  // If connected via Tailscale, the client and device are likely on different subnets
+  // and the LAN IP won't be directly routable, causing connection failures
+  const isConnectedViaTailscale = deviceUrl && (
+    new URL(deviceUrl).hostname.startsWith('100.') || 
+    new URL(deviceUrl).hostname.endsWith('.ts.net')
+  )
+  
+  if (deviceUrl && !isConnectedViaTailscale) {
     try {
       const controller = new AbortController()
       const timeout = setTimeout(() => controller.abort(), 2000)
@@ -120,6 +127,8 @@ async function getDeviceConfig(): Promise<{
       // Network info endpoint not available or failed - continue with existing logic
       console.debug('[ConnectionProbe] Could not fetch network info:', e)
     }
+  } else if (isConnectedViaTailscale) {
+    console.log(`[ConnectionProbe] Connected via Tailscale - skipping LAN discovery (different subnet likely)`)
   }
   
   // If we didn't discover LAN via network info, check the configured device URL
@@ -140,10 +149,17 @@ async function getDeviceConfig(): Promise<{
   }
   
   // Get fallback URL (usually Tailscale)
-  // Only use if we don't have a LAN URL (LAN takes priority)
+  // Use as Tailscale config if not already set
   const fallbackUrl = getFallbackUrl()
-  if (fallbackUrl && !config.tailscaleUrl && !config.lanUrl) {
-    config.tailscaleUrl = fallbackUrl
+  if (fallbackUrl && !config.tailscaleUrl) {
+    try {
+      const url = new URL(fallbackUrl)
+      if (isTailscaleIp(url.hostname)) {
+        config.tailscaleUrl = fallbackUrl
+      }
+    } catch (e) {
+      console.warn('[ConnectionProbe] Invalid fallback URL:', fallbackUrl)
+    }
   }
   
   // Get FRP URL
