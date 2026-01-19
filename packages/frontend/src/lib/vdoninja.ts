@@ -611,9 +611,9 @@ export async function buildProgramOutputUrlAlpha(
   url.searchParams.set('totalroombitrate', '1500')  // 1.5 Mbps total room bandwidth
 
   // MediaMTX host for WHIP publishing
-  // VDO.ninja expects just hostname - it adds https:// and /streamId/whip automatically
-  // Using HTTPS proxy to avoid Mixed Content errors (no :8889 - use nginx proxy on 443)
-  url.searchParams.set('mediamtx', 'app.itagenten.no')
+  // Pass hostname with explicit port 443 to prevent VDO.ninja from adding :8889
+  // nginx proxy on app.itagenten.no:443 routes to R58 MediaMTX
+  url.searchParams.set('mediamtx', 'app.itagenten.no:443')
 
   // Custom CSS (b64css for base64 inline CSS)
   const programCssBase64 = getVdoCssUrl()
@@ -722,14 +722,15 @@ export async function buildMixerUrl(options: {
 /**
  * Get the MediaMTX host for VDO.ninja's &mediamtx= parameter
  * 
- * IMPORTANT: VDO.ninja expects just the hostname (no protocol).
- * It will automatically add https:// when constructing WHEP/WHIP URLs.
- * Always return the HTTPS proxy hostname to avoid Mixed Content errors.
+ * IMPORTANT: VDO.ninja adds :8889 to plain hostnames, but our nginx proxy
+ * is on port 443. We pass hostname:443 to override the default port.
+ * 
+ * Note: VDO.ninja may still try direct connections via ICE candidates.
  */
 export async function getMediaMtxHost(): Promise<string | null> {
-  // Return just the hostname - VDO.ninja adds the protocol automatically
-  // Using the HTTPS proxy avoids Mixed Content errors from Tailscale/LAN IPs
-  return 'app.itagenten.no'
+  // Pass hostname with explicit port 443 to prevent VDO.ninja from adding :8889
+  // nginx proxy on app.itagenten.no:443 routes to R58 MediaMTX
+  return 'app.itagenten.no:443'
 }
 
 /**
