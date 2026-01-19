@@ -1074,6 +1074,29 @@ async def get_network_info() -> Dict[str, Any]:
             except (subprocess.TimeoutExpired, FileNotFoundError):
                 pass
         
+        # Try to get Tailscale IP directly via tailscale CLI
+        if not result["tailscale_ip"]:
+            try:
+                ts_proc = subprocess.run(
+                    ["tailscale", "ip", "-4"],
+                    capture_output=True,
+                    text=True,
+                    timeout=2
+                )
+                if ts_proc.returncode == 0 and ts_proc.stdout.strip():
+                    ts_ip = ts_proc.stdout.strip().split('\n')[0]
+                    if ts_ip and ts_ip.startswith('100.'):
+                        result["tailscale_ip"] = ts_ip
+                        if ts_ip not in result["all_ips"]:
+                            result["all_ips"].append(ts_ip)
+                            result["interfaces"].append({
+                                "name": "tailscale0",
+                                "ip": ts_ip,
+                                "type": "tailscale"
+                            })
+            except (subprocess.TimeoutExpired, FileNotFoundError):
+                pass
+        
         # Also try to get hostname's IP as fallback
         if not result["lan_ip"] and not result["tailscale_ip"]:
             try:
