@@ -1118,6 +1118,395 @@ async def get_network_info() -> Dict[str, Any]:
     return result
 
 
+@app.get("/api/storage/status")
+async def get_storage_status() -> Dict[str, Any]:
+    """Get storage status including disk usage for all relevant mount points."""
+    import shutil
+    
+    result = {
+        "mounts": [],
+        "recordings_path": "/mnt/sdcard/recordings",
+        "total_recordings_size_gb": 0
+    }
+    
+    # Check common mount points
+    mount_points = [
+        ("/", "root"),
+        ("/mnt/sdcard", "sdcard"),
+        ("/data", "data"),
+        ("/userdata", "userdata"),
+    ]
+    
+    for path, name in mount_points:
+        try:
+            if Path(path).exists():
+                usage = shutil.disk_usage(path)
+                result["mounts"].append({
+                    "name": name,
+                    "path": path,
+                    "total_gb": round(usage.total / (1024**3), 2),
+                    "used_gb": round(usage.used / (1024**3), 2),
+                    "free_gb": round(usage.free / (1024**3), 2),
+                    "percent_used": round((usage.used / usage.total) * 100, 1)
+                })
+        except Exception as e:
+            logger.debug(f"Could not get disk usage for {path}: {e}")
+    
+    # Calculate total recordings size
+    recordings_path = Path("/mnt/sdcard/recordings")
+    if not recordings_path.exists():
+        recordings_path = Path("/var/recordings")
+    
+    if recordings_path.exists():
+        result["recordings_path"] = str(recordings_path)
+        try:
+            total_size = sum(f.stat().st_size for f in recordings_path.rglob('*') if f.is_file())
+            result["total_recordings_size_gb"] = round(total_size / (1024**3), 2)
+            
+            # Count recordings
+            video_extensions = ['.mp4', '.mkv', '.mov', '.ts']
+            recordings = [f for f in recordings_path.rglob('*') if f.suffix.lower() in video_extensions]
+            result["recording_count"] = len(recordings)
+        except Exception as e:
+            logger.debug(f"Could not calculate recordings size: {e}")
+    
+    return result
+
+
+@app.get("/api/services/status")
+async def get_all_services_status() -> Dict[str, Any]:
+    """Get status of all relevant system services."""
+    import subprocess
+    
+    services = [
+        "preke-recorder",
+        "mediamtx", 
+        "vdo-ninja",
+        "vdo-webapp",
+        "vdoninja-bridge",
+        "frpc",
+        "tailscaled",
+        "preke-kiosk",
+        "nginx",
+    ]
+    
+    result = {"services": {}}
+    
+    for service in services:
+        try:
+            # Check if service is active
+            proc = subprocess.run(
+                ["systemctl", "is-active", service],
+                capture_output=True,
+                text=True,
+                timeout=2
+            )
+            is_active = proc.stdout.strip() == "active"
+            
+            # Get more details if active
+            status = "active" if is_active else proc.stdout.strip()
+            
+            # Check if service exists
+            exists_proc = subprocess.run(
+                ["systemctl", "list-unit-files", f"{service}.service"],
+                capture_output=True,
+                text=True,
+                timeout=2
+            )
+            exists = service in exists_proc.stdout
+            
+            result["services"][service] = {
+                "status": status,
+                "active": is_active,
+                "exists": exists
+            }
+        except Exception as e:
+            result["services"][service] = {
+                "status": "unknown",
+                "active": False,
+                "exists": False,
+                "error": str(e)
+            }
+    
+    return result
+
+
+@app.get("/api/system/temperature")
+async def get_system_temperature() -> Dict[str, Any]:
+    """Get CPU and other temperature readings (important for R58 embedded device)."""
+    import subprocess
+    
+    result = {
+        "cpu_temp_c": None,
+        "gpu_temp_c": None,
+        "thermal_zones": []
+    }
+    
+    try:
+        # Read thermal zones (Linux)
+        thermal_path = Path("/sys/class/thermal")
+        if thermal_path.exists():
+            for zone in thermal_path.glob("thermal_zone*"):
+                try:
+                    temp_file = zone / "temp"
+                    type_file = zone / "type"
+                    
+                    if temp_file.exists():
+                        temp = int(temp_file.read_text().strip()) / 1000  # Convert millidegrees to degrees
+                        zone_type = type_file.read_text().strip() if type_file.exists() else "unknown"
+                        
+                        result["thermal_zones"].append({
+                            "zone": zone.name,
+                            "type": zone_type,
+                            "temp_c": round(temp, 1)
+                        })
+                        
+                        # Set CPU temp from appropriate zone
+                        if "cpu" in zone_type.lower() or zone_type == "soc-thermal":
+                            result["cpu_temp_c"] = round(temp, 1)
+                        elif "gpu" in zone_type.lower():
+                            result["gpu_temp_c"] = round(temp, 1)
+                except Exception:
+                    pass
+        
+        # If no CPU temp found, try first thermal zone
+        if result["cpu_temp_c"] is None and result["thermal_zones"]:
+            result["cpu_temp_c"] = result["thermal_zones"][0]["temp_c"]
+            
+    except Exception as e:
+        logger.debug(f"Could not read temperatures: {e}")
+        result["error"] = str(e)
+    
+    return result
+
+
+@app.get("/api/system/cpu")
+async def get_cpu_status() -> Dict[str, Any]:
+    """Get CPU usage and load average."""
+    result = {
+        "load_average": [0.0, 0.0, 0.0],
+        "cpu_percent": 0.0,
+        "cpu_count": 1
+    }
+    
+    try:
+        # Get load average
+        with open("/proc/loadavg", "r") as f:
+            parts = f.read().strip().split()
+            result["load_average"] = [float(parts[0]), float(parts[1]), float(parts[2])]
+        
+        # Get CPU count
+        import os
+        result["cpu_count"] = os.cpu_count() or 1
+        
+        # Calculate rough CPU percentage from load
+        result["cpu_percent"] = round((result["load_average"][0] / result["cpu_count"]) * 100, 1)
+        
+        # Get uptime
+        with open("/proc/uptime", "r") as f:
+            uptime_seconds = float(f.read().strip().split()[0])
+            result["uptime_seconds"] = int(uptime_seconds)
+            result["uptime_hours"] = round(uptime_seconds / 3600, 1)
+            
+    except Exception as e:
+        logger.debug(f"Could not read CPU status: {e}")
+        result["error"] = str(e)
+    
+    return result
+
+
+@app.post("/api/system/shutdown")
+async def shutdown_system() -> Dict[str, Any]:
+    """Shutdown the device (requires appropriate permissions)."""
+    import subprocess
+    
+    try:
+        # Schedule shutdown in 5 seconds to allow response to be sent
+        subprocess.Popen(["bash", "-c", "sleep 5 && sudo shutdown -h now"])
+        return {
+            "success": True,
+            "message": "System will shutdown in 5 seconds"
+        }
+    except Exception as e:
+        logger.error(f"Failed to initiate shutdown: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/audio/devices")
+async def get_audio_devices() -> Dict[str, Any]:
+    """Get available audio input and output devices."""
+    import subprocess
+    
+    result = {
+        "capture_devices": [],
+        "playback_devices": []
+    }
+    
+    try:
+        # Get ALSA capture devices
+        proc = subprocess.run(
+            ["arecord", "-l"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if proc.returncode == 0:
+            for line in proc.stdout.split('\n'):
+                if line.startswith('card '):
+                    result["capture_devices"].append(line.strip())
+        
+        # Get ALSA playback devices
+        proc = subprocess.run(
+            ["aplay", "-l"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if proc.returncode == 0:
+            for line in proc.stdout.split('\n'):
+                if line.startswith('card '):
+                    result["playback_devices"].append(line.strip())
+                    
+    except Exception as e:
+        logger.debug(f"Could not list audio devices: {e}")
+        result["error"] = str(e)
+    
+    return result
+
+
+@app.get("/api/tailscale/status")
+async def get_tailscale_status() -> Dict[str, Any]:
+    """Get detailed Tailscale connection status."""
+    import subprocess
+    
+    result = {
+        "installed": False,
+        "running": False,
+        "ip": None,
+        "hostname": None,
+        "login_name": None,
+        "online": False,
+        "exit_node": None
+    }
+    
+    try:
+        # Check if tailscale is installed
+        proc = subprocess.run(
+            ["which", "tailscale"],
+            capture_output=True,
+            timeout=2
+        )
+        result["installed"] = proc.returncode == 0
+        
+        if result["installed"]:
+            # Get tailscale status
+            proc = subprocess.run(
+                ["tailscale", "status", "--json"],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            if proc.returncode == 0:
+                import json
+                status = json.loads(proc.stdout)
+                
+                result["running"] = True
+                result["online"] = status.get("BackendState") == "Running"
+                
+                # Get self info
+                self_info = status.get("Self", {})
+                result["hostname"] = self_info.get("HostName")
+                result["login_name"] = self_info.get("UserID")
+                
+                # Get IPs
+                tailscale_ips = self_info.get("TailscaleIPs", [])
+                if tailscale_ips:
+                    result["ip"] = tailscale_ips[0]
+                
+                # Check exit node
+                result["exit_node"] = status.get("ExitNodeStatus", {}).get("ID")
+                
+                # Get connected peers count
+                peers = status.get("Peer", {})
+                result["peers_count"] = len(peers)
+                result["peers_online"] = sum(1 for p in peers.values() if p.get("Online"))
+                
+    except subprocess.TimeoutExpired:
+        result["error"] = "Tailscale command timed out"
+    except Exception as e:
+        result["error"] = str(e)
+    
+    return result
+
+
+@app.get("/api/system/overview")
+async def get_system_overview() -> Dict[str, Any]:
+    """Get a quick overview of the entire system status - useful for dashboards."""
+    import shutil
+    
+    result = {
+        "device": {},
+        "storage": {},
+        "temperature": {},
+        "network": {},
+        "services": {},
+        "recording": {}
+    }
+    
+    # Device info
+    result["device"]["platform"] = config.platform
+    result["device"]["api_version"] = "2.0.0"
+    
+    # Storage (primary mount)
+    try:
+        for path in ["/mnt/sdcard", "/", "/data"]:
+            if Path(path).exists():
+                usage = shutil.disk_usage(path)
+                result["storage"]["path"] = path
+                result["storage"]["free_gb"] = round(usage.free / (1024**3), 1)
+                result["storage"]["percent_used"] = round((usage.used / usage.total) * 100, 1)
+                break
+    except Exception:
+        pass
+    
+    # Temperature
+    try:
+        for zone in Path("/sys/class/thermal").glob("thermal_zone*"):
+            temp_file = zone / "temp"
+            if temp_file.exists():
+                temp = int(temp_file.read_text().strip()) / 1000
+                result["temperature"]["cpu_c"] = round(temp, 1)
+                break
+    except Exception:
+        pass
+    
+    # Network
+    try:
+        import subprocess
+        proc = subprocess.run(["tailscale", "ip", "-4"], capture_output=True, text=True, timeout=2)
+        if proc.returncode == 0:
+            result["network"]["tailscale_ip"] = proc.stdout.strip().split('\n')[0]
+            result["network"]["tailscale_connected"] = True
+        else:
+            result["network"]["tailscale_connected"] = False
+    except Exception:
+        result["network"]["tailscale_connected"] = False
+    
+    # Key services quick check
+    try:
+        import subprocess
+        for svc in ["preke-recorder", "mediamtx"]:
+            proc = subprocess.run(["systemctl", "is-active", svc], capture_output=True, text=True, timeout=2)
+            result["services"][svc] = proc.stdout.strip() == "active"
+    except Exception:
+        pass
+    
+    # Recording status
+    result["recording"]["active"] = recorder.is_recording if recorder else False
+    
+    return result
+
+
 @app.get("/api/system/logs")
 async def get_system_logs(service: str = "preke-recorder", lines: int = 100) -> Dict[str, Any]:
     """Get system logs from journalctl."""
