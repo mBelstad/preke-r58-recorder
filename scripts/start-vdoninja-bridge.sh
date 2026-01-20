@@ -20,14 +20,22 @@ LOG_FILE="${LOG_FILE:-/var/log/vdoninja-bridge.log}"
 # label = Display name in VDO.ninja
 CAMERAS="${CAMERAS:-cam2:hdmi1:HDMI-Camera-1}"
 
-# Extra sources configuration (Reveal.js slides, graphics, etc.)
-# Format: "stream_id:push_id:label" (same as cameras)
-# These are non-camera MediaMTX streams that should be shared
-# Examples:
-#   slides:slides:Presentation - Reveal.js main slides
-#   slides_overlay:overlay:Graphics - Lower thirds/overlays
-#   graphics:graphics:CasparCG - CasparCG HTML graphics
-EXTRA_SOURCES="${EXTRA_SOURCES:-}"
+# Program Output configuration
+# Enable to have the device render the mixed scene and push to MediaMTX
+# This enables RTMP relay to YouTube/Twitch via MediaMTX runOnReady hook
+ENABLE_PROGRAM_OUTPUT="${ENABLE_PROGRAM_OUTPUT:-true}"
+
+# MediaMTX path for program output (used with &publish= parameter)
+PROGRAM_OUTPUT_PATH="${PROGRAM_OUTPUT_PATH:-mixer_program}"
+
+# MediaMTX host for publishing (must include port, e.g., "host:443" for HTTPS proxy)
+MEDIAMTX_PUBLISH_HOST="${MEDIAMTX_PUBLISH_HOST:-app.itagenten.no:443}"
+
+# Embedded website sources (optional)
+# VDO.ninja can embed web pages directly - no separate rendering needed
+# These URLs will be shared with the director for manual addition via VDO.ninja UI
+# Example: EMBED_URLS="https://app.itagenten.no/reveal,https://example.com/graphics"
+EMBED_URLS="${EMBED_URLS:-https://app.itagenten.no/reveal}"
 
 # Paths
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -137,22 +145,27 @@ start_chromium() {
         log "Camera: $label -> $whep_url"
     done
     
-    # Build extra source URLs (Reveal.js slides, graphics, etc.)
-    if [ -n "$EXTRA_SOURCES" ]; then
-        IFS=',' read -ra EXTRA_ARRAY <<< "$EXTRA_SOURCES"
-        for source in "${EXTRA_ARRAY[@]}"; do
-            IFS=':' read -r stream_id push_id label <<< "$source"
-            
-            # URL encode the WHEP URL
-            local whep_url="${api_base}/${stream_id}/whep"
-            local encoded_whep=$(url_encode "$whep_url")
-            
-            # Build VDO.ninja URL - same params as cameras
-            local vdo_url="https://$VDONINJA_HOST/?push=$push_id&room=$ROOM_NAME&password=preke-r58-2024&whepshare=$encoded_whep&label=$label&videodevice=0&audiodevice=0&nopreview&novideo&autostart&vb=2000"
-            urls="$urls $vdo_url"
-            
-            log "Extra source: $label -> $whep_url"
-        done
+    # Build Program Output URL (renders scene and publishes to MediaMTX)
+    # This is the key for RTMP streaming - the device renders the mixed scene
+    if [ "$ENABLE_PROGRAM_OUTPUT" = "true" ]; then
+        log "Adding Program Output tab (publishes scene to MediaMTX for RTMP relay)"
+        
+        # URL encode the MediaMTX host
+        local encoded_mediamtx=$(url_encode "$MEDIAMTX_PUBLISH_HOST")
+        
+        # Build the program output URL using VDO.ninja alpha pattern
+        # Key parameters:
+        # - scene=0: View scene 0 (auto-adds all sources)
+        # - layout&remote: Enable remote layout control
+        # - publish=mixer_program: Publish to MediaMTX at this path
+        # - mediamtx=host:port: MediaMTX WHIP endpoint
+        # - prefercurrenttab&selfbrowsersurface=include&displaysurface=browser: Screen share settings
+        # - cleanviewer&nosettings: Clean UI for rendering
+        # - np&nopush: Don't push camera, just capture scene
+        local program_url="https://$VDONINJA_HOST/?scene=0&layout&remote&room=$ROOM_NAME&password=preke-r58-2024&cleanviewer&chroma=000&ssar=landscape&nosettings&showlabels&prefercurrenttab&selfbrowsersurface=include&displaysurface=browser&np&nopush&publish=${PROGRAM_OUTPUT_PATH}&quality=1&screenshareaspectratio=1.7777777777777777&locked=1.7777777777777777&mediamtx=${encoded_mediamtx}"
+        urls="$urls $program_url"
+        
+        log "Program Output -> MediaMTX @ $MEDIAMTX_PUBLISH_HOST/$PROGRAM_OUTPUT_PATH"
     fi
     
     # Add the director URL with password (required to be the actual director)
@@ -201,6 +214,9 @@ start_chromium() {
         --disable-features=TranslateUI \
         --autoplay-policy=no-user-gesture-required \
         --use-fake-ui-for-media-stream \
+        --auto-accept-this-tab-capture \
+        --auto-select-tab-capture-source-by-title="VDO.Ninja" \
+        --enable-features=GetDisplayMediaSetAutoSelectAllScreens \
         --disable-notifications \
         --disable-popup-blocking \
         --window-position=-10000,-10000 \
@@ -390,9 +406,68 @@ async function main() {
                 console.error('  -> Error:', err.message);
             }
         }
+        
+        // For program output pages (scene with publish), click to start publishing
+        if (url.includes('publish=') && url.includes('scene=')) {
+            console.log('  -> Program output page (scene publisher), checking...');
+            
+            try {
+                await page.bringToFront();
+                await new Promise(r => setTimeout(r, 5000)); // Wait longer for scene to load
+                
+                // Check if already publishing (look for 'Stop' button)
+                const isPublishing = await page.evaluate(() => {
+                    const buttons = Array.from(document.querySelectorAll('button, [role=\"button\"]'));
+                    for (const btn of buttons) {
+                        const text = (btn.textContent || btn.innerText || '').toLowerCase();
+                        if (text.includes('stop') && text.includes('sharing')) {
+                            return true;
+                        }
+                    }
+                    return false;
+                });
+                
+                if (isPublishing) {
+                    console.log('  -> Already publishing');
+                    continue;
+                }
+                
+                // Look for and click 'Select window and start publishing' button
+                const publishClicked = await page.evaluate(() => {
+                    // Try to find the publish button
+                    const buttons = Array.from(document.querySelectorAll('button, [role=\"button\"], div[onclick]'));
+                    for (const btn of buttons) {
+                        const text = (btn.textContent || btn.innerText || '').toLowerCase();
+                        if (text.includes('start publishing') || text.includes('select window')) {
+                            btn.click();
+                            return 'publish-button';
+                        }
+                    }
+                    // Try any button with publishing-related text
+                    for (const btn of buttons) {
+                        const text = (btn.textContent || btn.innerText || '').toLowerCase();
+                        if (text.includes('publish') && !text.includes('stop')) {
+                            btn.click();
+                            return 'publish-text';
+                        }
+                    }
+                    return false;
+                });
+                
+                if (publishClicked) {
+                    console.log('  -> Clicked publish button (' + publishClicked + ')');
+                    await new Promise(r => setTimeout(r, 3000));
+                } else {
+                    console.log('  -> No publish button found (may auto-start or need manual trigger)');
+                }
+                
+            } catch (err) {
+                console.error('  -> Error with program output:', err.message);
+            }
+        }
     }
     
-    console.log('Done setting up all cameras');
+    console.log('Done setting up all cameras and program output');
     browser.disconnect();
 }
 
@@ -412,10 +487,9 @@ verify_bridge() {
     local tabs=$(curl -s http://127.0.0.1:9222/json 2>/dev/null | grep -c '"title"' || echo "0")
     local expected=$(($(echo "$CAMERAS" | tr ',' '\n' | wc -l)))  # cameras
     
-    # Add extra sources to expected count
-    if [ -n "$EXTRA_SOURCES" ]; then
-        local extra_count=$(($(echo "$EXTRA_SOURCES" | tr ',' '\n' | wc -l)))
-        expected=$((expected + extra_count))
+    # Add program output tab to expected count
+    if [ "$ENABLE_PROGRAM_OUTPUT" = "true" ]; then
+        expected=$((expected + 1))
     fi
     
     if [ "$tabs" -ge "$expected" ]; then
@@ -432,8 +506,8 @@ show_urls() {
     log "=========================================="
     log "VDO.ninja URLs:"
     log "=========================================="
-    log "Director: https://$VDONINJA_HOST/?director=$ROOM_NAME"
-    log "Scene:    https://$VDONINJA_HOST/?scene&room=$ROOM_NAME"
+    log "Director: https://$VDONINJA_HOST/?director=$ROOM_NAME&password=preke-r58-2024"
+    log "Scene:    https://$VDONINJA_HOST/?scene&room=$ROOM_NAME&password=preke-r58-2024"
     log ""
     log "Camera sources:"
     IFS=',' read -ra CAMERA_ARRAY <<< "$CAMERAS"
@@ -442,13 +516,20 @@ show_urls() {
         log "  View $label: https://$VDONINJA_HOST/?view=$push_id&room=$ROOM_NAME"
     done
     
-    if [ -n "$EXTRA_SOURCES" ]; then
+    if [ "$ENABLE_PROGRAM_OUTPUT" = "true" ]; then
         log ""
-        log "Extra sources (slides/graphics):"
-        IFS=',' read -ra EXTRA_ARRAY <<< "$EXTRA_SOURCES"
-        for source in "${EXTRA_ARRAY[@]}"; do
-            IFS=':' read -r stream_id push_id label <<< "$source"
-            log "  View $label: https://$VDONINJA_HOST/?view=$push_id&room=$ROOM_NAME"
+        log "Program Output (RTMP source):"
+        log "  MediaMTX path: $PROGRAM_OUTPUT_PATH"
+        log "  RTMP URL: rtmp://app.itagenten.no:1935/$PROGRAM_OUTPUT_PATH"
+        log "  HLS URL: https://app.itagenten.no/hls/$PROGRAM_OUTPUT_PATH/index.m3u8"
+    fi
+    
+    if [ -n "$EMBED_URLS" ]; then
+        log ""
+        log "Embeddable web pages (add via VDO.ninja 'Share Website'):"
+        IFS=',' read -ra EMBED_ARRAY <<< "$EMBED_URLS"
+        for url in "${EMBED_ARRAY[@]}"; do
+            log "  $url"
         done
     fi
     log "=========================================="
@@ -460,8 +541,11 @@ main() {
     log "VDO.ninja WHEP Bridge Starting"
     log "Room: $ROOM_NAME"
     log "Cameras: $CAMERAS"
-    if [ -n "$EXTRA_SOURCES" ]; then
-        log "Extra sources: $EXTRA_SOURCES"
+    if [ "$ENABLE_PROGRAM_OUTPUT" = "true" ]; then
+        log "Program Output: ENABLED -> $PROGRAM_OUTPUT_PATH @ $MEDIAMTX_PUBLISH_HOST"
+    fi
+    if [ -n "$EMBED_URLS" ]; then
+        log "Embeddable URLs: $EMBED_URLS"
     fi
     log "=========================================="
     
