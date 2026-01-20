@@ -233,6 +233,8 @@ start_chromium() {
         --disable-infobars \
         --no-first-run \
         --disable-session-crashed-bubble \
+        --hide-crash-restore-bubble \
+        --disable-restore-session-state \
         --disable-features=TranslateUI \
         --autoplay-policy=no-user-gesture-required \
         --use-fake-ui-for-media-stream \
