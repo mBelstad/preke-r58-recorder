@@ -9,9 +9,30 @@ const error = ref<string | null>(null)
 const qrCodeUrl = ref<string>('')
 const customerPortalUrl = ref<string>('')
 
+// Public URL for QR codes - must be accessible from phones scanning the QR code
+// When running on the R58 device (localhost), we need to use the public FRP URL
+const PUBLIC_BASE_URL = 'https://app.itagenten.no/static/app.html'
+
 onMounted(async () => {
   await createSession()
 })
+
+/**
+ * Get the public base URL for the customer portal
+ * - If running on localhost (R58 kiosk), use the public FRP URL
+ * - Otherwise use the current origin (for remote access)
+ */
+function getPublicBaseUrl(): string {
+  const origin = window.location.origin
+  
+  // Check if running on localhost (R58 device kiosk mode)
+  if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+    return PUBLIC_BASE_URL
+  }
+  
+  // If already on the public URL, use it
+  return origin
+}
 
 async function createSession() {
   loading.value = true
@@ -35,9 +56,10 @@ async function createSession() {
     const data = await response.json()
     sessionToken.value = data.token
     
-    // Generate customer portal URL for QR code
-    const baseUrl = window.location.origin
-    customerPortalUrl.value = `${baseUrl}/#/customer/${data.token}`
+    // Generate customer portal URL for QR code using PUBLIC URL
+    // This must be accessible from phones, not localhost!
+    const baseUrl = getPublicBaseUrl()
+    customerPortalUrl.value = `${baseUrl}#/customer/${data.token}`
     
     // Generate QR code - larger size for TV display
     qrCodeUrl.value = `https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=${encodeURIComponent(customerPortalUrl.value)}`
