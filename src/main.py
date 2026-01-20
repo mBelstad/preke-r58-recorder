@@ -2837,10 +2837,11 @@ async def start_program_output() -> Dict[str, Any]:
     
     Flow:
     1. Find the program output tab (has &publish= and &scene= in URL)
-    2. Send JavaScript to click the "Start Publishing" button
-    3. Chromium's --auto-accept-this-tab-capture flag handles screen share consent
-    4. VDO.ninja starts publishing to MediaMTX at mixer_program path
-    5. If RTMP relay was configured, FFmpeg starts automatically via runOnReady
+    2. Grant display-capture permission via CDP Browser.grantPermissions
+    3. Send JavaScript to click the "Start Publishing" button
+    4. Use CDP to handle any permission/selection dialogs
+    5. VDO.ninja starts publishing to MediaMTX at mixer_program path
+    6. If RTMP relay was configured, FFmpeg starts automatically via runOnReady
     """
     CDP_PORT = 9222  # Bridge Chromium CDP port
     
@@ -2880,8 +2881,9 @@ async def start_program_output() -> Dict[str, Any]:
                     "message": "Could not get WebSocket debugger URL for program output tab"
                 }
             
-            # Use websocket to execute JavaScript in the tab
+            # Use websocket to execute JavaScript and CDP commands
             import websockets
+            import json as json_lib
             
             # JavaScript to click the publish/start button in VDO.ninja
             # VDO.ninja alpha uses a "Start Publishing" or similar button
@@ -8104,7 +8106,7 @@ async def create_test_booking(request: Dict[str, Any] = Body({})) -> Dict[str, A
         slot_start=datetime.now().strftime("%H:%M"),
         slot_end=(datetime.now() + timedelta(hours=duration_hours)).strftime("%H:%M"),
         customer=CustomerInfo(id=99999, name=customer_name, email="test@preke.no"),
-        client=ClientInfo(id=99999, name=client_name) if client_name else None,
+        client=ClientInfo(id=99999, slug=client_name.lower().replace(" ", "-"), name=client_name) if client_name else None,
         content_type=ContentType.COURSE if mode_str == "course" else ContentType.VIDEO_PROJECT
     )
     
