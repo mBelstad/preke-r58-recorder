@@ -1,6 +1,7 @@
 #!/bin/bash
 # VDO.ninja Bridge Auto-Start Script (Simplified with &whepshare)
 # Uses VDO.ninja's &whepshare parameter to share WHEP streams directly
+# Supports cameras, Reveal.js slides, and HTML graphics
 # No screen sharing or complex automation required!
 
 set -e
@@ -18,6 +19,15 @@ LOG_FILE="${LOG_FILE:-/var/log/vdoninja-bridge.log}"
 # push_id = VDO.ninja push ID (e.g., hdmi1)  
 # label = Display name in VDO.ninja
 CAMERAS="${CAMERAS:-cam2:hdmi1:HDMI-Camera-1}"
+
+# Extra sources configuration (Reveal.js slides, graphics, etc.)
+# Format: "stream_id:push_id:label" (same as cameras)
+# These are non-camera MediaMTX streams that should be shared
+# Examples:
+#   slides:slides:Presentation - Reveal.js main slides
+#   slides_overlay:overlay:Graphics - Lower thirds/overlays
+#   graphics:graphics:CasparCG - CasparCG HTML graphics
+EXTRA_SOURCES="${EXTRA_SOURCES:-}"
 
 # Paths
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -126,6 +136,24 @@ start_chromium() {
         
         log "Camera: $label -> $whep_url"
     done
+    
+    # Build extra source URLs (Reveal.js slides, graphics, etc.)
+    if [ -n "$EXTRA_SOURCES" ]; then
+        IFS=',' read -ra EXTRA_ARRAY <<< "$EXTRA_SOURCES"
+        for source in "${EXTRA_ARRAY[@]}"; do
+            IFS=':' read -r stream_id push_id label <<< "$source"
+            
+            # URL encode the WHEP URL
+            local whep_url="${api_base}/${stream_id}/whep"
+            local encoded_whep=$(url_encode "$whep_url")
+            
+            # Build VDO.ninja URL - same params as cameras
+            local vdo_url="https://$VDONINJA_HOST/?push=$push_id&room=$ROOM_NAME&password=preke-r58-2024&whepshare=$encoded_whep&label=$label&videodevice=0&audiodevice=0&nopreview&novideo&autostart&vb=2000"
+            urls="$urls $vdo_url"
+            
+            log "Extra source: $label -> $whep_url"
+        done
+    fi
     
     # Add the director URL with password (required to be the actual director)
     local director_url="https://$VDONINJA_HOST/?director=$ROOM_NAME&password=preke-r58-2024"
@@ -382,7 +410,13 @@ verify_bridge() {
     
     # Check tabs
     local tabs=$(curl -s http://127.0.0.1:9222/json 2>/dev/null | grep -c '"title"' || echo "0")
-    local expected=$(($(echo "$CAMERAS" | tr ',' '\n' | wc -l)))  # cameras only - director in Electron
+    local expected=$(($(echo "$CAMERAS" | tr ',' '\n' | wc -l)))  # cameras
+    
+    # Add extra sources to expected count
+    if [ -n "$EXTRA_SOURCES" ]; then
+        local extra_count=$(($(echo "$EXTRA_SOURCES" | tr ',' '\n' | wc -l)))
+        expected=$((expected + extra_count))
+    fi
     
     if [ "$tabs" -ge "$expected" ]; then
         log "SUCCESS: Bridge is running ($tabs tabs open, expected $expected)"
@@ -401,12 +435,22 @@ show_urls() {
     log "Director: https://$VDONINJA_HOST/?director=$ROOM_NAME"
     log "Scene:    https://$VDONINJA_HOST/?scene&room=$ROOM_NAME"
     log ""
-    
+    log "Camera sources:"
     IFS=',' read -ra CAMERA_ARRAY <<< "$CAMERAS"
     for camera in "${CAMERA_ARRAY[@]}"; do
         IFS=':' read -r stream_id push_id label <<< "$camera"
-        log "View $label: https://$VDONINJA_HOST/?view=$push_id&room=$ROOM_NAME"
+        log "  View $label: https://$VDONINJA_HOST/?view=$push_id&room=$ROOM_NAME"
     done
+    
+    if [ -n "$EXTRA_SOURCES" ]; then
+        log ""
+        log "Extra sources (slides/graphics):"
+        IFS=',' read -ra EXTRA_ARRAY <<< "$EXTRA_SOURCES"
+        for source in "${EXTRA_ARRAY[@]}"; do
+            IFS=':' read -r stream_id push_id label <<< "$source"
+            log "  View $label: https://$VDONINJA_HOST/?view=$push_id&room=$ROOM_NAME"
+        done
+    fi
     log "=========================================="
 }
 
@@ -416,6 +460,9 @@ main() {
     log "VDO.ninja WHEP Bridge Starting"
     log "Room: $ROOM_NAME"
     log "Cameras: $CAMERAS"
+    if [ -n "$EXTRA_SOURCES" ]; then
+        log "Extra sources: $EXTRA_SOURCES"
+    fi
     log "=========================================="
     
     wait_for_display

@@ -40,12 +40,30 @@ Environment=API_HOST=app.itagenten.no
 # Default: All 3 active HDMI cameras
 Environment="CAMERAS=cam0:hdmi0:HDMI-IN0,cam2:hdmi2:HDMI-IN1,cam3:hdmi3:HDMI-IN2"
 
+# Extra sources configuration (Reveal.js slides, HTML graphics, etc.)
+# Format: stream_id:push_id:label (same as cameras)
+# These are non-camera MediaMTX streams to share with VDO.ninja
+#
+# Examples:
+#   slides:slides:Slides - Main Reveal.js presentation
+#   slides_overlay:overlay:Overlay - Lower thirds/graphics overlay
+#   graphics:graphics:Graphics - CasparCG-style HTML graphics
+#
+# To enable slides and graphics, set EXTRA_SOURCES:
+# - slides:slides:Slides - Main Reveal.js presentation  
+# - slides_overlay:overlay:Overlay - Lower thirds/graphics overlay
+#
+# The prepare script will auto-start Reveal.js outputs before bridge starts
+Environment="EXTRA_SOURCES=slides:slides:Slides,slides_overlay:overlay:Overlay"
+
 # Log file location
 Environment=LOG_FILE=/var/log/vdoninja-bridge.log
 
 WorkingDirectory=/opt/preke-r58-recorder
 # Reduced from 10s to 3s - display/network usually ready faster
 ExecStartPre=/bin/sleep 3
+# Prepare extra sources (starts Reveal.js outputs if configured)
+ExecStartPre=/opt/preke-r58-recorder/scripts/prepare-bridge-sources.sh
 ExecStart=/opt/preke-r58-recorder/scripts/start-vdoninja-bridge.sh
 StandardOutput=journal
 StandardError=journal
