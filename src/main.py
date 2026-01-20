@@ -2938,16 +2938,41 @@ async def start_program_output() -> Dict[str, Any]:
             
             try:
                 async with websockets.connect(ws_url) as ws:
-                    # Send Runtime.evaluate command
+                    msg_id = 1
+                    
+                    # First, try to grant display-capture permission via CDP
+                    # This may help auto-accept screen share on some Chromium versions
+                    try:
+                        origin = program_tab.get("url", "").split("?")[0]
+                        await ws.send(json.dumps({
+                            "id": msg_id,
+                            "method": "Browser.grantPermissions",
+                            "params": {
+                                "permissions": ["displayCapture", "audioCapture", "videoCapture"],
+                                "origin": origin
+                            }
+                        }))
+                        msg_id += 1
+                        # Quick wait for response, don't block if not supported
+                        try:
+                            await asyncio.wait_for(ws.recv(), timeout=1.0)
+                        except asyncio.TimeoutError:
+                            pass
+                    except Exception as perm_error:
+                        logger.debug(f"Could not grant permissions (may not be supported): {perm_error}")
+                    
+                    # Send Runtime.evaluate command to click the button
                     command = {
-                        "id": 1,
+                        "id": msg_id,
                         "method": "Runtime.evaluate",
                         "params": {
                             "expression": js_click_publish,
-                            "returnByValue": True
+                            "returnByValue": True,
+                            "userGesture": True  # Important: emulate user gesture
                         }
                     }
                     await ws.send(json.dumps(command))
+                    msg_id += 1
                     
                     # Wait for response with timeout
                     response_text = await asyncio.wait_for(ws.recv(), timeout=10.0)
@@ -2962,7 +2987,7 @@ async def start_program_output() -> Dict[str, Any]:
                         "message": "Program output trigger sent to device",
                         "click_result": click_result,
                         "tab_url": program_tab.get("url", "")[:100],
-                        "note": "Stream will appear at mixer_program path when screen share is accepted"
+                        "note": "Stream will appear at mixer_program path when screen share is accepted. If not working, try the /reload endpoint."
                     }
                     
             except Exception as ws_error:
@@ -3034,6 +3059,75 @@ async def get_program_output_status() -> Dict[str, Any]:
         pass
     
     return result
+
+
+@app.post("/api/streaming/program-output/reload")
+async def reload_program_output() -> Dict[str, Any]:
+    """
+    Reload the program output tab to re-trigger auto-capture.
+    
+    This is useful when the initial auto-capture didn't work. Reloading the page
+    with Chromium's --auto-accept-this-tab-capture flag should trigger screen
+    share automatically on page load.
+    """
+    CDP_PORT = 9222
+    
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            # Get list of tabs
+            response = await client.get(f"http://127.0.0.1:{CDP_PORT}/json")
+            tabs = response.json()
+            
+            # Find program output tab
+            program_tab = None
+            for tab in tabs:
+                url = tab.get("url", "")
+                if "publish=" in url and "scene=" in url:
+                    program_tab = tab
+                    break
+            
+            if not program_tab:
+                return {
+                    "status": "error",
+                    "message": "Program output tab not found"
+                }
+            
+            ws_url = program_tab.get("webSocketDebuggerUrl")
+            if not ws_url:
+                return {
+                    "status": "error",
+                    "message": "Could not get WebSocket URL"
+                }
+            
+            import websockets
+            
+            async with websockets.connect(ws_url) as ws:
+                # Reload the page
+                await ws.send(json.dumps({
+                    "id": 1,
+                    "method": "Page.reload",
+                    "params": {
+                        "ignoreCache": True
+                    }
+                }))
+                
+                # Wait for response
+                await asyncio.wait_for(ws.recv(), timeout=5.0)
+                
+                logger.info("Program output tab reloaded")
+                
+                return {
+                    "status": "success",
+                    "message": "Program output tab reloaded. Auto-capture should trigger on page load.",
+                    "tab_url": program_tab.get("url", "")[:100]
+                }
+                
+    except Exception as e:
+        logger.error(f"Failed to reload program output: {e}")
+        return {
+            "status": "error",
+            "message": str(e)
+        }
 
 
 @app.post("/api/test/start-video")
