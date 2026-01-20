@@ -2886,15 +2886,13 @@ async def start_program_output() -> Dict[str, Any]:
             import json as json_lib
             
             # JavaScript to click the publish/start button in VDO.ninja
-            # VDO.ninja alpha uses a "Start Publishing" or similar button
+            # Also tries to directly trigger getDisplayMedia with auto-accept compatible options
             js_click_publish = """
-            (function() {
-                // Try multiple selectors for the publish button
+            (async function() {
+                // First, try clicking buttons
                 var selectors = [
                     '#publishButton',
                     'button[onclick*="publish"]',
-                    'button:contains("Publish")',
-                    'button:contains("Start")',
                     '#startCapture',
                     '#gowebcam',
                     'button[id*="publish"]',
@@ -2903,7 +2901,6 @@ async def start_program_output() -> Dict[str, Any]:
                     '.publishBtn'
                 ];
                 
-                // First try direct ID
                 for (var sel of selectors) {
                     try {
                         var btn = document.querySelector(sel);
@@ -2925,14 +2922,40 @@ async def start_program_output() -> Dict[str, Any]:
                     }
                 }
                 
-                // Try the getDisplayMedia call directly if no button found
-                // This triggers screen share with Chromium auto-accept flags
+                // Try VDO.ninja's startPublishing function
                 if (typeof startPublishing === 'function') {
                     startPublishing();
                     return 'called startPublishing()';
                 }
                 
-                return 'no button found - may already be publishing';
+                // Last resort: try to directly call getDisplayMedia
+                // This works with Chromium's --auto-accept-this-tab-capture flag
+                try {
+                    var stream = await navigator.mediaDevices.getDisplayMedia({
+                        video: {
+                            displaySurface: 'browser',
+                            selfBrowserSurface: 'include',
+                            preferCurrentTab: true,
+                            width: { ideal: 1920 },
+                            height: { ideal: 1080 },
+                            frameRate: { ideal: 30 }
+                        },
+                        audio: true,
+                        preferCurrentTab: true,
+                        selfBrowserSurface: 'include',
+                        surfaceSwitching: 'exclude',
+                        systemAudio: 'include'
+                    });
+                    
+                    // If we got a stream, VDO.ninja might pick it up
+                    if (stream && window.session) {
+                        // Try to use VDO.ninja's session object
+                        return 'got stream directly, tracks: ' + stream.getTracks().length;
+                    }
+                    return 'got display media stream with ' + stream.getTracks().length + ' tracks';
+                } catch(e) {
+                    return 'no button found, getDisplayMedia failed: ' + e.message;
+                }
             })()
             """
             
@@ -2962,20 +2985,22 @@ async def start_program_output() -> Dict[str, Any]:
                         logger.debug(f"Could not grant permissions (may not be supported): {perm_error}")
                     
                     # Send Runtime.evaluate command to click the button
+                    # Use awaitPromise=True since our JS is async
                     command = {
                         "id": msg_id,
                         "method": "Runtime.evaluate",
                         "params": {
                             "expression": js_click_publish,
                             "returnByValue": True,
-                            "userGesture": True  # Important: emulate user gesture
+                            "userGesture": True,  # Important: emulate user gesture
+                            "awaitPromise": True  # Wait for async function to complete
                         }
                     }
                     await ws.send(json.dumps(command))
                     msg_id += 1
                     
-                    # Wait for response with timeout
-                    response_text = await asyncio.wait_for(ws.recv(), timeout=10.0)
+                    # Wait for response with longer timeout (getDisplayMedia can take time)
+                    response_text = await asyncio.wait_for(ws.recv(), timeout=30.0)
                     result = json.loads(response_text)
                     
                     click_result = result.get("result", {}).get("result", {}).get("value", "unknown")
@@ -3059,6 +3084,40 @@ async def get_program_output_status() -> Dict[str, Any]:
         pass
     
     return result
+
+
+@app.get("/api/streaming/program-output/tabs")
+async def get_program_output_tabs() -> Dict[str, Any]:
+    """
+    Get information about all tabs in the bridge browser.
+    Useful for debugging auto-capture title matching.
+    """
+    CDP_PORT = 9222
+    
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.get(f"http://127.0.0.1:{CDP_PORT}/json")
+            tabs = response.json()
+            
+            return {
+                "status": "success",
+                "tabs": [
+                    {
+                        "id": t.get("id"),
+                        "title": t.get("title"),
+                        "url": t.get("url", "")[:150],
+                        "type": t.get("type"),
+                        "is_program_output": "publish=" in t.get("url", "") and "scene=" in t.get("url", "")
+                    }
+                    for t in tabs
+                ],
+                "note": "For auto-capture to work, Chromium flag --auto-select-tab-capture-source-by-title must match the exact tab title"
+            }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": str(e)
+        }
 
 
 @app.post("/api/streaming/program-output/reload")

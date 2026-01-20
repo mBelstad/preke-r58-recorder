@@ -238,7 +238,10 @@ start_chromium() {
         --use-fake-ui-for-media-stream \
         --auto-accept-this-tab-capture \
         --auto-select-tab-capture-source-by-title="VDO.Ninja" \
-        --enable-features=GetDisplayMediaSetAutoSelectAllScreens \
+        --auto-select-desktop-capture-source="Entire screen" \
+        --enable-usermedia-screen-capturing \
+        --enable-features=GetDisplayMediaSetAutoSelectAllScreens,WebRTCPipeWireCapturer \
+        --disable-features=TabSwitcherOnReturn \
         --disable-notifications \
         --disable-popup-blocking \
         --window-position=-10000,-10000 \
