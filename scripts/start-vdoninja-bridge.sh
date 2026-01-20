@@ -346,10 +346,15 @@ for tab in tabs:
         print('  -> Iframe source tab (Reveal.js), should auto-start')
     
     # For program output tabs (scene with publish), click publish button
+    # NOTE: VDO.ninja uses getDisplayMedia which requires user interaction
+    # The Chromium flags --auto-accept-this-tab-capture and 
+    # --enable-features=GetDisplayMediaSetAutoSelectAllScreens help but may not work for all cases
+    # The Electron app can trigger this via /api/streaming/program-output/start endpoint
     if 'publish=' in url and 'scene=' in url:
-        print('  -> Program output tab, needs manual screen share selection')
-        print('     To auto-start: open VNC and click \"Start Publishing\"')
-        print('     Or use the Electron app Scene Output button')
+        print('  -> Program output tab (device-side rendering)')
+        print('     Chromium auto-capture flags are set')
+        print('     Use Electron app \"Start Streaming\" button to trigger via API')
+        print('     Or manually: VNC → click \"Start Publishing\" → select current tab')
 
 print('CDP auto-click complete')
 " 2>&1 | tee -a "$LOG_FILE"

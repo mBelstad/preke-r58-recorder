@@ -13,6 +13,7 @@ import { ref, computed } from 'vue'
 import { useMixerStore } from '@/stores/mixer'
 import { useStreamingStore, STREAMING_PLATFORMS } from '@/stores/streaming'
 import { openProgramPopup, buildProgramOutputUrl, buildSceneOutputUrl, VDO_ROOM } from '@/lib/vdoninja'
+import { buildApiUrl } from '@/lib/api'
 import { toast } from '@/composables/useToast'
 import StreamingSettings from './StreamingSettings.vue'
 import ProgramOutput from './ProgramOutput.vue'
@@ -66,11 +67,56 @@ async function startStreaming() {
     const result = await streamingStore.startRtmpRelay()
     if (result.success) {
       toast.success(result.message)
+      
+      // Trigger device-side program output via CDP
+      // This starts the bridge's program output tab which publishes to MediaMTX
+      // Once started, it continues on the device even if the control app disconnects
+      try {
+        const triggerResult = await triggerDeviceProgramOutput()
+        if (triggerResult.success) {
+          toast.success('Program output started on device')
+        } else {
+          toast.warning(`Note: ${triggerResult.message}. You may need to manually trigger program output.`)
+        }
+      } catch (e) {
+        console.warn('[Streaming] Could not trigger device program output:', e)
+        // Don't fail - user can still use local popup window
+      }
     } else {
       toast.error(`RTMP relay failed: ${result.message}`)
     }
   } else {
     toast.success('Streaming started (no RTMP destinations configured)')
+  }
+}
+
+/**
+ * Trigger the device-side program output via CDP
+ * 
+ * This sends a command to the R58 device to start the program output tab
+ * which runs on the device's Chromium browser. Once started, the stream
+ * continues even if the control app disconnects.
+ */
+async function triggerDeviceProgramOutput(): Promise<{ success: boolean; message: string }> {
+  try {
+    const response = await fetch(await buildApiUrl('/api/streaming/program-output/start'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    })
+    
+    const data = await response.json()
+    
+    if (data.status === 'success') {
+      console.log('[Streaming] Device program output triggered:', data)
+      return { success: true, message: data.message || 'Program output started' }
+    } else {
+      console.warn('[Streaming] Device program output trigger failed:', data)
+      return { success: false, message: data.message || 'Failed to trigger program output' }
+    }
+  } catch (e) {
+    const message = e instanceof Error ? e.message : 'Unknown error'
+    console.error('[Streaming] Failed to trigger device program output:', e)
+    return { success: false, message }
   }
 }
 

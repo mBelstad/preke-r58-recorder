@@ -2810,6 +2810,217 @@ async def stop_rtmp_streaming():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/api/streaming/program-output/start")
+async def start_program_output() -> Dict[str, Any]:
+    """
+    Start program output on the device via CDP.
+    
+    This triggers the VDO.ninja bridge's program output tab to start publishing
+    to MediaMTX by clicking the "Start Publishing" button via Chrome DevTools Protocol.
+    
+    The bridge's Chromium runs on port 9222 (configured in start-vdoninja-bridge.sh).
+    Once started, the program output continues running on the device even if the
+    control app disconnects.
+    
+    Flow:
+    1. Find the program output tab (has &publish= and &scene= in URL)
+    2. Send JavaScript to click the "Start Publishing" button
+    3. Chromium's --auto-accept-this-tab-capture flag handles screen share consent
+    4. VDO.ninja starts publishing to MediaMTX at mixer_program path
+    5. If RTMP relay was configured, FFmpeg starts automatically via runOnReady
+    """
+    CDP_PORT = 9222  # Bridge Chromium CDP port
+    
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            # Get list of tabs from CDP
+            try:
+                response = await client.get(f"http://127.0.0.1:{CDP_PORT}/json")
+                tabs = response.json()
+            except Exception as e:
+                return {
+                    "status": "error",
+                    "message": f"CDP not available on port {CDP_PORT}. Is the VDO.ninja bridge running?",
+                    "detail": str(e)
+                }
+            
+            # Find the program output tab (has &publish= and &scene= in URL)
+            program_tab = None
+            for tab in tabs:
+                url = tab.get("url", "")
+                if "publish=" in url and "scene=" in url:
+                    program_tab = tab
+                    break
+            
+            if not program_tab:
+                return {
+                    "status": "error",
+                    "message": "Program output tab not found in bridge browser",
+                    "tabs": [{"title": t.get("title", ""), "url": t.get("url", "")[:100]} for t in tabs]
+                }
+            
+            # Get WebSocket debugger URL for this tab
+            ws_url = program_tab.get("webSocketDebuggerUrl")
+            if not ws_url:
+                return {
+                    "status": "error",
+                    "message": "Could not get WebSocket debugger URL for program output tab"
+                }
+            
+            # Use websocket to execute JavaScript in the tab
+            import websockets
+            
+            # JavaScript to click the publish/start button in VDO.ninja
+            # VDO.ninja alpha uses a "Start Publishing" or similar button
+            js_click_publish = """
+            (function() {
+                // Try multiple selectors for the publish button
+                var selectors = [
+                    '#publishButton',
+                    'button[onclick*="publish"]',
+                    'button:contains("Publish")',
+                    'button:contains("Start")',
+                    '#startCapture',
+                    '#gowebcam',
+                    'button[id*="publish"]',
+                    'button[id*="start"]',
+                    '[data-action="publish"]',
+                    '.publishBtn'
+                ];
+                
+                // First try direct ID
+                for (var sel of selectors) {
+                    try {
+                        var btn = document.querySelector(sel);
+                        if (btn && btn.click) {
+                            btn.click();
+                            return 'clicked: ' + sel;
+                        }
+                    } catch(e) {}
+                }
+                
+                // Try by text content
+                var buttons = document.querySelectorAll('button, [role="button"], .button, input[type="button"]');
+                for (var b of buttons) {
+                    var text = (b.textContent || b.value || '').toLowerCase();
+                    if (text.includes('publish') || text.includes('start') || 
+                        text.includes('share') || text.includes('go live')) {
+                        b.click();
+                        return 'clicked by text: ' + text.substring(0, 30);
+                    }
+                }
+                
+                // Try the getDisplayMedia call directly if no button found
+                // This triggers screen share with Chromium auto-accept flags
+                if (typeof startPublishing === 'function') {
+                    startPublishing();
+                    return 'called startPublishing()';
+                }
+                
+                return 'no button found - may already be publishing';
+            })()
+            """
+            
+            try:
+                async with websockets.connect(ws_url) as ws:
+                    # Send Runtime.evaluate command
+                    command = {
+                        "id": 1,
+                        "method": "Runtime.evaluate",
+                        "params": {
+                            "expression": js_click_publish,
+                            "returnByValue": True
+                        }
+                    }
+                    await ws.send(json.dumps(command))
+                    
+                    # Wait for response with timeout
+                    response_text = await asyncio.wait_for(ws.recv(), timeout=10.0)
+                    result = json.loads(response_text)
+                    
+                    click_result = result.get("result", {}).get("result", {}).get("value", "unknown")
+                    
+                    logger.info(f"Program output CDP trigger result: {click_result}")
+                    
+                    return {
+                        "status": "success",
+                        "message": "Program output trigger sent to device",
+                        "click_result": click_result,
+                        "tab_url": program_tab.get("url", "")[:100],
+                        "note": "Stream will appear at mixer_program path when screen share is accepted"
+                    }
+                    
+            except Exception as ws_error:
+                logger.error(f"WebSocket error triggering program output: {ws_error}")
+                return {
+                    "status": "error", 
+                    "message": f"Failed to trigger publish via WebSocket: {str(ws_error)}",
+                    "tab_found": True,
+                    "ws_url": ws_url[:50]
+                }
+                
+    except Exception as e:
+        logger.error(f"Failed to trigger program output: {e}")
+        return {
+            "status": "error",
+            "message": f"Failed to trigger program output: {str(e)}"
+        }
+
+
+@app.get("/api/streaming/program-output/status")
+async def get_program_output_status() -> Dict[str, Any]:
+    """
+    Get the status of the program output stream.
+    
+    Checks:
+    1. If the bridge Chromium is running with a program output tab
+    2. If the mixer_program path is active in MediaMTX
+    """
+    CDP_PORT = 9222
+    
+    result = {
+        "bridge_running": False,
+        "program_tab_found": False,
+        "mixer_program_active": False,
+        "stream_ready": False
+    }
+    
+    # Check if bridge CDP is available
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.get(f"http://127.0.0.1:{CDP_PORT}/json")
+            tabs = response.json()
+            result["bridge_running"] = True
+            
+            # Check for program output tab
+            for tab in tabs:
+                url = tab.get("url", "")
+                if "publish=" in url and "scene=" in url:
+                    result["program_tab_found"] = True
+                    result["program_tab_url"] = url[:100]
+                    break
+    except:
+        pass
+    
+    # Check MediaMTX for mixer_program stream
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.get(f"{MEDIAMTX_API}/v3/paths/get/mixer_program")
+            if response.status_code == 200:
+                path_data = response.json()
+                result["mixer_program_active"] = path_data.get("ready", False)
+                result["stream_ready"] = path_data.get("ready", False)
+                
+                # Get additional info if stream is ready
+                if result["stream_ready"]:
+                    result["readers"] = path_data.get("readers", [])
+                    result["source"] = path_data.get("source", {})
+    except:
+        pass
+    
+    return result
+
+
 @app.post("/api/test/start-video")
 async def start_test_video(request: Dict[str, Any] = Body({})) -> Dict[str, Any]:
     """Start a test video source for testing the streaming pipeline.
