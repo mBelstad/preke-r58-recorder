@@ -198,12 +198,40 @@ function setupNavigationSecurity(win: BrowserWindow): void {
   win.webContents.setWindowOpenHandler(({ url }) => {
     log.info(`New window requested for: ${url}`)
     
-    // Open HTTPS URLs in external browser
+    // Allow VDO.ninja popups for scene output (program push to MediaMTX)
+    // These need screen capture permissions that only work in Electron, not external browsers
+    const isVdoNinjaUrl = url.includes('app.itagenten.no/vdo') || 
+                          url.includes('vdo.ninja') ||
+                          url.includes('?scene') ||
+                          url.includes('?director') ||
+                          url.includes('whipout=') ||
+                          url.includes('publish=')
+    
+    if (isVdoNinjaUrl) {
+      log.info(`Allowing VDO.ninja popup window for: ${url}`)
+      return { 
+        action: 'allow',
+        overrideBrowserWindowOptions: {
+          width: 1280,
+          height: 720,
+          title: 'Preke Studio - Scene Output',
+          webPreferences: {
+            contextIsolation: true,
+            sandbox: false, // Need permissions for screen capture
+            nodeIntegration: false,
+            // Allow mixed content for MediaMTX WHIP connections
+            allowRunningInsecureContent: true,
+          }
+        }
+      }
+    }
+    
+    // Open other HTTPS URLs in external browser
     if (url.startsWith('https://')) {
       shell.openExternal(url)
     }
     
-    // Always deny opening new Electron windows
+    // Deny other new windows
     return { action: 'deny' }
   })
 
