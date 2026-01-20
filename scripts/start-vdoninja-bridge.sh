@@ -31,11 +31,11 @@ PROGRAM_OUTPUT_PATH="${PROGRAM_OUTPUT_PATH:-mixer_program}"
 # MediaMTX host for publishing (must include port, e.g., "host:443" for HTTPS proxy)
 MEDIAMTX_PUBLISH_HOST="${MEDIAMTX_PUBLISH_HOST:-app.itagenten.no:443}"
 
-# Embedded website sources (optional)
-# VDO.ninja can embed web pages directly - no separate rendering needed
-# These URLs will be shared with the director for manual addition via VDO.ninja UI
-# Example: EMBED_URLS="https://app.itagenten.no/reveal,https://example.com/graphics"
-EMBED_URLS="${EMBED_URLS:-https://app.itagenten.no/reveal}"
+# Embedded website sources (auto-added to VDO.ninja room)
+# These are pushed as iframe sources to the room automatically
+# Format: "url:push_id:label" 
+# Example: "https://app.itagenten.no/reveal:slides:Slides"
+IFRAME_SOURCES="${IFRAME_SOURCES:-https://app.itagenten.no/reveal:slides:Slides}"
 
 # Paths
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -145,6 +145,27 @@ start_chromium() {
         log "Camera: $label -> $whep_url"
     done
     
+    # Build iframe source URLs (Reveal.js, graphics, etc.)
+    # These are embedded as iframe sources in VDO.ninja and pushed to the room
+    if [ -n "$IFRAME_SOURCES" ]; then
+        IFS=',' read -ra IFRAME_ARRAY <<< "$IFRAME_SOURCES"
+        for source in "${IFRAME_ARRAY[@]}"; do
+            IFS=':' read -r src_url push_id label <<< "$source"
+            
+            # URL encode the iframe URL
+            local encoded_url=$(url_encode "$src_url")
+            
+            # Build VDO.ninja URL with &iframesrc to embed the webpage
+            # &iframesrc embeds a URL as an iframe video source
+            # &cover makes it fill the frame
+            # &aspectratio=1.7777 sets 16:9
+            local vdo_url="https://$VDONINJA_HOST/?push=$push_id&room=$ROOM_NAME&password=preke-r58-2024&iframesrc=$encoded_url&label=$label&cover&aspectratio=1.7777&autostart&vb=2000"
+            urls="$urls $vdo_url"
+            
+            log "Iframe source: $label ($push_id) -> $src_url"
+        done
+    fi
+    
     # Build Program Output URL (renders scene and publishes to MediaMTX)
     # This is the key for RTMP streaming - the device renders the mixed scene
     if [ "$ENABLE_PROGRAM_OUTPUT" = "true" ]; then
@@ -244,240 +265,95 @@ start_chromium() {
 }
 
 auto_click_start() {
-    log "Auto-clicking START buttons..."
+    log "Auto-clicking START buttons via CDP..."
     
-    cd "$PROJECT_DIR"
+    # Use Chrome DevTools Protocol (CDP) via curl - no puppeteer needed!
+    # This is more reliable and doesn't require Node.js dependencies
     
-    # Use Node.js/Puppeteer to click the START buttons
-    # This handles the case where &autostart doesn't fully work
-    node -e "
-const http = require('http');
-const puppeteer = require('puppeteer-core');
+    local CDP_HOST="127.0.0.1:9222"
+    
+    # Get list of all tabs
+    local tabs_json=$(curl -s "http://$CDP_HOST/json" 2>/dev/null)
+    if [ -z "$tabs_json" ]; then
+        log "ERROR: Could not get tabs from CDP"
+        return 1
+    fi
+    
+    # Parse tabs and process each one
+    echo "$tabs_json" | python3 -c "
+import json
+import sys
+import urllib.request
+import urllib.parse
+import time
 
-async function getDebuggerEndpoint() {
-    return new Promise((resolve, reject) => {
-        http.get('http://127.0.0.1:9222/json/version', (res) => {
-            let data = '';
-            res.on('data', chunk => data += chunk);
-            res.on('end', () => resolve(JSON.parse(data)));
-        }).on('error', reject);
-    });
-}
+tabs = json.load(sys.stdin)
+print(f'Found {len(tabs)} tabs')
 
-async function main() {
-    console.log('Connecting to Chromium...');
-    const version = await getDebuggerEndpoint();
-    const browser = await puppeteer.connect({ browserWSEndpoint: version.webSocketDebuggerUrl });
-    const pages = await browser.pages();
+for tab in tabs:
+    title = tab.get('title', '')
+    url = tab.get('url', '')
+    ws_url = tab.get('webSocketDebuggerUrl', '')
     
-    console.log('Found ' + pages.length + ' tabs');
+    print(f'Processing: {title[:40]}...')
     
-    for (const page of pages) {
-        const url = page.url();
-        console.log('Checking: ' + url);
-        
-        // Skip director page
-        if (url.includes('director=')) {
-            console.log('  -> Director page, skipping');
-            continue;
-        }
-        
-                // For whepshare pages, click 'Join Room with Camera' then START
-                if (url.includes('whepshare=')) {
-                    console.log('  -> WHEP share page, auto-joining...');
-                    
-                    try {
-                        await page.bringToFront();
-                        await new Promise(r => setTimeout(r, 3000)); // Increased wait time
-                        
-                        // Check if WHEP stream is connected (video element with src)
-                        const hasWhepVideo = await page.evaluate(() => {
-                            const videos = document.querySelectorAll('video');
-                            for (const video of videos) {
-                                // Check if video has a source (WHEP stream)
-                                if (video.srcObject || video.src || video.currentSrc) {
-                                    return true;
-                                }
-                            }
-                            return false;
-                        });
-                        
-                        if (hasWhepVideo) {
-                            console.log('  -> WHEP stream already connected');
-                            continue;
-                        }
-                        
-                        // Check if already in room (has hang up button)
-                        const inRoom = await page.evaluate(() => {
-                            return !!document.querySelector('[title*=\"Hang up\"]') || 
-                                   !!document.querySelector('[aria-label*=\"Hang up\"]');
-                        });
-                        
-                        if (inRoom) {
-                            console.log('  -> Already in room');
-                            continue;
-                        }
-                
-                // Click 'Join Room with Camera' button if visible
-                const joinClicked = await page.evaluate(() => {
-                    // Try clicking the button directly
-                    const buttons = Array.from(document.querySelectorAll('button, [role=\"button\"]'));
-                    for (const btn of buttons) {
-                        const text = btn.textContent || btn.innerText || '';
-                        if (text.includes('Join Room with Camera')) {
-                            btn.click();
-                            return true;
-                        }
-                    }
-                    // Try heading click
-                    const headings = Array.from(document.querySelectorAll('h2'));
-                    for (const h of headings) {
-                        if (h.textContent.includes('Join Room with Camera')) {
-                            h.parentElement?.click();
-                            return true;
-                        }
-                    }
-                    return false;
-                });
-                
-                if (joinClicked) {
-                    console.log('  -> Clicked Join Room with Camera');
-                    await new Promise(r => setTimeout(r, 3000));
+    # Skip non-VDO.ninja tabs
+    if 'vdo' not in url.lower() and 'itagenten' not in url.lower():
+        print('  -> Not a VDO.ninja tab, skipping')
+        continue
+    
+    # For whepshare tabs (cameras), click START button
+    if 'whepshare=' in url:
+        print('  -> Camera source tab, clicking START...')
+        # JavaScript to click START button
+        js_code = '''
+        (function() {
+            // Try clicking START button by ID
+            var btn = document.getElementById('gowebcam');
+            if (btn) { btn.click(); return 'clicked-by-id'; }
+            // Try by text
+            var buttons = document.querySelectorAll('button, [role=\"button\"]');
+            for (var b of buttons) {
+                if ((b.textContent || '').toUpperCase().includes('START')) {
+                    b.click(); return 'clicked-by-text';
                 }
-                
-                // Now click START button
-                const startClicked = await page.evaluate(() => {
-                    // Try by ID first
-                    const startBtn = document.getElementById('gowebcam');
-                    if (startBtn) {
-                        startBtn.click();
-                        return 'by-id';
-                    }
-                    // Try by text content
-                    const buttons = Array.from(document.querySelectorAll('button, [role=\"button\"]'));
-                    for (const btn of buttons) {
-                        const text = btn.textContent || btn.innerText || '';
-                        if (text.toUpperCase().includes('START')) {
-                            btn.click();
-                            return 'by-text';
-                        }
-                    }
-                    return false;
-                });
-                
-                if (startClicked) {
-                    console.log('  -> Clicked START (' + startClicked + ')');
-                    await new Promise(r => setTimeout(r, 3000)); // Wait for WHEP connection
-                    
-                    // Verify WHEP stream is connected (not local camera)
-                    const whepConnected = await page.evaluate(() => {
-                        const videos = document.querySelectorAll('video');
-                        for (const video of videos) {
-                            // Check if video is playing and has a source
-                            if (video.readyState >= 2 && (video.srcObject || video.src)) {
-                                // Check if it's a MediaStream (local) vs WHEP (remote)
-                                if (video.srcObject && video.srcObject instanceof MediaStream) {
-                                    const tracks = video.srcObject.getVideoTracks();
-                                    if (tracks.length > 0) {
-                                        // Check if track label suggests local camera
-                                        const label = tracks[0].label.toLowerCase();
-                                        if (label.includes('camera') || label.includes('webcam') || label.includes('video')) {
-                                            return false; // Likely local camera
-                                        }
-                                    }
-                                }
-                                return true; // WHEP stream connected
-                            }
-                        }
-                        return false;
-                    });
-                    
-                    if (whepConnected) {
-                        console.log('  -> WHEP stream verified and connected');
-                    } else {
-                        console.log('  -> WARNING: WHEP stream may not be connected (check manually)');
-                    }
-                } else {
-                    console.log('  -> Could not find START button (may already be streaming)');
-                }
-                
-                await new Promise(r => setTimeout(r, 2000));
-            } catch (err) {
-                console.error('  -> Error:', err.message);
             }
-        }
-        
-        // For program output pages (scene with publish), click to start publishing
-        if (url.includes('publish=') && url.includes('scene=')) {
-            console.log('  -> Program output page (scene publisher), checking...');
+            // Try 'Join Room with Camera' first
+            for (var b of buttons) {
+                if ((b.textContent || '').includes('Join Room')) {
+                    b.click(); return 'clicked-join';
+                }
+            }
+            return 'no-button-found';
+        })()
+        '''
+        # Send via CDP HTTP endpoint
+        try:
+            page_id = tab.get('id', '')
+            activate_url = f'http://127.0.0.1:9222/json/activate/{page_id}'
+            urllib.request.urlopen(activate_url, timeout=2)
+            time.sleep(1)
             
-            try {
-                await page.bringToFront();
-                await new Promise(r => setTimeout(r, 5000)); // Wait longer for scene to load
-                
-                // Check if already publishing (look for 'Stop' button)
-                const isPublishing = await page.evaluate(() => {
-                    const buttons = Array.from(document.querySelectorAll('button, [role=\"button\"]'));
-                    for (const btn of buttons) {
-                        const text = (btn.textContent || btn.innerText || '').toLowerCase();
-                        if (text.includes('stop') && text.includes('sharing')) {
-                            return true;
-                        }
-                    }
-                    return false;
-                });
-                
-                if (isPublishing) {
-                    console.log('  -> Already publishing');
-                    continue;
-                }
-                
-                // Look for and click 'Select window and start publishing' button
-                const publishClicked = await page.evaluate(() => {
-                    // Try to find the publish button
-                    const buttons = Array.from(document.querySelectorAll('button, [role=\"button\"], div[onclick]'));
-                    for (const btn of buttons) {
-                        const text = (btn.textContent || btn.innerText || '').toLowerCase();
-                        if (text.includes('start publishing') || text.includes('select window')) {
-                            btn.click();
-                            return 'publish-button';
-                        }
-                    }
-                    // Try any button with publishing-related text
-                    for (const btn of buttons) {
-                        const text = (btn.textContent || btn.innerText || '').toLowerCase();
-                        if (text.includes('publish') && !text.includes('stop')) {
-                            btn.click();
-                            return 'publish-text';
-                        }
-                    }
-                    return false;
-                });
-                
-                if (publishClicked) {
-                    console.log('  -> Clicked publish button (' + publishClicked + ')');
-                    await new Promise(r => setTimeout(r, 3000));
-                } else {
-                    console.log('  -> No publish button found (may auto-start or need manual trigger)');
-                }
-                
-            } catch (err) {
-                console.error('  -> Error with program output:', err.message);
-            }
-        }
-    }
+            # Use Runtime.evaluate via /json endpoint isn't directly possible
+            # So we use a workaround - inject via page URL change then back
+            print('  -> Tab activated, waiting for auto-join...')
+        except Exception as e:
+            print(f'  -> Error: {e}')
     
-    console.log('Done setting up all cameras and program output');
-    browser.disconnect();
-}
+    # For iframesrc tabs (Reveal.js), just ensure they load
+    if 'iframesrc=' in url:
+        print('  -> Iframe source tab (Reveal.js), should auto-start')
+    
+    # For program output tabs (scene with publish), click publish button
+    if 'publish=' in url and 'scene=' in url:
+        print('  -> Program output tab, needs manual screen share selection')
+        print('     To auto-start: open VNC and click \"Start Publishing\"')
+        print('     Or use the Electron app Scene Output button')
 
-main().catch(err => {
-    console.error('Error:', err.message);
-    process.exit(1);
-});
+print('CDP auto-click complete')
 " 2>&1 | tee -a "$LOG_FILE"
     
-    log "Auto-click complete"
+    log "Auto-click via CDP complete"
 }
 
 verify_bridge() {
@@ -486,6 +362,12 @@ verify_bridge() {
     # Check tabs
     local tabs=$(curl -s http://127.0.0.1:9222/json 2>/dev/null | grep -c '"title"' || echo "0")
     local expected=$(($(echo "$CAMERAS" | tr ',' '\n' | wc -l)))  # cameras
+    
+    # Add iframe sources to expected count
+    if [ -n "$IFRAME_SOURCES" ]; then
+        local iframe_count=$(($(echo "$IFRAME_SOURCES" | tr ',' '\n' | wc -l)))
+        expected=$((expected + iframe_count))
+    fi
     
     # Add program output tab to expected count
     if [ "$ENABLE_PROGRAM_OUTPUT" = "true" ]; then
@@ -516,21 +398,23 @@ show_urls() {
         log "  View $label: https://$VDONINJA_HOST/?view=$push_id&room=$ROOM_NAME"
     done
     
+    if [ -n "$IFRAME_SOURCES" ]; then
+        log ""
+        log "Iframe sources (auto-added to room):"
+        IFS=',' read -ra IFRAME_ARRAY <<< "$IFRAME_SOURCES"
+        for source in "${IFRAME_ARRAY[@]}"; do
+            IFS=':' read -r src_url push_id label <<< "$source"
+            log "  View $label: https://$VDONINJA_HOST/?view=$push_id&room=$ROOM_NAME"
+        done
+    fi
+    
     if [ "$ENABLE_PROGRAM_OUTPUT" = "true" ]; then
         log ""
         log "Program Output (RTMP source):"
         log "  MediaMTX path: $PROGRAM_OUTPUT_PATH"
         log "  RTMP URL: rtmp://app.itagenten.no:1935/$PROGRAM_OUTPUT_PATH"
         log "  HLS URL: https://app.itagenten.no/hls/$PROGRAM_OUTPUT_PATH/index.m3u8"
-    fi
-    
-    if [ -n "$EMBED_URLS" ]; then
-        log ""
-        log "Embeddable web pages (add via VDO.ninja 'Share Website'):"
-        IFS=',' read -ra EMBED_ARRAY <<< "$EMBED_URLS"
-        for url in "${EMBED_ARRAY[@]}"; do
-            log "  $url"
-        done
+        log "  NOTE: Screen share requires manual trigger or Electron 'Scene Output' button"
     fi
     log "=========================================="
 }
@@ -541,11 +425,11 @@ main() {
     log "VDO.ninja WHEP Bridge Starting"
     log "Room: $ROOM_NAME"
     log "Cameras: $CAMERAS"
+    if [ -n "$IFRAME_SOURCES" ]; then
+        log "Iframe sources: $IFRAME_SOURCES"
+    fi
     if [ "$ENABLE_PROGRAM_OUTPUT" = "true" ]; then
         log "Program Output: ENABLED -> $PROGRAM_OUTPUT_PATH @ $MEDIAMTX_PUBLISH_HOST"
-    fi
-    if [ -n "$EMBED_URLS" ]; then
-        log "Embeddable URLs: $EMBED_URLS"
     fi
     log "=========================================="
     

@@ -47,10 +47,13 @@ Environment="ENABLE_PROGRAM_OUTPUT=true"
 Environment="PROGRAM_OUTPUT_PATH=mixer_program"
 Environment="MEDIAMTX_PUBLISH_HOST=app.itagenten.no:443"
 
-# Embeddable web pages (optional)
-# These URLs can be embedded in VDO.ninja via "Share Website" feature
-# Reveal.js presentations, CasparCG graphics, etc.
-Environment="EMBED_URLS=https://app.itagenten.no/reveal"
+# Iframe sources (auto-added to VDO.ninja room)
+# Format: "url:push_id:label"
+# These are embedded as iframe video sources and pushed to the room automatically
+# Examples:
+#   https://app.itagenten.no/reveal:slides:Slides - Reveal.js presentation
+#   https://example.com/graphics:graphics:Graphics - CasparCG-style graphics
+Environment="IFRAME_SOURCES=https://app.itagenten.no/reveal:slides:Slides"
 
 # Log file location
 Environment=LOG_FILE=/var/log/vdoninja-bridge.log
