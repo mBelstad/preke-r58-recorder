@@ -237,7 +237,7 @@ start_chromium() {
         --autoplay-policy=no-user-gesture-required \
         --use-fake-ui-for-media-stream \
         --auto-accept-this-tab-capture \
-        --auto-select-tab-capture-source-by-title="VDO.Ninja" \
+        --auto-select-tab-capture-source-by-title="app.itagenten.no: studio" \
         --auto-select-desktop-capture-source="Entire screen" \
         --enable-usermedia-screen-capturing \
         --enable-features=GetDisplayMediaSetAutoSelectAllScreens,WebRTCPipeWireCapturer \
