@@ -8099,7 +8099,7 @@ async def create_test_booking(request: Dict[str, Any] = Body({})) -> Dict[str, A
     # Create test booking
     booking = Booking(
         id=99999,  # Test booking ID
-        status=BookingStatus.CONFIRMED,
+        status=BookingStatus.PROCESSING,  # PROCESSING = active booking
         date=datetime.now().strftime("%Y-%m-%d"),
         slot_start=datetime.now().strftime("%H:%M"),
         slot_end=(datetime.now() + timedelta(hours=duration_hours)).strftime("%H:%M"),
