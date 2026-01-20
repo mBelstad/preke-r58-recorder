@@ -74,6 +74,7 @@ from .wordpress import (
     CustomerInfo,
     ClientInfo,
     DisplayMode,
+    ContentType,
 )
 
 # Configure logging
@@ -588,15 +589,27 @@ async def vue_logo_png():
 
 @app.get("/static/app.html", response_class=HTMLResponse)
 async def vue_app():
-    """Serve Vue frontend at legacy app.html path for compatibility."""
+    """Serve Vue frontend at legacy app.html path for compatibility.
+    
+    NOTE: The old mixer app has been archived to src/static/legacy-2026-01-20/
+    This endpoint now serves the new Vue frontend.
+    """
     vue_index = Path(__file__).parent.parent / "packages" / "frontend" / "dist" / "index.html"
     if vue_index.exists():
         return vue_index.read_text()
-    # Fallback to legacy
-    legacy_path = Path(__file__).parent / "static" / "legacy" / "app.html"
+    raise HTTPException(status_code=404, detail="Vue frontend not found. Run 'npm run build' in packages/frontend/")
+
+
+@app.get("/static/legacy-mixer", response_class=HTMLResponse)
+async def legacy_mixer():
+    """Serve the archived legacy mixer app (pre-2026-01-20).
+    
+    This is kept for reference only. Use the new Vue app at / instead.
+    """
+    legacy_path = Path(__file__).parent / "static" / "legacy-2026-01-20" / "app.html"
     if legacy_path.exists():
         return legacy_path.read_text()
-    raise HTTPException(status_code=404, detail="App not found")
+    raise HTTPException(status_code=404, detail="Legacy mixer not found")
 
 @app.get("/guest")
 async def guest_redirect():
@@ -8041,6 +8054,130 @@ async def create_qr_session(request: Dict[str, Any] = Body({})) -> Dict[str, Any
         "token": access_token,
         "display_mode": display_mode.value,
         "message": "QR session created"
+    }
+
+
+@app.post("/api/v1/test/create-booking")
+async def create_test_booking(request: Dict[str, Any] = Body({})) -> Dict[str, Any]:
+    """Create a test/dummy booking for development and testing.
+    
+    Request body:
+        mode: Display mode - "podcast", "teleprompter", "webinar", or "course"
+        customer_name: Optional customer name (default: "Test Customer")
+        client_name: Optional client name (default: "Test Client")
+        duration_hours: Optional duration in hours (default: 1)
+        teleprompter_script: Optional script for teleprompter mode
+    
+    Returns:
+        token: Access token to use with /customer/{token} route
+        display_mode: The display mode set
+        qr_url: Full URL to the customer portal (for QR code testing)
+    """
+    import secrets
+    
+    mode_str = request.get("mode", "podcast").lower()
+    customer_name = request.get("customer_name", "Test Customer")
+    client_name = request.get("client_name", "Test Client")
+    duration_hours = request.get("duration_hours", 1)
+    teleprompter_script = request.get("teleprompter_script", "This is a sample teleprompter script.\n\nYou can edit this in the customer portal.\n\nThe text will scroll automatically.")
+    
+    # Map mode string to DisplayMode enum
+    mode_map = {
+        "podcast": DisplayMode.PODCAST,
+        "teleprompter": DisplayMode.TELEPROMPTER,
+        "talking-head": DisplayMode.TELEPROMPTER,
+        "talking_head": DisplayMode.TELEPROMPTER,
+        "course": DisplayMode.TELEPROMPTER,  # Course uses teleprompter display
+        "webinar": DisplayMode.WEBINAR,
+    }
+    
+    display_mode = mode_map.get(mode_str, DisplayMode.PODCAST)
+    
+    # Generate access token
+    access_token = secrets.token_urlsafe(32)
+    
+    # Create test booking
+    booking = Booking(
+        id=99999,  # Test booking ID
+        status=BookingStatus.CONFIRMED,
+        date=datetime.now().strftime("%Y-%m-%d"),
+        slot_start=datetime.now().strftime("%H:%M"),
+        slot_end=(datetime.now() + timedelta(hours=duration_hours)).strftime("%H:%M"),
+        customer=CustomerInfo(id=99999, name=customer_name, email="test@preke.no"),
+        client=ClientInfo(id=99999, name=client_name) if client_name else None,
+        content_type=ContentType.COURSE if mode_str == "course" else ContentType.VIDEO_PROJECT
+    )
+    
+    # Create test project
+    project = VideoProject(
+        id=99999,
+        slug=f"test-{mode_str}-{access_token[:8]}",
+        name=f"Test {mode_str.title()} Session",
+        client_id=99999 if client_name else None
+    )
+    
+    # Create recording path
+    recording_path = f"/data/recordings/test-sessions/{access_token[:8]}"
+    
+    # Create active booking context
+    context = ActiveBookingContext(
+        booking=booking,
+        recording_id=99999,
+        project=project,
+        recording_path=recording_path,
+        access_token=access_token,
+        display_mode=display_mode,
+        teleprompter_script=teleprompter_script if display_mode == DisplayMode.TELEPROMPTER else None,
+        teleprompter_scroll_speed=50
+    )
+    
+    # Set as active booking
+    set_active_booking(context)
+    
+    logger.info(f"Created test booking: mode={display_mode.value}, token={access_token[:16]}...")
+    
+    return {
+        "success": True,
+        "token": access_token,
+        "display_mode": display_mode.value,
+        "customer_name": customer_name,
+        "client_name": client_name,
+        "qr_url": f"https://app.itagenten.no/#/customer/{access_token}",
+        "message": f"Test {mode_str} booking created. Scan QR code or visit qr_url to test customer portal."
+    }
+
+
+@app.get("/api/v1/test/booking-modes")
+async def list_test_booking_modes() -> Dict[str, Any]:
+    """List available display modes for test bookings.
+    
+    Returns info about each mode and how to create test bookings.
+    """
+    return {
+        "modes": {
+            "podcast": {
+                "description": "Podcast recording mode - presentation controls, recording",
+                "display_mode": "podcast",
+                "example": {"mode": "podcast", "customer_name": "Podcast Guest"}
+            },
+            "teleprompter": {
+                "description": "Talking head mode - teleprompter controls, script editing",
+                "display_mode": "teleprompter",
+                "example": {"mode": "teleprompter", "customer_name": "Speaker"}
+            },
+            "course": {
+                "description": "Course recording mode - same as teleprompter but for courses",
+                "display_mode": "teleprompter",
+                "example": {"mode": "course", "customer_name": "Instructor"}
+            },
+            "webinar": {
+                "description": "Webinar mode - VDO.ninja integration, invite links",
+                "display_mode": "webinar",
+                "example": {"mode": "webinar", "customer_name": "Host"}
+            }
+        },
+        "create_endpoint": "POST /api/v1/test/create-booking",
+        "current_booking": get_active_booking().dict() if get_active_booking() else None
     }
 
 

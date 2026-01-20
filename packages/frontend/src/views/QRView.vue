@@ -11,7 +11,8 @@ const customerPortalUrl = ref<string>('')
 
 // Public URL for QR codes - must be accessible from phones scanning the QR code
 // When running on the R58 device (localhost), we need to use the public FRP URL
-const PUBLIC_BASE_URL = 'https://app.itagenten.no/static/app.html'
+// Note: Vue app uses hash router, so format is https://domain/#/route
+const PUBLIC_BASE_URL = 'https://app.itagenten.no'
 
 onMounted(async () => {
   await createSession()
