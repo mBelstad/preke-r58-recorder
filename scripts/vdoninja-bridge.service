@@ -48,12 +48,12 @@ Environment="PROGRAM_OUTPUT_PATH=mixer_program"
 Environment="MEDIAMTX_PUBLISH_HOST=app.itagenten.no:443"
 
 # Iframe sources (auto-added to VDO.ninja room)
-# Format: "url:push_id:label"
+# Format: "push_id|label|url" (pipe-delimited to avoid URL colon conflicts)
 # These are embedded as iframe video sources and pushed to the room automatically
 # Examples:
-#   https://app.itagenten.no/reveal:slides:Slides - Reveal.js presentation
-#   https://example.com/graphics:graphics:Graphics - CasparCG-style graphics
-Environment="IFRAME_SOURCES=https://app.itagenten.no/reveal:slides:Slides"
+#   slides|Slides|https://app.itagenten.no/reveal - Reveal.js presentation
+#   graphics|Graphics|https://example.com/graphics - CasparCG-style graphics
+Environment="IFRAME_SOURCES=slides|Slides|https://app.itagenten.no/reveal"
 
 # Log file location
 Environment=LOG_FILE=/var/log/vdoninja-bridge.log

@@ -33,9 +33,9 @@ MEDIAMTX_PUBLISH_HOST="${MEDIAMTX_PUBLISH_HOST:-app.itagenten.no:443}"
 
 # Embedded website sources (auto-added to VDO.ninja room)
 # These are pushed as iframe sources to the room automatically
-# Format: "url:push_id:label" 
-# Example: "https://app.itagenten.no/reveal:slides:Slides"
-IFRAME_SOURCES="${IFRAME_SOURCES:-https://app.itagenten.no/reveal:slides:Slides}"
+# Format: "push_id|label|url" (pipe-delimited to avoid URL colon conflicts)
+# Example: "slides|Slides|https://app.itagenten.no/reveal"
+IFRAME_SOURCES="${IFRAME_SOURCES:-slides|Slides|https://app.itagenten.no/reveal}"
 
 # Paths
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -150,7 +150,8 @@ start_chromium() {
     if [ -n "$IFRAME_SOURCES" ]; then
         IFS=',' read -ra IFRAME_ARRAY <<< "$IFRAME_SOURCES"
         for source in "${IFRAME_ARRAY[@]}"; do
-            IFS=':' read -r src_url push_id label <<< "$source"
+            # Format: push_id|label|url (pipe-delimited)
+            IFS='|' read -r push_id label src_url <<< "$source"
             
             # URL encode the iframe URL
             local encoded_url=$(url_encode "$src_url")
@@ -403,8 +404,10 @@ show_urls() {
         log "Iframe sources (auto-added to room):"
         IFS=',' read -ra IFRAME_ARRAY <<< "$IFRAME_SOURCES"
         for source in "${IFRAME_ARRAY[@]}"; do
-            IFS=':' read -r src_url push_id label <<< "$source"
-            log "  View $label: https://$VDONINJA_HOST/?view=$push_id&room=$ROOM_NAME"
+            # Format: push_id|label|url
+            IFS='|' read -r push_id label src_url <<< "$source"
+            log "  $label: https://$VDONINJA_HOST/?view=$push_id&room=$ROOM_NAME"
+            log "    Source: $src_url"
         done
     fi
     
