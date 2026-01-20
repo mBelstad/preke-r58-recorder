@@ -61,8 +61,15 @@ async function createSession() {
     const baseUrl = getPublicBaseUrl()
     customerPortalUrl.value = `${baseUrl}#/customer/${data.token}`
     
+    // Debug: Log the URL being used (check browser console)
+    console.log('[QR] Window origin:', window.location.origin)
+    console.log('[QR] Public base URL:', baseUrl)
+    console.log('[QR] Customer portal URL:', customerPortalUrl.value)
+    
     // Generate QR code - larger size for TV display
-    qrCodeUrl.value = `https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=${encodeURIComponent(customerPortalUrl.value)}`
+    // Add cache-busting timestamp to force QR code regeneration
+    const timestamp = Date.now()
+    qrCodeUrl.value = `https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=${encodeURIComponent(customerPortalUrl.value)}&t=${timestamp}`
     
   } catch (e: any) {
     error.value = e.message || 'Failed to create session'
