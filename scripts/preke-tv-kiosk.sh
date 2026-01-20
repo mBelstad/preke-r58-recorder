@@ -61,7 +61,9 @@ log "Launching QR page in kiosk mode..."
 # any VDO.ninja bridge windows running in the background
 
 # Note: Using port 9223 for kiosk CDP (9222 is used by VDO.ninja bridge)
+# CRITICAL: Use separate user-data-dir to prevent attaching to VDO.ninja bridge session
 exec /usr/bin/chromium \
+    --user-data-dir=/home/linaro/.config/chromium-kiosk \
     --kiosk \
     --app="http://localhost:8000/#/qr" \
     --noerrdialogs \
