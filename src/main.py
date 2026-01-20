@@ -3120,6 +3120,104 @@ async def get_program_output_tabs() -> Dict[str, Any]:
         }
 
 
+@app.post("/api/streaming/program-output/auto-share")
+async def auto_share_program_output() -> Dict[str, Any]:
+    """
+    Attempt to auto-click the screen share dialog using xdotool.
+    
+    This uses xdotool to:
+    1. Find the Chromium screen share dialog window
+    2. Click the "Share" or confirmation button
+    
+    Requires: xdotool installed, DISPLAY set, Chromium showing dialog
+    """
+    import subprocess
+    import os
+    
+    # Set display for xdotool
+    env = os.environ.copy()
+    env["DISPLAY"] = ":0"
+    
+    try:
+        # First, try to find and click the share dialog
+        # Chromium's screen share dialog typically has specific window properties
+        
+        # Method 1: Use xdotool to search for dialog and press Enter (default action)
+        # The screen share dialog usually has "Share" as the default button
+        result1 = subprocess.run(
+            ["xdotool", "search", "--name", "Share your screen"],
+            capture_output=True, text=True, timeout=5, env=env
+        )
+        
+        dialog_windows = result1.stdout.strip().split('\n') if result1.stdout.strip() else []
+        
+        if dialog_windows and dialog_windows[0]:
+            # Focus the dialog and press Enter or click Share button
+            window_id = dialog_windows[0]
+            subprocess.run(
+                ["xdotool", "windowactivate", "--sync", window_id],
+                capture_output=True, timeout=5, env=env
+            )
+            # Press Tab to navigate to Share button, then Enter
+            subprocess.run(
+                ["xdotool", "key", "Tab", "Tab", "Return"],
+                capture_output=True, timeout=5, env=env
+            )
+            return {
+                "status": "success",
+                "message": f"Clicked share dialog (window {window_id})",
+                "method": "xdotool window search"
+            }
+        
+        # Method 2: Try searching for Chrome's tab picker dialog
+        result2 = subprocess.run(
+            ["xdotool", "search", "--class", "Chromium"],
+            capture_output=True, text=True, timeout=5, env=env
+        )
+        
+        chrome_windows = result2.stdout.strip().split('\n') if result2.stdout.strip() else []
+        
+        if len(chrome_windows) > 1:
+            # Multiple Chrome windows - one might be the dialog
+            # Try to find the smallest one (dialog is usually smaller)
+            for win_id in chrome_windows[:5]:  # Check first 5
+                subprocess.run(
+                    ["xdotool", "windowactivate", "--sync", win_id],
+                    capture_output=True, timeout=2, env=env
+                )
+                # Try pressing Enter to accept
+                subprocess.run(
+                    ["xdotool", "key", "Return"],
+                    capture_output=True, timeout=2, env=env
+                )
+            
+            return {
+                "status": "partial",
+                "message": f"Attempted to click on {len(chrome_windows)} Chrome windows",
+                "windows": chrome_windows[:5]
+            }
+        
+        # Method 3: Just try pressing Enter on the active window
+        subprocess.run(
+            ["xdotool", "key", "Return"],
+            capture_output=True, timeout=5, env=env
+        )
+        
+        return {
+            "status": "attempted",
+            "message": "Pressed Enter on active window, no specific dialog found",
+            "dialog_windows": dialog_windows,
+            "chrome_windows": chrome_windows[:5] if chrome_windows else []
+        }
+        
+    except subprocess.TimeoutExpired:
+        return {"status": "error", "message": "xdotool command timed out"}
+    except FileNotFoundError:
+        return {"status": "error", "message": "xdotool not found - install with: apt install xdotool"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
 @app.post("/api/streaming/program-output/reload")
 async def reload_program_output() -> Dict[str, Any]:
     """
